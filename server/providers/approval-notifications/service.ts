@@ -1,0 +1,188 @@
+import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
+import type {
+  NotificationConfig,
+  NotificationService,
+} from '@nocobase/app-plugin-notification/server';
+import type { I18nRuntime } from '@nocobase/i18n';
+
+import type {
+  ApprovalNotificationConfig,
+  ApprovalNotificationService,
+} from './contract.js';
+
+export interface NotificationDependencies {
+  readonly notification: NotificationService;
+  readonly users: Pick<UserAdministrationService, 'get'>;
+  readonly i18n: I18nRuntime;
+  readonly channels: NotificationConfig['channels'];
+  readonly config: ApprovalNotificationConfig;
+  readonly publicOrigin?: string;
+  readonly basePath: string;
+  /** The installed i18n plugin only persists locale on sessions. Hosts with a durable preference can supply it. */
+  readonly localeOf?: (
+    userId: string,
+  ) => string | undefined | Promise<string | undefined>;
+}
+
+export function createApprovalNotificationService(
+  deps: NotificationDependencies,
+): ApprovalNotificationService {
+  const channel = (
+    name: string | null,
+    providers: readonly string[],
+  ): string | undefined => {
+    if (!name) return undefined;
+    const config = deps.channels[name];
+    return config?.enabled !== false &&
+      config &&
+      providers.includes(config.provider)
+      ? name
+      : undefined;
+  };
+
+  async function send(input: {
+    key: string;
+    userId: string;
+    recordId: string;
+    message: string;
+    email?: boolean;
+  }): Promise<void> {
+    const user = await deps.users.get(input.userId);
+    if (!user || user.disabledAt || user.kind !== 'person') return;
+    const locale = deps.i18n.resolveLocale(await deps.localeOf?.(user.id));
+    await deps.i18n.ensureLocaleLoaded(locale);
+    const t = deps.i18n.getFixedT('nb3-oa', locale);
+    // The path is internal to the application; only external mail/IM links carry the mount path.
+    const path = `/approvals/mine/leave/${encodeURIComponent(input.recordId)}`;
+    const url = deps.publicOrigin
+      ? new URL(
+          `${deps.basePath === '/' ? '' : deps.basePath}${path}`,
+          deps.publicOrigin,
+        ).href
+      : undefined;
+    const title = t('approvals.notifications.title');
+    const body = t(`approvals.notifications.${input.message}`);
+    const messages: Record<string, object> = {};
+    const inbox = channel(deps.config.inbox, ['in-app']);
+    if (inbox)
+      messages[inbox] = {
+        to: user.id,
+        title,
+        body,
+        target: { type: 'route', path },
+      };
+    const email = input.email
+      ? channel(deps.config.email, ['smtp', 'resend'])
+      : undefined;
+    if (email && url)
+      messages[email] = {
+        to: user.email,
+        subject: title,
+        text: `${body}\n${url}`,
+      };
+    if (!Object.keys(messages).length) return;
+    await deps.notification.send({
+      idempotencyKey: `oa.approvals:${input.key}:${user.id}`,
+      source: { type: 'oa.approval', referenceId: input.recordId },
+      messages,
+    });
+  }
+
+  return {
+    async task({ task, reason, directory, applicantId, kind, at }) {
+      const escalation = task.via === 'escalate';
+      const message =
+        task.kind === 'copy'
+          ? 'copied'
+          : reason === 'reminder'
+            ? 'reminder'
+            : escalation
+              ? 'escalated'
+              : 'assigned';
+      const key = `task:${task.id}:${reason}`;
+      await send({
+        key,
+        userId: task.assigneeId,
+        recordId: task.recordId,
+        message,
+        email: escalation,
+      });
+      // Copies are read-only; they are never delegated. Proxy delegation keeps the principal's own notice.
+      if (task.kind !== 'decide') return;
+      const proxy = directory?.delegateOf?.(
+        task.assigneeId,
+        kind ?? task.source,
+        at ?? new Date().toISOString(),
+        task.createdAt,
+      );
+      if (
+        proxy &&
+        proxy.mode !== 'forward' &&
+        proxy.to !== applicantId &&
+        proxy.to !== task.assigneeId &&
+        directory?.isActive(proxy.to)
+      ) {
+        await send({
+          key,
+          userId: proxy.to,
+          recordId: task.recordId,
+          message: 'delegated',
+        });
+      }
+    },
+    async result({ recordId, applicantId, state, transitionId }) {
+      const message = [
+        'approved',
+        'rejected',
+        'revision',
+        'withdrawn',
+        'terminated',
+      ].includes(state)
+        ? state
+        : 'result';
+      await send({
+        key: `result:${transitionId}`,
+        userId: applicantId,
+        recordId,
+        message,
+        email: true,
+      });
+    },
+    async alarm({ recordId, recipients, eventId }) {
+      for (const userId of new Set([
+        ...recipients,
+        ...deps.config.administrators,
+      ])) {
+        await send({
+          key: `alarm:${eventId}`,
+          userId,
+          recordId,
+          message: 'attention',
+          email: true,
+        });
+      }
+      const name = channel(deps.config.alarm, [
+        'feishu-webhook',
+        'dingtalk-webhook',
+      ]);
+      if (!name || !deps.publicOrigin) return;
+      const locale = deps.i18n.getDefaultLocale();
+      await deps.i18n.ensureLocaleLoaded(locale);
+      const t = deps.i18n.getFixedT('nb3-oa', locale);
+      const url = new URL(
+        `${deps.basePath === '/' ? '' : deps.basePath}/approvals/mine/leave/${encodeURIComponent(recordId)}`,
+        deps.publicOrigin,
+      ).href;
+      await deps.notification.send({
+        idempotencyKey: `oa.approvals:alarm:${eventId}:webhook`,
+        source: { type: 'oa.approval', referenceId: recordId },
+        messages: {
+          [name]: {
+            text: t('approvals.notifications.attention'),
+            target: { type: 'url', url },
+          },
+        },
+      });
+    },
+  };
+}

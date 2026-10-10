@@ -1,9 +1,15 @@
-import { Home } from 'lucide-react';
+import { Building2, Home, ScrollText, SlidersHorizontal } from 'lucide-react';
 import {
   defineAppRoutes,
   defineSettingsRoutes,
   type AppClientRouteContribution,
 } from '@nocobase/app-client/plugins';
+
+import approvalsRoutes from './route-modules/approvals.js';
+import employeesRoutes from './route-modules/employees.js';
+import importRoutes from './route-modules/import.js';
+import orgRoutes from './route-modules/org.js';
+import platformRoutes from './route-modules/platform.js';
 
 const appRoutes: AppClientRouteContribution = defineAppRoutes([
   {
@@ -65,11 +71,37 @@ const appRoutes: AppClientRouteContribution = defineAppRoutes([
   },
 ]);
 
-const settingsRoutes: AppClientRouteContribution = defineSettingsRoutes([]);
+// The OA settings groups. Each module appends its pages from `client/route-modules/<module>.ts` with
+// `parent: '<group name>'`, so modules developed side by side never edit the same list.
+const settingsRoutes: AppClientRouteContribution = defineSettingsRoutes([
+  {
+    name: 'oa-organization',
+    navigation: { title: 'oa.navigation.organization', icon: Building2 },
+    children: [],
+  },
+  {
+    name: 'oa-configuration',
+    navigation: {
+      title: 'oa.navigation.configuration',
+      icon: SlidersHorizontal,
+    },
+    children: [],
+  },
+  {
+    name: 'oa-system',
+    navigation: { title: 'oa.navigation.system', icon: ScrollText },
+    children: [],
+  },
+]);
 
 const routes: readonly AppClientRouteContribution[] = [
   appRoutes,
   settingsRoutes,
+  ...orgRoutes,
+  ...employeesRoutes,
+  ...platformRoutes,
+  ...importRoutes,
+  ...approvalsRoutes,
 ];
 
 export default routes;

@@ -1,12 +1,30 @@
 import type { AppResource } from './en-US.js';
 import deviceApprovalZhCN from '@/extensions/nocobase-device-approval/locales/zh-CN';
 import inboxZhCN from '@/extensions/nocobase-inbox/locales/zh-CN';
+import employeesZhCN from './modules/employees.zh-CN.js';
+import importZhCN from './modules/import.zh-CN.js';
+import orgZhCN from './modules/org.zh-CN.js';
+import platformZhCN from './modules/platform.zh-CN.js';
+import approvalsZhCN from './modules/approvals.zh-CN.js';
 
 const zhCN: AppResource = {
   // The UI Library block of the `/device` page; the keys below may reword it.
   ...deviceApprovalZhCN,
   // The UI Library block of the `/inbox` page; the keys below may reword it.
   ...inboxZhCN,
+  // OA modules, one top-level key each (`client/locales/modules/`).
+  ...orgZhCN,
+  ...employeesZhCN,
+  ...platformZhCN,
+  ...importZhCN,
+  ...approvalsZhCN,
+  oa: {
+    navigation: {
+      organization: '组织与人员',
+      configuration: '流程配置',
+      system: '系统',
+    },
+  },
   // The UI Library component of the header's inbox button.
   'inboxButton.title': '收件箱',
   'inboxButton.pending': '收件箱，{{count}} 项待处理',
@@ -68,6 +86,7 @@ const zhCN: AppResource = {
   'status.denied': '无权访问',
   'status.pageFailed': '无法加载页面',
   'status.retry': '重试',
+  'status.sessionExpired': '会话已结束，请重新登录后继续。',
   'navigation.brandHome': 'NocoBase 首页',
   'navigation.brandApps': 'NocoBase 应用',
   'routeOverlay.close': '关闭',
@@ -112,6 +131,10 @@ const zhCN: AppResource = {
     cancel: '取消',
     confirm: '确认',
     language: '语言',
+    create: '创建',
+    saving: '保存中…',
+    discard: '放弃更改',
+    signInAgain: '重新登录',
   },
   notices: {
     serverLocaleFallback: '服务端不支持该语言，服务端内容已回落为英文。',
@@ -151,6 +174,15 @@ const zhCN: AppResource = {
     previousPage: '上一页',
     nextPage: '下一页',
     lastPage: '最后一页',
+  },
+  userPicker: {
+    placeholder: '按姓名、用户名或邮箱搜索',
+    multiplePlaceholder: '添加人员',
+    empty: '没有匹配的用户',
+    searching: '搜索中…',
+    forbidden: '你没有查询用户的权限。',
+    loadFailed: '无法加载用户。',
+    remove: '移除 {{name}}',
   },
   datePicker: {
     placeholder: '选择日期',

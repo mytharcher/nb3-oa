@@ -1,12 +1,30 @@
 import type { LocaleResource } from '@nocobase/i18n';
 import deviceApprovalEnUS from '@/extensions/nocobase-device-approval/locales/en-US';
 import inboxEnUS from '@/extensions/nocobase-inbox/locales/en-US';
+import employeesEnUS from './modules/employees.en-US.js';
+import importEnUS from './modules/import.en-US.js';
+import orgEnUS from './modules/org.en-US.js';
+import platformEnUS from './modules/platform.en-US.js';
+import approvalsEnUS from './modules/approvals.en-US.js';
 
 const enUS = {
   // The UI Library block of the `/device` page; the keys below may reword it.
   ...deviceApprovalEnUS,
   // The UI Library block of the `/inbox` page; the keys below may reword it.
   ...inboxEnUS,
+  // OA modules, one top-level key each (`client/locales/modules/`).
+  ...orgEnUS,
+  ...employeesEnUS,
+  ...platformEnUS,
+  ...importEnUS,
+  ...approvalsEnUS,
+  oa: {
+    navigation: {
+      organization: 'Organization',
+      configuration: 'Configuration',
+      system: 'System',
+    },
+  },
   // The UI Library component of the header's inbox button.
   'inboxButton.title': 'Inbox',
   'inboxButton.pending': 'Inbox, {{count}} waiting',
@@ -73,6 +91,7 @@ const enUS = {
   'status.denied': 'Access denied',
   'status.pageFailed': 'Unable to load page',
   'status.retry': 'Retry',
+  'status.sessionExpired': 'Your session has ended. Sign in again to continue.',
   'navigation.brandHome': 'NocoBase home',
   'navigation.brandApps': 'NocoBase applications',
   'routeOverlay.close': 'Close',
@@ -119,6 +138,10 @@ const enUS = {
     cancel: 'Cancel',
     confirm: 'Confirm',
     language: 'Language',
+    create: 'Create',
+    saving: 'Saving…',
+    discard: 'Discard changes',
+    signInAgain: 'Sign in again',
   },
   notices: {
     serverLocaleFallback:
@@ -160,6 +183,15 @@ const enUS = {
     previousPage: 'Go to previous page',
     nextPage: 'Go to next page',
     lastPage: 'Go to last page',
+  },
+  userPicker: {
+    placeholder: 'Search by name, username or email',
+    multiplePlaceholder: 'Add people',
+    empty: 'No matching users',
+    searching: 'Searching…',
+    forbidden: 'You do not have permission to look up users.',
+    loadFailed: 'Unable to load users.',
+    remove: 'Remove {{name}}',
   },
   datePicker: {
     placeholder: 'Pick a date',

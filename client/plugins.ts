@@ -17,8 +17,10 @@ import workflow from '@nocobase/app-plugin-workflow/client';
 import notification from '@nocobase/app-plugin-notification/client';
 import scheduler from '@nocobase/app-plugin-scheduler/client';
 import file from '@nocobase/app-plugin-file/client';
-import approval from '@nocobase/app-plugin-approval/client';
 
+// `@nocobase/app-plugin-approval/client` is a helper library (step, timeline and action mappers), not a client
+// plugin: it has no default export and is imported directly by the pages that need it, so it is not listed here.
+//
 // Array order is contribution order. A plugin is enabled by appearing in this
 // list; removing its entry and its import disables it.
 const clientPlugins: AppClientPlugins = defineClientPlugins([
@@ -37,7 +39,6 @@ const clientPlugins: AppClientPlugins = defineClientPlugins([
   notification(),
   file(),
   scheduler(),
-  approval(),
 ]);
 
 export default clientPlugins;

@@ -82,6 +82,43 @@ When the built-in mechanism genuinely cannot express what is being asked, changi
 - Comment what you changed and why the built-in path did not fit. On upgrade, an agent reconciling the template's version needs to know whether your change is still needed.
 - Update this file in the same change, so the guidance describes the application as it actually is. If the framework's shared guidance is wrong for every application, update the source `@nocobase/app-skills` package instead of editing its synchronized copy.
 
+## OA modules
+
+This application is a mid-size company OA system. The business design, in Chinese, is in `worklog/2026-10-09-oa-plan-v2/` (a local link, not committed); P0a (organisation, employees, platform configuration, import) is built. Each module owns one folder per layer so modules can be developed side by side without editing the same file:
+
+```text
+server/providers/<module>/       Services, tokens, authorization declarations; index.ts default-exports the provider
+server/routes/<module>/          Route contributions; schemas.ts holds the response schemas
+client/route-modules/<module>.ts Route contributions, spread into client/routes.ts
+client/pages/<module>/           Pages and their local components
+client/locales/modules/<module>.en-US.ts / .zh-CN.ts   Copy, nested under one top-level key named after the module
+database/main/migrations|seeds/  Files prefixed 2026101002 (org), …03 (platform), …04 (employees), …05 (import)
+```
+
+Register a new module's provider in `server/providers/index.ts` (dependency order: audit, platform, org, employees, …), its routes in `server/routes/index.ts`, its client routes in `client/routes.ts` and its locales in `client/locales/en-US.ts` / `zh-CN.ts`. Settings pages append to the groups `client/routes.ts` declares with `parent: 'oa-organization'` (组织与人员), `'oa-configuration'` (流程配置) or `'oa-system'` (系统).
+
+Shared services every module uses — resolve them by token, never by importing the implementation:
+
+- `auditServiceToken` (`server/providers/audit/`): record every sensitive non-approval write — organisation, employees, duty-role members, rules, dictionaries, calendar, administrator corrections — in the same transaction as the write. Permission-set definitions and assignments (including Users role changes) are audited by decorating the authorization plugin's public `permissionSets` API in `server/providers/audit/permission-sets.ts`; it preserves plugin protections and commits audit entries in the caller's transaction. The plugin has no transactional audit hook, so retain this application adapter on upgrade. `server/app.ts` installs its actor-context middleware before routes are frozen; providers cannot add middleware during registration.
+- `orgServiceToken` (`server/providers/org/contract.ts`) for reads; `organizationServiceToken` for membership writes, which take `{ actorId, connection }` to join the caller's transaction. Only top-level departments may carry `executiveId`; clear it in the same update when moving a top-level department under another. Department data scopes are registered per module with `registerDepartmentScopes(authz, organization, { prefix, targets })` from `server/providers/org/index.ts`.
+- Employees (`server/providers/employees/contract.ts`): `managerChainOf` / `managerOf` for the reporting line. A collection that needs the reporting-chain scopes `oa.reports` / `oa.selfAndReports` registers itself with `reportingScopesToken.use(collection, { field, identifies })` in its provider's `register()`; the scopes are defined in `boot()` and refuse later registrations. Employee status changes only through `applyStatusChange` (a flow's exit, in the flow's transaction) or the audited administrator correction. `employeeHistory` never carries amounts; pay goes to `employeeCompensation`.
+- Platform (`server/providers/platform/index.ts`): `calendarServiceToken` for every working-day and working-hour calculation (never the server's local time; `approvalCalendar()` is what the approval plugin's `calendar(services)` returns), `sequenceServiceToken.next(prefix, tx)` inside the submitting transaction, `ruleServiceToken.snapshot(keys, now, tx)` into a document's `ruleSnapshot` at submission, `dictionaryServiceToken` for enumerations. A new rule key or dictionary type changes `rule-definitions.ts` / `dictionary-types.ts`, the copy and a new seed; dictionary entries are disabled, never deleted.
+
+Endpoints that return a user id also return the resolved `{ id, name }`: the Users plugin's HTTP API cannot look a user up by id, so `UserPicker` (`client/components/user-picker.tsx`) shows a name only through `knownUsers`, and it searches `GET /api/users`, which needs `user:read` in the permission set of whoever uses the page. Pick departments with `DepartmentPicker` (`client/components/department-picker.tsx`) and list records with `DataTable` / `DataTableServer` (`client/components/data-table/`).
+
+Whole-application tests use `OA_TEST_ORIGIN` and `OA_TEST_SERVER` from `tests/logic/oa-test-origin.ts`, which reads the configured public origin from the environment and `.env.local`. Set `secrets.keys` and send the same `origin` on writes; do not override the development listener or public address to make tests pass. See `tests/logic/org/helpers.ts`. A seed never imports from `server/`: the seed loader does not map `.js` to `.ts`, so ids and codes are written into the seed itself.
+
+`@nocobase/app-plugin-approval` is installed from `vendor/nocobase-app-plugin-approval-0.0.1.tgz` and registered on the server only: its `/client` entry is a helper library (step, timeline and action mappers) imported by pages, not a client plugin.
+
+### Approval foundation and first leave flow
+
+P0b backend work lives in `server/providers/approval-directory/`, `approval-notifications/` and `leave/`, with migrations prefixed `2026101006` (delegations) and `2026101007` (leave and application lifecycle storage). The confirmed approval-center design is implemented under `client/pages/approvals/` and `client/pages/approval-delegations/`, with routes in `client/route-modules/approvals.ts`. Browser role acceptance remains separate from code and automated verification.
+
+- Resolve `approvalDirectoryServiceToken` and acquire `snapshot(connection)` inside the lifecycle transaction. The plugin directory is synchronous; never reuse a directory snapshot across writes. Delegations use `kind: 'oa.leave'`, fixed proxy mode, half-open time intervals and one hop only. The administrative duty role `admin` is not `approval.admin`.
+- Leave uses `leaveServiceToken` and the plugin's public `ApprovalService`, not direct writes to approval tables. Balance-backed leave and attachment-backed submissions remain blocked until their ledgers and secure file integration are implemented. Non-default SLA rules are also blocked while the installed stage API accepts only static clocks; do not silently apply 24/48 hours to a different rule snapshot.
+- Notifications select explicit channel names in `oaApprovals` (see `server/config/oa-approvals.ts` and `config.example.yml`). `administrators` identifies alert recipients, never authorization. Result notifications are lifecycle effects; engine maintenance uses `createLifecycleJobs` under jobs scope `oa-approvals`, every ten minutes. Pruning successful/cancelled effect attempts after thirty days must not delete approval or audit history.
+- Outbound translations use the server default locale until a durable recipient-locale resolver is supplied; the installed i18n plugin stores language only on browser sessions. Do not borrow the submitting user's locale for another person's notification.
+
 ## Building a feature
 
 ### Pages and routes

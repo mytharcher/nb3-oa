@@ -58,6 +58,17 @@ describe('app client routes', () => {
     expect(pageAuthorizations(resolved.routes)).toEqual([
       { name: 'home', authorizedAs: null },
       { name: 'inbox', authorizedAs: null },
+      // 通讯录 (employees module); the seeded `oa-directory` set grants it to every signed-in user.
+      { name: 'oa-directory', authorizedAs: 'oa.employees.directory' },
+      { name: 'oa-approvals', authorizedAs: 'oa.approvals' },
+      ...['todo', 'done', 'copied', 'mine'].flatMap((tab) =>
+        ['', '-new', '-edit', '-detail', '-detail-edit', '-detail-action'].map(
+          (suffix) => ({
+            name: `oa-approvals-${tab}${suffix}`,
+            authorizedAs: 'oa.approvals',
+          }),
+        ),
+      ),
     ]);
   });
 
