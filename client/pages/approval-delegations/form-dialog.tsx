@@ -1,14 +1,20 @@
+import { UserAvatar } from '#components/user-name';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '#components/ui/input-group';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { format, parseISO } from 'date-fns';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router';
-import { DatePicker } from '@/components/date-picker';
-import { RouteDialog } from '@/components/route-dialog';
-import { UserPicker } from '@/components/user-picker';
-import { useRouteOverlay } from '@/components/use-route-overlay';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DatePicker } from '#components/date-picker';
+import { RouteDialog } from '#components/route-dialog';
+import { UserPicker } from '#components/user-picker';
+import { useRouteOverlay } from '#components/use-route-overlay';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -16,15 +22,15 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+} from '#components/ui/alert-dialog';
+import { Button } from '#components/ui/button';
 import {
   Field,
   FieldLabel,
   FieldError,
   FieldGroup,
-} from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
+} from '#components/ui/field';
+import { Input } from '#components/ui/input';
 import {
   Select,
   SelectTrigger,
@@ -32,9 +38,9 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-} from '@/components/ui/select';
+} from '#components/ui/select';
 import { CloseButton } from '../org/dialog-parts.js';
-import { Spinner } from '@/components/ui/spinner';
+import { Spinner } from '#components/ui/spinner';
 import { FormSkeleton, RequiredMark } from '../org/org-ui.js';
 import { ErrorState } from '../approvals/states.js';
 import { useResource } from '../approvals/use-resource.js';
@@ -247,12 +253,19 @@ function DelegationForm({
               invalid={attempted && peopleInvalid}
             />
           ) : (
-            <Input
-              id={`${formId}-principal`}
-              value={row?.principal.name ?? ''}
-              disabled
-              readOnly
-            />
+            <InputGroup>
+              <InputGroupAddon align='inline-start'>
+                {row?.principal ? (
+                  <UserAvatar name={row.principal.name} />
+                ) : null}
+              </InputGroupAddon>
+              <InputGroupInput
+                id={`${formId}-principal`}
+                value={row?.principal.name ?? ''}
+                disabled
+                readOnly
+              />
+            </InputGroup>
           )}
           {attempted && peopleInvalid ? (
             <FieldError>{t('approvals.delegations.invalid')}</FieldError>
@@ -274,12 +287,17 @@ function DelegationForm({
               invalid={attempted && peopleInvalid}
             />
           ) : (
-            <Input
-              id={`${formId}-delegate`}
-              value={row?.delegate.name ?? ''}
-              disabled
-              readOnly
-            />
+            <InputGroup>
+              <InputGroupAddon align='inline-start'>
+                {row?.delegate ? <UserAvatar name={row.delegate.name} /> : null}
+              </InputGroupAddon>
+              <InputGroupInput
+                id={`${formId}-delegate`}
+                value={row?.delegate.name ?? ''}
+                disabled
+                readOnly
+              />
+            </InputGroup>
           )}
         </Field>
         <Field>

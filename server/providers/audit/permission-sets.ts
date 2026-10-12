@@ -1,3 +1,4 @@
+import { lockAccessWrites } from './access-lock.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 import type { AuthEnv } from '@nocobase/app-plugin-authentication';
@@ -52,6 +53,7 @@ export function installPermissionSetAudit(
         if (property === 'withTransaction') return decorate;
         if (property === 'create')
           return async (input: Parameters<typeof api.create>[0]) => {
+            await lockAccessWrites(connection);
             const result = await target.create(input);
             await record('permissionSet.create', input.key, null, result);
             return result;
@@ -61,6 +63,7 @@ export function installPermissionSetAudit(
             key: string,
             input: Parameters<typeof api.update>[1],
           ) => {
+            await lockAccessWrites(connection);
             const before = await target.get(key);
             const result = await target.update(key, input);
             await record('permissionSet.update', key, before, result);
@@ -68,6 +71,7 @@ export function installPermissionSetAudit(
           };
         if (property === 'delete')
           return async (key: string) => {
+            await lockAccessWrites(connection);
             const before = {
               definition: await target.get(key),
               assignments: await target.listAssignments(key),
@@ -77,6 +81,7 @@ export function installPermissionSetAudit(
           };
         if (property === 'assign')
           return async (input: Parameters<typeof api.assign>[0]) => {
+            await lockAccessWrites(connection);
             const before = await target.listAssignments(input.permissionSet);
             const result = await target.assign(input);
             if (!before.some((entry) => entry.id === result.id))
@@ -90,6 +95,7 @@ export function installPermissionSetAudit(
           };
         if (property === 'revoke')
           return async (id: string) => {
+            await lockAccessWrites(connection);
             const before = (await target.listAssignments()).find(
               (entry) => entry.id === id,
             );
@@ -106,6 +112,7 @@ export function installPermissionSetAudit(
           return async (
             input: Parameters<typeof api.replaceSubjectAssignments>[0],
           ) => {
+            await lockAccessWrites(connection);
             const before = (await target.listAssignments()).filter(
               (entry) =>
                 entry.subject.type === input.subject.type &&

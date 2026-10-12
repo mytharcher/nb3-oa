@@ -287,6 +287,12 @@ describe('organisation service rules', () => {
     await org.addDutyRoleMember('cashier', alice, ctx);
     await org.addDutyRoleMember('cashier', bob, ctx);
     expect(await org.dutyRoleMembers('cashier')).toEqual([alice, bob].sort());
+    expect(
+      (await org.dutyRoleMembersByCodes(['cashier', 'missing'])).get('cashier'),
+    ).toEqual([alice, bob].sort());
+    expect(
+      (await org.dutyRoleMembersByCodes(['cashier', 'missing'])).get('missing'),
+    ).toEqual([]);
     expect(await org.hasDutyRole(alice, 'cashier')).toBe(true);
 
     await org.removeDutyRoleMember('cashier', bob, ctx);
@@ -294,6 +300,9 @@ describe('organisation service rules', () => {
 
     await org.setDutyRoleActive('cashier', false, ctx);
     expect(await org.dutyRoleMembers('cashier')).toEqual([]);
+    expect(
+      (await org.dutyRoleMembersByCodes(['cashier'])).get('cashier'),
+    ).toEqual([]);
     expect(await org.hasDutyRole(alice, 'cashier')).toBe(false);
     expect(await org.listDutyRoleMembers('cashier')).toEqual([alice]);
     await org.setDutyRoleActive('cashier', true, ctx);

@@ -1,3 +1,7 @@
+import { UserName } from '#components/user-name';
+import { RecipientPicker } from './recipient-picker.js';
+import { createRequestId } from './request-id.js';
+import { LeaveAttachments } from './attachments.js';
 import { useLeaveLabel } from './use-leave-label.js';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
@@ -8,18 +12,18 @@ import { useMemo, useRef, useState, useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
-import { RouteDialog } from '@/components/route-dialog';
-import { useRouteOverlay } from '@/components/use-route-overlay';
-import { UserPicker } from '@/components/user-picker';
-import { Button } from '@/components/ui/button';
+import { RouteDialog } from '#components/route-dialog';
+import { useRouteOverlay } from '#components/use-route-overlay';
+import { UserPicker } from '#components/user-picker';
+import { Button } from '#components/ui/button';
 import {
   Field,
   FieldGroup,
   FieldLabel,
   FieldError,
-} from '@/components/ui/field';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+} from '#components/ui/field';
+import { Textarea } from '#components/ui/textarea';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -28,7 +32,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogCancel,
-} from '@/components/ui/alert-dialog';
+} from '#components/ui/alert-dialog';
 import {
   Select,
   SelectTrigger,
@@ -36,8 +40,8 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-} from '@/components/ui/select';
-import { Spinner } from '@/components/ui/spinner';
+} from '#components/ui/select';
+import { Spinner } from '#components/ui/spinner';
 import { FieldsSkeleton } from '../platform/shared/states.js';
 import { useResource } from './use-resource.js';
 import { ErrorState } from './states.js';
@@ -233,11 +237,12 @@ function ActionForm({
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [running, setRunning] = useState(false);
   const [confirm, setConfirm] = useState(false);
-  const [requestKey] = useState(() => crypto.randomUUID());
+  const [requestKey] = useState(() => createRequestId());
   const [pendingValues, setPendingValues] = useState<{
     comment: string;
     to: string;
     place: string;
+    mode: 'before' | 'alongside';
   }>();
   const actions = offeredActions(
     detail.taskActions,
@@ -255,8 +260,11 @@ function ActionForm({
   const allowed =
     terminating ||
     (!!action && (ACTIONS as readonly string[]).includes(actionName));
-  const needsPerson = ['appoint', 'reassign'].includes(actionName);
-  const reasonRequired = actionName !== 'approve' && actionName !== 'read';
+  const scopedPerson = ['transfer', 'addSigner'].includes(actionName);
+  const needsPerson =
+    scopedPerson || ['appoint', 'reassign'].includes(actionName);
+  const canChoose = scopedPerson || canPick;
+  const reasonRequired = terminating || action?.reasonRequired === true;
   const places = (
     Array.isArray(action?.options.unassigned) ? action.options.unassigned : []
   ).filter(
@@ -278,6 +286,7 @@ function ActionForm({
         to: z
           .string()
           .refine((v) => !needsPerson || !!v, t('approvals.required')),
+        mode: z.enum(['before', 'alongside']),
         place: z
           .string()
           .refine(
@@ -292,6 +301,7 @@ function ActionForm({
     mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: {
+      mode: 'before' as const,
       comment: '',
       to: '',
       place: places.length === 1 ? places[0].place : '',
@@ -305,8 +315,9 @@ function ActionForm({
     comment: string;
     to: string;
     place: string;
+    mode: 'before' | 'alongside';
   }) {
-    if (!allowed || committed || running || (needsPerson && !canPick)) return;
+    if (!allowed || committed || running || (needsPerson && !canChoose)) return;
     setRunning(true);
     onBusy(true);
     setWriteError(undefined);
@@ -332,11 +343,15 @@ function ActionForm({
             input:
               actionName === 'return'
                 ? { to: 'revision' }
-                : actionName === 'appoint'
-                  ? { to: values.to, place: values.place || undefined }
-                  : actionName === 'reassign'
-                    ? { to: values.to, override: false }
-                    : {},
+                : actionName === 'transfer'
+                  ? { to: values.to }
+                  : actionName === 'addSigner'
+                    ? { person: values.to, mode: values.mode }
+                    : actionName === 'appoint'
+                      ? { to: values.to, place: values.place || undefined }
+                      : actionName === 'reassign'
+                        ? { to: values.to, override: false }
+                        : {},
             comment: values.comment || undefined,
             contentHash: action!.contentHash ?? undefined,
             requestId: requestKey,
@@ -380,7 +395,7 @@ function ActionForm({
     }
   }
   const handler = form.handleSubmit((values) => {
-    if (committed || running || !allowed || (needsPerson && !canPick)) return;
+    if (committed || running || !allowed || (needsPerson && !canChoose)) return;
     if (['reject', 'return', 'terminate'].includes(actionName)) {
       setPendingValues(values);
       setConfirm(true);
@@ -388,7 +403,7 @@ function ActionForm({
   });
   return (
     <>
-      {!allowed || (needsPerson && !canPick) ? (
+      {!allowed || (needsPerson && !canChoose) ? (
         <Alert variant='destructive'>
           <AlertDescription>{t('approvals.error.stale')}</AlertDescription>
         </Alert>
@@ -407,9 +422,14 @@ function ActionForm({
         {[
           [
             t('approvals.applicant'),
-            detail.users.find((v) => v.id === detail.record.applicantId)
-              ?.name ?? t('approvals.unknownPerson'),
-          ],
+            <UserName
+              key={t('approvals.applicant')}
+              name={
+                detail.users.find((v) => v.id === detail.record.applicantId)
+                  ?.name ?? t('approvals.unknownPerson')
+              }
+            />,
+          ] as const,
           [
             t('approvals.startDate'),
             `${detail.record.startDate} ${t(`approvals.${detail.record.startHalf}`)}`,
@@ -421,18 +441,23 @@ function ActionForm({
           [t('approvals.reason'), detail.record.reason],
           [
             t('approvals.handover'),
-            detail.record.handoverUserId
-              ? (detail.users.find((v) => v.id === detail.record.handoverUserId)
-                  ?.name ?? t('approvals.unknownPerson'))
-              : '—',
-          ],
+            <UserName
+              key={t('approvals.handover')}
+              name={
+                detail.record.handoverUserId
+                  ? (detail.users.find(
+                      (v) => v.id === detail.record.handoverUserId,
+                    )?.name ?? t('approvals.unknownPerson'))
+                  : '—'
+              }
+            />,
+          ] as const,
           [
             t('approvals.delegate'),
             t(
               detail.record.enableDelegation ? 'approvals.yes' : 'approvals.no',
             ),
           ],
-          [t('approvals.attachments'), t('approvals.attachmentLimit')],
         ].map(([label, value]) => (
           <div key={label}>
             <dt className='text-muted-foreground'>{label}</dt>
@@ -440,6 +465,13 @@ function ActionForm({
           </div>
         ))}
       </dl>
+      <section className='flex flex-col gap-2'>
+        <h2 className='text-base font-medium'>{t('approvals.attachments')}</h2>
+        <LeaveAttachments
+          leaveId={detail.record.id}
+          ids={detail.record.attachments}
+        />
+      </section>
       <p className='text-sm text-muted-foreground'>
         {detail.record.number ?? t('approvals.draft')} ·{' '}
         {typeLabel(detail.record.leaveType)} · {detail.record.startDate}–
@@ -477,7 +509,7 @@ function ActionForm({
             />
             <FieldError errors={[form.formState.errors.comment]} />
           </Field>
-          {needsPerson && canPick ? (
+          {needsPerson && canChoose ? (
             <Controller
               name='to'
               control={form.control}
@@ -486,16 +518,61 @@ function ActionForm({
                   <FieldLabel htmlFor='approval-person'>
                     {t('approvals.person')} *
                   </FieldLabel>
-                  <UserPicker
-                    id='approval-person'
-                    disabled={running || committed}
-                    value={field.value}
-                    onChange={field.onChange}
-                    knownUsers={detail.users}
-                    invalid={fieldState.invalid}
-                    excludeIds={[detail.record.applicantId]}
-                  />
+                  {scopedPerson ? (
+                    <RecipientPicker
+                      id='approval-person'
+                      leaveId={detail.record.id}
+                      taskId={targetId}
+                      action={actionName}
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={running || committed}
+                    />
+                  ) : (
+                    <UserPicker
+                      id='approval-person'
+                      disabled={running || committed}
+                      value={field.value}
+                      onChange={field.onChange}
+                      knownUsers={detail.users}
+                      invalid={fieldState.invalid}
+                      excludeIds={[detail.record.applicantId]}
+                    />
+                  )}
                   <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+          ) : null}
+          {actionName === 'addSigner' ? (
+            <Controller
+              name='mode'
+              control={form.control}
+              render={({ field }) => (
+                <Field>
+                  <FieldLabel>{t('approvals.signerMode')}</FieldLabel>
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => field.onChange(value)}
+                    disabled={running || committed}
+                    items={['before', 'alongside'].map((value) => ({
+                      value,
+                      label: t(`approvals.signer${value}`),
+                    }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {['before', 'alongside'].map((mode) => (
+                          <SelectItem key={mode} value={mode}>
+                            {t(`approvals.signer${mode}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </Field>
               )}
             />

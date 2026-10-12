@@ -1,3 +1,4 @@
+import { UserName } from '#components/user-name';
 import { useTranslation } from '@nocobase/i18n/client';
 import { Cog } from 'lucide-react';
 import { useState, type ReactElement } from 'react';
@@ -32,11 +33,12 @@ function Line({ line }: { readonly line: ApprovalTimelineLine }): ReactElement {
           <span className='font-medium'>{line.title}</span>
         )}
         {line.onBehalfOf ? (
-          <span className='text-xs text-muted-foreground'>
+          <span className='inline-flex items-center gap-1 text-xs text-muted-foreground'>
             {t('approvalUi.timeline.onBehalf', {
-              name: ui.personName(line.onBehalfOf),
+              name: '',
               defaultValue: 'for {{name}}',
             })}
+            <UserName name={ui.personName(line.onBehalfOf)} />
           </span>
         ) : null}
         <time dateTime={line.at} className='text-xs text-muted-foreground'>
@@ -69,13 +71,14 @@ function Line({ line }: { readonly line: ApprovalTimelineLine }): ReactElement {
               defaultValue: 'What changed ({{count}})',
             })}
           </button>
-          {open ? (
-            <ul className='mt-1 space-y-0.5 border-l pl-3'>
-              {children.map((child) => (
-                <li key={child.key}>{child.label}</li>
-              ))}
-            </ul>
-          ) : null}
+          <ul
+            data-print-expanded
+            className={cn('mt-1 space-y-0.5 border-l pl-3', !open && 'hidden')}
+          >
+            {children.map((child) => (
+              <li key={child.key}>{child.label}</li>
+            ))}
+          </ul>
         </div>
       ) : null}
     </div>
@@ -119,19 +122,19 @@ function SystemGroup({
             </time>
           ) : null}
         </div>
-        {open ? (
-          <ol className='mt-1 space-y-1 border-l pl-3 text-xs'>
-            {lines.map((line) => (
-              <li key={line.key}>
-                <span className='text-foreground'>
-                  {ui.personName(line.actorId)}
-                </span>{' '}
-                {line.title}{' '}
-                <time dateTime={line.at}>{ui.formatDateTime(line.at)}</time>
-              </li>
-            ))}
-          </ol>
-        ) : null}
+        <ol
+          data-print-expanded
+          className={cn(
+            'mt-1 space-y-1 border-l pl-3 text-xs',
+            !open && 'hidden',
+          )}
+        >
+          {lines.map((line) => (
+            <li key={line.key}>
+              <Line line={line} />
+            </li>
+          ))}
+        </ol>
       </div>
     </li>
   );

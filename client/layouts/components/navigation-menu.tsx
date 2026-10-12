@@ -3,17 +3,18 @@ import { ChevronRight } from 'lucide-react';
 import { useRef, useState, type ReactElement } from 'react';
 import { Link } from 'react-router';
 
+import { InboxMenuBadge } from '#components/inbox-menu-badge';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+} from '#components/ui/collapsible';
 import {
   Popover,
   PopoverContent,
   PopoverTitle,
   PopoverTrigger,
-} from '@/components/ui/popover';
+} from '#components/ui/popover';
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -25,7 +26,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   useSidebar,
-} from '@/components/ui/sidebar';
+} from '#components/ui/sidebar';
 
 import {
   routeKey,
@@ -139,11 +140,14 @@ function NavigationItem({
           render={link}
           isActive={isSelected}
           tooltip={tooltip}
-          className={SELECTED}
+          className={`${SELECTED}${item.route.name === 'inbox' ? ' pr-12' : ''}`}
         >
           {Icon ? <Icon /> : null}
           <span>{label}</span>
         </SidebarMenuButton>
+        {/* Navigation metadata has no live badge slot; keep the inbox indicator outside
+            the button's clipped icon-mode content without changing the Sidebar primitive. */}
+        {item.route.name === 'inbox' ? <InboxMenuBadge /> : null}
       </SidebarMenuItem>
     );
 

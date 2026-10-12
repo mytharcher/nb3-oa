@@ -131,6 +131,8 @@ const importZhCN: LocaleResource<ImportLocale> = {
       TOO_LONG: '超过 {{max}} 个字符。',
       INVALID_INTEGER: '“{{value}}”不是整数。',
       INVALID_BOOLEAN: '“{{value}}”不是“是 / 否”。',
+      CAREER_START_FUTURE: '首次参加工作日期不能晚于工作日历时区的今天。',
+      CAREER_START_AFTER_HIRE: '首次参加工作日期不能晚于入职日期。',
       INVALID_DATE: '“{{value}}”不是有效日期，请使用日期格式或 YYYY-MM-DD。',
       INVALID_STATUS:
         '“{{value}}”不是有效状态，请填写试用、正式、离职中或已离职。',

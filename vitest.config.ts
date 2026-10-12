@@ -1,29 +1,32 @@
 import { fileURLToPath } from 'node:url';
+import { loadEnv } from 'vite';
+import { postgresTestEnvironment } from './tests/setup/database-environment.js';
 
 import { createReactVitestConfig } from '@nocobase/dev-config/vitest/react';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 
 export default createReactVitestConfig({
-  resolve: {
-    alias: [
-      {
-        find: '@',
-        replacement: fileURLToPath(new URL('./client', import.meta.url)),
-      },
-    ],
-  },
   test: {
     root,
+    // PG application fixtures each own connection pools. Unbounded file workers
+    // can exhaust the shared development server's max_connections.
+    maxWorkers: 2,
+    env: postgresTestEnvironment({
+      ...loadEnv('development', root, ''),
+      ...process.env,
+    }),
     server: {
       deps: {
         // Transform the public Client surfaces so vi.mock applies, without duplicating the Server packages' identity tokens.
         inline: [
-          // The authentication guards read the location, so they share the test's react-router rather than Node's copy,
-          // together with every client that resolves the authentication tokens and provider.
-          /@nocobase\/app-plugin-(?:authentication|api-keys|users)\/(?:dist\/)?client\//u,
-          /@nocobase\/app-plugin-authorization\/(?:dist\/)?client\//u,
-          /@nocobase\/app-plugin-notification-in-app\/(?:dist\/)?client\//u,
+          // NavigationGuardProvider must read the same router contexts as the page under test.
+          /@nocobase\/app-client\/dist\//u,
+          // Client test hosts must share that application context and its service tokens.
+          /@nocobase\/app-testing\/dist\/src\/client\//u,
+          // Client plugins consume the shared application/router contexts; keep their public Client surfaces
+          // in the same module graph while Server packages retain their original identity tokens.
+          /@nocobase\/app-plugin-[^/]+\/(?:dist\/)?client\//u,
         ],
       },
     },
@@ -34,6 +37,8 @@ export default createReactVitestConfig({
     // Playwright runs tests/playwright/ against a built application; its files are named *.test.ts too.
     exclude: ['tests/playwright/**'],
     setupFiles: ['./tests/setup/client-config.ts'],
+    // Public db-testing cleanup uses PID liveness; separate runner directories bound cleanup to this run.
+    globalSetup: ['./tests/setup/database-directory.ts'],
     // Keep the command usable if an application intentionally removes all scaffold tests before adding its own.
     passWithNoTests: true,
     coverage: {

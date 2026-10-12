@@ -1,3 +1,5 @@
+import { useContext } from 'react';
+import { DrawerFormContext } from './drawer-form-context.js';
 import { useTranslation } from '@nocobase/i18n/client';
 import { ArrowLeftIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
@@ -29,9 +31,11 @@ export function BackButton({
   children,
   className,
   to,
-}: BackButtonProps = {}): ReactElement {
+}: BackButtonProps = {}): ReactElement | null {
   const { t } = useTranslation();
   const location = useLocation();
+  const drawerForm = useContext(DrawerFormContext);
+  if (drawerForm) return null;
 
   return (
     <Link

@@ -1,3 +1,4 @@
+import { ApplicationToolbar } from '#components/application-toolbar';
 import { useLocale, useTranslation } from '@nocobase/i18n/client';
 import type { ColumnDef, SortingState } from '@tanstack/react-table';
 import {
@@ -14,28 +15,28 @@ import { ChevronDownIcon, RefreshCwIcon, ScrollTextIcon } from 'lucide-react';
 import { type ReactElement, useMemo, useRef } from 'react';
 import { Link, Outlet, useLocation, useSearchParams } from 'react-router';
 
-import { DataTableServer } from '@/components/data-table';
-import { DataTableColumnHeader } from '@/components/data-table/column-header';
-import { DateRangePicker, type DateRange } from '@/components/date-picker';
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
-import { UserPicker } from '@/components/user-picker';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { DataTableServer } from '#components/data-table';
+import { DataTableColumnHeader } from '#components/data-table/column-header';
+import { DateRangePicker, type DateRange } from '#components/date-picker';
+import { PageContainer } from '#components/page-container';
+import { PageHeader } from '#components/page-header';
+import { UserPicker } from '#components/user-picker';
+import { Badge } from '#components/ui/badge';
+import { Button } from '#components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '#components/ui/dropdown-menu';
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty';
+} from '#components/ui/empty';
 import {
   Select,
   SelectContent,
@@ -43,12 +44,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '#components/ui/select';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from '#components/ui/tooltip';
 
 import { LoadErrorAlert, TableSkeleton } from '../shared/states.js';
 import { TruncatedText } from '../shared/truncated-text.js';
@@ -110,7 +111,7 @@ function localDateParam(
 }
 
 /**
- * Route /settings/audit-logs: the sensitive operations recorded by every module, read-only and filtered on the server.
+ * Route /audit-logs: the sensitive operations recorded by every module, read-only and filtered on the server.
  * The date range is local days in the URL (`from`, `to`), sent as the instants that bound them.
  */
 export default function AuditLogsPage(): ReactElement {
@@ -340,6 +341,8 @@ export default function AuditLogsPage(): ReactElement {
       <PageHeader
         title={t('platform.auditLogs.title')}
         description={t('platform.auditLogs.description')}
+      />
+      <ApplicationToolbar
         actions={
           <Tooltip>
             <TooltipTrigger
@@ -362,8 +365,7 @@ export default function AuditLogsPage(): ReactElement {
             <TooltipContent>{t('platform.common.refresh')}</TooltipContent>
           </Tooltip>
         }
-      />
-      <div className='flex flex-wrap items-center gap-2'>
+      >
         <Select
           items={targetTypeItems}
           value={targetType || ALL}
@@ -455,7 +457,7 @@ export default function AuditLogsPage(): ReactElement {
             {t('platform.common.clearFilters')}
           </Button>
         ) : null}
-      </div>
+      </ApplicationToolbar>
       {content}
       <Outlet />
     </PageContainer>

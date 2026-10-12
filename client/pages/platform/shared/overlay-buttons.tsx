@@ -1,9 +1,9 @@
 import { useTranslation } from '@nocobase/i18n/client';
 import type { ReactElement } from 'react';
 
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
-import { useRouteOverlay } from '@/components/use-route-overlay';
+import { Button } from '#components/ui/button';
+import { Spinner } from '#components/ui/spinner';
+import { useRouteOverlay } from '#components/use-route-overlay';
 
 /** "Cancel" or "Close" of a route overlay; rendered inside the overlay, where `useRouteOverlay` works. */
 export function OverlayCloseButton({

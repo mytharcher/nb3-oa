@@ -1,3 +1,4 @@
+import { ApplicationToolbar } from '#components/application-toolbar';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useLocale, useTranslation } from '@nocobase/i18n/client';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -19,10 +20,10 @@ import {
 } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 
-import { DataTable } from '@/components/data-table';
-import { DataTableColumnHeader } from '@/components/data-table/column-header';
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
+import { DataTable } from '#components/data-table';
+import { DataTableColumnHeader } from '#components/data-table/column-header';
+import { PageContainer } from '#components/page-container';
+import { PageHeader } from '#components/page-header';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,8 +33,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+} from '#components/ui/alert-dialog';
+import { Button } from '#components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,19 +42,19 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '#components/ui/dropdown-menu';
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty';
+} from '#components/ui/empty';
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from '@/components/ui/input-group';
+} from '#components/ui/input-group';
 import {
   Select,
   SelectContent,
@@ -61,9 +62,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Spinner } from '@/components/ui/spinner';
-import { useUrlSearch } from '@/hooks/use-url-search';
+} from '#components/ui/select';
+import { Spinner } from '#components/ui/spinner';
+import { useUrlSearch } from '#hooks/use-url-search';
 
 import { ActiveBadge, LoadError, TableSkeleton } from '../org-ui.js';
 import {
@@ -389,8 +390,11 @@ export default function DutyRolesPage(): ReactElement {
         title={t('org.dutyRoles.title')}
         description={t('org.dutyRoles.description')}
       />
-      <div className='flex flex-wrap items-center gap-2'>
-        <InputGroup className='w-full sm:max-w-xs'>
+      <ApplicationToolbar>
+        <InputGroup
+          data-slot='application-search'
+          className='w-full sm:max-w-xs'
+        >
           <InputGroupAddon>
             <SearchIcon />
           </InputGroupAddon>
@@ -435,7 +439,7 @@ export default function DutyRolesPage(): ReactElement {
         {loading && allRoles !== undefined ? (
           <Spinner className='text-muted-foreground' />
         ) : null}
-      </div>
+      </ApplicationToolbar>
       {content}
 
       <AlertDialog

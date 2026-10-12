@@ -8,16 +8,16 @@ import { Controller, useForm } from 'react-hook-form';
 import { useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
 
-import { DatePicker } from '@/components/date-picker';
-import { RouteDialog } from '@/components/route-dialog';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DatePicker } from '#components/date-picker';
+import { RouteDialog } from '#components/route-dialog';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import {
   Field,
   FieldError,
   FieldGroup,
   FieldLabel,
-} from '@/components/ui/field';
+} from '#components/ui/field';
 import {
   Select,
   SelectContent,
@@ -25,9 +25,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useRouteOverlay } from '@/components/use-route-overlay';
+} from '#components/ui/select';
+import { Textarea } from '#components/ui/textarea';
+import { useRouteOverlay } from '#components/use-route-overlay';
 
 import {
   OverlayCloseButton,

@@ -1,5 +1,9 @@
 /** Domain errors of the `employees` module; `server/routes/employees/` maps each code to an `ApiError`. */
 export type EmployeeErrorCode =
+  | 'EMPLOYEE_HEADCOUNT_CONFLICT'
+  | 'EMPLOYEE_ONBOARDING_SOURCE_CONFLICT'
+  | 'EMPLOYEE_ONBOARDING_ACCOUNT_ENABLED'
+  | 'EMPLOYEE_PROBATION_END_INVALID'
   | 'EMPLOYEE_NOT_FOUND'
   | 'EMPLOYEE_USER_NOT_FOUND'
   | 'EMPLOYEE_USER_DISABLED'
@@ -12,11 +16,18 @@ export type EmployeeErrorCode =
   | 'EMPLOYEE_GRADE_NOT_FOUND'
   | 'EMPLOYEE_STATUS_UNCHANGED'
   | 'EMPLOYEE_HISTORY_SALARY'
-  | 'EMPLOYEE_INVALID_AMOUNT';
+  | 'EMPLOYEE_INVALID_AMOUNT'
+  | 'EMPLOYEE_CAREER_START_INVALID'
+  | 'EMPLOYEE_CAREER_START_FUTURE'
+  | 'EMPLOYEE_CAREER_START_AFTER_HIRE'
+  | 'EMPLOYEE_ASSIGNMENT_SOURCE_CONFLICT'
+  | 'EMPLOYEE_ASSIGNMENT_INVALID'
+  | 'EMPLOYEE_ASSIGNMENT_STALE';
 
 /** The input field each code is about, for an `INVALID_ARGUMENT` field violation. */
 export const EMPLOYEE_ERROR_FIELDS: Partial<Record<EmployeeErrorCode, string>> =
   {
+    EMPLOYEE_PROBATION_END_INVALID: 'probationEndDate',
     EMPLOYEE_USER_NOT_FOUND: 'userId',
     EMPLOYEE_USER_DISABLED: 'userId',
     EMPLOYEE_USER_TAKEN: 'userId',
@@ -27,6 +38,9 @@ export const EMPLOYEE_ERROR_FIELDS: Partial<Record<EmployeeErrorCode, string>> =
     EMPLOYEE_POSITION_NOT_FOUND: 'positionId',
     EMPLOYEE_GRADE_NOT_FOUND: 'gradeId',
     EMPLOYEE_INVALID_AMOUNT: 'baseSalary',
+    EMPLOYEE_CAREER_START_INVALID: 'careerStartDate',
+    EMPLOYEE_CAREER_START_FUTURE: 'careerStartDate',
+    EMPLOYEE_CAREER_START_AFTER_HIRE: 'careerStartDate',
   };
 
 export class EmployeeError extends Error {

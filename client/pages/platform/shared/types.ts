@@ -51,6 +51,7 @@ export type RuleDomain = (typeof RULE_DOMAINS)[number];
 export type RuleValueType =
   | 'money'
   | 'count'
+  | 'integer'
   | 'days'
   | 'hours'
   | 'workingHours'
@@ -65,6 +66,7 @@ export interface RuleSummary {
   readonly type: RuleValueType;
   readonly area: 'rules' | 'calendar';
   readonly min?: number;
+  options?: readonly string[];
   readonly max?: number;
   readonly allowFuture: boolean;
   readonly defaultValue: unknown;
@@ -74,9 +76,10 @@ export interface RuleSummary {
 
 export interface DictionaryExtraField {
   readonly name: string;
-  readonly type: 'boolean' | 'integer' | 'number';
+  readonly type: 'boolean' | 'integer' | 'number' | 'enum';
   readonly nullable: boolean;
   readonly min?: number;
+  options?: readonly string[];
 }
 
 export interface DictionaryType {

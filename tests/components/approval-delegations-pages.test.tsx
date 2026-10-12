@@ -36,6 +36,7 @@ vi.mock('@nocobase/app-plugin-authentication/client', () => ({
   useAuthentication: () => ({ refresh: vi.fn() }),
 }));
 vi.mock('@nocobase/app-plugin-authorization/client', () => ({
+  useAuthorizationRevision: () => 0,
   useCan: ({ resource }: { resource: { type: string } }) => ({
     can: resource.type === 'user' ? permission.people : permission.update,
     isPending: false,

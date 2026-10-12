@@ -64,6 +64,14 @@ describe('reporting line', () => {
     expect((await service.managerChainOf(d.userId)).map((e) => e.name)).toEqual(
       ['Carol', 'Bob', 'Alice'],
     );
+    const batch = await service.managerChainsOf([
+      d.userId,
+      y.userId,
+      z.userId,
+      'missing',
+    ]);
+    for (const id of [d.userId, y.userId, z.userId, 'missing'])
+      expect(batch.get(id)).toEqual(await service.managerChainOf(id));
     expect((await service.managerOf(y.userId))?.id).toBe(a.employeeId);
     expect(await service.managerChainOf(z.userId)).toEqual([]);
     expect(await service.managerOf(a.userId)).toBeUndefined();

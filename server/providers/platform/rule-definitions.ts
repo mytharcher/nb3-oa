@@ -25,6 +25,7 @@ export type RuleDomain = (typeof RULE_DOMAINS)[number];
 /**
  * - `money`: an amount in yuan, ≥ 0.
  * - `count`: a whole number of times, ≥ 0.
+ * - `integer`: a whole-number setting without an event-count unit.
  * - `days`: days in half-day steps, ≥ 0.
  * - `hours`: hours, ≥ 0.
  * - `workingHours`: hours counted on the work calendar, > 0.
@@ -36,6 +37,7 @@ export type RuleDomain = (typeof RULE_DOMAINS)[number];
 export const RULE_VALUE_TYPES = [
   'money',
   'count',
+  'integer',
   'days',
   'hours',
   'workingHours',
@@ -99,6 +101,16 @@ export const RULE_DEFINITIONS: readonly RuleDefinition[] = [
   // Leave tiers.
   rule('leave.head', 'leave', 'days', 3),
   rule('leave.hr', 'leave', 'days', 7),
+  // Accrual stays disabled until HR fills career-start dates and enables the daily job deliberately.
+  rule('leave.annualAccrualEnabled', 'leave', 'integer', 0, { max: 1 }),
+  rule('leave.annualCarryExpiryMonth', 'leave', 'integer', 3, {
+    min: 1,
+    max: 12,
+  }),
+  rule('leave.annualCarryExpiryDay', 'leave', 'integer', 31, {
+    min: 1,
+    max: 31,
+  }),
   // Attendance.
   rule('overtime.monthlyHead', 'attendance', 'hours', 36),
   rule('attendance.fixPerMonth', 'attendance', 'count', 3),
@@ -155,6 +167,7 @@ function numberSchema(definition: RuleDefinition): z.ZodType<number> {
   if (definition.max !== undefined) schema = schema.max(definition.max);
   switch (definition.type) {
     case 'count':
+    case 'integer':
     case 'rank':
       return schema.int();
     case 'days':

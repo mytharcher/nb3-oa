@@ -1,3 +1,4 @@
+import type { HeadcountService } from '../headcounts/contract.js';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
 import type { ServerFileRepository } from '@nocobase/app-plugin-file/server';
 import type {
@@ -64,6 +65,7 @@ export const importServiceToken: ServiceToken<ImportService> =
   createServiceToken<ImportService>('oa/import-service');
 
 export interface ImportServiceDependencies {
+  readonly headcounts?: () => HeadcountService;
   readonly database: DatabaseManager;
   readonly organization: () => OrganizationService;
   readonly employees: () => EmployeeModuleService;
@@ -149,7 +151,7 @@ export function createImportService(
     const rowCount = sheet.rows.length;
     if (sheet.errors.length) return report(kind, rowCount, sheet.errors);
     try {
-      return await database.transaction(async (connection) => {
+      const applyTransaction = async (connection: DatabaseConnection) => {
         // Inside the transaction: on SQLite it holds the only connection, so every read goes through it.
         const users = await loadUserIndex(
           deps.users().withConnection(connection),
@@ -166,12 +168,39 @@ export function createImportService(
         if (plan.errors.length)
           throw new Rollback(report(kind, rowCount, plan.errors));
         const result = report(kind, rowCount, [], await plan.execute());
+        if (commit) await commit(connection, result);
+        return result;
+      };
+      return await database.transaction(async (connection) => {
+        const result = await (kind === 'employees' && deps.headcounts
+          ? deps
+              .headcounts()
+              .protectRoster(undefined, connection, applyTransaction)
+          : applyTransaction(connection));
         if (!commit) throw new Rollback(result);
-        await commit(connection, result);
         return result;
       });
     } catch (error) {
       if (error instanceof Rollback) return error.report;
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        String(error.code).startsWith('HEADCOUNT_')
+      )
+        return report(kind, rowCount, [
+          {
+            row: null,
+            column: null,
+            header: null,
+            code: 'WRITE_FAILED',
+            params: {
+              reason: String(error.code),
+              message:
+                'The initialized roster cannot be changed without a verified business occupancy source.',
+            },
+          },
+        ]);
       if (error instanceof ImportWriteError)
         return report(kind, rowCount, [error.detail]);
       throw error;

@@ -4,6 +4,23 @@
  */
 const employeesEnUS = {
   employees: {
+    personal: {
+      title: 'Personal archive',
+      description:
+        'View your employee details; contact HR to correct any errors.',
+      identity: '{{name}} · {{code}}',
+      basic: 'Basic information',
+      profile: 'Personal details',
+      bank: 'Payment account',
+      emptyTitle: 'No employee archive yet',
+      emptyDescription:
+        'Contact HR to create an employee archive for your account.',
+      profileMissing:
+        'Personal details were not found; contact HR to check your archive.',
+      forbidden:
+        'Unable to access your archive; contact an administrator to check access.',
+      refresh: 'Refresh',
+    },
     authz: {
       section: 'Employees',
       settings: 'Employee archive page',
@@ -70,6 +87,7 @@ const employeesEnUS = {
       grade: 'Grade',
       manager: 'Direct manager',
       status: 'Status',
+      careerStartDate: 'First employment date',
       hireDate: 'Hire date',
       probationEndDate: 'Probation end date',
       lastWorkingDay: 'Last working day',
@@ -166,6 +184,10 @@ const employeesEnUS = {
       nameRequired: 'Enter a name.',
       codeRequired: 'Enter an employee code.',
       userRequired: 'Choose the account to bind.',
+      careerStartInvalid: 'Choose a valid first employment date.',
+      careerStartFuture: 'First employment date cannot be in the future.',
+      careerStartAfterHire:
+        'First employment date cannot be later than the hire date.',
       hireDateRequired: 'Choose the hire date.',
       tooLong: 'Use at most {{max}} characters.',
       emailInvalid: 'The email format is invalid.',

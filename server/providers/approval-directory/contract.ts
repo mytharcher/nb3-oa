@@ -40,6 +40,8 @@ export interface OaApprovalDirectory extends ApprovalDirectory {
 export interface ApprovalDirectoryService {
   /** Fresh synchronous directory; acquire within the lifecycle transaction before planning or answering. */
   snapshot(connection?: DatabaseConnection): Promise<OaApprovalDirectory>;
+  /** Share a fresh directory only inside a read operation; explicit transactional snapshots remain independent. */
+  withReadSnapshot<T>(read: () => Promise<T>): Promise<T>;
   list(connection?: DatabaseConnection): Promise<ApprovalDelegation[]>;
   createManualDelegation(
     input: DelegationInput,

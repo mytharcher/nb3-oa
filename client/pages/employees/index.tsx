@@ -1,3 +1,5 @@
+import { ApplicationToolbar } from '#components/application-toolbar';
+import { UserName } from '#components/user-name';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useLocale, useTranslation } from '@nocobase/i18n/client';
@@ -14,21 +16,18 @@ import {
 } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 
-import {
-  DataTableColumnHeader,
-  DataTableServer,
-} from '@/components/data-table';
-import { DepartmentPicker } from '@/components/department-picker';
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
+import { DataTableColumnHeader, DataTableServer } from '#components/data-table';
+import { DepartmentPicker } from '#components/department-picker';
+import { PageContainer } from '#components/page-container';
+import { PageHeader } from '#components/page-header';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
 import {
   Alert,
   AlertAction,
   AlertDescription,
   AlertTitle,
-} from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+} from '#components/ui/alert';
+import { Button } from '#components/ui/button';
 import {
   Empty,
   EmptyContent,
@@ -36,12 +35,12 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty';
+} from '#components/ui/empty';
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from '@/components/ui/input-group';
+} from '#components/ui/input-group';
 import {
   Select,
   SelectContent,
@@ -49,10 +48,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Spinner } from '@/components/ui/spinner';
-import { useUrlSearch } from '@/hooks/use-url-search';
+} from '#components/ui/select';
+import { Skeleton } from '#components/ui/skeleton';
+import { Spinner } from '#components/ui/spinner';
+import { useUrlSearch } from '#hooks/use-url-search';
 
 import { EmployeeStatusBadge } from './status-badge.js';
 import {
@@ -87,7 +86,7 @@ function formatOrderBy(column: ColumnSort): string {
   return column.desc ? `${column.id} desc` : column.id;
 }
 
-/** Settings → 组织与人员 → 员工档案 (`/settings/employees`): the archive list. */
+/** Settings → 组织与人员 → 员工档案 (`/employees`): the archive list. */
 export default function EmployeesPage(): ReactElement {
   const { t } = useTranslation();
   const { locale } = useLocale();
@@ -245,7 +244,7 @@ export default function EmployeesPage(): ReactElement {
             }}
             className='font-medium hover:underline'
           >
-            {row.original.name}
+            <UserName name={row.original.name} />
           </Link>
         ),
       },
@@ -275,7 +274,7 @@ export default function EmployeesPage(): ReactElement {
         id: 'manager',
         enableSorting: false,
         header: t('employees.fields.manager'),
-        cell: ({ row }) => muted(row.original.manager?.name),
+        cell: ({ row }) => <UserName name={row.original.manager?.name} />,
       },
       {
         id: 'status',
@@ -422,6 +421,8 @@ export default function EmployeesPage(): ReactElement {
       <PageHeader
         title={t('employees.title')}
         description={t('employees.description')}
+      />
+      <ApplicationToolbar
         actions={
           canManage &&
           rows !== undefined &&
@@ -429,9 +430,11 @@ export default function EmployeesPage(): ReactElement {
             ? createButton
             : null
         }
-      />
-      <div className='flex flex-wrap items-center gap-2'>
-        <InputGroup className='w-full sm:max-w-xs'>
+      >
+        <InputGroup
+          data-slot='application-search'
+          className='w-full sm:max-w-xs'
+        >
           <InputGroupAddon>
             <SearchIcon />
           </InputGroupAddon>
@@ -479,7 +482,7 @@ export default function EmployeesPage(): ReactElement {
         {loading && rows !== undefined ? (
           <Spinner className='text-muted-foreground' />
         ) : null}
-      </div>
+      </ApplicationToolbar>
       {content}
       {/* The create page and the employee page cover this one and refresh it through the context. */}
       <Outlet context={outletContext} />

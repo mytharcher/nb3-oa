@@ -8,8 +8,10 @@ import { NamespaceScope } from '@nocobase/i18n/client';
 import { type ReactElement, useEffect, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 
-import { Loading } from '@/components/loading';
-import { Button } from '@/components/ui/button';
+import { requestActionDefinitions } from '#components/request-action-definitions';
+import { RouteDrawer } from '#components/route-drawer';
+import { Loading } from '#components/loading';
+import { Button } from '#components/ui/button';
 
 export interface ClientRouteProps {
   readonly route: AppClientRegisteredRoute;
@@ -17,6 +19,23 @@ export interface ClientRouteProps {
 
 export function ClientRoute({ route }: ClientRouteProps): ReactElement {
   const { authz, componentLoader } = route;
+  const { t } = useTranslation();
+  // Request routes load below the workbench Outlet. Keep pending/error feedback
+  // in a visible drawer instead of placing it below the long background list.
+  const requestEntry = requestActionDefinitions.find(
+    ({ to }) => route.path.split('/').at(-1) === to,
+  );
+  const feedback = (content: ReactElement) =>
+    requestEntry ? (
+      <RouteDrawer
+        title={t(requestEntry.label)}
+        className='text-sm sm:max-w-2xl'
+      >
+        {content}
+      </RouteDrawer>
+    ) : (
+      content
+    );
   const checkAccess = authz !== 'skip';
   const { can: allowed, isPending: accessLoading } = useCan(
     authz === 'skip' ? undefined : authz,
@@ -49,20 +68,21 @@ export function ClientRoute({ route }: ClientRouteProps): ReactElement {
   }, [allowed, checkAccess, componentLoader]);
 
   if (loadError) {
-    return <ClientPageError route={route} />;
+    return feedback(<ClientPageError route={route} />);
   }
 
-  if (checkAccess && accessLoading) return <ClientPageLoading />;
-  if (checkAccess && !allowed) return <ClientPageDenied route={route} />;
+  if (checkAccess && accessLoading) return feedback(<ClientPageLoading />);
+  if (checkAccess && !allowed)
+    return feedback(<ClientPageDenied route={route} />);
 
   if (!componentModule) {
-    return <ClientPageLoading />;
+    return feedback(<ClientPageLoading />);
   }
 
   const Component = componentModule.default;
 
   return (
-    <ErrorBoundary fallback={<ClientPageError route={route} />}>
+    <ErrorBoundary fallback={feedback(<ClientPageError route={route} />)}>
       {/* The owning package is the page's namespace, so a plugin page translates with a bare useTranslation(). */}
       <NamespaceScope ns={route.packageName}>
         <Component />

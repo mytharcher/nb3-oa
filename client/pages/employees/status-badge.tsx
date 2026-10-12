@@ -1,7 +1,7 @@
 import { useTranslation } from '@nocobase/i18n/client';
 import type { ReactElement } from 'react';
 
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '#components/ui/badge';
 
 import type { EmployeeStatus } from './types.js';
 

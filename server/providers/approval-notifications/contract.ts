@@ -7,6 +7,12 @@ import {
   type ServiceToken,
 } from '@nocobase/service-provider';
 
+/** Application-owned translated business context, never a raw exception message. */
+export interface ApprovalNotificationDetail {
+  key: string;
+  values?: Readonly<Record<string, string | number>>;
+}
+
 export interface ApprovalNotificationService {
   task(input: {
     task: TaskRow;
@@ -17,16 +23,19 @@ export interface ApprovalNotificationService {
     at?: string;
   }): Promise<void>;
   result(input: {
+    kind?: string;
     recordId: string;
     applicantId: string;
     state: string;
     transitionId: string;
   }): Promise<void>;
   alarm(input: {
+    kind?: string;
     recordId: string;
     recipients: readonly string[];
     eventId: string;
     reason: string;
+    detail?: ApprovalNotificationDetail;
   }): Promise<void>;
 }
 

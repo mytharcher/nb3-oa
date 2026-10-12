@@ -5,7 +5,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from '#components/ui/tooltip';
 
 /**
  * Text in a table cell that ends in an ellipsis where its column limits it, with the full text in a tooltip only when

@@ -1,3 +1,4 @@
+import { headcountServiceToken } from '../headcounts/contract.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { authorizationToken } from '@nocobase/app-plugin-authorization/server';
 import { serverFileRepositoryManagerToken } from '@nocobase/app-plugin-file/server';
@@ -38,6 +39,7 @@ export default class ImportProvider extends ServiceProvider<Application> {
     container.singleton(importServiceToken, () => {
       const ids = container.resolve(idGeneratorToken);
       return createImportService({
+        headcounts: () => container.resolve(headcountServiceToken),
         database: container.resolve(databaseManagerToken),
         organization: () => container.resolve(organizationServiceToken),
         employees: () =>

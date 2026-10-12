@@ -1,0 +1,35 @@
+export default {
+  exported: 'Excel 下载已开始。',
+  title: '请假决策任务自然耗时',
+  description:
+    '仅统计已完成请假决策任务从创建至关闭的自然毫秒，包含等待和历史重提，按原申请开始月份归集；不代表工作时、SLA、退回率或整流程耗时。',
+  year: '开始年份',
+  month: '开始月份（可选）',
+  clear: '清除筛选',
+  export: '导出 Excel',
+  exporting: '正在导出…',
+  refresh: '刷新',
+  selectYear: '选择原申请开始年份以加载报表。',
+  invalid: '请输入1900至9998的年份，月份可留空或输入1至12。',
+  forbidden: '当前请假记录或字段权限不允许查看此报表，请联系管理员。',
+  precondition:
+    '来源数量上限或任务时间校验未通过，请缩小年/月范围，或联系管理员检查来源时间。',
+  failed: '报表加载失败，请重试。',
+  retry: '重试',
+  exportFailed: 'Excel 导出失败，请重试。',
+  empty: '暂无已完成决策任务',
+  noResults: '该月份没有匹配任务',
+  emptyHint:
+    '仅统计当前可读请假申请中的已完成决策任务，可选择其他开始年份或月份。',
+  total: '共 {{count}} 个环节分组',
+  generatedAt: '生成于 {{value}}',
+  previous: '上一页',
+  next: '下一页',
+  fields: {
+    stage: '环节',
+    completedTaskCount: '已完成决策任务数',
+    totalElapsedMs: '自然总耗时毫秒',
+    averageElapsedMs: '自然平均耗时毫秒',
+  },
+  stages: { manager: '直属上级', head: '部门负责人', hr: '人力资源' },
+};

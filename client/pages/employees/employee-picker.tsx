@@ -1,9 +1,11 @@
+import { InputGroupAddon } from '#components/ui/input-group';
+import { UserAvatar, UserName } from '#components/user-name';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { type ReactElement, useEffect, useMemo, useState } from 'react';
 
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Button } from '@/components/ui/button';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Button } from '#components/ui/button';
 import {
   Combobox,
   ComboboxContent,
@@ -11,7 +13,7 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-} from '@/components/ui/combobox';
+} from '#components/ui/combobox';
 
 import type { EmployeeList } from './types.js';
 
@@ -174,7 +176,13 @@ export function EmployeePicker({
         aria-invalid={invalid || undefined}
         onBlur={onBlur}
         showClear={!!selected}
-      />
+      >
+        {selected && !query ? (
+          <InputGroupAddon align='inline-start'>
+            <UserAvatar name={selected.name} />
+          </InputGroupAddon>
+        ) : null}
+      </ComboboxInput>
       <ComboboxContent>
         <ComboboxEmpty>
           {loading ? t('status.loading') : t('employees.form.managerEmpty')}
@@ -183,7 +191,9 @@ export function EmployeePicker({
           {(employee: EmployeeOption) => (
             <ComboboxItem key={employee.id} value={employee}>
               <span className='flex min-w-0 flex-col'>
-                <span className='truncate'>{employee.name}</span>
+                <span className='truncate'>
+                  <UserName name={employee.name} />
+                </span>
                 {employee.code ? (
                   <span className='truncate text-xs text-muted-foreground'>
                     {employee.code}

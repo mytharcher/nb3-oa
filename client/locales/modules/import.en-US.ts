@@ -144,6 +144,10 @@ const importEnUS = {
       TOO_LONG: 'Longer than {{max}} characters.',
       INVALID_INTEGER: '"{{value}}" is not a whole number.',
       INVALID_BOOLEAN: '"{{value}}" is not 是 / 否 (yes / no).',
+      CAREER_START_FUTURE:
+        'First employment date cannot be later than today in the work calendar time zone.',
+      CAREER_START_AFTER_HIRE:
+        'First employment date cannot be later than the hire date.',
       INVALID_DATE:
         '"{{value}}" is not a valid date. Use a date cell or YYYY-MM-DD.',
       INVALID_STATUS:

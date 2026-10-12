@@ -27,6 +27,16 @@ import {
 } from '../../client/layouts/components/app-sidebar.js';
 import { NavigationMenu } from '../../client/layouts/components/navigation-menu.js';
 
+const inbox = vi.hoisted(() => ({
+  count: undefined as number | undefined,
+  isError: false,
+  refresh: vi.fn(),
+}));
+vi.mock('@nocobase/app-plugin-notification-in-app/client/inbox', () => ({
+  useInboxUnreadCount: () => ({ data: inbox.count, isError: inbox.isError }),
+  useInboxRefresh: inbox.refresh,
+}));
+
 // Navigation titles are route data, not keys any namespace owns: the menu translates each through its package's
 // namespace with the title itself as `defaultValue`, so the runtime is not strict.
 const runtime = await createTestI18nRuntime({ strict: false });
@@ -76,6 +86,9 @@ function shell(items: readonly RouteNavigationItem[], selectedKey?: string) {
 }
 
 beforeEach(() => {
+  inbox.count = undefined;
+  inbox.isError = false;
+  inbox.refresh.mockClear();
   localStorage.clear();
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
@@ -84,6 +97,52 @@ beforeEach(() => {
   }));
 });
 afterEach(() => vi.unstubAllGlobals());
+
+describe('inbox unread indicator', () => {
+  const items = [{ route: page('inbox'), children: [] }];
+
+  it('updates the count, hides zero and caps large counts without changing the link', () => {
+    const { rerender } = render(shell(items), { wrapper: I18n });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    inbox.count = 3;
+    rerender(shell(items));
+    expect(screen.getByRole('status')).toHaveTextContent('3');
+    expect(screen.getByRole('link', { name: 'inbox' })).toHaveAttribute(
+      'href',
+      '/inbox',
+    );
+    inbox.count = 120;
+    rerender(shell(items));
+    expect(screen.getByRole('status')).toHaveTextContent('99+');
+    inbox.count = 0;
+    rerender(shell(items));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(inbox.refresh).toHaveBeenCalled();
+  });
+
+  it('shows only a dot when collapsed, restores the number when expanded and hides failed counts', () => {
+    setCollapsed(true);
+    inbox.count = 5;
+    const { rerender } = render(shell(items), { wrapper: I18n });
+    const link = screen.getByRole('link', { name: 'inbox' });
+    const badge = screen.getByRole('status');
+    expect(badge).toBeVisible();
+    expect(badge).toBeEmptyDOMElement();
+    expect(badge).toHaveClass('size-2');
+    expect(link).not.toContainElement(badge);
+    expect(link.parentElement).toContainElement(badge);
+    act(() => setCollapsed(false));
+    expect(screen.getByRole('status')).toHaveTextContent('5');
+    inbox.isError = true;
+    rerender(shell(items));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('does not mount inbox queries for other navigation entries', () => {
+    render(shell([{ route: page('Home'), children: [] }]), { wrapper: I18n });
+    expect(inbox.refresh).not.toHaveBeenCalled();
+  });
+});
 
 describe.each([
   { title: 'navigation group', clickable: false },

@@ -1,3 +1,4 @@
+import { headcountServiceToken } from '../headcounts/contract.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { authorizationToken } from '@nocobase/app-plugin-authorization/server';
 import type { Application } from '@nocobase/app-server/application';
@@ -5,6 +6,7 @@ import { idGeneratorToken } from '@nocobase/app-server/id-generator';
 import { databaseManagerToken } from '@nocobase/db';
 import { ServiceProvider } from '@nocobase/service-provider';
 
+import { calendarServiceToken } from '../platform/index.js';
 import { auditServiceToken } from '../audit/index.js';
 import { orgServiceToken } from '../org/contract.js';
 import {
@@ -58,7 +60,12 @@ export default class EmployeesProvider extends ServiceProvider<Application> {
 
     container.singleton(employeeServiceToken, () =>
       createEmployeeService({
+        headcounts: () =>
+          container.has(headcountServiceToken)
+            ? container.resolve(headcountServiceToken)
+            : undefined,
         database: container.resolve(databaseManagerToken),
+        calendar: () => container.resolve(calendarServiceToken),
         audit: () => container.resolve(auditServiceToken),
         users: () => container.resolve(userAdministrationServiceToken),
         ids: () => container.resolve(idGeneratorToken),

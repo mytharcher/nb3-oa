@@ -43,9 +43,10 @@ export interface DictionaryTypeView {
   type: string;
   extraFields: {
     name: string;
-    type: 'boolean' | 'integer' | 'number';
+    type: 'boolean' | 'integer' | 'number' | 'enum';
     nullable: boolean;
     min?: number;
+    options?: readonly string[];
   }[];
 }
 
@@ -116,6 +117,7 @@ export interface RuleSummaryView {
   type: RuleValueType;
   area: RuleSettingsArea;
   min?: number;
+  options?: readonly string[];
   max?: number;
   allowFuture: boolean;
   defaultValue: unknown;

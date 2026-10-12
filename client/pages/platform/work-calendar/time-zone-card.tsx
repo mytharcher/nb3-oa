@@ -6,9 +6,9 @@ import { type ReactElement, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Alert, AlertDescription } from '#components/ui/alert';
+import { Button } from '#components/ui/button';
 import {
   Card,
   CardContent,
@@ -16,16 +16,16 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '#components/ui/card';
 import {
   Field,
   FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
-} from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/spinner';
+} from '#components/ui/field';
+import { Input } from '#components/ui/input';
+import { Spinner } from '#components/ui/spinner';
 
 import { fieldViolationsOf, statusOf } from '../shared/errors.js';
 import type { RuleSummary } from '../shared/types.js';

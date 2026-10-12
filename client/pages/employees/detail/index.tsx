@@ -1,3 +1,4 @@
+import { UserName } from '#components/user-name';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -27,22 +28,19 @@ import {
   useResolvedPath,
 } from 'react-router';
 
-import { BackButton } from '@/components/back-button';
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
-import { RouteChildPage } from '@/components/route-child-page';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { RecordDetailDrawer } from '#components/record-detail-drawer';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Alert, AlertAction, AlertDescription } from '#components/ui/alert';
+import { Button, buttonVariants } from '#components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
-import { withoutParams } from '@/hooks/use-url-search';
+} from '#components/ui/dropdown-menu';
+import { Skeleton } from '#components/ui/skeleton';
+import { withoutParams } from '#hooks/use-url-search';
 import { cn } from 'cn';
 
 import { EmployeeStatusBadge } from '../status-badge.js';
@@ -251,40 +249,38 @@ function EmployeePageContent({
 
   const shown = notFound ? undefined : employee;
   return (
-    <RouteChildPage>
-      <PageContainer>
-        <BackButton
-          to={{
-            pathname: '..',
-            search: withoutParams(location.search, EMPLOYEE_PAGE_PARAMS),
-          }}
-        />
-        <PageHeader
-          title={
-            shown ? (
-              <span className='flex flex-wrap items-center gap-2'>
-                {shown.name}
-                <EmployeeStatusBadge status={shown.status} />
-              </span>
-            ) : (
-              t('employees.page.title')
-            )
-          }
-          description={shown?.code}
-          actions={
-            shown && currentTab ? (
-              <EmployeeHeaderActions tab={currentTab.path} />
-            ) : undefined
-          }
-        />
+    <RecordDetailDrawer
+      title={
+        shown ? (
+          <span className='flex flex-wrap items-center gap-2'>
+            <UserName name={shown.name} />
+            <EmployeeStatusBadge status={shown.status} />
+          </span>
+        ) : (
+          t('employees.page.title')
+        )
+      }
+      description={shown?.code}
+      footer={
+        shown && currentTab ? (
+          <EmployeeHeaderActions tab={currentTab.path} />
+        ) : undefined
+      }
+      closeTo={{
+        pathname: '..',
+        search: withoutParams(location.search, EMPLOYEE_PAGE_PARAMS),
+        hash: location.hash,
+      }}
+    >
+      <div className='space-y-6'>
         {body}
         {outletContext ? (
           <div className={notFound ? 'hidden' : 'contents'}>
             <Outlet context={outletContext} />
           </div>
         ) : null}
-      </PageContainer>
-    </RouteChildPage>
+      </div>
+    </RecordDetailDrawer>
   );
 }
 

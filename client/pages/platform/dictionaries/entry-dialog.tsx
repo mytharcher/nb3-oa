@@ -3,9 +3,9 @@ import { AlertCircleIcon } from 'lucide-react';
 import { type ReactElement, useRef, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 
-import { RouteDialog } from '@/components/route-dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useRouteOverlay } from '@/components/use-route-overlay';
+import { RouteDialog } from '#components/route-dialog';
+import { Alert, AlertDescription } from '#components/ui/alert';
+import { useRouteOverlay } from '#components/use-route-overlay';
 
 import {
   OverlayCloseButton,

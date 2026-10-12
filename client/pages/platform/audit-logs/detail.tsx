@@ -1,18 +1,18 @@
+import { ResponsiveTable as Table } from '#components/responsive-table';
 import { useLocale, useTranslation } from '@nocobase/i18n/client';
 import { type ReactElement, useMemo } from 'react';
 import { useParams } from 'react-router';
 
-import { RouteDrawer } from '@/components/route-drawer';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { RecordDetailDrawer } from '#components/record-detail-drawer';
+import { Badge } from '#components/ui/badge';
+import { Skeleton } from '#components/ui/skeleton';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '#components/ui/table';
 
 import { OverlayCloseButton } from '../shared/overlay-buttons.js';
 import { LoadErrorAlert } from '../shared/states.js';
@@ -198,7 +198,7 @@ export default function AuditLogDetail(): ReactElement {
   }
 
   return (
-    <RouteDrawer
+    <RecordDetailDrawer
       title={
         entry
           ? t('platform.auditLogs.detailTitle', { action: entry.action })
@@ -208,6 +208,6 @@ export default function AuditLogDetail(): ReactElement {
       footer={<OverlayCloseButton label={t('actions.close')} />}
     >
       {body}
-    </RouteDrawer>
+    </RecordDetailDrawer>
   );
 }

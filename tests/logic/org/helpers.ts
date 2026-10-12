@@ -1,4 +1,8 @@
-import { OA_TEST_ORIGIN, OA_TEST_SERVER } from '../oa-test-origin.ts';
+import {
+  OA_TEST_ORIGIN,
+  OA_TEST_SERVER,
+  OA_TEST_DATABASE_ENV,
+} from '../oa-test-origin.ts';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import {
   DEFAULT_ADMIN_CREDENTIALS,
@@ -41,6 +45,7 @@ let sequence = 0;
 export async function startOrgTestApp(): Promise<OrgTestApp> {
   const testApp = await createTestApp({
     createServer: createStandaloneServer,
+    env: OA_TEST_DATABASE_ENV,
     server: OA_TEST_SERVER,
     // The employees module encrypts controlled fields and needs a key to start.
     config: {

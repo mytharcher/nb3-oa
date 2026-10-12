@@ -6,18 +6,18 @@ import { type ReactElement, useMemo } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 
-import { DepartmentPicker } from '@/components/department-picker';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DepartmentPicker } from '#components/department-picker';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import {
   Field,
   FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
-} from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
-import { UserPicker } from '@/components/user-picker';
+} from '#components/ui/field';
+import { Input } from '#components/ui/input';
+import { UserPicker } from '#components/user-picker';
 
 import { RequiredMark } from '../org-ui.js';
 import { type OrgUser, useErrorText, violatedField } from '../shared.js';

@@ -1,5 +1,6 @@
 import type { DatabaseConnection, RepositoryPolicy } from '@nocobase/db';
 
+import { EmployeeError } from '../employees/errors.js';
 import type { Employee, EmployeeStatus } from '../employees/contract.js';
 import type {
   EmployeeInput,
@@ -442,6 +443,7 @@ const TRUSTED_POLICY: RepositoryPolicy = {
 const EMPLOYEE_COLUMNS = [
   'name',
   'hireDate',
+  'careerStartDate',
   'probationEndDate',
   'phone',
   'email',
@@ -522,6 +524,7 @@ async function planEmployees(
     const positionCode = reader.code('positionCode');
     const gradeCode = reader.code('gradeCode');
     const hireDate = reader.date('hireDate');
+    const careerStartDate = reader.date('careerStartDate');
     const probationEndDate = reader.date('probationEndDate');
     const status = reader.status('status');
     const phone = reader.text('phone');
@@ -537,6 +540,7 @@ async function planEmployees(
     const fields: EmployeeInput = {};
     if (name) fields.name = name;
     if (hireDate !== undefined) fields.hireDate = hireDate;
+    if (careerStartDate !== undefined) fields.careerStartDate = careerStartDate;
     if (probationEndDate !== undefined)
       fields.probationEndDate = probationEndDate;
     if (phone !== undefined) fields.phone = phone;
@@ -577,6 +581,30 @@ async function planEmployees(
         reader.error('user', 'USER_MISMATCH', userText);
       else if (!existing && owner)
         reader.error('user', 'USER_TAKEN', userText, { code: owner.code });
+    }
+    const existingCareer = code ? byCode.get(code) : undefined;
+    try {
+      employees.validateCareerDates({
+        careerStartDate:
+          careerStartDate === undefined
+            ? (existingCareer?.careerStartDate ?? null)
+            : careerStartDate,
+        hireDate:
+          hireDate === undefined
+            ? (existingCareer?.hireDate ?? null)
+            : hireDate,
+      });
+    } catch (error) {
+      if (!(error instanceof EmployeeError)) throw error;
+      reader.error(
+        'careerStartDate',
+        error.code === 'EMPLOYEE_CAREER_START_FUTURE'
+          ? 'CAREER_START_FUTURE'
+          : error.code === 'EMPLOYEE_CAREER_START_AFTER_HIRE'
+            ? 'CAREER_START_AFTER_HIRE'
+            : 'INVALID_DATE',
+        careerStartDate ?? existingCareer?.careerStartDate ?? undefined,
+      );
     }
     if (managerCode && managerCode === code)
       reader.error('managerCode', 'MANAGER_SELF', managerCode);

@@ -1,7 +1,7 @@
 import {
   titleText,
   type Translate,
-} from '@nocobase/app-plugin-authorization/client/management';
+} from '#pages/administration/authorization/management';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useCallback } from 'react';
 

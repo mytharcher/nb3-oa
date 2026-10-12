@@ -77,6 +77,9 @@ export const TAB_VIEW: Record<string, string> = {
   mine: 'mine',
 };
 export const ACTIONS = [
+  'transfer',
+  'addSigner',
+  'urge',
   'approve',
   'reject',
   'return',

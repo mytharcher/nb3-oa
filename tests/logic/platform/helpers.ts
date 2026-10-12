@@ -1,4 +1,8 @@
-import { OA_TEST_ORIGIN, OA_TEST_SERVER } from '../oa-test-origin.ts';
+import {
+  OA_TEST_ORIGIN,
+  OA_TEST_SERVER,
+  OA_TEST_DATABASE_ENV,
+} from '../oa-test-origin.ts';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import {
   signIn,
@@ -25,6 +29,7 @@ export function write(method: string, body?: unknown): RequestInit {
 export function createPlatformAppTest(): ReturnType<typeof createAppTest> {
   return createAppTest({
     createServer: createStandaloneServer,
+    env: OA_TEST_DATABASE_ENV,
     server: OA_TEST_SERVER,
     config: {
       secrets: { keys: [{ version: 1, key: 'p'.repeat(64) }] },

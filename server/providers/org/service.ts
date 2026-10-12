@@ -1,4 +1,7 @@
-import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
+import {
+  lockUserForAdministration,
+  type UserAdministrationService,
+} from '@nocobase/app-plugin-authentication';
 import type { AuthorizationTitle } from '@nocobase/authorization/core';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 import {
@@ -23,6 +26,8 @@ import {
   type Tree,
   type TreeNode,
 } from './tree.js';
+
+import type { HeadcountService } from '../headcounts/contract.js';
 
 /** Who performs a write, and optionally the caller's transaction to run it in. */
 export interface OrgWriteContext {
@@ -148,6 +153,17 @@ export interface OrganizationService extends OrgService {
   ): Promise<Department>;
 
   // Memberships
+  /** Independent administrative membership write, preserving initialized headcount rosters.
+   * Business-source writes use addMember/removeMember/setPrimary in their owner's capacity transaction.
+   * A caller already taking capacity locks must acquire the target user administration lock first.
+   */
+  manageMember(
+    input: { departmentId: string; userId: string } & (
+      | { action: 'add'; primary?: boolean }
+      | { action: 'remove' | 'makePrimary' }
+    ),
+    context: OrgWriteContext,
+  ): Promise<void>;
   /** Active direct memberships of one department, primary first. */
   directMembers(
     departmentId: string,
@@ -305,6 +321,9 @@ export interface OrganizationServiceDependencies {
   readonly users: Pick<UserAdministrationService, 'get' | 'withConnection'>;
   readonly audit: AuditService;
   readonly generateId: () => string;
+  /** Lazy resolution avoids the org -> headcounts -> employees -> org construction cycle. */
+  readonly headcounts?: () =>
+    Pick<HeadcountService, 'protectRoster'> | undefined;
   /** Tells signed-in clients of these users to refresh their permission snapshot. Called after commit. */
   readonly notifyUsers: (userIds: readonly string[]) => Promise<void>;
 }
@@ -768,6 +787,24 @@ export function createOrganizationService(
       return activeDutyRoleMembers(target, code);
     },
 
+    async dutyRoleMembersByCodes(codes, connection) {
+      const target = root(connection);
+      const active = await activeDutyRoleCodes(target);
+      const selected = [...new Set(codes)].filter((code) => active.has(code));
+      const result = new Map<string, string[]>(codes.map((code) => [code, []]));
+      if (!selected.length) return result;
+      const rows = await target.query
+        .selectFrom('dutyRoleMembers')
+        .select(['dutyRoleCode', 'userId'])
+        .where('dutyRoleCode', 'in', selected)
+        .where('active', '=', true)
+        .execute();
+      for (const row of rows)
+        result.get(text(row.dutyRoleCode))?.push(text(row.userId));
+      for (const members of result.values()) members.sort();
+      return result;
+    },
+
     async hasDutyRole(userId, code, connection) {
       return (await service.dutyRolesOf(userId, connection)).includes(code);
     },
@@ -1039,6 +1076,42 @@ export function createOrganizationService(
             Number(right.primary) - Number(left.primary) ||
             left.departmentId.localeCompare(right.departmentId),
         );
+    },
+
+    async manageMember(input, context) {
+      await root(context.connection).transaction(async (connection) => {
+        // Departure holds this public account lock before memberships and capacity release.
+        // Taking it first prevents guard -> member versus member -> guard inversion for this user.
+        // The public lock is a no-op for an absent row and also locks disabled accounts;
+        // preserve each underlying membership operation's existing validation semantics.
+        await lockUserForAdministration(connection, input.userId);
+        const run = async (tx: DatabaseConnection) => {
+          const caller = { ...context, connection: tx };
+          if (input.action === 'add')
+            await service.addMember(
+              {
+                departmentId: input.departmentId,
+                userId: input.userId,
+                ...(input.primary === undefined
+                  ? {}
+                  : { primary: input.primary }),
+              },
+              caller,
+            );
+          else if (input.action === 'remove')
+            await service.removeMember(
+              input.departmentId,
+              input.userId,
+              caller,
+            );
+          else
+            await service.setPrimary(input.departmentId, input.userId, caller);
+        };
+        const capacity = dependencies.headcounts?.();
+        if (capacity)
+          await capacity.protectRoster([input.userId], connection, run);
+        else await run(connection);
+      });
     },
 
     async addMember(input, context) {

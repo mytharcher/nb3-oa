@@ -1,0 +1,10 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "types": ["node", "vite/client"],
+    "tsBuildInfoFile": "../../../node_modules/.tmp/table-presentation.tsbuildinfo"
+  },
+  "include": ["../../../client", "table-presentation.tsx"]
+}

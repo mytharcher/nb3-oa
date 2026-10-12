@@ -1,3 +1,6 @@
+import { ApplicationSearch } from '#components/application-search';
+import { ApplicationToolbar } from '#components/application-toolbar';
+import { UserName } from '#components/user-name';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -11,12 +14,9 @@ import {
 } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
-import {
-  DataTableServer,
-  DataTableColumnHeader,
-} from '@/components/data-table';
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
+import { DataTableServer, DataTableColumnHeader } from '#components/data-table';
+import { PageContainer } from '#components/page-container';
+import { PageHeader } from '#components/page-header';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -24,16 +24,16 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-} from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+} from '#components/ui/alert-dialog';
+import { Badge } from '#components/ui/badge';
+import { Button } from '#components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-} from '@/components/ui/dropdown-menu';
+} from '#components/ui/dropdown-menu';
 import {
   Empty,
   EmptyHeader,
@@ -41,8 +41,7 @@ import {
   EmptyTitle,
   EmptyDescription,
   EmptyContent,
-} from '@/components/ui/empty';
-import { Input } from '@/components/ui/input';
+} from '#components/ui/empty';
 import {
   Select,
   SelectTrigger,
@@ -50,14 +49,14 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-} from '@/components/ui/select';
-import { Spinner } from '@/components/ui/spinner';
+} from '#components/ui/select';
+import { Spinner } from '#components/ui/spinner';
 import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-} from '@/components/ui/tooltip';
-import { useUrlSearch } from '@/hooks/use-url-search';
+} from '#components/ui/tooltip';
+import { useUrlSearch } from '#hooks/use-url-search';
 import { TableSkeleton } from '../org/org-ui.js';
 import { ErrorState } from '../approvals/states.js';
 import { useResource } from '../approvals/use-resource.js';
@@ -184,7 +183,7 @@ export default function DelegationsPage() {
                 search: location.search,
               }}
             >
-              {row.principal.name}
+              <UserName name={row.principal.name} />
             </Link>
           ) : canUpdate ? (
             <Link
@@ -194,15 +193,16 @@ export default function DelegationsPage() {
                 search: location.search,
               }}
             >
-              {row.principal.name}
+              <UserName name={row.principal.name} />
             </Link>
           ) : (
-            row.principal.name
+            <UserName name={row.principal.name} />
           ),
       },
       {
         accessorFn: (row) => row.delegate.name,
         id: 'delegate',
+        cell: ({ row }) => <UserName name={row.original.delegate.name} />,
         header: t('approvals.delegations.delegate'),
       },
       {
@@ -342,6 +342,8 @@ export default function DelegationsPage() {
       <PageHeader
         title={t('approvals.navigation.delegations')}
         description={t('approvals.delegations.description')}
+      />
+      <ApplicationToolbar
         actions={
           <>
             {canUpdate && !firstLoading && !resource.error && !empty
@@ -371,9 +373,8 @@ export default function DelegationsPage() {
             </Tooltip>
           </>
         }
-      />
-      <div className='flex flex-wrap gap-2'>
-        <Input
+      >
+        <ApplicationSearch
           ref={searchRef}
           {...inputProps}
           aria-label={t('approvals.delegations.search')}
@@ -429,7 +430,7 @@ export default function DelegationsPage() {
             </SelectContent>
           </Select>
         ))}
-      </div>
+      </ApplicationToolbar>
       {resource.error ? (
         <ErrorState error={resource.error} retry={resource.reload} />
       ) : firstLoading ? (

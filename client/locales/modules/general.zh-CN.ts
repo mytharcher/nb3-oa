@@ -1,0 +1,32 @@
+export default {
+  general: {
+    authz: {
+      resource: '通用申请',
+      submit: '提交本人通用申请',
+      delegate: '代员工提交通用申请',
+      view: '查看通用申请',
+    },
+    navigation: '通用申请',
+    new: '新建通用申请',
+    edit: '编辑通用申请',
+    title: '标题',
+    body: '申请正文',
+    extraApprovers: '额外审批人',
+    extraStage: '额外审批',
+    extraHint: '指定 1 至 3 人，在直属上级之后按此顺序审批。',
+    addApprover: '添加审批人',
+    removeApprover: '移除第 {{number}} 位审批人',
+    approver: '第 {{number}} 位额外审批人',
+    formDescription: '申请制度尚未覆盖的其他事项。',
+    approversInvalid: '请选择 1 至 3 位不同的在职人员，不能选择申请人本人。',
+    invalid: '请填写标题与申请正文，并检查长度限制。',
+    inactive: '申请人须为在职员工。',
+    configuration: '当前审批时钟配置不受支持，请联系管理员。',
+    uncertainCreate:
+      '保存结果尚未确认，请关闭表单，先在“我发起的”核实是否已有草稿。',
+    attachmentInvalid: '部分附件不属于此申请。',
+    attachmentDenied: '没有访问这些附件的权限。',
+    attachmentType: '请上传匹配的 PDF、JPEG、PNG 或 WebP 文件。',
+    attachmentSize: '附件不能为空，且不能超过 5 MiB。',
+  },
+};

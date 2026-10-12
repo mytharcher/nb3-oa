@@ -102,9 +102,10 @@ export const DictionaryTypeSchema: z.ZodType<DictionaryTypeView> = z
     extraFields: z.array(
       z.object({
         name: z.string(),
-        type: z.enum(['boolean', 'integer', 'number']),
+        type: z.enum(['boolean', 'integer', 'number', 'enum']),
         nullable: z.boolean(),
         min: z.number().optional(),
+        options: z.array(z.string()).optional(),
       }),
     ),
   })
@@ -196,6 +197,7 @@ export const RuleSummarySchema: z.ZodType<RuleSummaryView> = z
     type: z.enum(RULE_VALUE_TYPES),
     area: z.enum(['rules', 'calendar']),
     min: z.number().optional(),
+    options: z.array(z.string()).optional(),
     max: z.number().optional(),
     allowFuture: z.boolean(),
     // The key's default, typed as its `type`.

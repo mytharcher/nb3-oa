@@ -7,17 +7,17 @@ import { Controller, useForm } from 'react-hook-form';
 import { useOutletContext } from 'react-router';
 import { z } from 'zod';
 
-import { RouteDialog } from '@/components/route-dialog';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { RouteDialog } from '#components/route-dialog';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import {
   Field,
   FieldError,
   FieldGroup,
   FieldLabel,
-} from '@/components/ui/field';
-import { useRouteOverlay } from '@/components/use-route-overlay';
-import { UserPicker } from '@/components/user-picker';
+} from '#components/ui/field';
+import { useRouteOverlay } from '#components/use-route-overlay';
+import { UserPicker } from '#components/user-picker';
 
 import { FormDialogFooter } from '../dialog-parts.js';
 import { RequiredMark } from '../org-ui.js';

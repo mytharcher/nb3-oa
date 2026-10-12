@@ -3,6 +3,19 @@ import type { EmployeesLocale } from './employees.en-US.js';
 
 const employeesZhCN: LocaleResource<EmployeesLocale> = {
   employees: {
+    personal: {
+      title: '个人档案',
+      description: '查看你的档案资料；信息有误请联系 HR 修改。',
+      identity: '{{name}} · {{code}}',
+      basic: '基本信息',
+      profile: '个人资料',
+      bank: '收款账户',
+      emptyTitle: '尚未建立员工档案',
+      emptyDescription: '请联系 HR 为你的账号建立员工档案。',
+      profileMissing: '未找到个人资料，请联系 HR 检查档案。',
+      forbidden: '无法访问你的档案，请联系管理员检查权限。',
+      refresh: '刷新',
+    },
     authz: {
       section: '员工',
       settings: '员工档案页面',
@@ -68,6 +81,7 @@ const employeesZhCN: LocaleResource<EmployeesLocale> = {
       grade: '职级',
       manager: '直属上级',
       status: '状态',
+      careerStartDate: '首次参加工作日期',
       hireDate: '入职日期',
       probationEndDate: '转正日期',
       lastWorkingDay: '最后工作日',
@@ -162,6 +176,9 @@ const employeesZhCN: LocaleResource<EmployeesLocale> = {
       nameRequired: '请输入姓名。',
       codeRequired: '请输入工号。',
       userRequired: '请选择要绑定的账号。',
+      careerStartInvalid: '请选择有效的首次参加工作日期。',
+      careerStartFuture: '首次参加工作日期不能晚于今天。',
+      careerStartAfterHire: '首次参加工作日期不能晚于入职日期。',
       hireDateRequired: '请选择入职日期。',
       tooLong: '最多 {{max}} 个字符。',
       emailInvalid: '邮箱格式不正确。',

@@ -1,16 +1,17 @@
+import { UserName } from '#components/user-name';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { AlertCircleIcon } from 'lucide-react';
 import { type ReactElement, useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router';
 
-import { RouteDrawer } from '@/components/route-drawer';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Spinner } from '@/components/ui/spinner';
-import { useRouteOverlay } from '@/components/use-route-overlay';
+import { RouteDrawer } from '#components/route-drawer';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Alert, AlertAction, AlertDescription } from '#components/ui/alert';
+import { Button } from '#components/ui/button';
+import { Skeleton } from '#components/ui/skeleton';
+import { Spinner } from '#components/ui/spinner';
+import { useRouteOverlay } from '#components/use-route-overlay';
 
 import { EmployeeForm } from '../employee-form.js';
 import type { Employee, EmployeePageOutletContext } from '../types.js';
@@ -126,7 +127,7 @@ export default function EditEmployeeDrawer(): ReactElement {
   return (
     <RouteDrawer
       title={t('employees.edit.title')}
-      description={shown.name}
+      description={<UserName name={shown.name} />}
       // No closing while saving (T3.5).
       beforeClose={() => !submittingRef.current}
       footer={footer}

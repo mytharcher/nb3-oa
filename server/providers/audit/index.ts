@@ -62,6 +62,7 @@ export interface AuditService {
   record(entry: AuditEntry, connection?: DatabaseConnection): Promise<void>;
   list(
     query: AuditListQuery,
+    connection?: DatabaseConnection,
   ): Promise<{ items: AuditLogRecord[]; total: number }>;
   facets(): Promise<AuditFacets>;
   get(id: number): Promise<AuditLogRecord | undefined>;
@@ -92,8 +93,13 @@ export function createAuditService(database: DatabaseManager): AuditService {
       });
     },
 
-    async list({ page, pageSize, from, to, order = 'desc', ...criteria }) {
-      const repository = database.repository('auditLogs');
+    async list(
+      { page, pageSize, from, to, order = 'desc', ...criteria },
+      connection,
+    ) {
+      const repository = (connection ?? database.connection()).repository(
+        'auditLogs',
+      );
       const equals = Object.entries<string | undefined>(criteria).filter(
         (entry): entry is [string, string] => Boolean(entry[1]),
       );

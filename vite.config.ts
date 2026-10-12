@@ -7,6 +7,26 @@ import {
   createDevProxy,
 } from '@nocobase/app-cli/dev/proxy';
 
+/** File Repository content URLs use /uploads and /private outside /api. The CLI proxy currently covers API and WS only. */
+export function createApplicationDevProxy(
+  appBase: string,
+  target: string | undefined,
+) {
+  const proxy = createDevProxy(appBase, target);
+  if (!proxy) return undefined;
+  // Reuse the public API proxy's target, mount rewrite, cookies and guarded Origin handling.
+  const api = Object.entries(proxy).find(([key]) => key.includes('/api('))?.[1];
+  if (!api) return proxy;
+  const base = appBase.trim().replace(/^\/+|\/+$/g, '');
+  const prefix = base ? `/${base}` : '';
+  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return {
+    ...proxy,
+    [`^${escaped}/uploads(?=/|\\?|$)`]: { ...api },
+    [`^${escaped}/private(?=/|\\?|$)`]: { ...api },
+  };
+}
+
 const AGENT_ANNOTATIONS_DISABLED_VALUES = new Set(['false', '0', 'no', 'off']);
 
 function isAgentAnnotationsEnabled(value: string | undefined): boolean {
@@ -40,6 +60,10 @@ export default createAppViteConfig(async (environment) => {
 
   return {
     root: __dirname,
+    // Keep development prebundles outside node_modules: losing that cache while
+    // Vite is running leaves lazy pages requesting missing dependencies (504).
+    cacheDir: path.resolve(__dirname, 'storage/vite'),
+    ...(command === 'build' ? { base: env.CDN_BASE_URL?.trim() || './' } : {}),
     plugins: [
       ...(await loadAppVitePlugins({ appRoot: __dirname, environment })),
       ...(devClientConfig ? [devClientConfig] : []),
@@ -57,7 +81,7 @@ export default createAppViteConfig(async (environment) => {
     server: {
       proxy:
         command === 'serve'
-          ? createDevProxy(appBase, env.PROXY_TARGET_URL)
+          ? createApplicationDevProxy(appBase, env.PROXY_TARGET_URL)
           : undefined,
       watch: {
         ignored: [
@@ -86,7 +110,6 @@ export default createAppViteConfig(async (environment) => {
     },
     resolve: {
       dedupe: ['react', 'react-dom', 'react-router'],
-      alias: [{ find: '@', replacement: path.resolve(__dirname, './client') }],
     },
   };
 });

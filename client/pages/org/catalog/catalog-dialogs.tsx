@@ -7,19 +7,19 @@ import { Controller, useForm } from 'react-hook-form';
 import { useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
 
-import { RouteDialog } from '@/components/route-dialog';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { RouteDialog } from '#components/route-dialog';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Alert, AlertAction, AlertDescription } from '#components/ui/alert';
+import { Button } from '#components/ui/button';
 import {
   Field,
   FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
-} from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
-import { useRouteOverlay } from '@/components/use-route-overlay';
+} from '#components/ui/field';
+import { Input } from '#components/ui/input';
+import { useRouteOverlay } from '#components/use-route-overlay';
 
 import { CloseButton, FormDialogFooter } from '../dialog-parts.js';
 import { FormSkeleton, RequiredMark } from '../org-ui.js';

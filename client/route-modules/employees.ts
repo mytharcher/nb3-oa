@@ -1,16 +1,15 @@
 import { ContactRound, IdCard } from 'lucide-react';
 import {
   defineAppRoutes,
-  defineSettingsRoutes,
   type AppClientRouteContribution,
-  type AppClientSettingsRouteDefinition,
+  type AppClientRouteDefinition,
 } from '@nocobase/app-client/plugins';
 
 /**
  * The overlays an employee page's header opens, declared under each of its tabs so they open over the tab being shown
  * (guideline I9); `tab` is that tab's route name.
  */
-function employeeHeaderRoutes(tab: string): AppClientSettingsRouteDefinition[] {
+function employeeHeaderRoutes(tab: string): AppClientRouteDefinition[] {
   return [
     {
       // …/:employeeId/<tab>/edit: edit the basic archive (RouteDrawer)
@@ -33,100 +32,113 @@ function employeeHeaderRoutes(tab: string): AppClientSettingsRouteDefinition[] {
 const page = 'oa-employee-detail';
 
 /**
- * Settings → 组织与人员 → 员工档案. The settings item `oa.employees` (`read`) opens the page and is checked by every
+ * Settings → 组织与人事 → 员工档案. The settings item `oa.employees` (`read`) opens the page and is checked by every
  * `/api/employees` HR endpoint; what each section shows is decided per composite on the server. Child routes skip
  * their own check and inherit the page's.
  */
-const employeesSettingsRoutes: AppClientRouteContribution =
-  defineSettingsRoutes([
-    {
-      parent: 'oa-organization',
-      name: 'oa-employees',
-      path: '/employees',
-      authz: {
-        resource: { type: 'settings', id: 'oa.employees' },
-        action: 'read',
-      },
-      navigation: {
-        title: 'employees.navigation.archive',
-        icon: IdCard,
-        order: 50,
-      },
-      componentLoader: () => import('../pages/employees/index.js'),
-      children: [
-        {
-          // /settings/employees/new: the create page, covering the list
-          name: 'oa-employee-create',
-          path: 'new',
-          authz: 'skip',
-          componentLoader: () => import('../pages/employees/new.js'),
-        },
-        {
-          // /settings/employees/:employeeId: the employee's page with tabs, covering the list
-          name: page,
-          path: ':employeeId',
-          authz: 'skip',
-          componentLoader: () => import('../pages/employees/detail/index.js'),
-          children: [
-            {
-              name: `${page}-basic`,
-              path: 'basic',
-              authz: 'skip',
-              componentLoader: () =>
-                import('../pages/employees/detail/basic.js'),
-              children: employeeHeaderRoutes(`${page}-basic`),
-            },
-            {
-              name: `${page}-profile`,
-              path: 'profile',
-              authz: 'skip',
-              componentLoader: () =>
-                import('../pages/employees/detail/profile.js'),
-              children: [
-                ...employeeHeaderRoutes(`${page}-profile`),
-                {
-                  // …/:employeeId/profile/editProfile: the tab's own edit drawer
-                  name: `${page}-profile-edit-profile`,
-                  path: 'editProfile',
-                  authz: 'skip',
-                  componentLoader: () =>
-                    import('../pages/employees/detail/edit-profile.js'),
-                },
-              ],
-            },
-            {
-              name: `${page}-compensation`,
-              path: 'compensation',
-              authz: 'skip',
-              componentLoader: () =>
-                import('../pages/employees/detail/compensation.js'),
-              children: employeeHeaderRoutes(`${page}-compensation`),
-            },
-            {
-              name: `${page}-history`,
-              path: 'history',
-              authz: 'skip',
-              componentLoader: () =>
-                import('../pages/employees/detail/history.js'),
-              children: employeeHeaderRoutes(`${page}-history`),
-            },
-          ],
-        },
-      ],
+const employeesSettingsRoutes: AppClientRouteContribution = defineAppRoutes([
+  {
+    auth: 'required',
+    parent: 'oa-organization',
+    name: 'oa-employees',
+    path: '/employees',
+    authz: {
+      resource: { type: 'settings', id: 'oa.employees' },
+      action: 'read',
     },
-  ]);
+    navigation: {
+      title: 'employees.navigation.archive',
+      icon: IdCard,
+      order: 40,
+    },
+    componentLoader: () => import('../pages/employees/index.js'),
+    children: [
+      {
+        // /employees/new: the create page, covering the list
+        name: 'oa-employee-create',
+        path: 'new',
+        authz: 'skip',
+        componentLoader: () => import('../pages/employees/new.js'),
+      },
+      {
+        // /employees/:employeeId: the employee's page with tabs, covering the list
+        name: page,
+        path: ':employeeId',
+        authz: 'skip',
+        componentLoader: () => import('../pages/employees/detail/index.js'),
+        children: [
+          {
+            name: `${page}-basic`,
+            path: 'basic',
+            authz: 'skip',
+            componentLoader: () => import('../pages/employees/detail/basic.js'),
+            children: employeeHeaderRoutes(`${page}-basic`),
+          },
+          {
+            name: `${page}-profile`,
+            path: 'profile',
+            authz: 'skip',
+            componentLoader: () =>
+              import('../pages/employees/detail/profile.js'),
+            children: [
+              ...employeeHeaderRoutes(`${page}-profile`),
+              {
+                // …/:employeeId/profile/editProfile: the tab's own edit drawer
+                name: `${page}-profile-edit-profile`,
+                path: 'editProfile',
+                authz: 'skip',
+                componentLoader: () =>
+                  import('../pages/employees/detail/edit-profile.js'),
+              },
+            ],
+          },
+          {
+            name: `${page}-compensation`,
+            path: 'compensation',
+            authz: 'skip',
+            componentLoader: () =>
+              import('../pages/employees/detail/compensation.js'),
+            children: employeeHeaderRoutes(`${page}-compensation`),
+          },
+          {
+            name: `${page}-history`,
+            path: 'history',
+            authz: 'skip',
+            componentLoader: () =>
+              import('../pages/employees/detail/history.js'),
+            children: employeeHeaderRoutes(`${page}-history`),
+          },
+        ],
+      },
+    ],
+  },
+]);
 
 /** 通讯录: an App page every holder of its page grant opens; the endpoint checks the directory composite. */
 const employeesAppRoutes: AppClientRouteContribution = defineAppRoutes([
   {
+    name: 'oa-personal-archive',
+    path: '/personal-archive',
+    auth: 'required',
+    // The server derives the employee from the session; no HR page permission is needed.
+    authz: 'skip',
+    breadcrumb: { title: 'employees.personal.title' },
+    componentLoader: () => import('../pages/employees/personal/index.js'),
+  },
+  {
     name: 'oa-directory',
+    parent: 'oa-organization',
     path: '/directory',
     auth: 'required',
     authz: {
       resource: { type: 'page', id: 'oa.employees.directory' },
       action: 'access',
     },
-    navigation: { title: 'employees.navigation.directory', icon: ContactRound },
+    navigation: {
+      title: 'employees.navigation.directory',
+      icon: ContactRound,
+      order: 110,
+    },
     componentLoader: () => import('../pages/directory.js'),
   },
 ]);

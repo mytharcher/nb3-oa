@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { AppAuthorization } from '@nocobase/app-plugin-authorization/server';
 import {
   lockUserForAdministration,
@@ -58,6 +59,16 @@ export function createApprovalDirectoryService({
   generateId,
   authorization,
 }: DirectoryDependencies): ApprovalDirectoryService {
+  const readSnapshots = new AsyncLocalStorage<{
+    value?: Promise<OaApprovalDirectory>;
+  }>();
+  function snapshot(
+    connection?: DatabaseConnection,
+  ): Promise<OaApprovalDirectory> {
+    const scope = readSnapshots.getStore();
+    if (connection || !scope) return buildSnapshot(connection);
+    return (scope.value ??= buildSnapshot());
+  }
   const connectionOf = (connection?: DatabaseConnection) =>
     connection ?? database.connection();
   async function enabledEmployees(
@@ -91,7 +102,7 @@ export function createApprovalDirectoryService({
       .findMany({ sort: (sort) => sort.field('id').desc() });
     return entries.map((entry) => row(entry));
   }
-  async function snapshot(
+  async function buildSnapshot(
     connection?: DatabaseConnection,
   ): Promise<OaApprovalDirectory> {
     const tx = connectionOf(connection);
@@ -102,14 +113,23 @@ export function createApprovalDirectoryService({
     const executives = new Map<string, string>();
     const roles = new Map<string, readonly string[]>();
     const departments = await org.primaryDepartmentsOf([...active], tx);
+    // Many employees share a primary department. Resolve its chain once per
+    // fresh snapshot, retaining the caller connection and avoiding a persistent cache.
+    const chains = new Map<string, ReturnType<OrgService['activeChain']>>();
+    const managerChains = await employees.managerChainsOf([...active], tx);
     for (const person of people) {
-      const manager = (await employees.managerChainOf(person.userId, tx)).find(
+      const manager = (managerChains.get(person.userId) ?? []).find(
         (entry) => active.has(entry.userId) && entry.userId !== person.userId,
       );
       if (manager) managers.set(person.userId, manager.userId);
       const department = departments.get(person.userId);
       if (!department) continue;
-      const chain = await org.activeChain(department.id, tx);
+      let pendingChain = chains.get(department.id);
+      if (!pendingChain) {
+        pendingChain = org.activeChain(department.id, tx);
+        chains.set(department.id, pendingChain);
+      }
+      const chain = await pendingChain;
       const head = chain?.find(
         (entry) => entry.managerId && active.has(entry.managerId),
       );
@@ -123,11 +143,15 @@ export function createApprovalDirectoryService({
     const roleRows = await tx
       .repository('dutyRoles')
       .findMany({ filter: { active: true } });
+    const membersByRole = await org.dutyRoleMembersByCodes(
+      roleRows.map((role) => role.code as string),
+      tx,
+    );
     for (const role of roleRows) {
       const code = role.code as string;
       roles.set(code, [
         ...new Set(
-          (await org.dutyRoleMembers(code, tx)).filter((id) => active.has(id)),
+          (membersByRole.get(code) ?? []).filter((id) => active.has(id)),
         ),
       ]);
     }
@@ -381,6 +405,7 @@ export function createApprovalDirectoryService({
   }
   return {
     snapshot,
+    withReadSnapshot: (read) => readSnapshots.run({}, read),
     list,
     createManualDelegation: (input, context) =>
       write(input, context, 'manual', null),

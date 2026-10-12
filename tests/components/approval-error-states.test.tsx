@@ -35,7 +35,12 @@ function show(status: number, reason?: string) {
 describe('approval errors', () => {
   it.each([
     ['LEAVE_BALANCE_UNAVAILABLE', /balance/i],
-    ['LEAVE_ATTACHMENT_REQUIRED', /attachment/i],
+    ['LEAVE_BALANCE_INSUFFICIENT', /balance.*insufficient/i],
+    ['LEAVE_ATTACHMENT_REQUIRED', /supporting attachments required/i],
+    ['LEAVE_FILE_TYPE', /matching format/i],
+    ['LEAVE_FILE_SIZE', /nonempty file up to 5 MiB/i],
+    ['LEAVE_ATTACHMENT_INVALID', /invalid or do not belong/i],
+    ['LEAVE_ATTACHMENTS_UNAVAILABLE', /temporarily unavailable/i],
     ['LEAVE_OVERLAP', /overlap/i],
     ['LEAVE_SLA_CONFIGURATION_UNSUPPORTED', /configuration/i],
   ])('explains %s without inviting an unchanged retry', (reason, message) => {
@@ -48,6 +53,14 @@ describe('approval errors', () => {
     expect(
       screen.queryByText('private database detail'),
     ).not.toBeInTheDocument();
+  });
+
+  it('explains denied attachment access without a retry', () => {
+    show(403, 'LEAVE_ATTACHMENT_DENIED');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      enUS.approvals.attachmentDenied,
+    );
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   });
 
   it('allows recovery from a temporary server failure', async () => {

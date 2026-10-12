@@ -5,6 +5,7 @@ import { idGeneratorToken } from '@nocobase/app-server/id-generator';
 import { databaseManagerToken } from '@nocobase/db';
 import { ServiceProvider } from '@nocobase/service-provider';
 
+import { headcountServiceToken } from '../headcounts/contract.js';
 import { auditServiceToken } from '../audit/index.js';
 import { registerOrgAuthorization } from './authorization.js';
 import { orgServiceToken } from './contract.js';
@@ -40,6 +41,10 @@ export default class OrgProvider extends ServiceProvider<Application> {
         users: container.resolve(userAdministrationServiceToken),
         audit: container.resolve(auditServiceToken),
         generateId: () => ids.generateString(),
+        headcounts: () =>
+          container.has(headcountServiceToken)
+            ? container.resolve(headcountServiceToken)
+            : undefined,
         // Clients cache their permission snapshot; the service calls this after the membership write commits.
         notifyUsers: async (userIds) => {
           if (!container.has(authorizationToken)) return;

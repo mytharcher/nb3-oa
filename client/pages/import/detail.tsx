@@ -1,12 +1,13 @@
+import { UserName } from '#components/user-name';
 import { useLocale, useTranslation } from '@nocobase/i18n/client';
 import { type ReactElement, type ReactNode, useMemo } from 'react';
 import { useParams } from 'react-router';
 
-import { RouteDrawer } from '@/components/route-drawer';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useRouteOverlay } from '@/components/use-route-overlay';
+import { RecordDetailDrawer } from '#components/record-detail-drawer';
+import { Badge } from '#components/ui/badge';
+import { Button } from '#components/ui/button';
+import { Skeleton } from '#components/ui/skeleton';
+import { useRouteOverlay } from '#components/use-route-overlay';
 
 import { ProblemTable } from './problems.js';
 import { LoadErrorAlert } from './states.js';
@@ -78,7 +79,7 @@ export default function ImportRunDrawer(): ReactElement {
         <Badge key='kind' variant='outline'>
           {t(`import.kinds.${entry.kind}`)}
         </Badge>,
-      ],
+      ] as const,
       [
         t('import.fields.status'),
         <Badge
@@ -87,7 +88,7 @@ export default function ImportRunDrawer(): ReactElement {
         >
           {t(`import.status.${entry.status}`)}
         </Badge>,
-      ],
+      ] as const,
       [
         t('import.fields.file'),
         entry.file ? (
@@ -102,8 +103,14 @@ export default function ImportRunDrawer(): ReactElement {
         ) : (
           entry.filename
         ),
-      ],
-      [t('import.fields.actor'), entry.actor?.name ?? '—'],
+      ] as const,
+      [
+        t('import.fields.actor'),
+        <UserName
+          key={t('import.fields.actor')}
+          name={entry.actor?.name ?? '—'}
+        />,
+      ] as const,
       [
         t('import.fields.createdAt'),
         dateFormat.format(new Date(entry.createdAt)),
@@ -150,7 +157,7 @@ export default function ImportRunDrawer(): ReactElement {
   }
 
   return (
-    <RouteDrawer
+    <RecordDetailDrawer
       title={
         entry
           ? t('import.detail.title', { name: entry.filename })
@@ -160,6 +167,6 @@ export default function ImportRunDrawer(): ReactElement {
       footer={<CloseButton />}
     >
       {body}
-    </RouteDrawer>
+    </RecordDetailDrawer>
   );
 }

@@ -1,4 +1,4 @@
-import type { DatabaseConnection } from '@nocobase/db';
+import type { DatabaseConnection, RepositoryPolicy } from '@nocobase/db';
 import type { RecordAccessReference } from '@nocobase/authorization/core';
 import {
   createServiceToken,
@@ -43,6 +43,8 @@ export interface Employee {
   positionId: string | null;
   gradeId: string | null;
   hireDate: string | null;
+  /** First date of employment across employers; null means unknown and never falls back to hireDate. */
+  careerStartDate: string | null;
   probationEndDate: string | null;
   status: EmployeeStatus;
   lastWorkingDay: string | null;
@@ -68,6 +70,13 @@ export interface EmployeeProfile {
   bankAccount: string | null;
   bankAccountName: string | null;
   updatedAt: string | null;
+}
+
+/** A private payment snapshot, never part of the ordinary employee archive or approval run. */
+export interface EmployeePaymentAccount {
+  bankName: string | null;
+  bankAccount: string | null;
+  bankAccountName: string | null;
 }
 
 export interface EmployeeCompensation {
@@ -127,11 +136,64 @@ export interface ApplyStatusInput {
   kind: EmployeeHistoryKind;
   effectiveAt: string;
   lastWorkingDay?: string | null;
+  /** Trusted regularization/deferral lifecycle writes, included in the same audited history. */
+  probationEndDate?: string | null;
+  gradeId?: string | null;
   active?: boolean;
   note?: string | null;
 }
 
+export interface OnboardingEmployeeInput {
+  userId: string;
+  code: string;
+  name: string;
+  managerId: string | null;
+  positionId: string;
+  gradeId: string;
+  hireDate: string;
+  careerStartDate: string | null;
+  probationEndDate: string;
+}
+
+/** Trusted effective personnel change; salary is written separately through compensation. */
+export interface ApplyAssignmentInput {
+  employeeId: string;
+  expected: Pick<Employee, 'positionId' | 'gradeId' | 'managerId' | 'status'>;
+  positionId: string;
+  gradeId: string;
+  managerId: string | null;
+  effectiveAt: string;
+  note?: string | null;
+}
+
 export interface EmployeeService {
+  /** Trusted onboarding only: disabled account, fixed probation/active archive, unique immutable source. Caller holds the headcount guard and consumes its requisition in this same transaction. */
+  createForOnboarding(
+    input: OnboardingEmployeeInput,
+    origin: EmployeeWriteOrigin & { sourceApplication: string },
+    connection: DatabaseConnection,
+  ): Promise<Employee>;
+
+  /**
+   * Trusted cash/expense lifecycle callers only. Joins their transaction and returns just bank fields.
+   * An HTTP caller must independently enforce payment-record and bank-field access before exposing this snapshot.
+   */
+  paymentAccountOf(
+    userId: string,
+    connection: DatabaseConnection,
+  ): Promise<EmployeePaymentAccount | undefined>;
+  /** Trusted private personnel logic only; HTTP owners must enforce their own ordinary and salary policies. */
+  currentCompensationOf(
+    employeeId: string,
+    effectiveDate: string,
+    connection: DatabaseConnection,
+  ): Promise<EmployeeCompensation | undefined>;
+  /** Scoped identity search only; these identities do not certify an occupied replacement source. */
+  recruitmentReplacementCandidates(
+    query: { departmentId: string; positionId: string; search?: string },
+    policy: RepositoryPolicy,
+    connection: DatabaseConnection,
+  ): Promise<readonly { id: string; name: string; status: EmployeeStatus }[]>;
   getById(
     id: string,
     connection?: DatabaseConnection,
@@ -153,6 +215,11 @@ export interface EmployeeService {
     userId: string,
     connection?: DatabaseConnection,
   ): Promise<readonly Employee[]>;
+  /** Batch equivalent of managerChainOf; one fresh graph in the caller connection. */
+  managerChainsOf(
+    userIds: readonly string[],
+    connection?: DatabaseConnection,
+  ): Promise<ReadonlyMap<string, readonly Employee[]>>;
   /** First element of `managerChainOf`: the effective direct manager. */
   managerOf(
     userId: string,
@@ -188,6 +255,11 @@ export interface EmployeeService {
   applyStatusChange(
     input: ApplyStatusInput,
     origin: EmployeeWriteOrigin,
+    connection: DatabaseConnection,
+  ): Promise<Employee>;
+  applyAssignmentChange(
+    input: ApplyAssignmentInput,
+    origin: { actorId: string; sourceApplication: string },
     connection: DatabaseConnection,
   ): Promise<Employee>;
   /** Appends a compensation row (regularization, salary change) and audits it. */

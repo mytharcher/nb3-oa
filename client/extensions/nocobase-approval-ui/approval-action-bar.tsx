@@ -2,7 +2,7 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { ChevronDown, ShieldCheck } from 'lucide-react';
 import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '#components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +11,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '#components/ui/dropdown-menu';
 import { cn } from 'cn';
 
 import type { ApprovalTone } from './types.js';

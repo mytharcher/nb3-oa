@@ -1,22 +1,23 @@
 import {
-  defineSettingsRoutes,
+  defineAppRoutes,
   type AppClientRouteContribution,
 } from '@nocobase/app-client/plugins';
 import { FileSpreadsheet } from 'lucide-react';
 
 /**
- * Routes of the `import` OA module: the Excel import page in 组织与人员 (`oa-organization`). The page and the detail
+ * Routes of the `import` OA module: the Excel import page in 组织与人事 (`oa-organization`). The page and the detail
  * drawer need `settings:oa.import` `read`; the new-import dialog declares `update`, which every write endpoint checks.
  */
-const importSettingsRoutes: AppClientRouteContribution = defineSettingsRoutes([
+const importSettingsRoutes: AppClientRouteContribution = defineAppRoutes([
   {
+    auth: 'required',
     parent: 'oa-organization',
     name: 'import-data',
     path: '/import',
     navigation: {
       title: 'import.navigation.title',
       icon: FileSpreadsheet,
-      order: 60,
+      order: 140,
     },
     authz: {
       resource: { type: 'settings', id: 'oa.import' },
@@ -25,7 +26,7 @@ const importSettingsRoutes: AppClientRouteContribution = defineSettingsRoutes([
     componentLoader: () => import('../pages/import/index.js'),
     children: [
       {
-        // /settings/import/new: check a file, then import it (static segment before :runId)
+        // /import/new: check a file, then import it (static segment before :runId)
         name: 'import-data-new',
         path: 'new',
         authz: {
@@ -35,7 +36,7 @@ const importSettingsRoutes: AppClientRouteContribution = defineSettingsRoutes([
         componentLoader: () => import('../pages/import/new.js'),
       },
       {
-        // /settings/import/:runId: one attempt, with its problems when it failed
+        // /import/:runId: one attempt, with its problems when it failed
         name: 'import-data-run',
         path: ':runId',
         componentLoader: () => import('../pages/import/detail.js'),

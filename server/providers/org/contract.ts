@@ -83,6 +83,11 @@ export interface OrgService {
     code: string,
     connection?: DatabaseConnection,
   ): Promise<readonly string[]>;
+  /** Batch equivalent; inactive roles/members remain excluded. */
+  dutyRoleMembersByCodes(
+    codes: readonly string[],
+    connection?: DatabaseConnection,
+  ): Promise<ReadonlyMap<string, readonly string[]>>;
   hasDutyRole(
     userId: string,
     code: string,

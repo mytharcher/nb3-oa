@@ -1,0 +1,41 @@
+export default {
+  workItems: {
+    authz: {
+      confirmationOwned: 'Tasks I confirm',
+      handoverConfirmation: 'Transfer confirmation responsibility',
+
+      title: 'Ordinary work items',
+      owned: 'Created by me',
+      readable: 'Tasks I create, own or qualify for',
+      view: 'view',
+      create: 'create',
+      edit: 'edit',
+      dispatch: 'dispatch',
+      claim: 'claim',
+      release: 'release',
+      complete: 'complete',
+      confirm: 'confirm',
+      return: 'return',
+      block: 'block',
+      resume: 'resume',
+      reassign: 'reassign',
+      cancel: 'cancel',
+      forceComplete: 'forceComplete',
+    },
+    notifications: {
+      title: 'Work item update',
+      body: 'An ordinary task has changed. Open the application for details.',
+    },
+    errors: {
+      ACCESS_DENIED: 'The task or operation is not accessible.',
+      NOT_FOUND: 'Task not found.',
+      REASON_REQUIRED: 'A reason is required.',
+      RESULT_REQUIRED: 'A completion result is required.',
+      INVALID_INPUT: 'The input or state is invalid; refresh and retry.',
+      INVALID_TARGET: 'The input or state is invalid; refresh and retry.',
+      INVALID_ATTACHMENT: 'The input or state is invalid; refresh and retry.',
+      VERSION_CONFLICT: 'The input or state is invalid; refresh and retry.',
+      COMMAND_CONFLICT: 'The input or state is invalid; refresh and retry.',
+    },
+  },
+};

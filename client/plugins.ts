@@ -5,40 +5,36 @@ import {
   defineClientPlugins,
   type AppClientPlugins,
 } from '@nocobase/app-client/plugins';
-import aiEmployee from '@nocobase/app-plugin-ai-employee/client';
 import apiKeys from '@nocobase/app-plugin-api-keys/client';
 import authentication from '@nocobase/app-plugin-authentication/client';
 import authorization from '@nocobase/app-plugin-authorization/client';
-import databaseExplorer from '@nocobase/app-plugin-database-explorer/client';
 import users from '@nocobase/app-plugin-users/client';
 import notificationInApp from '@nocobase/app-plugin-notification-in-app/client';
 import i18n from '@nocobase/app-plugin-i18n/client';
-import workflow from '@nocobase/app-plugin-workflow/client';
 import notification from '@nocobase/app-plugin-notification/client';
 import scheduler from '@nocobase/app-plugin-scheduler/client';
 import file from '@nocobase/app-plugin-file/client';
+import agents from '@nocobase/app-plugin-agents/client';
 
-// `@nocobase/app-plugin-approval/client` is a helper library (step, timeline and action mappers), not a client
-// plugin: it has no default export and is imported directly by the pages that need it, so it is not listed here.
+// Approval pages import the helpers from `@nocobase/app-plugin-approval/client` directly, and the application
+// locale modules load its wording. Its locale registration factory is therefore not needed in this list.
 //
 // Array order is contribution order. A plugin is enabled by appearing in this
 // list; removing its entry and its import disables it.
 const clientPlugins: AppClientPlugins = defineClientPlugins([
   authentication(),
-  aiEmployee(),
   authorization(),
   defaultAccess(),
   sharingRules(),
   restrictionRules(),
-  databaseExplorer(),
-  users({ mount: 'settings', path: '/users' }),
-  apiKeys({ path: '/api-keys' }),
+  users(),
+  apiKeys(),
   i18n(),
   notificationInApp(),
-  workflow(),
   notification(),
   file(),
   scheduler(),
+  agents(),
 ]);
 
 export default clientPlugins;

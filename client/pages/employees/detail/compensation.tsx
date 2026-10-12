@@ -3,14 +3,14 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { type ReactElement, useMemo } from 'react';
 import { Outlet, useOutletContext } from 'react-router';
 
-import { DataTable, DataTableColumnHeader } from '@/components/data-table';
+import { DataTable, DataTableColumnHeader } from '#components/data-table';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '#components/ui/card';
 
 import type {
   EmployeeCompensation,

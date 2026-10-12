@@ -308,7 +308,7 @@ export function createDepartmentRoutes(app: Application): Hono<OrgEnv> {
         ...apiErrorResponses,
         400: apiErrorResponse(
           400,
-          'The user is not an enabled user (`USER_NOT_FOUND`).',
+          'The user is not enabled (`USER_NOT_FOUND`), or this write would change an initialized headcount roster (`HEADCOUNT_ROSTER_DRIFT`).',
         ),
         404: departmentNotFound,
       },
@@ -318,8 +318,8 @@ export function createDepartmentRoutes(app: Application): Hono<OrgEnv> {
     async (c) => {
       const { departmentId } = c.req.valid('param');
       const input = c.req.valid('json');
-      await organization.addMember(
-        { departmentId, ...defined(input) },
+      await organization.manageMember(
+        { action: 'add', departmentId, ...defined(input) },
         services.actor(c),
       );
       const member = (await members(departmentId)).find(
@@ -339,6 +339,10 @@ export function createDepartmentRoutes(app: Application): Hono<OrgEnv> {
       description: `Deactivates the membership; the row is kept for history. Records an audit entry. ${UPDATE}`,
       responses: {
         204: emptyResponse('The member was removed.'),
+        400: apiErrorResponse(
+          400,
+          'The initialized roster cannot be changed without a business source (`HEADCOUNT_ROSTER_DRIFT`).',
+        ),
         ...apiErrorResponses,
         404: memberNotFound,
       },
@@ -346,7 +350,10 @@ export function createDepartmentRoutes(app: Application): Hono<OrgEnv> {
     apiValidator('param', DepartmentMemberParams),
     async (c) => {
       const { departmentId, userId } = c.req.valid('param');
-      await organization.removeMember(departmentId, userId, services.actor(c));
+      await organization.manageMember(
+        { action: 'remove', departmentId, userId },
+        services.actor(c),
+      );
       return c.body(null, 204);
     },
   );
@@ -361,6 +368,10 @@ export function createDepartmentRoutes(app: Application): Hono<OrgEnv> {
       description: `Makes this department the user's primary one, replacing any other. Approvals resolve the head, executive and budget from the primary department. Records an audit entry. ${UPDATE}`,
       responses: {
         200: dataResponse(DepartmentMember),
+        400: apiErrorResponse(
+          400,
+          'The initialized roster cannot be changed without a business source (`HEADCOUNT_ROSTER_DRIFT`).',
+        ),
         ...apiErrorResponses,
         404: memberNotFound,
       },
@@ -368,7 +379,10 @@ export function createDepartmentRoutes(app: Application): Hono<OrgEnv> {
     apiValidator('param', DepartmentMemberParams),
     async (c) => {
       const { departmentId, userId } = c.req.valid('param');
-      await organization.setPrimary(departmentId, userId, services.actor(c));
+      await organization.manageMember(
+        { action: 'makePrimary', departmentId, userId },
+        services.actor(c),
+      );
       const member = (await members(departmentId)).find(
         (row) => row.userId === userId,
       );

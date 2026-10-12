@@ -5,12 +5,15 @@ import {
 
 /** Installed official drivers are loaded synchronously when first needed. */
 export default defineAppDatabaseConfig(
-  ({ paths }) => ({
+  () => ({
     default: 'main',
     connections: {
       main: {
-        dialect: 'sqlite',
-        filename: paths.storage('database.sqlite'),
+        dialect: 'postgres',
+        host: '127.0.0.1',
+        port: 5432,
+        database: 'nb3_oa',
+        username: 'postgres',
         schemaManagement: 'managed',
         debug: false,
       },

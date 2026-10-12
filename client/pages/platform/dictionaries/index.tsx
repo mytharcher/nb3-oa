@@ -1,3 +1,4 @@
+import { ApplicationToolbar } from '#components/application-toolbar';
 import { useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useLocale, useTranslation } from '@nocobase/i18n/client';
@@ -14,11 +15,11 @@ import {
 import { type ReactElement, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 
-import { DataTable } from '@/components/data-table';
-import { DataTableColumnHeader } from '@/components/data-table/column-header';
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
+import { DataTable } from '#components/data-table';
+import { DataTableColumnHeader } from '#components/data-table/column-header';
+import { PageContainer } from '#components/page-container';
+import { PageHeader } from '#components/page-header';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,9 +29,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+} from '#components/ui/alert-dialog';
+import { Badge } from '#components/ui/badge';
+import { Button } from '#components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +39,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '#components/ui/dropdown-menu';
 import {
   Empty,
   EmptyContent,
@@ -46,12 +47,12 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty';
+} from '#components/ui/empty';
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from '@/components/ui/input-group';
+} from '#components/ui/input-group';
 import {
   Select,
   SelectContent,
@@ -59,9 +60,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Spinner } from '@/components/ui/spinner';
-import { useUrlSearch } from '@/hooks/use-url-search';
+} from '#components/ui/select';
+import { Spinner } from '#components/ui/spinner';
+import { useUrlSearch } from '#hooks/use-url-search';
 
 import { statusOf } from '../shared/errors.js';
 import { LoadErrorAlert, TableSkeleton } from '../shared/states.js';
@@ -84,7 +85,7 @@ const SELECT_CONTENT_CLASS =
   'w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal';
 
 /**
- * Route /settings/dictionaries: the entries of one dictionary type (`?type=`), filtered in the browser by `?q=` and
+ * Route /dictionaries: the entries of one dictionary type (`?type=`), filtered in the browser by `?q=` and
  * `?status=`. A type holds tens of entries, so the whole type is loaded and sorted here. Entries are disabled, never
  * deleted: requests keep the codes they were filed with.
  */
@@ -368,13 +369,14 @@ export default function DictionariesPage(): ReactElement {
       <PageHeader
         title={t('platform.dictionaries.title')}
         description={t('platform.dictionaries.description')}
+      />
+      <ApplicationToolbar
         actions={
           canUpdate && rowsOfType !== undefined && rowsOfType.length > 0
             ? newButton
             : null
         }
-      />
-      <div className='flex flex-wrap items-center gap-2'>
+      >
         <Select
           items={typeItems}
           value={type}
@@ -398,7 +400,10 @@ export default function DictionariesPage(): ReactElement {
             </SelectGroup>
           </SelectContent>
         </Select>
-        <InputGroup className='w-full sm:max-w-xs'>
+        <InputGroup
+          data-slot='application-search'
+          className='w-full sm:max-w-xs'
+        >
           <InputGroupAddon>
             <SearchIcon />
           </InputGroupAddon>
@@ -443,7 +448,7 @@ export default function DictionariesPage(): ReactElement {
         {entries.loading && rowsOfType !== undefined ? (
           <Spinner className='text-muted-foreground' />
         ) : null}
-      </div>
+      </ApplicationToolbar>
       {content}
       <DisableEntryDialog
         open={disabling.open}

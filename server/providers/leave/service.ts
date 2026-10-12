@@ -1,6 +1,23 @@
+import { runTaskViewsFor } from '../approval-runtime/task-views.js';
+import {
+  appointAction,
+  reassignAction,
+} from '../process-management/actions.js';
+import { processDirectorySnapshot } from '../process-management/context.js';
+import { LEAVE_DETAIL_FIELDS } from './fields.js';
+import {
+  leaveApprovalReturnRate,
+  type ReturnRateQuery,
+} from './approval-return-rate.js';
+import {
+  leaveApprovalEfficiency,
+  type EfficiencyQuery,
+} from './approval-efficiency.js';
+import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
 import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
 import { randomUUID } from 'node:crypto';
 import {
+  isOpenRun,
   ApprovalService,
   approvalState,
   defineApproval,
@@ -9,15 +26,12 @@ import {
   reject,
   returnTo,
   commentAction,
-  appointAction,
-  reassignAction,
   readAction,
   type Approval,
   type PerformInput,
 } from '@nocobase/app-plugin-approval/server';
 import {
   LifecycleRuntime,
-  createRepositoryLifecycleStore,
   type LifecycleStore,
   type LifecycleRecord,
   type JsonObject,
@@ -31,7 +45,10 @@ import type {
 } from '@nocobase/db';
 import { createServiceToken } from '@nocobase/service-provider';
 import { LeaveError } from './errors.js';
+import { createOaApprovalOperations } from '../approval-directory/operations.js';
 
+import type { LeaveAttachmentService } from '../leave-attachments/service.js';
+import type { LeaveBalanceService } from '../leave-balances/contract.js';
 import type { OrgService } from '../org/contract.js';
 import type { AuditService } from '../audit/index.js';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
@@ -48,6 +65,7 @@ import type {
   SequenceService,
 } from '../platform/index.js';
 import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import { localizeLabel } from '../platform/dictionaries.js';
 
 export const LEAVE_LIFECYCLE = 'oa.leave';
 export interface LeaveRecord extends LifecycleRecord {
@@ -93,6 +111,8 @@ interface Types {
 }
 export interface LeaveDependencies {
   db: DatabaseManager;
+  balances: LeaveBalanceService;
+  attachments: Pick<LeaveAttachmentService, 'assertLinked'>;
   org: OrgService;
 
   audit: AuditService;
@@ -133,7 +153,7 @@ export function createLeaveService(d: LeaveDependencies) {
     depth: number;
   }>();
   const snapshots = new WeakMap<object, Services>();
-  const base = createRepositoryLifecycleStore(d.db, {
+  const base = createAppLifecycleStore(d.db, {
     collections: {
       transitions: 'oaLifecycleTransitions',
       effectRuns: 'oaLifecycleEffectRuns',
@@ -144,6 +164,27 @@ export function createLeaveService(d: LeaveDependencies) {
   function wrap(store: LifecycleStore): LifecycleStore {
     return new Proxy(store, {
       get(target, key) {
+        // PostgreSQL decimal values arrive as strings. Normalize the owned days field before
+        // approval freeze/current-content hashing so the same value keeps the same JSON type.
+        if (key === 'findRecord')
+          return async (...args: Parameters<LifecycleStore['findRecord']>) => {
+            const row = await target.findRecord(...args);
+            if (!row || args[0] !== 'leaveRequests') return row;
+            const days = Number(row.days);
+            if (
+              (typeof row.days !== 'string' && typeof row.days !== 'number') ||
+              !Number.isFinite(days) ||
+              days < 0 ||
+              days > 999999.99 ||
+              !Number.isSafeInteger(days * 2)
+            )
+              throw new LeaveError(
+                'LEAVE_FACT_INVALID',
+                'Stored leave days must be a finite nonnegative half-day amount.',
+                'precondition',
+              );
+            return { ...row, days: String(days) };
+          };
         const policy = writePolicy.getStore();
         if (policy && key === 'createRecord')
           return async (
@@ -199,7 +240,11 @@ export function createLeaveService(d: LeaveDependencies) {
               snapshots.set(connection, {
                 directory:
                   readDirectory.getStore() ??
-                  (await d.directory.snapshot(connection)),
+                  (await processDirectorySnapshot(
+                    d.directory,
+                    'oa.leave',
+                    connection,
+                  )),
                 connection,
               });
               const change = intervention.getStore();
@@ -255,6 +300,7 @@ export function createLeaveService(d: LeaveDependencies) {
   ];
   const stage = stagesFor<Types>();
   const actions = [
+    ...createOaApprovalOperations(d),
     approve(),
     reject({ reason: 'required' }),
     returnTo({ targets: ['revision'], reason: 'required' }),
@@ -302,23 +348,11 @@ export function createLeaveService(d: LeaveDependencies) {
     );
     if (!kind?.active)
       refuse('LEAVE_TYPE_UNAVAILABLE', 'The leave type is unavailable.');
-    if (
-      kind.extra?.deductsBalance ||
-      ['annual', 'compensatory'].includes(record.leaveType)
-    )
-      refuse(
-        'LEAVE_BALANCE_UNAVAILABLE',
-        'Balance-backed leave cannot be submitted until the leave ledger is available.',
-      );
     const days = d.calendar.workdaysBetween(record.startDate, record.endDate, {
       startHalf: record.startHalf,
       endHalf: record.endHalf,
     });
-    if (record.attachments.length)
-      refuse(
-        'LEAVE_ATTACHMENTS_UNAVAILABLE',
-        'Attachment-backed leave is unavailable until secure file validation is implemented.',
-      );
+    await d.attachments.assertLinked(connection, record.id, record.attachments);
     if (days <= 0)
       refuse(
         'LEAVE_NO_WORKDAYS',
@@ -366,11 +400,36 @@ export function createLeaveService(d: LeaveDependencies) {
             ),
           ]),
       });
+    // Approved content remains immutable; cancellation updates its effective attendance range.
+    const effectiveRows = await Promise.all(
+      rows.map(async (r) => {
+        if (r.status !== 'approved') return r;
+        const attendance = await connection
+          .repository<
+            Pick<
+              LeaveRecord,
+              'startDate' | 'endDate' | 'startHalf' | 'endHalf'
+            > & { active: boolean; applicationId: string }
+          >('leaveAttendance')
+          .findOne({ filter: { applicationId: r.id } });
+        if (attendance?.active === false) return null;
+        return attendance
+          ? {
+              ...r,
+              startDate: String(attendance.startDate),
+              startHalf: String(attendance.startHalf),
+              endDate: String(attendance.endDate),
+              endHalf: String(attendance.endHalf),
+            }
+          : r;
+      }),
+    );
     const start = `${record.startDate}:${record.startHalf === 'am' ? '0' : '1'}`,
       end = `${record.endDate}:${record.endHalf === 'am' ? '0' : '1'}`;
     if (
-      rows.some(
+      effectiveRows.some(
         (r) =>
+          r !== null &&
           r.id !== record.id &&
           `${r.startDate}:${r.startHalf === 'am' ? '0' : '1'}` <= end &&
           `${r.endDate}:${r.endHalf === 'am' ? '0' : '1'}` >= start,
@@ -381,6 +440,39 @@ export function createLeaveService(d: LeaveDependencies) {
         'This period overlaps an approved or pending leave request.',
       );
     return { days, requiresHr: Boolean(kind.extra?.requiresHr) };
+  }
+  async function balanceAccount(
+    record: LeaveRecord,
+    connection: DatabaseConnection,
+  ) {
+    const employee = await d.employees.getByUserId(
+      record.applicantId,
+      connection,
+    );
+    if (!employee)
+      refuse('LEAVE_EMPLOYEE_INACTIVE', 'The employee archive is unavailable.');
+    return employee.id;
+  }
+  async function releaseBalance(
+    record: LeaveRecord,
+    connection: DatabaseConnection,
+    now: Date,
+  ) {
+    const employee = await d.employees.getByUserId(
+      record.applicantId,
+      connection,
+    );
+    // A withdrawn draft may precede the creation of an employee archive and owns no hold.
+    if (!employee) return;
+    await d.balances.releaseReference(
+      {
+        employeeId: employee.id,
+        reference: record.id,
+        requestKey: `leave:${record.id}:${record.lifecycleVersion}:release`,
+        at: now,
+      },
+      connection,
+    );
   }
   const approval = defineApproval<Types>({
     name: LEAVE_LIFECYCLE,
@@ -456,11 +548,51 @@ export function createLeaveService(d: LeaveDependencies) {
         guard: owner,
         route: ({ record }) => record.status as 'draft' | 'revision',
         accept: fields,
+        onTransition: async ({ record, tx }) => {
+          const connection = tx.handle as DatabaseConnection;
+          await lockUserForAdministration(connection, record.applicantId);
+          await d.attachments.assertLinked(
+            connection,
+            record.id,
+            record.attachments,
+          );
+        },
       },
       submit: {
         from: ['draft', 'revision'],
         to: 'manager',
         guard: owner,
+        // Reservations join the lifecycle transaction, including automatic reuse conclusions.
+        onTransition: async ({ record, tx, now, actor }) => {
+          const connection = tx.handle as DatabaseConnection;
+          const employeeId = await balanceAccount(record, connection);
+          const backed =
+            typeof record.ruleSnapshot?.['leave.balanceType'] === 'string';
+          await d.balances.releaseReference(
+            {
+              employeeId,
+              reference: record.id,
+              requestKey: `leave:${record.id}:${record.lifecycleVersion}:switch`,
+              exceptLeaveType: backed ? record.leaveType : undefined,
+              actorId: actor.id,
+              at: now,
+            },
+            connection,
+          );
+          if (backed)
+            await d.balances.adjustHold(
+              {
+                employeeId,
+                leaveType: record.leaveType,
+                reference: record.id,
+                requestKey: `leave:${record.id}:${record.lifecycleVersion}:hold`,
+                units: Number(record.days) * 2,
+                actorId: actor.id,
+                at: now,
+              },
+              connection,
+            );
+        },
         set: async ({ record, services, now }) => {
           const connection = services.connection!;
           await lockUserForAdministration(connection, record.applicantId);
@@ -489,7 +621,22 @@ export function createLeaveService(d: LeaveDependencies) {
           return {
             ...checked,
             days: String(checked.days),
-            ruleSnapshot: snapshot,
+            // The balance obligation is submission data, so later dictionary edits cannot leak a hold
+            // or make an originally unbacked request require a nonexistent reservation on approval.
+            ruleSnapshot: {
+              ...snapshot,
+              'leave.balanceType':
+                (
+                  await d.dictionaries.get(
+                    'leaveType',
+                    record.leaveType,
+                    connection,
+                  )
+                )?.extra?.deductsBalance ||
+                ['annual', 'compensatory'].includes(record.leaveType)
+                  ? record.leaveType
+                  : null,
+            },
             number:
               record.number ??
               (await d.sequences.next('LEAVE', connection, now)),
@@ -553,8 +700,25 @@ export function createLeaveService(d: LeaveDependencies) {
       },
     },
     onEnterState: {
+      rejected: ({ record, tx, now }) =>
+        releaseBalance(record, tx.handle as DatabaseConnection, now),
+      withdrawn: ({ record, tx, now }) =>
+        releaseBalance(record, tx.handle as DatabaseConnection, now),
+      terminated: ({ record, tx, now }) =>
+        releaseBalance(record, tx.handle as DatabaseConnection, now),
       approved: async ({ record, tx, now }) => {
         const connection = tx.handle as DatabaseConnection;
+        if (typeof record.ruleSnapshot?.['leave.balanceType'] === 'string')
+          await d.balances.deduct(
+            {
+              employeeId: await balanceAccount(record, connection),
+              leaveType: record.leaveType,
+              reference: record.id,
+              requestKey: `leave:${record.id}:${record.lifecycleVersion}:deduct`,
+              at: now,
+            },
+            connection,
+          );
         await connection.repository('leaveAttendance').createOne({
           values: {
             id: randomUUID(),
@@ -666,7 +830,9 @@ export function createLeaveService(d: LeaveDependencies) {
     return new Date(utc - (interpreted - utc)).toISOString();
   }
   async function refresh() {
-    outside = { directory: await d.directory.snapshot() };
+    outside = {
+      directory: await processDirectorySnapshot(d.directory, 'oa.leave'),
+    };
   }
   async function canRead(
     id: string,
@@ -703,29 +869,7 @@ export function createLeaveService(d: LeaveDependencies) {
     );
   }
   function fullRows(rows: Partial<LeaveRecord>[]): LeaveRecord[] {
-    const fields = [
-      'id',
-      'applicantId',
-      'createdById',
-      'number',
-      'leaveType',
-      'startDate',
-      'endDate',
-      'startHalf',
-      'endHalf',
-      'days',
-      'reason',
-      'attachments',
-      'handoverUserId',
-      'enableDelegation',
-      'ruleSnapshot',
-      'hrRecipients',
-      'requiresHr',
-      'managerApproverId',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+    const fields = LEAVE_DETAIL_FIELDS;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new LeaveError(
         'LEAVE_FIELDS_RESTRICTED',
@@ -771,7 +915,7 @@ export function createLeaveService(d: LeaveDependencies) {
   async function notifyHeld(id: string) {
     const views = await approvals.runViewsFor(LEAVE_LIFECYCLE, id);
     for (const view of views) {
-      if (view.run.status === 'open' && view.tasks.length === 0)
+      if (isOpenRun(view.run) && view.tasks.length === 0)
         await d.notifications.alarm({
           recordId: id,
           recipients: outside.directory.roleMembers('approval.admin'),
@@ -790,12 +934,37 @@ export function createLeaveService(d: LeaveDependencies) {
           .findMany();
         const ids: string[] = [];
         for (const record of records) {
+          // Ownership/global reader roles already satisfy this same OR policy.
+          // Avoid opening eight SDK read transactions for a positive cheap branch.
+          if (
+            record.applicantId === actorId ||
+            record.createdById === actorId ||
+            outside.directory.hasRole(actorId, 'hr') ||
+            outside.directory.hasRole(actorId, 'gm') ||
+            outside.directory.hasRole(actorId, 'approval.admin')
+          ) {
+            ids.push(record.id);
+            continue;
+          }
+          if (
+            await d.employees.isAboveInReportingLine(
+              actorId,
+              record.applicantId,
+            )
+          ) {
+            ids.push(record.id);
+            continue;
+          }
           const involvement = await approvals.involvementOf(
             LEAVE_LIFECYCLE,
             record.id,
             actorId,
           );
-          const runs = await approvals.runViewsFor(LEAVE_LIFECYCLE, record.id);
+          const runs = await runTaskViewsFor(
+            approvals,
+            LEAVE_LIFECYCLE,
+            record.id,
+          );
           let head = false;
           const dept = await d.org.primaryDepartmentOf(record.applicantId);
           if (dept)
@@ -825,12 +994,19 @@ export function createLeaveService(d: LeaveDependencies) {
     },
     runtime,
     approvals,
+    approvalDefinition:
+      approval.approval as unknown as import('@nocobase/app-plugin-approval/server').Approval<never>,
     async create(
       input: LeaveInput,
       actorId: string,
       applicantId = actorId,
       policy?: RepositoryPolicy,
     ) {
+      if (input.attachments.length)
+        refuse(
+          'LEAVE_ATTACHMENT_INVALID',
+          'Save a draft before uploading attachments to it.',
+        );
       await refresh();
       const create = () =>
         runtime.create(
@@ -909,6 +1085,36 @@ export function createLeaveService(d: LeaveDependencies) {
           )
         : perform();
     },
+    async candidates(
+      id: string,
+      taskId: string,
+      action: string,
+      actorId: string,
+      query: { search?: string; offset?: number; limit?: number },
+      policy?: RepositoryPolicy,
+    ) {
+      await canRead(id, actorId, policy);
+      const views = await approvals.runViewsFor(LEAVE_LIFECYCLE, id);
+      if (!views.some((view) => view.tasks.some((task) => task.id === taskId)))
+        throw new LeaveError(
+          'LEAVE_TARGET_MISMATCH',
+          'The action target belongs to another request.',
+          'permission',
+        );
+      const page = await approvals.candidatesFor({
+        target: { taskId },
+        action,
+        actor: { id: actorId },
+        query,
+      });
+      const people = await Promise.all(
+        page.people.map(async (id) => {
+          const user = await d.users.get(id);
+          return { id, name: user?.name ?? id };
+        }),
+      );
+      return { people, nextOffset: page.nextOffset };
+    },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);
       return readDirectory.run(outside.directory, async () => {
@@ -947,6 +1153,187 @@ export function createLeaveService(d: LeaveDependencies) {
         };
       });
     },
+    async approvalReturnRateReport(
+      query: ReturnRateQuery,
+      policy: RepositoryPolicy,
+    ) {
+      return leaveApprovalReturnRate(d.db, approvals, query, policy);
+    },
+    async approvalEfficiencyReport(
+      query: EfficiencyQuery,
+      policy: RepositoryPolicy,
+    ) {
+      return leaveApprovalEfficiency(d.db, approvals, query, policy);
+    },
+    /** Approved request volume, attributed to the original start month, not attendance usage. */
+    async monthlyReport(
+      query: {
+        year?: number;
+        month?: number;
+        page: number;
+        pageSize: number;
+        sort?:
+          'year' | 'month' | 'approvedRequestCount' | 'approvedRequestedDays';
+        direction?: 'asc' | 'desc';
+        locale?: 'en-US' | 'zh-CN';
+      },
+      policy: RepositoryPolicy,
+    ) {
+      const fields = ['id', 'status', 'startDate', 'leaveType', 'days'];
+      if (
+        !Number.isInteger(query.page) ||
+        query.page < 1 ||
+        !Number.isInteger(query.pageSize) ||
+        query.pageSize < 1 ||
+        query.pageSize > 10_000 ||
+        (query.year !== undefined &&
+          (!Number.isInteger(query.year) ||
+            query.year < 1900 ||
+            query.year > 9999)) ||
+        (query.sort !== undefined &&
+          ![
+            'year',
+            'month',
+            'approvedRequestCount',
+            'approvedRequestedDays',
+          ].includes(query.sort)) ||
+        (query.direction !== undefined &&
+          !['asc', 'desc'].includes(query.direction)) ||
+        (query.locale !== undefined &&
+          !['en-US', 'zh-CN'].includes(query.locale)) ||
+        (query.month !== undefined &&
+          (!Number.isInteger(query.month) ||
+            query.month < 1 ||
+            query.month > 12))
+      )
+        throw new LeaveError(
+          'INVALID_REPORT_QUERY',
+          'Invalid monthly report query.',
+          'precondition',
+        );
+      const read = policy.read;
+      const readableFields = typeof read === 'object' ? read.fields : undefined;
+      if (
+        read === false ||
+        (read !== true &&
+          (readableFields === false ||
+            (Array.isArray(readableFields) &&
+              !readableFields.includes('*') &&
+              fields.some((field) => !readableFields.includes(field)))))
+      )
+        throw new LeaveError(
+          'LEAVE_FIELDS_RESTRICTED',
+          'Monthly reports require readable request facts.',
+          'permission',
+        );
+      const year =
+        query.year ?? Number(d.calendar.localDate(new Date()).slice(0, 4));
+      const sources = await d.db
+        .repository<LeaveRecord>('leaveRequests')
+        .withPolicy(policy)
+        .findMany({
+          limit: 10_001,
+          select: (s) =>
+            s.fields('id', 'status', 'startDate', 'leaveType', 'days'),
+          filter: (f) =>
+            f.and([
+              f.string('status').eq('approved'),
+              f.date('startDate').notBefore(`${year}-01-01`),
+              f.date('startDate').notAfter(`${year}-12-31`),
+              ...(query.month
+                ? [
+                    f
+                      .date('startDate')
+                      .notBefore(
+                        `${year}-${String(query.month).padStart(2, '0')}-01`,
+                      ),
+                    ...(query.month < 12
+                      ? [
+                          f
+                            .date('startDate')
+                            .before(
+                              `${year}-${String(query.month + 1).padStart(2, '0')}-01`,
+                            ),
+                        ]
+                      : []),
+                  ]
+                : []),
+            ]),
+        });
+      if (sources.length > 10_000)
+        throw new LeaveError(
+          'REPORT_SOURCE_LIMIT',
+          'Monthly request reports support at most 10,000 authorized source records.',
+          'precondition',
+        );
+      const dictionary = new Map(
+        (await d.dictionaries.list('leaveType', { includeInactive: true })).map(
+          (entry) => [entry.code, entry.label],
+        ),
+      );
+      const groups = new Map<
+        string,
+        {
+          id: string;
+          year: number;
+          month: number;
+          leaveType: string;
+          approvedRequestCount: number;
+          approvedRequestedDays: number;
+        }
+      >();
+      for (const source of sources) {
+        if (fields.some((field) => !(field in source)))
+          throw new LeaveError(
+            'LEAVE_FIELDS_RESTRICTED',
+            'Monthly reports require readable request facts.',
+            'permission',
+          );
+        if (source.status !== 'approved') continue;
+        const date = String(source.startDate).slice(0, 10),
+          month = Number(date.slice(5, 7));
+        if (
+          Number(date.slice(0, 4)) !== year ||
+          (query.month && query.month !== month)
+        )
+          continue;
+        const key = `${year}-${month}-${source.leaveType}`;
+        const row = groups.get(key) ?? {
+          id: key,
+          year,
+          month,
+          leaveType: localizeLabel(
+            dictionary.get(source.leaveType!),
+            query.locale ?? 'en-US',
+            source.leaveType!,
+          ),
+          approvedRequestCount: 0,
+          approvedRequestedDays: 0,
+        };
+        row.approvedRequestCount++;
+        row.approvedRequestedDays =
+          (Math.round(row.approvedRequestedDays * 100) +
+            Math.round(Number(source.days) * 100)) /
+          100;
+        groups.set(key, row);
+      }
+      const sort = query.sort ?? 'month',
+        sign = query.direction === 'asc' ? 1 : -1;
+      const rows = [...groups.values()].sort(
+        (a, b) =>
+          sign * (a[sort] - b[sort]) ||
+          a.month - b.month ||
+          a.leaveType.localeCompare(b.leaveType),
+      );
+      return {
+        data: rows.slice(
+          (query.page - 1) * query.pageSize,
+          query.page * query.pageSize,
+        ),
+        total: rows.length,
+        year,
+      };
+    },
     async list(actorId: string, view: string, policy?: RepositoryPolicy) {
       await refresh();
       return readDirectory.run(outside.directory, async () => {
@@ -974,7 +1361,14 @@ export function createLeaveService(d: LeaveDependencies) {
         );
         const selected: LeaveRecord[] = [];
         for (const record of records) {
-          const runs = await approvals.runViewsFor(LEAVE_LIFECYCLE, record.id);
+          // Draft is a plain lifecycle state, not an approvalState: it cannot
+          // offer approve/reject/return. Keep submitted/revision/terminal reads
+          // on the real SDK path, including delegates and historical actors.
+          if (view === 'pending' && record.status === 'draft') continue;
+          const runs =
+            view === 'done' || view === 'copied'
+              ? await approvals.runViewsFor(LEAVE_LIFECYCLE, record.id)
+              : [];
           const tasks = runs.flatMap((r) => r.tasks);
           const match =
             view === 'copied'
@@ -989,8 +1383,14 @@ export function createLeaveService(d: LeaveDependencies) {
                     await approvals.actionsFor(LEAVE_LIFECYCLE, record.id, {
                       id: actorId,
                     })
-                  ).some((a) =>
-                    tasks.some((t) => t.id === a.task.id && t.role !== 'info'),
+                  ).some(
+                    (a) =>
+                      // Administrative reassignment is available without being the reviewer.
+                      // Personal approval work requires an offered decision; actionsFor also resolves delegates.
+                      a.task.role !== 'info' &&
+                      a.actions.some((action) =>
+                        ['approve', 'reject', 'return'].includes(action.name),
+                      ),
                   );
           if (match) selected.push(record);
         }
@@ -1000,7 +1400,7 @@ export function createLeaveService(d: LeaveDependencies) {
     async options() {
       return {
         leaveTypes: await d.dictionaries.list('leaveType'),
-        balanceAvailable: false,
+        balanceAvailable: true,
         timeZone: d.calendar.timeZone(),
       };
     },

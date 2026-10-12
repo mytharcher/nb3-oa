@@ -8,18 +8,18 @@ import { Controller, useForm } from 'react-hook-form';
 import { useOutletContext } from 'react-router';
 import { z } from 'zod';
 
-import { DatePicker } from '@/components/date-picker';
-import { RouteDialog } from '@/components/route-dialog';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { DatePicker } from '#components/date-picker';
+import { RouteDialog } from '#components/route-dialog';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Alert, AlertDescription } from '#components/ui/alert';
+import { Button } from '#components/ui/button';
 import {
   Field,
   FieldContent,
   FieldError,
   FieldGroup,
   FieldLabel,
-} from '@/components/ui/field';
+} from '#components/ui/field';
 import {
   Select,
   SelectContent,
@@ -27,11 +27,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Spinner } from '@/components/ui/spinner';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import { useRouteOverlay } from '@/components/use-route-overlay';
+} from '#components/ui/select';
+import { Spinner } from '#components/ui/spinner';
+import { Switch } from '#components/ui/switch';
+import { Textarea } from '#components/ui/textarea';
+import { useRouteOverlay } from '#components/use-route-overlay';
 
 import {
   EMPLOYEE_STATUSES,

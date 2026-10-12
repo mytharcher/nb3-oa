@@ -55,6 +55,22 @@ describe('approval directory and proxy delegations', () => {
     );
     await org.addDutyRoleMember('gm', boss.userId, actor);
     const directory = await service.snapshot();
+    const shared = await service.withReadSnapshot(() =>
+      Promise.all([service.snapshot(), service.snapshot()]),
+    );
+    expect(shared[0]).toBe(shared[1]);
+    expect(shared[0]).not.toBe(directory);
+    await service.withReadSnapshot(async () => {
+      const read = await service.snapshot();
+      const explicit = await service.snapshot(testApp.database.connection());
+      expect(explicit).not.toBe(read);
+    });
+    const isolated = await Promise.all([
+      service.withReadSnapshot(() => service.snapshot()),
+      service.withReadSnapshot(() => service.snapshot()),
+    ]);
+    expect(isolated[0]).not.toBe(isolated[1]);
+
     expect(directory.managerOf(person.userId)).toBe(boss.userId);
     expect(directory.headOf(person.userId)).toBe(boss.userId);
     expect(directory.executiveOf(person.userId)).toBe(boss.userId);

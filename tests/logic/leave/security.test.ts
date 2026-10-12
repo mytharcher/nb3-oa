@@ -6,7 +6,10 @@ import {
   signIn,
   type TestSession,
 } from '@nocobase/app-plugin-authentication/testing';
-import type { RunView } from '@nocobase/app-plugin-approval/server';
+import type {
+  RunView,
+  TaskActions,
+} from '@nocobase/app-plugin-approval/server';
 import { describe, expect } from 'vitest';
 import {
   leaveServiceToken,
@@ -19,6 +22,7 @@ import {
   createPerson,
 } from '../employees/helpers.ts';
 import { json } from '../org/helpers.ts';
+import { approvalDirectoryServiceToken } from '../../../server/providers/approval-directory/contract.ts';
 
 const test = createEmployeesAppTest();
 const form = {
@@ -35,6 +39,7 @@ const form = {
 interface Detail {
   record: LeaveRecord;
   runs: RunView[];
+  taskActions: TaskActions[];
 }
 async function data<T>(response: Response): Promise<T> {
   expect(response.status).toBe(200);
@@ -147,12 +152,16 @@ describe('leave production route security', () => {
   }) => {
     const owner = await createEmployee(testApp, 'Invalid Leave Owner');
     const session = await owner.session();
+    const fake = await session.fetch(
+      '/leaveRequests',
+      json({ ...form, attachments: ['invented-secret-file'] }),
+    );
+    expect(fake.status).toBe(400);
+    expect(
+      ((await fake.json()) as { error: { reason: string } }).error.reason,
+    ).toBe('LEAVE_ATTACHMENT_INVALID');
     for (const [input, reason] of [
-      [{ ...form, leaveType: 'annual' }, 'LEAVE_BALANCE_UNAVAILABLE'],
-      [
-        { ...form, attachments: ['invented-secret-file'] },
-        'LEAVE_ATTACHMENTS_UNAVAILABLE',
-      ],
+      [{ ...form, leaveType: 'annual' }, 'LEAVE_BALANCE_INSUFFICIENT'],
     ] as const) {
       const record = await draft(session, input);
       const response = await transition(session, record, 'submit');
@@ -265,5 +274,76 @@ describe('leave production route security', () => {
       .findMany({ filter: { targetId: record.id, action: 'leave.appoint' } });
     expect(audit).toHaveLength(1);
     expect(audit[0]?.actorId).toBe(root.user.id);
+  });
+  test('keeps administrative reassignment out of personal approval work', async ({
+    testApp,
+  }) => {
+    const manager = await createEmployee(testApp, 'Pending Actual Manager');
+    const owner = await createEmployee(testApp, 'Pending Applicant', {
+      managerId: manager.employeeId,
+    });
+    const ownerSession = await owner.session();
+    const managerSession = await manager.session();
+    const root = await signIn(testApp, DEFAULT_ADMIN_CREDENTIALS);
+    const record = await draft(ownerSession);
+    await data(await transition(ownerSession, record, 'submit'));
+    const rootDetail = await detail(root, record.id);
+    expect(
+      rootDetail.taskActions.flatMap((entry) =>
+        entry.actions.map((action) => action.name),
+      ),
+    ).toContain('reassign');
+    expect(
+      rootDetail.taskActions.flatMap((entry) =>
+        entry.actions.map((action) => action.name),
+      ),
+    ).not.toContain('approve');
+    const pending = async (session: TestSession) =>
+      (
+        await data<LeaveRecord[]>(
+          await session.fetch('/leaveRequests?view=pending'),
+        )
+      ).map((entry) => entry.id);
+    expect(await pending(managerSession)).toContain(record.id);
+    expect(await pending(root)).not.toContain(record.id);
+    expect(await pending(ownerSession)).not.toContain(record.id);
+    // A current delegate remains a reviewer even without direct task assignment.
+    const delegate = await createEmployee(testApp, 'Pending Delegate');
+    const delegateSession = await delegate.session();
+    const directory = testApp.application.container.resolve(
+      approvalDirectoryServiceToken,
+    );
+    const delegation = await directory.createManualDelegation(
+      {
+        principalId: manager.userId,
+        delegateId: delegate.userId,
+        scope: [LEAVE_LIFECYCLE],
+        from: new Date(Date.now() - 60_000).toISOString(),
+        to: new Date(Date.now() + 3_600_000).toISOString(),
+      },
+      { actorId: root.user.id },
+    );
+    expect(await pending(delegateSession)).toContain(record.id);
+    await directory.disableManualDelegation(delegation.id, {
+      actorId: root.user.id,
+    });
+    expect(await pending(delegateSession)).not.toContain(record.id);
+
+    const task = rootDetail.runs
+      .at(-1)!
+      .tasks.find((entry) => entry.assigneeId === manager.userId)!;
+    await data(
+      await managerSession.fetch(
+        `/leaveRequests/${record.id}/action`,
+        json({
+          target: { taskId: task.id },
+          action: 'approve',
+          contentHash: rootDetail.runs.at(-1)!.run.contentHash,
+          requestId: randomUUID(),
+        }),
+      ),
+    );
+    expect(await pending(managerSession)).not.toContain(record.id);
+    expect(await pending(root)).not.toContain(record.id);
   });
 });

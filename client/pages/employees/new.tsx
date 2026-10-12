@@ -2,20 +2,21 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { type ReactElement, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext } from 'react-router';
 
-import { BackButton } from '@/components/back-button';
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
-import { RouteChildPage } from '@/components/route-child-page';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
+import { BackButton } from '#components/back-button';
+import { PageContainer } from '#components/page-container';
+import { PageHeader } from '#components/page-header';
+import { RouteFormPage } from '#components/route-form-page';
+import { Button } from '#components/ui/button';
+import { Spinner } from '#components/ui/spinner';
 
 import { EmployeeForm } from './employee-form.js';
 import type { EmployeesOutletContext } from './types.js';
 
 const FORM_ID = 'employee-create-form';
 
-/** Route `/settings/employees/new`: twelve fields and two pickers, so a covering page rather than a dialog (T3.1). */
+/** Route `/employees/new`: twelve fields and two pickers, so a covering page rather than a dialog (T3.1). */
 export default function NewEmployeePage(): ReactElement {
+  const { t: drawerTitle } = useTranslation();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -34,7 +35,10 @@ export default function NewEmployeePage(): ReactElement {
   }, [dirty]);
 
   return (
-    <RouteChildPage>
+    <RouteFormPage
+      presentation='page'
+      title={drawerTitle('employees.create.title')}
+    >
       <PageContainer>
         <BackButton />
         <PageHeader
@@ -78,6 +82,6 @@ export default function NewEmployeePage(): ReactElement {
           </div>
         </div>
       </PageContainer>
-    </RouteChildPage>
+    </RouteFormPage>
   );
 }

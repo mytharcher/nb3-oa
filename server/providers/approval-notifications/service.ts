@@ -24,6 +24,38 @@ export interface NotificationDependencies {
   ) => string | undefined | Promise<string | undefined>;
 }
 
+// Only published browser routes may become notification targets. New approval modules can send notices before
+// their pages ship, but must never link their record ids to the leave detail page.
+function recordPath(recordId: string, kind = 'oa.leave'): string | undefined {
+  const routes: Record<string, string> = {
+    'oa.leave': 'leave',
+    leave: 'leave',
+    'oa.overtime': 'overtime',
+    'oa.general': 'general',
+    'oa.supplies': 'supply',
+    'oa.expensePlan': 'expensePlan',
+    'oa.training': 'training',
+    'oa.travel': 'travel',
+    'oa.reimbursement': 'reimbursement',
+    'oa.purchase': 'purchase',
+    'oa.loan': 'loan',
+    'oa.payment': 'payment',
+    'oa.probation': 'probation',
+    'oa.departure': 'departure',
+    'oa.vendorQualification': 'vendorQualification',
+    'oa.assetRequest': 'assetRequest',
+    'oa.contract': 'contract',
+    'oa.travelCancellation': 'travelCancellation',
+    'oa.budgetAdjustment': 'budgetAdjustment',
+    'oa.attendanceChange': 'attendanceChange',
+    'oa.outing': 'outings',
+    'oa.leaveCancellation': 'cancellation',
+  };
+  return routes[kind]
+    ? `/approvals/mine/${routes[kind]}/${encodeURIComponent(recordId)}`
+    : undefined;
+}
+
 export function createApprovalNotificationService(
   deps: NotificationDependencies,
 ): ApprovalNotificationService {
@@ -46,6 +78,8 @@ export function createApprovalNotificationService(
     recordId: string;
     message: string;
     email?: boolean;
+    kind?: string;
+    detail?: import('./contract.js').ApprovalNotificationDetail;
   }): Promise<void> {
     const user = await deps.users.get(input.userId);
     if (!user || user.disabledAt || user.kind !== 'person') return;
@@ -53,15 +87,18 @@ export function createApprovalNotificationService(
     await deps.i18n.ensureLocaleLoaded(locale);
     const t = deps.i18n.getFixedT('nb3-oa', locale);
     // The path is internal to the application; only external mail/IM links carry the mount path.
-    const path = `/approvals/mine/leave/${encodeURIComponent(input.recordId)}`;
-    const url = deps.publicOrigin
-      ? new URL(
-          `${deps.basePath === '/' ? '' : deps.basePath}${path}`,
-          deps.publicOrigin,
-        ).href
-      : undefined;
+    const path = recordPath(input.recordId, input.kind);
+    const url =
+      deps.publicOrigin && path
+        ? new URL(
+            `${deps.basePath === '/' ? '' : deps.basePath}${path}`,
+            deps.publicOrigin,
+          ).href
+        : undefined;
     const title = t('approvals.notifications.title');
-    const body = t(`approvals.notifications.${input.message}`);
+    const body = input.detail
+      ? t(input.detail.key, input.detail.values)
+      : t(`approvals.notifications.${input.message}`);
     const messages: Record<string, object> = {};
     const inbox = channel(deps.config.inbox, ['in-app']);
     if (inbox)
@@ -69,16 +106,16 @@ export function createApprovalNotificationService(
         to: user.id,
         title,
         body,
-        target: { type: 'route', path },
+        ...(path ? { target: { type: 'route', path } } : {}),
       };
     const email = input.email
       ? channel(deps.config.email, ['smtp', 'resend'])
       : undefined;
-    if (email && url)
+    if (email && (url || !path))
       messages[email] = {
         to: user.email,
         subject: title,
-        text: `${body}\n${url}`,
+        text: url ? `${body}\n${url}` : body,
       };
     if (!Object.keys(messages).length) return;
     await deps.notification.send({
@@ -94,18 +131,19 @@ export function createApprovalNotificationService(
       const message =
         task.kind === 'copy'
           ? 'copied'
-          : reason === 'reminder'
+          : reason === 'reminder' || reason === 'urged'
             ? 'reminder'
             : escalation
               ? 'escalated'
               : 'assigned';
-      const key = `task:${task.id}:${reason}`;
+      const key = `task:${task.id}:${reason}${reason === 'urged' ? `:${at}` : ''}`;
       await send({
         key,
         userId: task.assigneeId,
         recordId: task.recordId,
         message,
         email: escalation,
+        kind: kind ?? task.source,
       });
       // Copies are read-only; they are never delegated. Proxy delegation keeps the principal's own notice.
       if (task.kind !== 'decide') return;
@@ -127,10 +165,11 @@ export function createApprovalNotificationService(
           userId: proxy.to,
           recordId: task.recordId,
           message: 'delegated',
+          kind: kind ?? task.source,
         });
       }
     },
-    async result({ recordId, applicantId, state, transitionId }) {
+    async result({ recordId, applicantId, state, transitionId, kind }) {
       const message = [
         'approved',
         'rejected',
@@ -146,9 +185,10 @@ export function createApprovalNotificationService(
         recordId,
         message,
         email: true,
+        kind,
       });
     },
-    async alarm({ recordId, recipients, eventId }) {
+    async alarm({ recordId, recipients, eventId, kind, detail }) {
       for (const userId of new Set([
         ...recipients,
         ...deps.config.administrators,
@@ -159,6 +199,8 @@ export function createApprovalNotificationService(
           recordId,
           message: 'attention',
           email: true,
+          kind,
+          detail,
         });
       }
       const name = channel(deps.config.alarm, [
@@ -169,17 +211,22 @@ export function createApprovalNotificationService(
       const locale = deps.i18n.getDefaultLocale();
       await deps.i18n.ensureLocaleLoaded(locale);
       const t = deps.i18n.getFixedT('nb3-oa', locale);
-      const url = new URL(
-        `${deps.basePath === '/' ? '' : deps.basePath}/approvals/mine/leave/${encodeURIComponent(recordId)}`,
-        deps.publicOrigin,
-      ).href;
+      const path = recordPath(recordId, kind);
+      const url = path
+        ? new URL(
+            `${deps.basePath === '/' ? '' : deps.basePath}${path}`,
+            deps.publicOrigin,
+          ).href
+        : undefined;
       await deps.notification.send({
         idempotencyKey: `oa.approvals:alarm:${eventId}:webhook`,
         source: { type: 'oa.approval', referenceId: recordId },
         messages: {
           [name]: {
-            text: t('approvals.notifications.attention'),
-            target: { type: 'url', url },
+            text: detail
+              ? t(detail.key, detail.values)
+              : t('approvals.notifications.attention'),
+            ...(url ? { target: { type: 'url', url } } : {}),
           },
         },
       });

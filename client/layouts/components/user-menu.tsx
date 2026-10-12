@@ -1,8 +1,10 @@
+import { UserName } from '#components/user-name';
 import { useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
-import { LogOut, UserRound } from 'lucide-react';
+import { IdCard, LogOut } from 'lucide-react';
 import { useState, type ReactElement } from 'react';
+import { Link } from 'react-router';
 
 import {
   DropdownMenu,
@@ -10,17 +12,12 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '#components/ui/dropdown-menu';
 
 import { LanguageSwitcher } from './language-switcher.js';
 
 export function UserMenu(): ReactElement {
-  const {
-    client,
-    session,
-    isPending: isLoading,
-    refresh,
-  } = useAuthentication();
+  const { client, session, refresh } = useAuthentication();
   const identity = session?.user
     ? {
         id: session.user.id,
@@ -37,7 +34,6 @@ export function UserMenu(): ReactElement {
     identity?.fullName ||
     identity?.email ||
     t('account.fallback', { defaultValue: 'Account' });
-  const initials = getInitials(name);
 
   return (
     <DropdownMenu>
@@ -47,29 +43,27 @@ export function UserMenu(): ReactElement {
         aria-label={t('account.openMenu', {
           defaultValue: 'Open account menu',
         })}
-        className='flex size-10 cursor-pointer items-center justify-center rounded-full border border-border/70 bg-background/60 text-left text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50'
+        className='flex max-w-48 min-h-10 cursor-pointer items-center gap-2 rounded-full px-2 text-left text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50'
       >
-        {identity?.avatar ? (
-          <img
-            src={identity.avatar}
-            alt=''
-            className='size-full rounded-full object-cover'
-          />
-        ) : (
-          <span className='grid size-full place-items-center rounded-full bg-muted text-xs font-medium text-muted-foreground'>
-            {isLoading ? <UserRound className='size-4' /> : initials}
-          </span>
-        )}
+        <UserName name={name} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align='end' className='w-64'>
         <div className='px-2 py-1.5'>
-          <p className='truncate text-sm font-medium'>{name}</p>
+          <p className='text-sm font-medium'>
+            <UserName name={name} />
+          </p>
           {identity?.email ? (
             <p className='truncate text-xs text-muted-foreground'>
               {identity.email}
             </p>
           ) : null}
         </div>
+        <DropdownMenuSeparator />
+        {/* Personal reads have their own authenticated /me contract; the HR route requires separate grants. */}
+        <DropdownMenuItem render={<Link to='/personal-archive' />}>
+          <IdCard className='size-4' />
+          {t('employees.personal.title')}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <LanguageSwitcher />
         <DropdownMenuSeparator />
@@ -113,15 +107,4 @@ export function UserMenu(): ReactElement {
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
-
-function getInitials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) {
-    return '?';
-  }
-  return words
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() ?? '')
-    .join('');
 }

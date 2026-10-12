@@ -158,6 +158,15 @@ describe('OA approval notifications', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
+  it('uses reminder copy and distinct event identities for subsequent applicant urges', async () => {
+    await service().task({ task, reason: 'urged', at: '2026-10-12T01:00:00Z' });
+    await service().task({ task, reason: 'urged', at: '2026-10-12T05:00:00Z' });
+    expect(send).toHaveBeenCalledTimes(2);
+    const keys = send.mock.calls.map(([input]) => input.idempotencyKey);
+    expect(keys[0]).not.toBe(keys[1]);
+    expect(keys[0]).toContain('2026-10-12T01:00:00Z');
+  });
+
   it('sends result email with a public URL and a stable event identity', async () => {
     await service().result({
       recordId: 'leave/1',
@@ -178,6 +187,62 @@ describe('OA approval notifications', () => {
       'inbox',
       'email',
     ]);
+  });
+
+  it('notifies new business kinds without linking their ids to leave records', async () => {
+    await service().task({
+      task: { ...task, source: 'oa.future' },
+      reason: 'assigned',
+    });
+    expect(send.mock.calls[0]![0].messages.inbox).not.toHaveProperty('target');
+    send.mockClear();
+    await service().result({
+      kind: 'oa.future',
+      recordId: 'overtime1',
+      applicantId: 'applicant',
+      state: 'approved',
+      transitionId: 'overtime-transition1',
+    });
+    expect(send.mock.calls[0]![0].messages.email).toMatchObject({
+      text: 'Your application has been approved.',
+    });
+    expect(send.mock.calls[0]![0].messages.inbox).not.toHaveProperty('target');
+    send.mockClear();
+    await service().alarm({
+      kind: 'oa.future',
+      recordId: 'overtime1',
+      recipients: ['reviewer'],
+      eventId: 'overtime-held1',
+      reason: 'held',
+    });
+    expect(send.mock.calls[1]![0].messages.alarm).not.toHaveProperty('target');
+    expect(JSON.stringify(send.mock.calls)).not.toContain('/leave/');
+  });
+
+  it.each([
+    'oa.overtime',
+    'oa.leaveCancellation',
+    'oa.supplies',
+    'oa.expensePlan',
+    'oa.purchase',
+    'oa.loan',
+    'oa.payment',
+    'oa.departure',
+    'oa.vendorQualification',
+  ])('links shipped %s pages to their own record type', async (kind) => {
+    await service().result({
+      kind,
+      recordId: 'r1',
+      applicantId: 'applicant',
+      state: 'approved',
+      transitionId: 't1',
+    });
+    expect(send.mock.calls[0]![0].messages.inbox).toMatchObject({
+      target: {
+        type: 'route',
+        path: `/approvals/mine/${kind === 'oa.vendorQualification' ? 'vendorQualification' : kind === 'oa.departure' ? 'departure' : kind === 'oa.payment' ? 'payment' : kind === 'oa.loan' ? 'loan' : kind === 'oa.purchase' ? 'purchase' : kind === 'oa.overtime' ? 'overtime' : kind === 'oa.supplies' ? 'supply' : kind === 'oa.expensePlan' ? 'expensePlan' : 'cancellation'}/r1`,
+      },
+    });
   });
 
   it('does not send through disabled or mismatched channels and preserves provider failures', async () => {
@@ -203,6 +268,39 @@ describe('OA approval notifications', () => {
       }),
     ).rejects.toThrow('dispatch failed');
   });
+
+  it.each([
+    ['en-US', 'Supplier A is due on 2026-11-10.'],
+    ['zh-CN', '“Supplier A”将于 2026-11-10 到期。'],
+  ])(
+    'renders business reminder context in the default locale %s across channels',
+    async (locale, body) => {
+      i18n = new I18nRuntime({ defaultLocale: locale });
+      i18n.registerApplicationNamespace('nb3-oa', locales);
+      await i18n.init();
+      await service({ localeOf: undefined }).alarm({
+        kind: 'oa.future',
+        recordId: 'qualification1',
+        recipients: ['proxy'],
+        eventId: 'qualification-expiry1',
+        reason: 'private internal error',
+        detail: {
+          key: 'approvals.notifications.deadline',
+          values: { name: 'Supplier A', date: '2026-11-10' },
+        },
+      });
+      expect(send).toHaveBeenCalledTimes(3);
+      for (const [input] of send.mock.calls.slice(0, 2)) {
+        expect(input.messages.inbox).toMatchObject({ body });
+        expect(input.messages.email).toMatchObject({ text: body });
+        expect(input.messages.inbox).not.toHaveProperty('target');
+      }
+      expect(send.mock.calls[2]![0].messages.alarm).toEqual({ text: body });
+      expect(JSON.stringify(send.mock.calls)).not.toContain(
+        'private internal error',
+      );
+    },
+  );
 
   it('alarms target explicit administrators once and use a recipientless webhook without private business data', async () => {
     await service().alarm({

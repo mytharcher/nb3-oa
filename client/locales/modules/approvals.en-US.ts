@@ -2,7 +2,12 @@ import registryLocale from '../../extensions/nocobase-approval-ui/locales/en-US.
 import { approvalLocaleEnUS as pluginLocale } from '@nocobase/app-plugin-approval/client';
 const existing = {
   approvals: {
+    printPdf: 'Print / Save PDF',
+    printFailed: 'Printing failed. Please try again.',
+    saving: 'Saving…',
+    noAvailableAction: 'No action is currently available',
     authz: {
+      cancellation: 'Leave cancellation',
       section: 'OA approvals',
       leave: 'Leave requests',
       submit: 'Submit own leave',
@@ -17,6 +22,22 @@ const existing = {
 };
 
 const copy = {
+  creationUnknown:
+    'The save result is unknown. Retry the same save or check existing drafts.',
+  resubmit: 'Resubmit',
+  submitted: 'Submitted {{name}}',
+  draftSavedSubmitFailed:
+    'Draft saved. Submission did not complete. Resolve the issue and try again.',
+  submissionUnknown:
+    'The submission result is unknown. Retry Submit with the same content before making changes.',
+  transfer: 'Transfer',
+  addSigner: 'Add signer',
+  urge: 'Remind',
+  recipientSearch: 'Search eligible recipients',
+  moreRecipients: 'Load more recipients',
+  signerMode: 'Signer mode',
+  signerbefore: 'Before my decision',
+  signeralongside: 'Alongside my decision',
   emptyTodoTitle: 'No pending approvals',
   emptyTodoDescription: 'Approvals requiring your action will appear here.',
   emptyDoneTitle: 'No completed approvals',
@@ -24,7 +45,8 @@ const copy = {
   emptyCopiedTitle: 'No copied approvals',
   emptyCopiedDescription: 'Requests copied to you will appear here.',
   emptyMineTitle: 'No requests started',
-  emptyMineDescription: 'Create a leave draft, then submit it for approval.',
+  emptyMineDescription:
+    'Complete a leave request and submit it, or save a draft.',
   calendarTimeZone: 'Dates use the working calendar in {{zone}}.',
   refreshAfterSuccess:
     'The action succeeded, but the latest details could not load. Refresh without repeating the action.',
@@ -39,7 +61,7 @@ const copy = {
   confirmTerminate: 'Administrative termination ends this approval process.',
 
   navigation: {
-    center: 'Approvals',
+    center: 'Task center',
     delegations: 'Approval delegations',
   },
   description: 'Process approval tasks and follow your requests.',
@@ -60,7 +82,7 @@ const copy = {
   emptyDescription: 'New approval tasks and requests will appear here.',
   refresh: 'Refresh',
   loading: 'Loading',
-  reference: 'Reference / leave period',
+  reference: 'Request number',
   applicant: 'Applicant',
   type: 'Leave type',
   days: 'Days',
@@ -95,13 +117,33 @@ const copy = {
   pm: 'Afternoon',
   handover: 'Handover person',
   delegate: 'Delegate approvals during leave',
+  attachmentMissing:
+    'Some attachments are unavailable. Reload the request or contact its applicant.',
   attachments: 'Attachments',
+  attachmentRequired:
+    'Add the supporting attachments required by the selected leave type.',
+  attachmentUnavailable:
+    'Attachment uploads are temporarily unavailable. Try again later or contact an administrator.',
+  attachmentInvalid:
+    'Some selected attachments are invalid or do not belong to this request. Reload the request and select them again.',
   attachmentLimit:
-    'Attachments are unavailable; requests requiring them cannot be submitted yet.',
+    'Attachments: PDF, JPEG, PNG or WebP, up to 5 MiB per file and 10 files. A valid draft is saved before the first upload.',
+  attachmentSize: 'Choose a nonempty file up to 5 MiB.',
+  attachmentType:
+    'Choose a PDF, JPEG, PNG or WebP file with a matching format.',
+  attachmentCount: 'At most 10 attachments are allowed.',
+  attachmentDenied:
+    'You cannot access attachments on this request. Reload the request to check access.',
+  attachmentFailed:
+    'Upload failed. Check the form and connection, then choose the file again.',
+  attachmentUploading: 'Saving draft and uploading…',
+  attachmentRemove: 'Remove attachment {{number}}',
+  balanceInsufficient:
+    'Available leave balance is insufficient. Reduce the days or contact HR.',
   balanceLimit:
     'Annual and compensatory leave will be available with leave balances.',
   unavailable: 'This action is unavailable. Review its blockers.',
-  formDescription: 'Save a draft, then review and submit it for approval.',
+  formDescription: 'Complete the request and submit it, or save a draft.',
   preview: 'Approval route preview',
   facts: 'Request details',
   progress: 'Approval progress',

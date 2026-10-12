@@ -81,6 +81,9 @@ function referencedKeys(): References[] {
   return sourceFiles(clientDirectory).flatMap((file) => {
     const source = fs.readFileSync(file, 'utf8');
     if (pluginNamespace.test(source)) return [];
+    // Migrated management UI keeps its explicit namespace through translation helpers.
+    // Verify those callers against application-owned namespace overrides below.
+    if (file.includes(`${path.sep}administration${path.sep}`)) return [];
     const { keys, prefixes } = scan(source);
     return [
       {
@@ -107,6 +110,35 @@ describe('application translations', () => {
         .filter((prefix) => ![...written].some((key) => key.startsWith(prefix)))
         .map((prefix) => prefix + '… (' + file + ')'),
     );
+
+  it('translates migrated administration helpers through their retained namespaces', () => {
+    for (const file of sourceFiles(
+      path.join(clientDirectory, 'pages', 'administration'),
+    )) {
+      const source = fs.readFileSync(file, 'utf8');
+      const module = path
+        .relative(path.join(clientDirectory, 'pages', 'administration'), file)
+        .split(path.sep)[0];
+      const namespace =
+        `@nocobase/app-plugin-${module}` as keyof typeof enUS.overrides;
+      for (const locale of [enUS, zhCN]) {
+        const shared = translationKeys(
+          locale.overrides['@nocobase/app-plugin-authorization'],
+        );
+        const keys = new Set([
+          ...translationKeys(locale.overrides[namespace]),
+          ...(module.startsWith('authz-') ? shared : []),
+        ]);
+        const refs = scan(source);
+        expect([...refs.keys].filter((key) => !keys.has(key))).toEqual([]);
+        expect(
+          [...refs.prefixes].filter(
+            (prefix) => ![...keys].some((key) => key.startsWith(prefix)),
+          ),
+        ).toEqual([]);
+      }
+    }
+  });
 
   it('reads the keys the application uses', () => {
     // Guards the scan itself: a regex that quietly stops matching would turn this suite into a no-op.

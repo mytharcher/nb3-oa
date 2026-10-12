@@ -92,14 +92,14 @@ function setup(
 }
 
 describe('route overlays', () => {
-  it('closes a direct link to its route parent, preserving query and removing hash', async () => {
+  it('closes a direct link to its route parent, preserving query and hash', async () => {
     const router = setup();
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/main/orders'),
     );
     expect(router.state.location.search).toBe('?filter=recent');
-    expect(router.state.location.hash).toBe('');
+    expect(router.state.location.hash).toBe('#field');
     expect(router.state.historyAction).toBe('REPLACE');
   });
   it('uses the explicit target without merging query', async () => {

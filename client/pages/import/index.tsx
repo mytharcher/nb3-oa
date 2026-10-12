@@ -1,3 +1,5 @@
+import { ApplicationToolbar } from '#components/application-toolbar';
+import { UserName } from '#components/user-name';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useLocale, useTranslation } from '@nocobase/i18n/client';
 import type {
@@ -15,19 +17,19 @@ import {
 import { type ReactElement, useMemo, useRef } from 'react';
 import { Link, Outlet, useLocation, useSearchParams } from 'react-router';
 
-import { DataTableServer } from '@/components/data-table';
-import { DataTableColumnHeader } from '@/components/data-table/column-header';
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { DataTableServer } from '#components/data-table';
+import { DataTableColumnHeader } from '#components/data-table/column-header';
+import { PageContainer } from '#components/page-container';
+import { PageHeader } from '#components/page-header';
+import { Badge } from '#components/ui/badge';
+import { Button } from '#components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '#components/ui/dropdown-menu';
 import {
   Empty,
   EmptyContent,
@@ -35,7 +37,7 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty';
+} from '#components/ui/empty';
 import {
   Select,
   SelectContent,
@@ -43,12 +45,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '#components/ui/select';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from '#components/ui/tooltip';
 import { cn } from 'cn';
 
 import { useTemplateDownload } from './download.js';
@@ -115,7 +117,7 @@ function TruncatedText({
 }
 
 /**
- * Route /settings/import: the Excel import of the organisation (OA plan 01 §9). The history of committed attempts,
+ * Route /import: the Excel import of the organisation (OA plan 01 §9). The history of committed attempts,
  * newest first, filtered by kind in the URL; checking and importing a file is the `new` dialog, an attempt's details
  * the `:runId` drawer. Template downloads stay in the header so a reader can fetch them without importing.
  */
@@ -245,7 +247,7 @@ export default function ImportPage(): ReactElement {
         id: 'actor',
         enableSorting: false,
         header: t('import.fields.actor'),
-        cell: ({ row }) => row.original.actor?.name ?? '—',
+        cell: ({ row }) => <UserName name={row.original.actor?.name ?? '—'} />,
       },
       {
         id: 'download',
@@ -379,6 +381,8 @@ export default function ImportPage(): ReactElement {
       <PageHeader
         title={t('import.title')}
         description={t('import.description')}
+      />
+      <ApplicationToolbar
         actions={
           <>
             <DropdownMenu>
@@ -423,44 +427,45 @@ export default function ImportPage(): ReactElement {
             </Tooltip>
           </>
         }
-      />
-      {empty ? null : (
-        <div className='flex flex-wrap items-center gap-2'>
-          <Select
-            items={kindItems}
-            value={kind ?? ALL}
-            onValueChange={(value) =>
-              updateParams((params) => {
-                if (value && value !== ALL) params.set('kind', value);
-                else params.delete('kind');
-                params.delete('page');
-              })
-            }
-          >
-            <SelectTrigger
-              ref={filterRef}
-              className='w-full sm:w-44'
-              aria-label={t('import.fields.kind')}
+      >
+        {!empty ? (
+          <>
+            <Select
+              items={kindItems}
+              value={kind ?? ALL}
+              onValueChange={(value) =>
+                updateParams((params) => {
+                  if (value && value !== ALL) params.set('kind', value);
+                  else params.delete('kind');
+                  params.delete('page');
+                })
+              }
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className={SELECT_CONTENT_CLASS}>
-              <SelectGroup>
-                {kindItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          {kind ? (
-            <Button variant='ghost' onClick={clearFilters}>
-              {t('import.actions.clearFilters')}
-            </Button>
-          ) : null}
-        </div>
-      )}
+              <SelectTrigger
+                ref={filterRef}
+                className='w-full sm:w-44'
+                aria-label={t('import.fields.kind')}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className={SELECT_CONTENT_CLASS}>
+                <SelectGroup>
+                  {kindItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            {kind ? (
+              <Button variant='ghost' onClick={clearFilters}>
+                {t('import.actions.clearFilters')}
+              </Button>
+            ) : null}
+          </>
+        ) : null}
+      </ApplicationToolbar>
       {content}
       <Outlet context={outletContext} />
     </PageContainer>

@@ -517,13 +517,33 @@ describe('controlled fields', () => {
 
   test('my own profile is readable without grants', async ({ testApp }) => {
     const me = await createEmployee(testApp, 'Selfie');
+    await employees(testApp).updateProfile(
+      me.employeeId,
+      {
+        bankName: 'Synthetic bank',
+        bankAccount: '6222000000000000001',
+        bankAccountName: 'Selfie',
+      },
+      ALL,
+      me.userId,
+    );
     const response = await (await me.session()).fetch('/employees/me/profile');
     expect(response.status).toBe(200);
     expect(((await response.json()) as any).data).toMatchObject({
       access: 'full',
       employeeId: me.employeeId,
+      bankName: 'Synthetic bank',
+      bankAccount: '6222000000000000001',
+      bankAccountName: 'Selfie',
     });
     const noArchive = await createPerson(testApp, 'NoArchive');
+    expect(
+      (
+        await (
+          await noArchive.session()
+        ).fetch(`/employees/${me.employeeId}/profile`)
+      ).status,
+    ).toBe(403);
     expect(
       (await (await noArchive.session()).fetch('/employees/me')).status,
     ).toBe(404);

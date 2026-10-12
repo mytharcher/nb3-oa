@@ -21,8 +21,7 @@ vi.mock('@nocobase/app-plugin-authentication/client', () => ({
 }));
 
 const { ApiClientError } = await import('@nocobase/app-client');
-const { UserMultiPicker, UserPicker } =
-  await import('@/components/user-picker');
+const { UserMultiPicker, UserPicker } = await import('#components/user-picker');
 
 const runtime = await createTestI18nRuntime({
   locale: 'en-US',

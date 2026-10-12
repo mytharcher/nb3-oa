@@ -3,7 +3,7 @@ import {
   type AppClientReactProviderDefinition,
 } from '@nocobase/app-client/plugins';
 
-import { Toaster } from '@/components/ui/toast';
+import { ApplicationToaster } from '#components/application-toaster';
 
 import { AppThemeProvider } from './theme/theme-provider.js';
 
@@ -18,7 +18,7 @@ export const reactProviders: readonly AppClientReactProviderDefinition[] =
     // `useToaster()`, which `client/service-provider.ts` connects to it.
     // Pages must not mount another.
     {
-      component: Toaster,
+      component: ApplicationToaster,
       layer: 'application',
       name: 'toaster',
     },

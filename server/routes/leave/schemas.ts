@@ -82,3 +82,8 @@ export const Detail = z.strictObject({
   timeline: z.json(),
 });
 export const Result = z.json();
+
+export const ActionCandidates = z.strictObject({
+  people: z.array(z.strictObject({ id: z.string(), name: z.string() })),
+  nextOffset: z.number().int().nonnegative().nullable(),
+});

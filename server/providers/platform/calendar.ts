@@ -17,7 +17,11 @@ import {
 import type { AuditService } from '../audit/index.js';
 import { PlatformError } from './errors.js';
 import type { RuleService } from './rules.js';
-import { isLocalDate, type LocalDate } from './time-zone.js';
+import {
+  isLocalDate,
+  resolveLocalDateTime,
+  type LocalDate,
+} from './time-zone.js';
 import {
   CALENDAR_DAY_KINDS,
   DEFAULT_TIME_ZONE,
@@ -71,6 +75,8 @@ export interface CalendarService {
   timeZone(): string;
   /** The local date `instant` falls on in the calendar's time zone. */
   localDate(instant: Date): LocalDate;
+  /** Rejects skipped or repeated local HH:mm times rather than shifting an appointment. */
+  resolveLocalDateTime(date: LocalDate, time: string): Date;
   isWorkday(date: Date | LocalDate): boolean;
   dayKind(date: Date | LocalDate): { kind: CalendarDayKind; explicit: boolean };
   workHoursOn(date: Date | LocalDate): WorkHours;
@@ -267,6 +273,8 @@ export function createCalendarService(
   const service: CalendarService = {
     timeZone: () => calendar.timeZone,
     localDate: (instant) => calendar.localDate(instant),
+    resolveLocalDateTime: (date, time) =>
+      resolveLocalDateTime(calendar.timeZone, date, time),
     isWorkday: (date) => calendar.isWorkday(date),
     dayKind: (date) => calendar.dayKind(date),
     workHoursOn: (date) => calendar.workHoursOn(date),

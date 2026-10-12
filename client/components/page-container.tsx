@@ -1,6 +1,8 @@
 import type { ComponentProps, ReactElement } from 'react';
 
 import { cn } from 'cn';
+import { useContext } from 'react';
+import { DrawerFormContext } from './drawer-form-context.js';
 
 export type PageContainerProps = ComponentProps<'section'>;
 
@@ -15,9 +17,10 @@ export function PageContainer({
   className,
   ...props
 }: PageContainerProps): ReactElement {
+  const drawerForm = useContext(DrawerFormContext);
   return (
     <section
-      className={cn('w-full space-y-6 p-6 md:p-8', className)}
+      className={cn('w-full space-y-6', !drawerForm && 'p-6 md:p-8', className)}
       {...props}
     />
   );

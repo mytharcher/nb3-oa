@@ -25,10 +25,10 @@ function flatten(
 }
 
 describe('import client routes', () => {
-  it('places the page in 组织与人员 with the settings item, and the new-import dialog behind `update`', () => {
-    const routes = flatten(resolve().settingsRouteTree);
+  it('places the page in 组织与人事 with the settings item, and the new-import dialog behind `update`', () => {
+    const routes = flatten(resolve().routes);
     const page = routes.find((route) => route.name === 'import-data');
-    expect(page?.path).toBe('/settings/import');
+    expect(page?.path).toBe('/import');
     expect(page?.authz).toEqual({
       resource: { type: 'settings', id: 'oa.import' },
       action: 'read',
@@ -47,7 +47,7 @@ describe('import client routes', () => {
   });
 
   it('loads the page and its overlays', async () => {
-    const loaders = flatten(resolve().settingsRouteTree)
+    const loaders = flatten(resolve().routes)
       .filter((route) => route.name.startsWith('import-data'))
       .map((route) => route.componentLoader)
       .filter((loader) => loader !== undefined);

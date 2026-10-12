@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import type { ReactElement } from 'react';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '#components/ui/button';
 import {
   Select,
   SelectContent,
@@ -16,7 +16,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '#components/ui/select';
 
 const DEFAULT_PAGE_SIZE_OPTIONS: readonly number[] = [10, 20, 30, 40, 50];
 
@@ -43,16 +43,19 @@ export function DataTablePagination<TData>({
   }));
 
   return (
-    <div className='flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-2'>
-      <div className='flex-1 text-sm text-muted-foreground'>
-        {showSelectedCount
-          ? t('dataTable.selectedCount', {
-              selected: table.getFilteredSelectedRowModel().rows.length,
-              total: table.getFilteredRowModel().rows.length,
-            })
-          : null}
-      </div>
-      <div className='flex flex-wrap items-center gap-x-6 gap-y-2 lg:gap-x-8'>
+    <div
+      data-slot='table-pagination'
+      className='flex min-w-0 flex-col gap-3 px-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between'
+    >
+      {showSelectedCount ? (
+        <div className='text-sm text-muted-foreground sm:flex-1'>
+          {t('dataTable.selectedCount', {
+            selected: table.getFilteredSelectedRowModel().rows.length,
+            total: table.getFilteredRowModel().rows.length,
+          })}
+        </div>
+      ) : null}
+      <div className='grid min-w-0 grid-cols-[1fr_auto] items-center gap-3 sm:ml-auto sm:flex sm:flex-wrap sm:gap-x-6 lg:gap-x-8'>
         <div className='flex items-center gap-2'>
           <p className='text-sm font-medium'>{t('dataTable.rowsPerPage')}</p>
           <Select
@@ -69,7 +72,7 @@ export function DataTablePagination<TData>({
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent side='top'>
+            <SelectContent side='top' className='w-auto min-w-(--anchor-width)'>
               <SelectGroup>
                 {sizeItems.map((item) => (
                   <SelectItem key={item.value} value={item.value}>
@@ -80,10 +83,10 @@ export function DataTablePagination<TData>({
             </SelectContent>
           </Select>
         </div>
-        <div className='flex items-center justify-center text-sm font-medium'>
+        <div className='order-3 col-span-2 flex items-center justify-center text-sm font-medium sm:order-none'>
           {t('dataTable.pageOf', { page: pageIndex + 1, pageCount })}
         </div>
-        <div className='flex items-center gap-2'>
+        <div className='flex items-center justify-end gap-2'>
           <Button
             variant='outline'
             size='icon-sm'

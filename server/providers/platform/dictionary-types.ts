@@ -9,10 +9,11 @@ import { z } from 'zod';
 /** One `extra` field, as the settings page renders its editor. */
 export interface DictionaryExtraField {
   readonly name: string;
-  readonly type: 'boolean' | 'integer' | 'number';
+  readonly type: 'boolean' | 'integer' | 'number' | 'enum';
   /** A number field that may be left empty (`null`), such as a leave type with no maximum. */
   readonly nullable: boolean;
   readonly min?: number;
+  readonly options?: readonly string[];
 }
 
 export interface DictionaryTypeDefinition {
@@ -56,13 +57,27 @@ export const DICTIONARY_TYPES: readonly DictionaryTypeDefinition[] = [
     ],
   },
   { type: 'annualLeaveTier', extraFields: [num('minYears'), num('days')] },
-  { type: 'expenseCategory', extraFields: [] },
+  {
+    type: 'expenseCategory',
+    extraFields: [
+      {
+        name: 'travelStandardKind',
+        type: 'enum',
+        nullable: false,
+        options: ['none', 'lodging', 'allowance'],
+      },
+    ],
+  },
+  { type: 'paymentMethod', extraFields: [] },
+  { type: 'expensePlanType', extraFields: [] },
   { type: 'budgetSubject', extraFields: [] },
+  { type: 'officeItem', extraFields: [bool('requiresPrintInfo')] },
   { type: 'sealType', extraFields: [] },
   { type: 'contractType', extraFields: [] },
   { type: 'assetCategory', extraFields: [] },
   { type: 'supplierCategory', extraFields: [] },
   { type: 'vehicleType', extraFields: [] },
+  { type: 'departureType', extraFields: [] },
   { type: 'resignationReason', extraFields: [bool('voluntary')] },
   { type: 'recruitmentReason', extraFields: [bool('replacement')] },
   { type: 'certificateType', extraFields: [bool('involvesSalary')] },
@@ -93,6 +108,8 @@ export function dictionaryExtraSchema(
   for (const field of definition.extraFields) {
     let schema: z.ZodType;
     if (field.type === 'boolean') schema = z.boolean();
+    else if (field.type === 'enum')
+      schema = z.enum(field.options as [string, ...string[]]);
     else {
       let number = z.number().min(field.min ?? 0);
       if (field.type === 'integer') number = number.int();

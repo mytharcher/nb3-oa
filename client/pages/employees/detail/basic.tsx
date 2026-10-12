@@ -1,8 +1,9 @@
+import { UserName } from '#components/user-name';
 import { useTranslation } from '@nocobase/i18n/client';
 import type { ReactElement } from 'react';
 import { Outlet, useOutletContext } from 'react-router';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '#components/ui/card';
 
 import type { EmployeePageOutletContext } from '../types.js';
 import { useDateText } from '../dates.js';
@@ -26,11 +27,12 @@ export default function EmployeeBasicTab(): ReactElement {
             items={[
               {
                 label: t('employees.fields.user'),
-                value: employee.user
-                  ? [employee.user.name, employee.user.email]
-                      .filter(Boolean)
-                      .join(' · ')
-                  : null,
+                value: employee.user ? (
+                  <span className='inline-flex flex-wrap items-center gap-2'>
+                    <UserName name={employee.user.name} />
+                    <span>{employee.user.email}</span>
+                  </span>
+                ) : null,
               },
               { label: t('employees.fields.code'), value: employee.code },
               {
@@ -47,7 +49,11 @@ export default function EmployeeBasicTab(): ReactElement {
               },
               {
                 label: t('employees.fields.manager'),
-                value: employee.manager?.name,
+                value: <UserName name={employee.manager?.name} />,
+              },
+              {
+                label: t('employees.fields.careerStartDate'),
+                value: date(employee.careerStartDate),
               },
               {
                 label: t('employees.fields.hireDate'),

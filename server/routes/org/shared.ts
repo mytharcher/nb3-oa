@@ -25,6 +25,7 @@ import {
   type OrgSettingsItem,
   type OrgWriteContext,
 } from '../../providers/org/index.js';
+import { HeadcountError } from '../../providers/headcounts/index.js';
 import type { OrgUserBody } from './schemas.js';
 
 export type OrgEnv = AuthorizationEnv & AuthEnv;
@@ -158,7 +159,24 @@ export function createOrgRouter(app: Application): Hono<OrgEnv> {
   const router = new Hono<OrgEnv>();
   router.use('*', auth.required(), authz.middleware());
   router.onError((error, c) =>
-    apiErrorHandler(error instanceof OrgError ? toApiError(error) : error, c),
+    apiErrorHandler(
+      error instanceof OrgError
+        ? toApiError(error)
+        : error instanceof HeadcountError
+          ? new ApiError({
+              status: 'FAILED_PRECONDITION',
+              domain: 'headcounts',
+              reason: error.code,
+              message: error.message,
+              metadata: {
+                ns: 'nb3-oa',
+                key: `headcounts.errors.${error.code}`,
+              },
+              cause: error,
+            })
+          : error,
+      c,
+    ),
   );
   return router;
 }

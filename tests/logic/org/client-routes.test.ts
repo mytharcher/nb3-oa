@@ -20,7 +20,7 @@ function settingsRoutes(): AppClientRegisteredRoute[] {
         routes: applicationRoutes,
         source: 'application',
       },
-    ]).settingsRouteTree,
+    ]).routes,
   );
 }
 
@@ -57,7 +57,7 @@ describe('organisation settings routes', () => {
     );
   });
 
-  it('places the four pages in the 组织与人员 group with their menu entries', () => {
+  it('places the four pages in the 组织与人事 group with their menu entries', () => {
     const group = settingsRoutes().find(
       (route) => route.name === 'oa-organization',
     );

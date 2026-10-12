@@ -4,9 +4,9 @@ import { AlertCircleIcon } from 'lucide-react';
 import { type ReactElement, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router';
 
-import { RouteDialog } from '@/components/route-dialog';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { RouteDialog } from '#components/route-dialog';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import {
   Field,
   FieldContent,
@@ -14,10 +14,10 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-} from '@/components/ui/field';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import { useRouteOverlay } from '@/components/use-route-overlay';
+} from '#components/ui/field';
+import { Switch } from '#components/ui/switch';
+import { Textarea } from '#components/ui/textarea';
+import { useRouteOverlay } from '#components/use-route-overlay';
 
 import { OverlayFormFooter } from '../shared/overlay-buttons.js';
 import { statusOf } from '../shared/errors.js';

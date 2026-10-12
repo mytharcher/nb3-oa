@@ -2,7 +2,7 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { Check, Circle, CircleDot, Clock, Minus, Undo2, X } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '#components/ui/badge';
 import { cn } from 'cn';
 
 import type {

@@ -2,15 +2,15 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { AlertCircleIcon } from 'lucide-react';
 import type { ReactElement } from 'react';
 
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
 import {
   Alert,
   AlertAction,
   AlertDescription,
   AlertTitle,
-} from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+} from '#components/ui/alert';
+import { Button } from '#components/ui/button';
+import { Skeleton } from '#components/ui/skeleton';
 
 import { statusOf } from './errors.js';
 

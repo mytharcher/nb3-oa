@@ -1,0 +1,207 @@
+import {
+  useLocation,
+  useNavigate,
+  useOutletContext,
+  useParams,
+} from 'react-router';
+import { useTranslation } from '@nocobase/i18n/client';
+import { useNavigationGuard, useToaster } from '@nocobase/app-client';
+import { useCan } from '@nocobase/app-plugin-authorization/client';
+import { RouteDialog } from '#components/route-dialog';
+import { Button } from '#components/ui/button';
+import { Spinner } from '#components/ui/spinner';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '#components/ui/alert-dialog';
+import { useRef, useState } from 'react';
+import { statusOf } from '../platform/shared/errors.js';
+import { useAnnouncementResource, isDenied } from './resource.js';
+import { useAnnouncementCommand } from './command.js';
+import { Failure, Loading } from './states.js';
+import {
+  currentActions,
+  resource,
+  type Action,
+  type Context,
+  type Detail,
+} from './types.js';
+export default function AnnouncementAction() {
+  const { announcementId } = useParams(),
+    { t } = useTranslation(),
+    location = useLocation(),
+    navigate = useNavigate(),
+    parent = useOutletContext<Context>(),
+    toaster = useToaster();
+  const action = location.pathname.split('/').at(-1) as Action,
+    valid = ['publish', 'revoke', 'remind', 'confirm'].includes(action);
+  const grant = useCan({ resource, action: valid ? action : 'view' }),
+    r = useAnnouncementResource<{ data: Detail }>(
+      valid ? `announcements/${encodeURIComponent(announcementId!)}` : null,
+    ),
+    command = useAnnouncementCommand(),
+    [confirm, setConfirm] = useState(false),
+    finishedRef = useRef(false);
+  const row = r.data?.data,
+    allowed =
+      valid &&
+      grant.can &&
+      !grant.isPending &&
+      !grant.error &&
+      !!row &&
+      !r.loading &&
+      !r.error &&
+      currentActions(row).includes(action) &&
+      !isDenied(command.error) &&
+      statusOf(command.error) !== 409;
+  useNavigationGuard(() => finishedRef.current || !command.busy);
+  const closeTo = {
+    pathname: '..',
+    search: location.search,
+    hash: location.hash,
+  };
+  async function perform() {
+    if (!allowed || !row || !currentActions(row).includes(action)) return;
+
+    const result = await command.execute<{
+      data: import('./types.js').Announcement | import('./types.js').Receipt;
+    }>(
+      `announcements/${encodeURIComponent(row.id)}/${action}`,
+      'POST',
+      action === 'confirm' ? {} : { expectedVersion: row.version },
+    );
+    if (result) {
+      finishedRef.current = true;
+      if (action === 'confirm')
+        parent.updateDetail?.({
+          ...row,
+          capabilities: {
+            actions: [],
+            ownReceipt: {
+              status: 'confirmed',
+              confirmedAt:
+                'confirmedAt' in result.data ? result.data.confirmedAt : null,
+            },
+          },
+        });
+      else if ('body' in result.data)
+        parent.updateDetail?.({
+          ...row,
+          ...result.data,
+          capabilities: { ...row.capabilities, actions: [] },
+        });
+      parent.reload();
+      toaster.show({
+        type: 'success',
+        title: t('announcements.done', { name: row.title }),
+      });
+      void navigate(closeTo, { replace: true });
+    }
+  }
+  return (
+    <RouteDialog
+      title={t(`announcements.actions.${valid ? action : 'confirm'}`)}
+      className='sm:max-w-md'
+      closeTo={closeTo}
+      beforeClose={() => finishedRef.current || !command.busy}
+      footer={
+        <>
+          <Button
+            variant='outline'
+            disabled={command.busy}
+            onClick={() => void navigate(closeTo, { replace: true })}
+          >
+            {t('announcements.cancel')}
+          </Button>
+          {allowed ? (
+            <Button
+              disabled={command.busy}
+              variant={action === 'revoke' ? 'destructive' : 'default'}
+              onClick={() => {
+                if (action === 'publish' || action === 'revoke')
+                  setConfirm(true);
+                else void perform();
+              }}
+            >
+              {command.busy ? <Spinner /> : null}
+              {t(`announcements.actions.${action}`)}
+            </Button>
+          ) : null}
+        </>
+      }
+    >
+      {r.error ? (
+        <Failure error={r.error} retry={r.reload} />
+      ) : r.loading ? (
+        <Loading />
+      ) : row ? (
+        <>
+          <p className='font-medium break-words'>{row.title}</p>
+          <p className='mt-3 text-muted-foreground'>
+            {t(`announcements.consequence.${valid ? action : 'confirm'}`)}
+          </p>
+          {!allowed && !command.busy ? (
+            <p className='mt-3'>{t('announcements.unavailable')}</p>
+          ) : null}
+        </>
+      ) : (
+        <p>{t('announcements.unavailable')}</p>
+      )}
+      {command.error ? (
+        <>
+          <Failure error={command.error} />
+          {!isDenied(command.error) ? (
+            <Button
+              variant='outline'
+              disabled={command.busy}
+              onClick={() => {
+                command.clearError();
+                r.reload();
+              }}
+            >
+              {t('announcements.loadLatest')}
+            </Button>
+          ) : null}
+        </>
+      ) : null}
+      <AlertDialog
+        open={confirm}
+        onOpenChange={(v) => {
+          if (!command.busy) setConfirm(v);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t(`announcements.actions.${action}`)} — {row?.title}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(`announcements.consequence.${action}`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={command.busy}>
+              {t('announcements.cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={command.busy}
+              variant={action === 'revoke' ? 'destructive' : 'default'}
+              onClick={(event) => {
+                event.preventDefault();
+                void perform().then(() => setConfirm(false));
+              }}
+            >
+              {t(`announcements.actions.${action}`)}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </RouteDialog>
+  );
+}

@@ -21,6 +21,8 @@ import EmployeeHistoryTab from '../../client/pages/employees/detail/history.js';
 import EmployeePage from '../../client/pages/employees/detail/index.js';
 import EmployeeProfileTab from '../../client/pages/employees/detail/profile.js';
 import EmployeesPage from '../../client/pages/employees/index.js';
+import { EmployeeForm } from '../../client/pages/employees/employee-form.js';
+import type { Employee } from '../../client/pages/employees/types.js';
 
 const { api, toaster, granted, refresh } = vi.hoisted(() => ({
   api: { request: vi.fn() },
@@ -115,6 +117,7 @@ const EMPLOYEE = {
   positionId: 'p1',
   gradeId: null,
   hireDate: '2025-03-01',
+  careerStartDate: '2010-07-01',
   probationEndDate: null,
   status: 'probation',
   lastWorkingDay: null,
@@ -261,6 +264,79 @@ function OutletOwner(): ReactElement {
   return <Outlet context={{ reload: reloadOwner }} />;
 }
 
+describe('employee first employment date form', () => {
+  it('displays the optional field and submits its value while supporting legacy null hire dates', async () => {
+    const record = {
+      ...EMPLOYEE,
+      hireDate: null,
+      managerId: null,
+      positionId: null,
+    } as Employee;
+    const saved = vi.fn();
+    answer({
+      'GET positions/options': { data: [] },
+      'GET grades/options': { data: [] },
+      'PATCH employees/e1': { data: record },
+    });
+    render(
+      <>
+        <EmployeeForm
+          employee={record}
+          formId='career-form'
+          onSubmitted={saved}
+        />
+        <button type='submit' form='career-form'>
+          Save fixture
+        </button>
+      </>,
+      { wrapper: I18n },
+    );
+    expect(
+      screen.getByLabelText(copy.fields.careerStartDate),
+    ).toHaveTextContent(/2010/u);
+    await userEvent.click(screen.getByRole('button', { name: 'Save fixture' }));
+    await waitFor(() => expect(saved).toHaveBeenCalled());
+    expect(api.request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: 'employees/e1',
+        method: 'PATCH',
+        json: expect.objectContaining({
+          careerStartDate: '2010-07-01',
+          hireDate: null,
+        }),
+      }),
+    );
+  });
+  it('translates server date refusal below the first employment date field', async () => {
+    answer({
+      'GET positions/options': { data: [] },
+      'GET grades/options': { data: [] },
+      'PATCH employees/e1': apiError(400, 'EMPLOYEE_CAREER_START_FUTURE'),
+    });
+    render(
+      <>
+        <EmployeeForm
+          employee={EMPLOYEE as Employee}
+          formId='career-form-error'
+          onSubmitted={vi.fn()}
+        />
+        <button type='submit' form='career-form-error'>
+          Save fixture
+        </button>
+      </>,
+      { wrapper: I18n },
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Save fixture' }));
+    expect(
+      await screen.findByText(copy.form.careerStartFuture),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(copy.fields.careerStartDate)).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+  });
+});
+
 describe('employee page', () => {
   it('shows the basic information and hides sections the user may not read', async () => {
     answer({ 'GET employees/e1': { data: EMPLOYEE } });
@@ -269,6 +345,8 @@ describe('employee page', () => {
       await screen.findByRole('heading', { name: /Alice Wang/u }),
     ).toBeInTheDocument();
     expect(screen.getByText('Bob Li')).toBeInTheDocument();
+    expect(screen.getByText(copy.fields.careerStartDate)).toBeInTheDocument();
+    expect(screen.getByText(/2010/u)).toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: copy.page.tabsLabel });
     expect(
       within(tabs).getByRole('link', { name: copy.tabs.basic }),

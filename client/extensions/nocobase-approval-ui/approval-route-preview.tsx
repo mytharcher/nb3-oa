@@ -2,7 +2,7 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { GitFork, Zap } from 'lucide-react';
 import type { ReactElement } from 'react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import { cn } from 'cn';
 
 import type { ApprovalRoute } from './types.js';

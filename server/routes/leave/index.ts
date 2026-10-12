@@ -23,10 +23,13 @@ import { ApprovalError } from '@nocobase/app-plugin-approval/server';
 import { z } from 'zod';
 import { Hono, type Context } from 'hono';
 import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
+import { LeaveAttachmentError } from '../../providers/leave-attachments/service.js';
+import { LeaveBalanceError } from '../../providers/leave-balances/service.js';
 import { LeaveError } from '../../providers/leave/errors.js';
 import { leaveServiceToken } from '../../providers/leave/index.js';
 import {
   ActionInput,
+  ActionCandidates,
   CreateLeave,
   LeaveInput,
   LeaveParams,
@@ -50,13 +53,17 @@ export const routes: readonly AppRouteContribution<Application>[] = [
       app.container.resolve(authorizationToken).middleware(),
     );
     router.onError((error, c) => {
-      if (error instanceof LeaveError)
+      if (
+        error instanceof LeaveError ||
+        error instanceof LeaveBalanceError ||
+        error instanceof LeaveAttachmentError
+      )
         return apiErrorHandler(
           new ApiError({
             status:
-              error.kind === 'permission'
+              error instanceof LeaveError && error.kind === 'permission'
                 ? 'PERMISSION_DENIED'
-                : error.kind === 'notFound'
+                : error instanceof LeaveError && error.kind === 'notFound'
                   ? 'NOT_FOUND'
                   : 'FAILED_PRECONDITION',
             reason: error.code,
@@ -338,6 +345,38 @@ export const routes: readonly AppRouteContribution<Application>[] = [
             await readPolicy(c),
           ),
         }),
+    );
+    router.get(
+      '/leaveRequests/:id/candidates',
+      doc(
+        'leaveActionCandidates',
+        'Eligible recipients for an approval action',
+        ActionCandidates,
+      ),
+      apiValidator('param', LeaveParams),
+      apiValidator(
+        'query',
+        z.strictObject({
+          taskId: z.string().min(1),
+          action: z.enum(['transfer', 'addSigner']),
+          search: z.string().max(200).optional(),
+          offset: z.coerce.number().int().nonnegative().default(0),
+          limit: z.coerce.number().int().min(1).max(100).default(20),
+        }),
+      ),
+      async (c) => {
+        const { taskId, action, ...query } = c.req.valid('query');
+        return c.json({
+          data: await service.candidates(
+            c.req.valid('param').id,
+            taskId,
+            action,
+            c.get('auth')!.user.id,
+            query,
+            await readPolicy(c),
+          ),
+        });
+      },
     );
     const root = new Hono();
     root.route('/', router);

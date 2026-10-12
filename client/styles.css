@@ -8,6 +8,21 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* The stationary brand and a constant orbit read as loading at every size. */
+@keyframes nocobase-loading-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.nocobase-loading-orbit {
+  transform-origin: 32px 32px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nocobase-loading-orbit {
+    animation: nocobase-loading-orbit 1.1s linear infinite;
+  }
+}
+
 @theme {
   --font-heading: var(--font-sans);
   /* These names are implemented below as runtime-variable utilities. */
@@ -118,5 +133,522 @@
    Lift the viewport here rather than in the generated component; left outside
    any layer so it outranks the component's z-50 utility. */
 [data-slot='toast-viewport'] {
+  /* ApplicationToaster measures visible overlay footers so notices never cover record actions. */
+  bottom: calc(var(--oa-toast-bottom, 1rem) + env(safe-area-inset-bottom));
   z-index: 100;
+}
+
+/* Active pickers and menus take precedence over notices. Their generated positioners
+   form z-50 stacking contexts, so raising only popup children cannot unblock clicks. */
+body:has(
+    :is(
+      [data-slot='dropdown-menu-content'],
+      [data-slot='dropdown-menu-sub-content'],
+      [data-slot='popover-content'],
+      [data-slot='select-content'],
+      [data-slot='combobox-content']
+    )[data-open]
+  )
+  [data-slot='toast-viewport'] {
+  z-index: 49;
+}
+
+/* Application-wide interaction and badge treatment, outside generated primitives. */
+@layer base {
+  :is(
+      button,
+      [role='button'],
+      [role='menuitem'],
+      [role='option'],
+      [role='tab'],
+      [role='checkbox'],
+      [role='radio'],
+      [role='switch'],
+      [role='combobox'],
+      a[href]
+    ):not(:disabled):not([aria-disabled='true']):not([data-disabled]) {
+    cursor: pointer;
+  }
+}
+
+[data-slot='badge'] {
+  border-radius: var(--radius-md);
+  min-height: calc(var(--spacing) * 7);
+  height: auto;
+  padding-inline: calc(var(--spacing) * 2.5);
+  line-height: 1.4;
+}
+
+/* Shared overlay treatment lives outside generated shadcn primitives. */
+:is(
+  [data-slot='dialog-overlay'],
+  [data-slot='alert-dialog-overlay'],
+  [data-slot='sheet-overlay']
+) {
+  background: var(--overlay-backdrop);
+}
+:is(
+  [data-slot='dialog-content'],
+  [data-slot='alert-dialog-content'],
+  [data-slot='route-overlay-content']
+) {
+  border: 1px solid var(--border);
+  box-shadow: var(--overlay-shadow);
+}
+[data-slot='route-overlay-content'][data-presentation='dialog'] {
+  border-radius: var(--radius-xl);
+}
+:is([data-slot='dialog-title'], [data-slot='alert-dialog-title']) {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.4;
+}
+:is([data-slot='dialog-description'], [data-slot='alert-dialog-description']) {
+  line-height: 1.65;
+}
+/* Normalize text actions to the primitive's default size across pages and
+   portaled dialogs/drawers. Explicit square icon controls, calendar cells and
+   navigation cards and inbox content retain their dedicated geometry. Keep this policy outside
+   generated shadcn primitives so CLI updates cannot undo it. */
+.group\/button:not([class*=' size-']):not([class^='size-']):not(
+    [data-slot='request-action-card'],
+    [data-slot='inbox-item-content'],
+    [data-slot='calendar'] *
+  ) {
+  height: calc(var(--spacing) * 8);
+  min-height: calc(var(--spacing) * 8);
+  min-width: 0;
+  padding-block: 0;
+  padding-inline: calc(var(--spacing) * 2.5);
+  gap: calc(var(--spacing) * 1.5);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  border-radius: var(--radius-lg);
+}
+/* Dropdowns are portaled outside the footer; match action labels explicitly. */
+:is(
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content']
+  )
+  :is(
+    [data-slot='dropdown-menu-item'],
+    [data-slot='dropdown-menu-sub-trigger'],
+    [data-slot='dropdown-menu-label']
+  ) {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+}
+@media (width < 40rem) {
+  /* A shared touch minimum keeps phone actions consistent and reachable. */
+  .group\/button:not([class*=' size-']):not([class^='size-']):not(
+      [data-slot='request-action-card'],
+      [data-slot='inbox-item-content'],
+      [data-slot='calendar'] *
+    ) {
+    min-height: 2.75rem;
+  }
+}
+[data-slot='dialog-content'] > [data-slot='dialog-close'] {
+  top: calc(var(--spacing) * 4);
+  right: calc(var(--spacing) * 4);
+}
+[data-slot='dialog-header'] {
+  padding-right: calc(var(--spacing) * 8);
+}
+[data-slot='alert-dialog-media'] {
+  border-radius: var(--radius-lg);
+  width: calc(var(--spacing) * 12);
+  height: calc(var(--spacing) * 12);
+}
+[data-slot='alert'] {
+  padding: calc(var(--spacing) * 4);
+  row-gap: calc(var(--spacing) * 1.5);
+  column-gap: calc(var(--spacing) * 3);
+  border-radius: var(--radius-lg);
+}
+[data-slot='alert'][data-tone='info'] {
+  background: color-mix(in srgb, var(--primary) 5%, var(--card));
+  border-color: color-mix(in srgb, var(--primary) 18%, var(--border));
+}
+[data-slot='alert'][data-tone='info'] > svg {
+  color: var(--primary);
+}
+[data-slot='alert-action'] {
+  top: calc(var(--spacing) * 4);
+  right: calc(var(--spacing) * 4);
+}
+[data-slot='toast'] {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+[data-slot='toast-content'] {
+  padding: calc(var(--spacing) * 4);
+  align-items: center;
+  gap: calc(var(--spacing) * 3);
+}
+[data-slot='toast-viewport'] {
+  width: 22rem;
+  max-width: calc(100vw - 2rem);
+}
+[data-slot='toast-content']:has([data-slot='toast-description']:not(:empty)) {
+  align-items: flex-start;
+}
+:is([data-slot='toast-title'], [data-slot='toast-description']) {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+[data-slot='toast-close'] {
+  width: calc(var(--spacing) * 6);
+  height: calc(var(--spacing) * 6);
+  opacity: 0.55;
+  transition:
+    opacity 150ms ease,
+    background-color 150ms ease;
+}
+[data-slot='toast-close']:is(:hover, :focus-visible) {
+  opacity: 1;
+}
+
+[data-slot='toast-icon'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--spacing) * 7);
+  height: calc(var(--spacing) * 7);
+  border-radius: var(--radius-lg);
+  background: var(--accent);
+  color: var(--primary);
+}
+[data-slot='toast-icon']:has(.lucide-circle-check) {
+  background: var(--status-success-background);
+  color: var(--status-success);
+}
+[data-slot='toast-icon']:has(.lucide-octagon-x) {
+  background: color-mix(in srgb, var(--destructive) 10%, var(--popover));
+  color: var(--destructive);
+}
+[data-slot='toast-icon']:has(.lucide-triangle-alert) {
+  background: var(--status-warning-background);
+  color: var(--status-warning);
+}
+[data-slot='alert'].text-destructive {
+  background: color-mix(in srgb, var(--destructive) 5%, var(--card));
+  border-color: color-mix(in srgb, var(--destructive) 20%, var(--border));
+}
+[data-slot='alert-dialog-header']:has([data-slot='alert-dialog-media']) {
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: calc(var(--spacing) * 4);
+  align-items: start;
+  justify-items: start;
+  text-align: left;
+}
+[data-slot='alert-dialog-header'] > [data-slot='alert-dialog-media'] {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  margin-bottom: 0;
+}
+[data-slot='alert-dialog-header']:has([data-slot='alert-dialog-media'])
+  > :is(
+    [data-slot='alert-dialog-title'],
+    [data-slot='alert-dialog-description']
+  ) {
+  grid-column: 2;
+}
+[data-slot='alert']:has([data-slot='alert-action']) {
+  padding-right: calc(var(--spacing) * 24);
+}
+
+/* Compact content can stay dense while the primary navigation remains comfortable.
+   The primitive's important icon-mode sizes still control the collapsed rail. */
+:root[data-theme='compact'] .app-navigation [data-slot='sidebar-menu-button'] {
+  height: calc(var(--spacing) * 12);
+  padding-inline: calc(var(--spacing) * 4);
+}
+:root[data-theme='compact'] .app-navigation [data-slot='sidebar-menu'] {
+  gap: calc(var(--spacing) * 1.5);
+}
+
+/* Brand tint belongs to the application shell, independent of each page's content. */
+.app-brand-surface {
+  background-image: radial-gradient(
+    ellipse at 100% 0%,
+    color-mix(in srgb, var(--primary) 6%, transparent),
+    transparent 70%
+  );
+  background-size: 100% 18rem;
+  background-repeat: no-repeat;
+}
+
+/* All list controls share one presentation. Scope this to list toolbars so
+   forms, editable tables and picker popups keep their own field semantics. */
+[data-slot='application-toolbar'],
+[data-slot='application-filters'],
+[data-slot='application-actions'] {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--spacing) * 2);
+}
+[data-slot='application-filters'] {
+  flex: 1 1 auto;
+}
+[data-slot='application-actions'] {
+  margin-inline-start: auto;
+  justify-content: flex-end;
+}
+[data-slot='application-filters'] [data-slot='application-filter'] {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  align-items: center;
+  flex-direction: row;
+  gap: calc(var(--spacing) * 2);
+}
+[data-slot='application-filter']:not([data-context='true'])
+  > [data-slot='label'] {
+  /* Keep existing id/label associations while removing form-style label rows. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+[data-slot='application-filter'][data-context='true'] > [data-slot='label'] {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
+[data-slot='application-filters']
+  :is(
+    [data-slot='input'],
+    [data-slot='input-group'],
+    [data-slot='application-search'],
+    [data-slot='select-trigger'],
+    :where([data-empty])[data-slot='button'],
+    :where([data-empty])[data-slot='popover-trigger'],
+    [data-slot='button']
+  ),
+[data-slot='application-actions'] [data-slot='button'] {
+  height: calc(var(--spacing) * 8);
+  min-width: 0;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+}
+[data-slot='application-filters']
+  :is(
+    [data-slot='input'],
+    [data-slot='input-group'],
+    [data-slot='application-search'],
+    [data-slot='select-trigger'],
+    :where([data-empty])[data-slot='button'],
+    :where([data-empty])[data-slot='popover-trigger']
+  ) {
+  width: calc(var(--spacing) * 40);
+  max-width: 100%;
+  flex: 0 0 auto;
+  border-color: var(--input);
+  background: var(--background);
+}
+[data-slot='application-filters'] [data-slot='application-search'] {
+  width: calc(var(--spacing) * 64);
+}
+[data-slot='application-filters'] [data-slot='input-group-control'] {
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  font-size: var(--text-sm);
+}
+[data-slot='application-actions']
+  [data-slot='button']:is(.size-8, .size-7, .size-6) {
+  width: calc(var(--spacing) * 8);
+  padding: 0;
+}
+@media (width < 40rem) {
+  [data-slot='application-filters'] {
+    flex-basis: 100%;
+  }
+  [data-slot='application-filters'] > *,
+  [data-slot='application-filters'] [data-slot='application-filter'] {
+    max-width: 100%;
+    min-width: 0;
+  }
+  [data-slot='application-filters']
+    :is(
+      [data-slot='input'],
+      [data-slot='input-group'],
+      [data-slot='application-search'],
+      [data-slot='select-trigger'],
+      :where([data-empty])[data-slot='button'],
+      :where([data-empty])[data-slot='popover-trigger']
+    ) {
+    min-height: 44px;
+    width: 100%;
+  }
+  [data-slot='application-filters'] [data-slot='application-filter'] {
+    width: 100%;
+  }
+  [data-slot='application-filter'][data-context='true']
+    > :is(
+      [data-slot='input'],
+      [data-slot='input-group'],
+      [data-slot='select-trigger'],
+      :where([data-empty])[data-slot='button'],
+      :where([data-empty])[data-slot='popover-trigger']
+    ) {
+    flex: 1 1 0;
+    width: 0;
+  }
+  [data-slot='application-toolbar'] [data-slot='button'] {
+    min-height: 44px;
+  }
+  [data-slot='application-actions']
+    [data-slot='button']:is(.size-8, .size-7, .size-6) {
+    min-width: 44px;
+  }
+}
+
+/* ResponsiveTable owns presentation for both TanStack and manual/native tables.
+   Legacy page frames delegate their border to this shared surface. Keep the
+   inspector's bounded scrolling and sticky header while sharing its visuals. */
+[data-slot='responsive-table'] {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  color: var(--card-foreground);
+  overflow: hidden;
+}
+[data-slot='responsive-table'].overflow-auto {
+  overflow: auto;
+}
+:where(div, section).border:has(> [data-slot='responsive-table']) {
+  border-width: 0;
+}
+[data-slot='responsive-table'] > [data-slot='table-container'] > table,
+[data-slot='responsive-table'] > table {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+}
+/* Shared table hierarchy stays neutral so semantic status colors remain distinct.
+   Native markup in administration tables receives the same rules as primitives. */
+[data-slot='responsive-table'] thead {
+  background: color-mix(in srgb, var(--muted) 70%, var(--card));
+  text-transform: none;
+}
+[data-slot='responsive-table'] thead tr:hover {
+  background: transparent;
+}
+[data-slot='responsive-table'] th {
+  /* Include the collapsed row separator so sort buttons and plain labels
+     produce the same header height in both density presets. */
+  height: calc(var(--spacing) * 12 + 1px);
+  padding-inline: calc(var(--spacing) * 3);
+  padding-block: calc(var(--spacing) * 2);
+  color: color-mix(in srgb, var(--foreground) 80%, var(--muted-foreground));
+  font-weight: 600;
+  text-align: start;
+}
+[data-slot='responsive-table'] td:not([colspan]) {
+  padding-inline: calc(var(--spacing) * 3);
+  padding-block: calc(var(--spacing) * 2);
+}
+[data-slot='responsive-table'] :is(th, td).text-right {
+  text-align: right;
+}
+[data-slot='responsive-table'] :is(th, td):not(.align-top) {
+  vertical-align: middle;
+}
+[data-slot='responsive-table'] tr {
+  border-bottom: 1px solid var(--border);
+  transition: background-color 150ms;
+}
+[data-slot='responsive-table'] tbody > tr:last-child {
+  border-bottom: 0;
+}
+[data-slot='responsive-table'] tbody > tr:hover,
+[data-slot='responsive-table'] tbody > tr[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--muted) 50%, transparent);
+}
+[data-slot='responsive-table'] tbody > tr[data-state='selected'] {
+  background: var(--muted);
+}
+[data-slot='responsive-table'] th[aria-sort]:not([aria-sort='none']) {
+  color: var(--primary);
+}
+[data-slot='responsive-table'] th button {
+  font-weight: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+[data-slot='responsive-table'] th button:hover {
+  color: var(--primary);
+}
+
+/* Nested items keep a comfortable rhythm independently of compact content. */
+.app-navigation [data-slot='sidebar-menu-sub-button'] {
+  height: calc(var(--spacing) * 10);
+  padding-inline: calc(var(--spacing) * 3);
+}
+.app-navigation [data-slot='sidebar-menu-sub'] {
+  gap: calc(var(--spacing) * 1.5);
+  padding-block: calc(var(--spacing) * 1.5);
+}
+
+/* Application tables retain all columns on phones. Scroll within the table,
+   expose full text without hover, and use 44px touch targets even in compact.
+   The size is an accessibility minimum, independent of preset spacing. */
+@media (width < 40rem) {
+  [data-slot='responsive-table'] th {
+    /* Header labels share the space required by 44px sortable touch targets. */
+    height: calc(44px + var(--spacing) * 4 + 1px);
+  }
+  [data-slot='responsive-table'] :is(td, th) .truncate {
+    width: min(15rem, 65vw);
+    max-width: 100%;
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+  }
+  [data-slot='responsive-table'] :is(td, th) button:not([role='checkbox']),
+  [data-slot='table-scroll-controls'] button,
+  [data-slot='table-pagination'] :is(button, [role='combobox']) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  [data-slot='responsive-table'] td a[href] {
+    display: inline-flex;
+    min-height: 44px;
+    max-width: 100%;
+    align-items: center;
+    white-space: inherit;
+    overflow-wrap: inherit;
+  }
+  [data-slot='responsive-table'] :is(td, th) label:has([role='checkbox']) {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+  }
+  /* Only stand-alone selection boxes receive the enlarged hit area. Grouped
+     checkbox editors keep their own spacing and must not have overlapping hits. */
+  [data-slot='responsive-table'] :is(td, th):has(> [role='checkbox']) {
+    min-width: 44px;
+    height: 44px;
+  }
+  [data-slot='responsive-table'] :is(td, th) > [role='checkbox'] {
+    position: relative;
+  }
+  [data-slot='responsive-table'] :is(td, th) > [role='checkbox']::before {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: 44px;
+    height: 44px;
+    content: '';
+    transform: translate(-50%, -50%);
+  }
 }

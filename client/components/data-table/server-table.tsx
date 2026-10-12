@@ -81,7 +81,7 @@ export function DataTableServer<TData>({
   });
 
   return (
-    <div className={cn('flex flex-col gap-4', className)}>
+    <div className={cn('flex min-w-0 flex-col gap-4', className)}>
       <DataTableView
         table={table}
         emptyMessage={emptyMessage}

@@ -1,4 +1,9 @@
-import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
+import type { HeadcountService } from '../headcounts/contract.js';
+import { createHash } from 'node:crypto';
+import {
+  lockUserForAdministration,
+  type UserAdministrationService,
+} from '@nocobase/app-plugin-authentication';
 import type { IdGeneratorService } from '@nocobase/snowflake';
 import type {
   DatabaseConnection,
@@ -9,6 +14,8 @@ import type {
   RepositoryRecord,
 } from '@nocobase/db';
 
+import type { CalendarService } from '../platform/index.js';
+import { isLocalDate } from '../platform/time-zone.js';
 import type { AuditService } from '../audit/index.js';
 import type { Department, OrgService } from '../org/contract.js';
 import type {
@@ -40,6 +47,7 @@ export const EMPLOYEE_FIELDS = [
   'positionId',
   'gradeId',
   'hireDate',
+  'careerStartDate',
   'probationEndDate',
   'status',
   'lastWorkingDay',
@@ -60,6 +68,7 @@ export const EMPLOYEE_EDITABLE_FIELDS = [
   'positionId',
   'gradeId',
   'hireDate',
+  'careerStartDate',
   'probationEndDate',
   'phone',
   'email',
@@ -195,6 +204,10 @@ export interface Page<T> {
 
 /** What the reporting-line record access and subjects need besides the contract. */
 export interface EmployeeModuleService extends EmployeeService {
+  /** Shared by import preflight and archive writes; computed in the platform calendar time zone. */
+  validateCareerDates(
+    input: Pick<Employee, 'careerStartDate' | 'hireDate'>,
+  ): void;
   loadGraph(connection?: DatabaseConnection): Promise<ReportingGraph>;
   listEmployees(
     query: ListEmployeesQuery,
@@ -251,7 +264,9 @@ export interface EmployeeModuleService extends EmployeeService {
 }
 
 export interface EmployeeServiceDependencies {
+  headcounts?: () => HeadcountService | undefined;
   database: DatabaseManager;
+  calendar: () => Pick<CalendarService, 'localDate'>;
   audit: () => AuditService;
   users: () => UserAdministrationService;
   ids: () => IdGeneratorService;
@@ -310,6 +325,7 @@ function toEmployee(row: RepositoryRecord): Partial<Employee> & { id: string } {
     const value = row[field];
     switch (field) {
       case 'hireDate':
+      case 'careerStartDate':
       case 'probationEndDate':
       case 'lastWorkingDay':
         result[field] = dateOnly(value);
@@ -432,6 +448,34 @@ export function createEmployeeService(
   const { database } = deps;
   const conn = (connection?: DatabaseConnection): DatabaseConnection =>
     connection ?? database.connection();
+
+  async function administrativeWrite(
+    userId: string | undefined,
+    connection: DatabaseConnection,
+    work: (tx: DatabaseConnection) => Promise<void>,
+  ) {
+    const capacity = deps.headcounts?.();
+    if (!capacity) return connection.transaction(work);
+    try {
+      return await capacity.protectRoster(
+        userId ? [userId] : undefined,
+        connection,
+        work,
+      );
+    } catch (error) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        String(error.code).startsWith('HEADCOUNT_')
+      )
+        throw new EmployeeError(
+          'EMPLOYEE_HEADCOUNT_CONFLICT',
+          'The initialized headcount roster must remain consistent; use the corresponding business flow or reconcile the original source.',
+        );
+      throw error;
+    }
+  }
 
   async function loadGraph(
     connection?: DatabaseConnection,
@@ -634,12 +678,35 @@ export function createEmployeeService(
     });
   }
 
+  function validateCareerDate(
+    input: Pick<Employee, 'careerStartDate' | 'hireDate'>,
+  ): void {
+    const date = input.careerStartDate;
+    if (date == null) return;
+    if (!isLocalDate(date))
+      throw new EmployeeError(
+        'EMPLOYEE_CAREER_START_INVALID',
+        'The first employment date must be a valid local date.',
+      );
+    if (date > deps.calendar().localDate(new Date()))
+      throw new EmployeeError(
+        'EMPLOYEE_CAREER_START_FUTURE',
+        'The first employment date cannot be in the future.',
+      );
+    if (input.hireDate && date > input.hireDate)
+      throw new EmployeeError(
+        'EMPLOYEE_CAREER_START_AFTER_HIRE',
+        'The first employment date cannot be later than the hire date.',
+      );
+  }
+
   // ---- validation ---------------------------------------------------------------------------------------------
 
   async function validateReferences(
     input: EmployeeInput & { userId?: string },
     employeeId: string,
     connection: DatabaseConnection,
+    allowDisabled = false,
   ): Promise<void> {
     if (input.userId !== undefined) {
       const user = await deps
@@ -651,7 +718,7 @@ export function createEmployeeService(
           'EMPLOYEE_USER_NOT_FOUND',
           `User ${input.userId} does not exist.`,
         );
-      if (user.disabledAt)
+      if (user.disabledAt && !allowDisabled)
         throw new EmployeeError(
           'EMPLOYEE_USER_DISABLED',
           `User ${input.userId} is disabled.`,
@@ -753,9 +820,191 @@ export function createEmployeeService(
   // ---- contract -----------------------------------------------------------------------------------------------
 
   const service: EmployeeModuleService = {
+    async createForOnboarding(input, origin, connection) {
+      if (
+        !origin.actorId ||
+        !origin.sourceApplication.startsWith('oa.onboarding:') ||
+        !origin.sourceApplication.slice(14).trim()
+      )
+        throw new EmployeeError(
+          'EMPLOYEE_ONBOARDING_SOURCE_CONFLICT',
+          'A fixed onboarding source and actor are required.',
+        );
+      return connection.transaction(async (tx) => {
+        await lockUserForAdministration(tx, input.userId);
+        const sourceId = createHash('sha256')
+          .update(origin.sourceApplication)
+          .digest('hex');
+        const fingerprint = createHash('sha256')
+          .update(
+            JSON.stringify([
+              input.userId,
+              input.code,
+              input.name,
+              input.managerId,
+              input.positionId,
+              input.gradeId,
+              input.hireDate,
+              input.careerStartDate,
+              input.probationEndDate,
+              origin.actorId,
+            ]),
+          )
+          .digest('hex');
+        const origins = tx.repository('employeeOnboardingOrigins');
+        const prior = await origins.findOne({ filter: { id: sourceId } });
+        if (prior) {
+          if (prior.fingerprint !== fingerprint)
+            throw new EmployeeError(
+              'EMPLOYEE_ONBOARDING_SOURCE_CONFLICT',
+              'Onboarding source payload cannot change.',
+            );
+          const employee = await getById(str(prior.employeeId), tx);
+          if (!employee)
+            throw new EmployeeError(
+              'EMPLOYEE_NOT_FOUND',
+              'Onboarding employee is missing.',
+            );
+          return employee;
+        }
+        const user = await deps.users().withConnection(tx).get(input.userId);
+        if (!user)
+          throw new EmployeeError(
+            'EMPLOYEE_USER_NOT_FOUND',
+            'Onboarding account is missing.',
+          );
+        if (!user.disabledAt)
+          throw new EmployeeError(
+            'EMPLOYEE_ONBOARDING_ACCOUNT_ENABLED',
+            'Onboarding account must be disabled.',
+          );
+        const id = deps.ids().generateString();
+        await validateReferences(input, id, tx, true);
+        validateCareerDate(input);
+        if (
+          !isLocalDate(input.hireDate) ||
+          !isLocalDate(input.probationEndDate) ||
+          input.probationEndDate < input.hireDate
+        )
+          throw new EmployeeError(
+            'EMPLOYEE_PROBATION_END_INVALID',
+            'Onboarding hire and probation dates must be valid and ordered.',
+          );
+        const now = new Date();
+        await tx.repository('employees').createOne({
+          values: {
+            userId: input.userId,
+            code: input.code,
+            name: input.name,
+            managerId: input.managerId,
+            positionId: input.positionId,
+            gradeId: input.gradeId,
+            hireDate: input.hireDate,
+            careerStartDate: input.careerStartDate,
+            probationEndDate: input.probationEndDate,
+            id,
+            status: 'probation',
+            active: true,
+            createdAt: now,
+            updatedAt: now,
+          },
+        });
+        await tx
+          .repository('employeeProfiles')
+          .createOne({ values: { employeeId: id, updatedAt: now } });
+        await origins.createOne({
+          values: { id: sourceId, employeeId: id, fingerprint, createdAt: now },
+        });
+        const employee = (await getById(id, tx))!;
+        await deps.audit().record(
+          {
+            actorId: origin.actorId,
+            action: 'employee.onboardingCreate',
+            targetType: 'employees',
+            targetId: id,
+            after: employee,
+            reason: origin.sourceApplication,
+          },
+          tx,
+        );
+        await service.appendHistory(
+          {
+            employeeId: id,
+            kind: 'hire',
+            after: {
+              status: 'probation',
+              positionId: input.positionId,
+              gradeId: input.gradeId,
+            },
+            effectiveAt: input.hireDate,
+          },
+          origin,
+          tx,
+        );
+        notifyAfterCommit(tx, await affectedUsers(undefined, employee, tx));
+        return employee;
+      });
+    },
+
     loadGraph,
+    async recruitmentReplacementCandidates(query, policy, connection) {
+      const rows = await connection
+        .repository('employees')
+        .withPolicy(policy)
+        .findMany({
+          select: (selection) =>
+            selection.fields('id', 'name', 'status', 'userId', 'positionId'),
+          filter: (filter) =>
+            filter.and([
+              filter.string('positionId').eq(query.positionId),
+              filter.or([
+                filter.string('status').eq('leaving'),
+                filter.string('status').eq('left'),
+              ]),
+              ...(query.search
+                ? [
+                    filter
+                      .string('name')
+                      .includes(query.search, { mode: 'insensitive' }),
+                  ]
+                : []),
+            ]),
+        });
+      const org = deps.org();
+      if (!org) return [];
+      const departments = await org.primaryDepartmentsOf(
+        rows.map((row) => str(row.userId)),
+        connection,
+      );
+      return rows
+        .filter(
+          (row) => departments.get(str(row.userId))?.id === query.departmentId,
+        )
+        .slice(0, 100)
+        .map((row) => ({
+          id: str(row.id),
+          name: str(row.name),
+          status: str(row.status) as EmployeeStatus,
+        }));
+    },
     getById,
     getByUserId,
+
+    async paymentAccountOf(userId, connection) {
+      const employee = await getByUserId(userId, connection);
+      if (!employee) return undefined;
+      const row = await connection.repository('employeeProfiles').findOne({
+        filter: { employeeId: employee.id },
+        select: (s) => s.fields('bankName', 'bankAccount', 'bankAccountName'),
+      });
+      if (!row) return undefined;
+      return {
+        bankName: row.bankName == null ? null : str(row.bankName),
+        bankAccount: row.bankAccount == null ? null : str(row.bankAccount),
+        bankAccountName:
+          row.bankAccountName == null ? null : str(row.bankAccountName),
+      };
+    },
 
     async getByUserIds(userIds, connection) {
       if (!userIds.length) return new Map();
@@ -774,6 +1023,37 @@ export function createEmployeeService(
         activeChainAbove(start.graph, start.id).map((node) => node.id),
         connection,
       );
+    },
+
+    async managerChainsOf(userIds, connection) {
+      const result = new Map<string, Employee[]>();
+      if (!userIds.length) return result;
+      const graph = await loadGraph(connection);
+      const chains = new Map(
+        [...new Set(userIds)].map((userId) => {
+          const node = graph.byUserId.get(userId);
+          return [
+            userId,
+            node
+              ? activeChainAbove(graph, node.id).map((entry) => entry.id)
+              : [],
+          ] as const;
+        }),
+      );
+      const managers = new Map(
+        (
+          await byIds([...new Set([...chains.values()].flat())], connection)
+        ).map((entry) => [entry.id, entry]),
+      );
+      for (const [userId, ids] of chains)
+        result.set(
+          userId,
+          ids.flatMap((id) => {
+            const manager = managers.get(id);
+            return manager ? [manager] : [];
+          }),
+        );
+      return result;
     },
 
     async managerOf(userId, connection) {
@@ -809,6 +1089,186 @@ export function createEmployeeService(
       );
     },
 
+    async currentCompensationOf(employeeId, effectiveDate, connection) {
+      if (!isLocalDate(effectiveDate))
+        throw new EmployeeError(
+          'EMPLOYEE_ASSIGNMENT_INVALID',
+          'An exact effective local date is required.',
+        );
+      const rows = await connection
+        .repository('employeeCompensation')
+        .findMany({
+          filter: (f) =>
+            f.and([
+              f.string('employeeId').eq(employeeId),
+              f.date('effectiveFrom').notAfter(effectiveDate),
+            ]),
+          sort: (s) => [
+            s.field('effectiveFrom').desc(),
+            s.field('createdAt').desc(),
+            s.field('id').desc(),
+          ],
+          limit: 1,
+        });
+      return rows[0] ? toCompensation(rows[0]) : undefined;
+    },
+
+    async applyAssignmentChange(input, origin, connection) {
+      if (
+        !origin.actorId ||
+        !origin.sourceApplication.startsWith('oa.transfer:') ||
+        !origin.sourceApplication.slice(12).trim()
+      )
+        throw new EmployeeError(
+          'EMPLOYEE_ASSIGNMENT_SOURCE_CONFLICT',
+          'A fixed personnel change source and actor are required.',
+        );
+      if (!isLocalDate(input.effectiveAt))
+        throw new EmployeeError(
+          'EMPLOYEE_ASSIGNMENT_INVALID',
+          'An exact effective local date is required.',
+        );
+      return connection.transaction(async (tx) => {
+        const discovered = await getById(input.employeeId, tx);
+        if (!discovered)
+          throw new EmployeeError('EMPLOYEE_NOT_FOUND', 'Employee is missing.');
+        await lockUserForAdministration(tx, discovered.userId);
+        const before = (await getById(input.employeeId, tx))!;
+        if (
+          !before.active ||
+          before.status === 'left' ||
+          before.status === 'leaving'
+        )
+          throw new EmployeeError(
+            'EMPLOYEE_ASSIGNMENT_INVALID',
+            'An active probation or regular employee is required.',
+          );
+        const user = await deps.users().withConnection(tx).get(before.userId);
+        if (!user || user.disabledAt)
+          throw new EmployeeError(
+            'EMPLOYEE_USER_DISABLED',
+            'The employee account must be enabled.',
+          );
+        const sourceId = createHash('sha256')
+          .update(origin.sourceApplication)
+          .digest('hex');
+        const fingerprint = createHash('sha256')
+          .update(
+            JSON.stringify([
+              input.employeeId,
+              input.expected.positionId,
+              input.expected.gradeId,
+              input.expected.managerId,
+              input.expected.status,
+              input.positionId,
+              input.gradeId,
+              input.managerId,
+              input.effectiveAt,
+              input.note ?? null,
+              origin.actorId,
+            ]),
+          )
+          .digest('hex');
+        const origins = tx.repository('employeeAssignmentOrigins');
+        const prior = await origins.findOne({ filter: { id: sourceId } });
+        if (prior) {
+          if (
+            prior.fingerprint !== fingerprint ||
+            prior.employeeId !== input.employeeId
+          )
+            throw new EmployeeError(
+              'EMPLOYEE_ASSIGNMENT_SOURCE_CONFLICT',
+              'Personnel change source payload cannot change.',
+            );
+          return before;
+        }
+        if (
+          (['positionId', 'gradeId', 'managerId', 'status'] as const).some(
+            (key) => before[key] !== input.expected[key],
+          )
+        )
+          throw new EmployeeError(
+            'EMPLOYEE_ASSIGNMENT_STALE',
+            'The actual employee assignment changed.',
+          );
+        if (!input.positionId || !input.gradeId)
+          throw new EmployeeError(
+            'EMPLOYEE_ASSIGNMENT_INVALID',
+            'An active target position and grade are required.',
+          );
+        await validateReferences(
+          {
+            positionId: input.positionId,
+            gradeId: input.gradeId,
+            managerId: input.managerId,
+          },
+          input.employeeId,
+          tx,
+        );
+        if (input.managerId) {
+          const manager = await getById(input.managerId, tx);
+          if (
+            !manager ||
+            manager.status === 'left' ||
+            manager.status === 'leaving'
+          )
+            throw new EmployeeError(
+              'EMPLOYEE_MANAGER_INACTIVE',
+              'The target manager must be currently employed.',
+            );
+        }
+        await tx.repository('employees').updateOne({
+          filter: { id: input.employeeId },
+          values: {
+            positionId: input.positionId,
+            gradeId: input.gradeId,
+            managerId: input.managerId,
+            updatedAt: new Date(),
+          },
+        });
+        const after = (await getById(input.employeeId, tx))!;
+        const changed = diff(before as unknown as Record<string, unknown>, {
+          positionId: after.positionId,
+          gradeId: after.gradeId,
+          managerId: after.managerId,
+        });
+        await service.appendHistory(
+          {
+            employeeId: input.employeeId,
+            kind: 'transfer',
+            before: changed.before,
+            after: changed.after,
+            effectiveAt: input.effectiveAt,
+            note: input.note ?? null,
+          },
+          origin,
+          tx,
+        );
+        await deps.audit().record(
+          {
+            actorId: origin.actorId,
+            action: 'employee.assignment',
+            targetType: 'employees',
+            targetId: input.employeeId,
+            before: changed.before,
+            after: changed.after,
+            reason: origin.sourceApplication,
+          },
+          tx,
+        );
+        await origins.createOne({
+          values: {
+            id: sourceId,
+            employeeId: input.employeeId,
+            fingerprint,
+            createdAt: new Date(),
+          },
+        });
+        notifyAfterCommit(tx, await affectedUsers(before, after, tx));
+        return after;
+      });
+    },
+
     async applyStatusChange(input, origin, connection) {
       const before = await getById(input.employeeId, connection);
       if (!before)
@@ -822,6 +1282,30 @@ export function createEmployeeService(
       };
       if (input.lastWorkingDay !== undefined)
         values.lastWorkingDay = input.lastWorkingDay;
+      if (input.probationEndDate !== undefined) {
+        if (
+          input.probationEndDate !== null &&
+          !isLocalDate(input.probationEndDate)
+        )
+          throw new EmployeeError(
+            'EMPLOYEE_PROBATION_END_INVALID',
+            'A valid probation end date is required.',
+          );
+        values.probationEndDate = input.probationEndDate;
+      }
+      if (input.gradeId !== undefined) {
+        if (input.gradeId !== null) {
+          const grade = ((await deps.org()?.listGrades(connection)) ?? []).find(
+            (g) => g.id === input.gradeId && g.active,
+          );
+          if (!grade)
+            throw new EmployeeError(
+              'EMPLOYEE_GRADE_NOT_FOUND',
+              'Choose an active grade.',
+            );
+        }
+        values.gradeId = input.gradeId;
+      }
       if (input.active !== undefined) values.active = input.active;
       await connection.repository('employees').updateOne({
         filter: { id: input.employeeId },
@@ -830,6 +1314,8 @@ export function createEmployeeService(
       const after = (await getById(input.employeeId, connection))!;
       const changed = diff(before as unknown as Record<string, unknown>, {
         status: after.status,
+        probationEndDate: after.probationEndDate,
+        gradeId: after.gradeId,
         lastWorkingDay: after.lastWorkingDay,
         active: after.active,
       });
@@ -1035,48 +1521,59 @@ export function createEmployeeService(
       return view;
     },
 
+    validateCareerDates: validateCareerDate,
+
     async createEmployee(input, policy, actorId, options) {
       const id = deps.ids().generateString();
-      await conn(options?.connection).transaction(async (connection) => {
-        await validateReferences(input, id, connection);
-        const now = new Date();
-        const values: RepositoryRecord = {
-          id,
-          userId: input.userId,
-          code: input.code,
-          name: input.name,
-          status: input.status,
-          active: true,
-          createdAt: now,
-          updatedAt: now,
-        };
-        for (const field of EMPLOYEE_EDITABLE_FIELDS)
-          if (input[field] !== undefined) values[field] = input[field];
-        await connection
-          .repository('employees')
-          .withPolicy(policy)
-          .createOne({ values });
-        // Every archive has its controlled profile row, so reads never have to tell "empty" from "hidden".
-        await connection.repository('employeeProfiles').createOne({
-          values: { employeeId: id, updatedAt: now },
-        });
-        const created = (await getById(id, connection))!;
-        await deps.audit().record(
-          {
-            actorId,
-            action: 'employee.create',
-            targetType: 'employees',
-            targetId: id,
-            after: created,
-            reason: options?.reason ?? null,
-          },
-          connection,
-        );
-        notifyAfterCommit(
-          connection,
-          await affectedUsers(undefined, created, connection),
-        );
-      });
+      await administrativeWrite(
+        input.userId,
+        conn(options?.connection),
+        async (connection) => {
+          await lockUserForAdministration(connection, input.userId);
+          await validateReferences(input, id, connection);
+          validateCareerDate({
+            careerStartDate: input.careerStartDate ?? null,
+            hireDate: input.hireDate ?? null,
+          });
+          const now = new Date();
+          const values: RepositoryRecord = {
+            id,
+            userId: input.userId,
+            code: input.code,
+            name: input.name,
+            status: input.status,
+            active: true,
+            createdAt: now,
+            updatedAt: now,
+          };
+          for (const field of EMPLOYEE_EDITABLE_FIELDS)
+            if (input[field] !== undefined) values[field] = input[field];
+          await connection
+            .repository('employees')
+            .withPolicy(policy)
+            .createOne({ values });
+          // Every archive has its controlled profile row, so reads never have to tell "empty" from "hidden".
+          await connection.repository('employeeProfiles').createOne({
+            values: { employeeId: id, updatedAt: now },
+          });
+          const created = (await getById(id, connection))!;
+          await deps.audit().record(
+            {
+              actorId,
+              action: 'employee.create',
+              targetType: 'employees',
+              targetId: id,
+              after: created,
+              reason: options?.reason ?? null,
+            },
+            connection,
+          );
+          notifyAfterCommit(
+            connection,
+            await affectedUsers(undefined, created, connection),
+          );
+        },
+      );
       const [view] = await views(
         [(await getById(id, options?.connection))!],
         options?.connection,
@@ -1085,49 +1582,64 @@ export function createEmployeeService(
     },
 
     async updateEmployee(id, input, policy, actorId, options) {
-      await conn(options?.connection).transaction(async (connection) => {
-        const scoped = connection.repository('employees').withPolicy(policy);
-        const visible = await scoped.findOne({
-          filter: { id },
-          select: (s) => s.fields('id'),
-        });
-        if (!visible)
-          throw new EmployeeError(
-            'EMPLOYEE_NOT_FOUND',
-            `Employee ${id} does not exist.`,
+      await administrativeWrite(
+        (await getById(id, options?.connection))?.userId,
+        conn(options?.connection),
+        async (connection) => {
+          const scoped = connection.repository('employees').withPolicy(policy);
+          const visible = await scoped.findOne({
+            filter: { id },
+            select: (s) => s.fields('id'),
+          });
+          if (!visible)
+            throw new EmployeeError(
+              'EMPLOYEE_NOT_FOUND',
+              `Employee ${id} does not exist.`,
+            );
+          const discovered = (await getById(id, connection))!;
+          // Date constraints span fields, so serialise edits before reading the baseline used for validation.
+          await lockUserForAdministration(connection, discovered.userId);
+          const before = (await getById(id, connection))!;
+          await validateReferences(input, id, connection);
+          validateCareerDate({
+            careerStartDate:
+              input.careerStartDate === undefined
+                ? before.careerStartDate
+                : input.careerStartDate,
+            hireDate:
+              input.hireDate === undefined ? before.hireDate : input.hireDate,
+          });
+          const values: RepositoryRecord = { updatedAt: new Date() };
+          for (const field of EMPLOYEE_EDITABLE_FIELDS)
+            if (input[field] !== undefined) values[field] = input[field];
+          await scoped.updateOne({ filter: { id }, values });
+          const after = (await getById(id, connection))!;
+          const changed = diff(
+            before as unknown as Record<string, unknown>,
+            Object.fromEntries(
+              EMPLOYEE_EDITABLE_FIELDS.map((field) => [field, after[field]]),
+            ),
           );
-        const before = (await getById(id, connection))!;
-        await validateReferences(input, id, connection);
-        const values: RepositoryRecord = { updatedAt: new Date() };
-        for (const field of EMPLOYEE_EDITABLE_FIELDS)
-          if (input[field] !== undefined) values[field] = input[field];
-        await scoped.updateOne({ filter: { id }, values });
-        const after = (await getById(id, connection))!;
-        const changed = diff(
-          before as unknown as Record<string, unknown>,
-          Object.fromEntries(
-            EMPLOYEE_EDITABLE_FIELDS.map((field) => [field, after[field]]),
-          ),
-        );
-        if (Object.keys(changed.after).length)
-          await deps.audit().record(
-            {
-              actorId,
-              action: 'employee.update',
-              targetType: 'employees',
-              targetId: id,
-              before: changed.before,
-              after: changed.after,
-              reason: options?.reason ?? null,
-            },
-            connection,
-          );
-        if ('managerId' in changed.after || 'positionId' in changed.after)
-          notifyAfterCommit(
-            connection,
-            await affectedUsers(before, after, connection),
-          );
-      });
+          if (Object.keys(changed.after).length)
+            await deps.audit().record(
+              {
+                actorId,
+                action: 'employee.update',
+                targetType: 'employees',
+                targetId: id,
+                before: changed.before,
+                after: changed.after,
+                reason: options?.reason ?? null,
+              },
+              connection,
+            );
+          if ('managerId' in changed.after || 'positionId' in changed.after)
+            notifyAfterCommit(
+              connection,
+              await affectedUsers(before, after, connection),
+            );
+        },
+      );
       const [view] = await views(
         [(await getById(id, options?.connection))!],
         options?.connection,
@@ -1136,70 +1648,90 @@ export function createEmployeeService(
     },
 
     async correctStatus(id, input, policy, actorId, options) {
-      await conn(options?.connection).transaction(async (connection) => {
-        const scoped = connection.repository('employees').withPolicy(policy);
-        const visible = await scoped.findOne({
-          filter: { id },
-          select: (s) => s.fields('id'),
-        });
-        if (!visible)
-          throw new EmployeeError(
-            'EMPLOYEE_NOT_FOUND',
-            `Employee ${id} does not exist.`,
-          );
-        const before = (await getById(id, connection))!;
-        const values: RepositoryRecord = {
-          status: input.status,
-          updatedAt: new Date(),
-        };
-        if (input.lastWorkingDay !== undefined)
-          values.lastWorkingDay = input.lastWorkingDay;
-        if (input.active !== undefined) values.active = input.active;
-        const changed = diff(before as unknown as Record<string, unknown>, {
-          status: input.status,
-          ...(input.lastWorkingDay !== undefined
-            ? { lastWorkingDay: input.lastWorkingDay }
-            : {}),
-          ...(input.active !== undefined ? { active: input.active } : {}),
-        });
-        if (!Object.keys(changed.after).length)
-          throw new EmployeeError(
-            'EMPLOYEE_STATUS_UNCHANGED',
-            'The correction changes nothing.',
-          );
-        await scoped.updateOne({ filter: { id }, values });
-        await connection.repository('employeeHistory').createOne({
-          values: {
-            employeeId: id,
-            kind: 'correction',
-            before: changed.before,
-            after: changed.after,
-            effectiveAt: new Date().toISOString().slice(0, 10),
-            note: input.reason,
-            createdById: actorId,
-            createdAt: new Date(),
-          },
-        });
-        await deps.audit().record(
-          {
-            actorId,
-            action: 'employee.correctStatus',
-            targetType: 'employees',
-            targetId: id,
-            before: changed.before,
-            after: changed.after,
-            reason: input.reason,
-          },
-          connection,
-        );
-        if ('active' in changed.after) {
-          const after = (await getById(id, connection))!;
-          notifyAfterCommit(
+      await administrativeWrite(
+        (await getById(id, options?.connection))?.userId,
+        conn(options?.connection),
+        async (connection) => {
+          const scoped = connection.repository('employees').withPolicy(policy);
+          const visible = await scoped.findOne({
+            filter: { id },
+            select: (s) => s.fields('id'),
+          });
+          if (!visible)
+            throw new EmployeeError(
+              'EMPLOYEE_NOT_FOUND',
+              `Employee ${id} does not exist.`,
+            );
+          const before = (await getById(id, connection))!;
+          const values: RepositoryRecord = {
+            status: input.status,
+            updatedAt: new Date(),
+          };
+          if (input.lastWorkingDay !== undefined)
+            values.lastWorkingDay = input.lastWorkingDay;
+          if (input.active !== undefined) values.active = input.active;
+          const changed = diff(before as unknown as Record<string, unknown>, {
+            status: input.status,
+            ...(input.lastWorkingDay !== undefined
+              ? { lastWorkingDay: input.lastWorkingDay }
+              : {}),
+            ...(input.active !== undefined ? { active: input.active } : {}),
+          });
+          if (!Object.keys(changed.after).length)
+            throw new EmployeeError(
+              'EMPLOYEE_STATUS_UNCHANGED',
+              'The correction changes nothing.',
+            );
+          await scoped.updateOne({ filter: { id }, values });
+          await connection.repository('employeeHistory').createOne({
+            values: {
+              employeeId: id,
+              kind: 'correction',
+              before: changed.before,
+              after: changed.after,
+              effectiveAt: new Date().toISOString().slice(0, 10),
+              note: input.reason,
+              createdById: actorId,
+              createdAt: new Date(),
+            },
+          });
+          await deps.audit().record(
+            {
+              actorId,
+              action: 'employee.correctStatus',
+              targetType: 'employees',
+              targetId: id,
+              before: changed.before,
+              after: changed.after,
+              reason: input.reason,
+            },
             connection,
-            await affectedUsers(before, after, connection),
           );
-        }
-      });
+          // Data corrections restoring a leaving employee must invalidate future replacement claims,
+          // just like the business cancellation exit; a later leaving status must not revive old approval.
+          if (
+            before.status === 'leaving' &&
+            (input.status === 'regular' || input.status === 'probation')
+          ) {
+            await deps.headcounts?.()?.invalidateReplacements(
+              {
+                actorId,
+                employeeId: id,
+                requestKey: `employee-correction:${deps.ids().generateString()}`,
+                reason: input.reason,
+              },
+              connection,
+            );
+          }
+          if ('active' in changed.after) {
+            const after = (await getById(id, connection))!;
+            notifyAfterCommit(
+              connection,
+              await affectedUsers(before, after, connection),
+            );
+          }
+        },
+      );
       const [view] = await views(
         [(await getById(id, options?.connection))!],
         options?.connection,

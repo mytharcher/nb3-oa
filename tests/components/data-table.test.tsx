@@ -12,7 +12,7 @@ import {
   DataTable,
   DataTableColumnHeader,
   DataTableServer,
-} from '@/components/data-table';
+} from '#components/data-table';
 
 import enUS from '../../client/locales/en-US.js';
 

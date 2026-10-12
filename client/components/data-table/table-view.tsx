@@ -1,3 +1,4 @@
+import { ResponsiveTable as Table } from '#components/responsive-table';
 import {
   flexRender,
   type Row,
@@ -6,13 +7,12 @@ import {
 import type { ReactElement, ReactNode } from 'react';
 
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '#components/ui/table';
 
 export interface DataTableViewProps<TData> {
   readonly table: TanstackTable<TData>;
@@ -28,13 +28,25 @@ export function DataTableView<TData>({
 }: DataTableViewProps<TData>): ReactElement {
   const rows = table.getRowModel().rows;
   return (
-    <div className='overflow-hidden rounded-lg border'>
+    <div className='@container min-w-0 overflow-hidden rounded-lg border'>
       <Table>
-        <TableHeader>
+        <TableHeader className='bg-muted/50'>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <TableHead key={header.id} colSpan={header.colSpan}>
+                <TableHead
+                  key={header.id}
+                  colSpan={header.colSpan}
+                  aria-sort={
+                    header.column.getCanSort()
+                      ? header.column.getIsSorted() === 'asc'
+                        ? 'ascending'
+                        : header.column.getIsSorted() === 'desc'
+                          ? 'descending'
+                          : 'none'
+                      : undefined
+                  }
+                >
                   {header.isPlaceholder
                     ? null
                     : flexRender(
@@ -66,9 +78,13 @@ export function DataTableView<TData>({
             <TableRow>
               <TableCell
                 colSpan={table.getVisibleLeafColumns().length || 1}
-                className='h-24 text-center text-muted-foreground'
+                className='h-24 p-0 text-center text-muted-foreground'
               >
-                {emptyMessage}
+                {/* Keep empty content readable in the visible table viewport,
+                    even when the column headers need horizontal scrolling. */}
+                <div className='sticky left-0 w-[min(100%,100cqw)] p-4 whitespace-normal'>
+                  {emptyMessage}
+                </div>
               </TableCell>
             </TableRow>
           )}

@@ -2,15 +2,15 @@ import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import type { ReactElement } from 'react';
 
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
+import { PageContainer } from '#components/page-container';
+import { PageHeader } from '#components/page-header';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '#components/ui/card';
 
 import { FieldsSkeleton, LoadErrorAlert } from '../shared/states.js';
 import type { RuleSummary } from '../shared/types.js';
@@ -21,7 +21,7 @@ import { TimeZoneCard } from './time-zone-card.js';
 import { WorkHoursCard } from './work-hours-card.js';
 
 /**
- * Route /settings/work-calendar: the working window and time zone approval clocks count in (stored as the rule keys
+ * Route /work-calendar: the working window and time zone approval clocks count in (stored as the rule keys
  * `calendar.workHours` and `calendar.timeZone`), and each year's explicit days. Opens with read on
  * `oa.platform.calendar`; every write needs update, which the endpoints check and `useCan` mirrors.
  */

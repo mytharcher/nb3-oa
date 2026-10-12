@@ -249,6 +249,13 @@ const employees: KindSpec = {
       note: '已启用职级的编码；留空表示无职级。',
     },
     {
+      key: 'careerStartDate',
+      header: '首次参加工作日期',
+      type: 'date',
+      required: false,
+      note: '可选：累计工龄的起始日期，如 2010-07-01；不能晚于入职日期或今天。未知留空，不以入职日期推算。',
+    },
+    {
       key: 'hireDate',
       header: '入职日期',
       type: 'date',

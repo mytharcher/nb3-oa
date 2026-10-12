@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import type { ReactElement, ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DatePicker, DateRangePicker } from '@/components/date-picker';
+import { DatePicker, DateRangePicker } from '#components/date-picker';
 
 import enUS from '../../client/locales/en-US.js';
 import zhCN from '../../client/locales/zh-CN.js';

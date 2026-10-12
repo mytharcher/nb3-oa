@@ -16,6 +16,7 @@ const zhCN: LocaleResource<typeof enUS> = {
     terminated: '您的申请已终止。',
     result: '您的申请状态已更新。',
     attention: '有一项审批需要管理员处理。',
+    deadline: '“{{name}}”将于 {{date}} 到期。',
   },
 };
 

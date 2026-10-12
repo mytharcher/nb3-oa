@@ -131,4 +131,85 @@ describe('permission-set audit', () => {
     ]);
     expect(await sets.listAssignments(key)).toEqual([]);
   });
+  it('keeps complete definition updates, their audit and notifications in the caller transaction', async () => {
+    const sets = app.authz.permissionSets;
+    const key = 'audit-definition-transaction';
+    const person = await app.createUser('AuditDefinitionTransaction');
+    await sets.create({ key, title: 'Before', grants: [] });
+    await sets.assign({
+      permissionSet: key,
+      subject: { type: 'user', id: person.user.id },
+    });
+    const changed = vi.fn();
+    const release = app.authz.onGrantsChanged(changed);
+    const audit = app.testApp.application.container.resolve(auditServiceToken);
+    const original = audit.record.bind(audit);
+    const recording = vi
+      .spyOn(audit, 'record')
+      .mockImplementation(async (entry, connection) => {
+        if (entry.action === 'permissionSet.update')
+          throw new Error('Definition audit failure');
+        return original(entry, connection);
+      });
+    try {
+      await expect(
+        sets.update(key, { key, title: 'Must roll back', grants: [] }),
+      ).rejects.toThrow('Definition audit failure');
+      expect(await sets.get(key)).toMatchObject({
+        key,
+        title: 'Before',
+        grants: [],
+      });
+      expect(changed).not.toHaveBeenCalled();
+      expect(
+        (await entries(key)).filter(
+          (entry) => entry.action === 'permissionSet.update',
+        ),
+      ).toEqual([]);
+      recording.mockRestore();
+      await expect(
+        app.testApp.database.transaction(async (connection) => {
+          const bound = sets.withTransaction(connection);
+          await bound.update(key, { key, title: 'Caller update', grants: [] });
+          expect(await bound.get(key)).toMatchObject({
+            key,
+            title: 'Caller update',
+          });
+          expect(changed).not.toHaveBeenCalled();
+          throw new Error('Definition caller rollback');
+        }),
+      ).rejects.toThrow('Definition caller rollback');
+      expect(await sets.get(key)).toMatchObject({ key, title: 'Before' });
+      expect(changed).not.toHaveBeenCalled();
+      expect(
+        (await entries(key)).filter(
+          (entry) => entry.action === 'permissionSet.update',
+        ),
+      ).toEqual([]);
+      await app.testApp.database.transaction(async (connection) => {
+        await sets
+          .withTransaction(connection)
+          .update(key, { key, title: 'Committed', grants: [] });
+        expect(changed).not.toHaveBeenCalled();
+      });
+      expect(await sets.get(key)).toMatchObject({ key, title: 'Committed' });
+      expect(changed).toHaveBeenCalledExactlyOnceWith({
+        type: 'user',
+        id: person.user.id,
+      });
+      expect(
+        (await entries(key)).filter(
+          (entry) => entry.action === 'permissionSet.update',
+        ),
+      ).toEqual([
+        expect.objectContaining({
+          before: expect.objectContaining({ title: 'Before' }),
+          after: expect.objectContaining({ title: 'Committed' }),
+        }),
+      ]);
+    } finally {
+      recording.mockRestore();
+      release();
+    }
+  });
 });

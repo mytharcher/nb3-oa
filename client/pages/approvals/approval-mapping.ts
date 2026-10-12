@@ -10,7 +10,7 @@ import type {
   ApprovalStep,
   ApprovalTimelineLine,
   ApprovalRoute,
-} from '@/extensions/nocobase-approval-ui/types';
+} from '#extensions/nocobase-approval-ui/types';
 import type { LeaveDetail } from './types.js';
 export function progressOf(
   detail: LeaveDetail,

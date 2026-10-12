@@ -1,3 +1,5 @@
+import { UserNameText } from '#components/user-name';
+import { UserName } from '#components/user-name';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import {
@@ -21,7 +23,7 @@ import {
   useParams,
 } from 'react-router';
 
-import { RouteDrawer } from '@/components/route-drawer';
+import { RouteDrawer } from '#components/route-drawer';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,15 +33,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+} from '#components/ui/alert-dialog';
+import { Button } from '#components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '#components/ui/dropdown-menu';
 import {
   Empty,
   EmptyContent,
@@ -47,9 +49,9 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Spinner } from '@/components/ui/spinner';
+} from '#components/ui/empty';
+import { Skeleton } from '#components/ui/skeleton';
+import { Spinner } from '#components/ui/spinner';
 
 import { ActiveBadge, LoadError } from '../org-ui.js';
 import { type ListBody, useErrorText } from '../shared.js';
@@ -273,7 +275,7 @@ function DutyRoleDrawer({ code }: { readonly code: string }): ReactElement {
                 >
                   <div className='flex min-w-0 flex-1 flex-col'>
                     <span className='truncate text-sm font-medium'>
-                      {member.user.name}
+                      <UserName name={member.user.name} />
                     </span>
                     {member.user.email ? (
                       <span className='truncate text-xs text-muted-foreground'>
@@ -340,10 +342,13 @@ function DutyRoleDrawer({ code }: { readonly code: string }): ReactElement {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t('org.dutyRoles.members.removeTitle', {
-                name: removal.member?.user.name ?? '',
-                role: name,
-              })}
+              <UserNameText
+                text={t('org.dutyRoles.members.removeTitle', {
+                  name: removal.member?.user.name ?? '',
+                  role: name,
+                })}
+                name={removal.member?.user.name ?? ''}
+              />
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t('org.dutyRoles.members.removeDescription')}

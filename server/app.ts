@@ -1,3 +1,4 @@
+import { requestPerformanceMiddleware } from './providers/request-performance/index.js';
 import { permissionAuditMiddleware } from './providers/audit/permission-sets.js';
 import type { Application } from '@nocobase/app-server/application';
 import { DatabaseProvider } from '@nocobase/app-server/database';
@@ -45,6 +46,9 @@ export function createApp(runtime: AppRuntimeContext): Application {
   app.addHttpMiddleware(i18nHttpMiddleware);
   // Provider registration starts after middleware is frozen; capture actors here for transactional permission auditing.
   app.addHttpMiddleware(permissionAuditMiddleware);
+  // The authorization plugin repeatedly inspects physical schema through a public API.
+  // Request-scoped schema sharing avoids repeated PG catalog queries without caching grants.
+  app.addHttpMiddleware(requestPerformanceMiddleware);
   app.addRoutes(healthCheckApiRoutes);
   app.addRuntimeContributions(runtime);
   app.addRoutes(spaRootRoutes);

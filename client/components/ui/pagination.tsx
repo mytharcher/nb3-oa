@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { cn } from 'cn';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '#components/ui/button';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,

@@ -1,0 +1,1198 @@
+import { runTaskViewsFor } from '../approval-runtime/task-views.js';
+import {
+  appointAction,
+  reassignAction,
+} from '../process-management/actions.js';
+import { processDirectorySnapshot } from '../process-management/context.js';
+import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
+import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
+import { randomUUID } from 'node:crypto';
+import {
+  isOpenRun,
+  ApprovalService,
+  approvalState,
+  defineApproval,
+  stagesFor,
+  approve,
+  reject,
+  returnTo,
+  commentAction,
+  readAction,
+  type Approval,
+  type PerformInput,
+} from '@nocobase/app-plugin-approval/server';
+import {
+  LifecycleRuntime,
+  type LifecycleStore,
+  type LifecycleRecord,
+  type JsonObject,
+  type EffectDispatcher,
+} from '@nocobase/lifecycle';
+import type {
+  DatabaseManager,
+  DatabaseConnection,
+  RepositoryPolicy,
+  RepositoryRecord,
+} from '@nocobase/db';
+import { createServiceToken } from '@nocobase/service-provider';
+import { BudgetAdjustmentError } from './errors.js';
+import { exceedsBudgetThreshold } from './money.js';
+import type { BudgetService } from '../budgets/contract.js';
+import type { DictionaryService } from '../platform/dictionaries.js';
+import { createOaApprovalOperations } from '../approval-directory/operations.js';
+
+import type { OrgService } from '../org/contract.js';
+import type { AuditService } from '../audit/index.js';
+import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import type { EmployeeService } from '../employees/contract.js';
+import type {
+  ApprovalDirectoryService,
+  OaApprovalDirectory,
+} from '../approval-directory/contract.js';
+import type {
+  CalendarService,
+  RuleService,
+  SequenceService,
+} from '../platform/index.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+
+export const BUDGET_ADJUSTMENT_LIFECYCLE = 'oa.budgetAdjustment';
+export interface BudgetAdjustmentRecord extends LifecycleRecord {
+  id: string;
+  applicantId: string;
+  createdById: string;
+  number: string | null;
+  departmentId: string;
+  year: number;
+  subject: string;
+  adjustmentType: 'transfer' | 'increase';
+  sourceSubject: string | null;
+  amountCents: number;
+  reason: string;
+  heldCents: number;
+  heldAccount: { departmentId: string; year: number; subject: string } | null;
+  ruleSnapshot: JsonObject | null;
+  headApproverId: string | null;
+  status: string;
+  lifecycleVersion: number;
+  createdAt: string;
+}
+interface Services {
+  directory: OaApprovalDirectory;
+  connection?: DatabaseConnection;
+}
+interface Types {
+  record: BudgetAdjustmentRecord;
+  state:
+    | 'draft'
+    | 'revision'
+    | 'head'
+    | 'finance'
+    | 'cfo'
+    | 'gm'
+    | 'approved'
+    | 'rejected'
+    | 'withdrawn'
+    | 'terminated';
+  services: Services;
+}
+export interface BudgetAdjustmentDependencies {
+  db: DatabaseManager;
+  budgets: BudgetService;
+  dictionaries: DictionaryService;
+  org: OrgService;
+
+  audit: AuditService;
+  users: UserAdministrationService;
+  employees: EmployeeService;
+  directory: ApprovalDirectoryService;
+  calendar: CalendarService;
+  rules: RuleService;
+  sequences: SequenceService;
+  notifications: ApprovalNotificationService;
+  dispatcher?: EffectDispatcher;
+}
+export function refuse(reason: string, message: string): never {
+  throw new BudgetAdjustmentError(reason, message);
+}
+export type BudgetAdjustmentInput = Pick<
+  BudgetAdjustmentRecord,
+  | 'departmentId'
+  | 'year'
+  | 'subject'
+  | 'adjustmentType'
+  | 'sourceSubject'
+  | 'amountCents'
+  | 'reason'
+>;
+function normalizeBudgetRecord(
+  record: LifecycleRecord,
+): BudgetAdjustmentRecord {
+  const amountCents = Number(record.amountCents);
+  if (!Number.isSafeInteger(amountCents) || amountCents < 0)
+    refuse(
+      'BUDGET_ADJUSTMENT_INVALID_AMOUNT',
+      'Stored budget amounts must be safe integer cents.',
+    );
+  const heldCents = Number(record.heldCents);
+  if (!Number.isSafeInteger(heldCents) || heldCents < 0)
+    refuse(
+      'BUDGET_ADJUSTMENT_INVALID_AMOUNT',
+      'Stored reservations must be safe integer cents.',
+    );
+  return { ...record, amountCents, heldCents } as BudgetAdjustmentRecord;
+}
+export function createBudgetAdjustmentService(d: BudgetAdjustmentDependencies) {
+  let outside: Services;
+  const readDirectory = new AsyncLocalStorage<OaApprovalDirectory>();
+  const writePolicy = new AsyncLocalStorage<RepositoryPolicy>();
+  const intervention = new AsyncLocalStorage<{
+    actorId: string;
+    recordId: string;
+    action: string;
+    reason: string | null;
+    depth: number;
+  }>();
+  const snapshots = new WeakMap<object, Services>();
+  const base = createAppLifecycleStore(d.db, {
+    collections: {
+      transitions: 'oaLifecycleTransitions',
+      effectRuns: 'oaLifecycleEffectRuns',
+    },
+  });
+  // Directory callbacks are synchronous. The public store transaction is the boundary at which we load it,
+  // before lifecycle and approval callbacks run; nested stores retain their own transaction snapshots.
+  function wrap(store: LifecycleStore): LifecycleStore {
+    return new Proxy(store, {
+      get(target, key) {
+        const policy = writePolicy.getStore();
+        if (key === 'findRecord')
+          return async (collection: string, id: string | number) => {
+            const record = await target.findRecord(collection, id);
+            return collection === 'budgetAdjustments' && record
+              ? normalizeBudgetRecord(record)
+              : record;
+          };
+        if (!policy && key === 'createRecord')
+          return async (
+            collection: string,
+            values: Readonly<Record<string, unknown>>,
+          ) => {
+            const record = await target.createRecord(collection, values);
+            return collection === 'budgetAdjustments'
+              ? normalizeBudgetRecord(record)
+              : record;
+          };
+
+        if (policy && key === 'createRecord')
+          return async (
+            collection: string,
+            values: Readonly<Record<string, unknown>>,
+          ) => {
+            if (collection !== 'budgetAdjustments')
+              return target.createRecord(collection, values);
+            const connection = target.transactionHandle as DatabaseConnection;
+            const row = await connection
+              .repository(collection)
+              .withPolicy(policy)
+              .createOne({ values: values as RepositoryRecord });
+            if (row.record.id === undefined)
+              throw new BudgetAdjustmentError(
+                'BUDGET_ADJUSTMENT_FIELDS_RESTRICTED',
+                'The grant must expose the created budget adjustment record.',
+                'permission',
+              );
+            return normalizeBudgetRecord(row.record as LifecycleRecord);
+          };
+        if (policy && key === 'updateRecordIf')
+          return async (
+            collection: string,
+            id: string,
+            condition: Parameters<LifecycleStore['updateRecordIf']>[2],
+            values: Readonly<Record<string, unknown>>,
+          ) => {
+            if (collection !== 'budgetAdjustments')
+              return target.updateRecordIf(collection, id, condition, values);
+            const connection = target.transactionHandle as DatabaseConnection;
+            const result = await connection
+              .repository(collection)
+              .withPolicy(policy)
+              .updateMany({
+                filter: {
+                  id,
+                  [condition.stateField]: condition.state,
+                  [condition.versionField]: condition.version,
+                },
+                values: values as RepositoryRecord,
+              });
+            return result.updatedCount > 0;
+          };
+
+        if (key === 'transaction')
+          return async <R>(
+            work: (s: LifecycleStore) => Promise<R>,
+            options?: Parameters<LifecycleStore['transaction']>[1],
+          ) =>
+            target.transaction(async (tx) => {
+              const connection = tx.transactionHandle as DatabaseConnection;
+              snapshots.set(connection, {
+                directory:
+                  readDirectory.getStore() ??
+                  (await processDirectorySnapshot(
+                    d.directory,
+                    'oa.budgetAdjustment',
+                    connection,
+                  )),
+                connection,
+              });
+              const change = intervention.getStore();
+              if (change) change.depth++;
+              try {
+                const result = await work(wrap(tx));
+                if (change?.depth === 1)
+                  await d.audit.record(
+                    {
+                      actorId: change.actorId,
+                      action: `budgetAdjustment.${change.action}`,
+                      targetType: 'budgetAdjustments',
+                      targetId: change.recordId,
+                      reason: change.reason,
+                    },
+                    connection,
+                  );
+                return result;
+              } finally {
+                if (change) change.depth--;
+              }
+            }, options);
+        const value: unknown = Reflect.get(target, key);
+        return typeof value === 'function'
+          ? (value as (...args: unknown[]) => unknown).bind(target)
+          : value;
+      },
+    });
+  }
+  const source = (handle: unknown): Services =>
+    handle ? snapshots.get(handle)! : outside;
+  const runtime = new LifecycleRuntime({
+    store: wrap(base),
+    dispatcher: d.dispatcher,
+  });
+  const owner = ({
+    record,
+    actor,
+  }: {
+    record: BudgetAdjustmentRecord;
+    actor: { id: string };
+  }) => actor.id === record.applicantId || actor.id === record.createdById;
+  const fields = [
+    'departmentId',
+    'year',
+    'subject',
+    'adjustmentType',
+    'sourceSubject',
+    'amountCents',
+    'reason',
+  ];
+  const stage = stagesFor<Types>();
+  const actions = [
+    ...createOaApprovalOperations(d),
+    approve(),
+    reject({ reason: 'required' }),
+    returnTo({ targets: ['revision'], reason: 'required' }),
+    commentAction,
+    appointAction,
+    reassignAction,
+  ];
+  const settings = {
+    actions,
+    onEmpty: 'hold' as const,
+    reuse: 'unchanged' as const,
+    remindAfterHours: 24,
+    dueAfterHours: 48,
+    onDue: 'escalate' as const,
+  };
+  async function validate(
+    record: BudgetAdjustmentRecord,
+    connection: DatabaseConnection,
+    directory: OaApprovalDirectory,
+  ) {
+    const employee = await d.employees.getByUserId(
+      record.applicantId,
+      connection,
+    );
+    if (!employee?.active || employee.status === 'left')
+      refuse(
+        'BUDGET_ADJUSTMENT_EMPLOYEE_INACTIVE',
+        'An active employee archive is required.',
+      );
+    if (
+      !Number.isSafeInteger(record.amountCents) ||
+      record.amountCents <= 0 ||
+      !record.reason.trim()
+    )
+      refuse(
+        'BUDGET_ADJUSTMENT_INVALID_AMOUNT',
+        'A positive amount in integer cents and a reason are required.',
+      );
+    if (
+      !Number.isInteger(record.year) ||
+      record.year < 1900 ||
+      record.year > 9999 ||
+      !(await d.org.activeChain(record.departmentId, connection))
+    )
+      refuse(
+        'BUDGET_ADJUSTMENT_INVALID_ACCOUNT',
+        'Choose an active department and a valid budget year.',
+      );
+    for (const subject of [
+      record.subject,
+      ...(record.adjustmentType === 'transfer' ? [record.sourceSubject] : []),
+    ]) {
+      const entry = subject
+        ? await d.dictionaries.get('budgetSubject', subject, connection)
+        : undefined;
+      if (!entry?.active)
+        refuse(
+          'BUDGET_ADJUSTMENT_INVALID_SUBJECT',
+          'Choose an active budget subject.',
+        );
+    }
+    if (
+      record.adjustmentType === 'transfer' &&
+      record.sourceSubject === record.subject
+    )
+      refuse(
+        'BUDGET_ADJUSTMENT_INVALID_TRANSFER',
+        'Source and destination budget subjects must differ.',
+      );
+    if (
+      record.adjustmentType !== 'transfer' &&
+      record.adjustmentType !== 'increase'
+    )
+      refuse(
+        'BUDGET_ADJUSTMENT_INVALID_TYPE',
+        'Choose a budget transfer or increase.',
+      );
+    if (record.adjustmentType === 'increase' && record.sourceSubject !== null)
+      refuse(
+        'BUDGET_ADJUSTMENT_INVALID_TRANSFER',
+        'A budget increase does not have a source subject.',
+      );
+    if (record.reason.length > 5000)
+      refuse(
+        'BUDGET_ADJUSTMENT_INVALID_REASON',
+        'The adjustment reason may contain at most 5000 characters.',
+      );
+    const head = await d.org.headOf(record.departmentId, connection);
+    if (head && !directory.isActive(head))
+      refuse(
+        'BUDGET_ADJUSTMENT_INACTIVE_HEAD',
+        'The department head is inactive.',
+      );
+  }
+  const budgetCommand = (
+    record: BudgetAdjustmentRecord,
+    actorId: string,
+    requestKey: string,
+  ) => ({
+    departmentId: record.departmentId,
+    year: record.year,
+    subject: record.sourceSubject ?? record.subject,
+    actorId,
+    reason: record.reason,
+    reference: record.id,
+    requestKey,
+  });
+  const releaseReservation = async (
+    record: BudgetAdjustmentRecord,
+    connection: DatabaseConnection,
+    actorId: string,
+    key: string,
+  ) => {
+    if (record.heldAccount)
+      await d.budgets.release(
+        { ...budgetCommand(record, actorId, key), ...record.heldAccount },
+        connection,
+      );
+  };
+
+  function needsGm(record: BudgetAdjustmentRecord): boolean {
+    return (
+      record.adjustmentType === 'increase' &&
+      exceedsBudgetThreshold(
+        record.amountCents,
+        record.ruleSnapshot?.['budget.increaseGm'],
+      )
+    );
+  }
+  async function applyBudget(
+    record: BudgetAdjustmentRecord,
+    actorId: string,
+    connection: DatabaseConnection,
+  ) {
+    const cmd = budgetCommand(
+      record,
+      actorId,
+      `budget-adjustment:${record.id}:approved`,
+    );
+    if (record.adjustmentType === 'transfer')
+      await d.budgets.transferHeld(
+        { ...cmd, targetSubject: record.subject },
+        connection,
+      );
+    else
+      await d.budgets.allocate(
+        { ...cmd, subject: record.subject, deltaCents: record.amountCents },
+        connection,
+      );
+  }
+  const approval = defineApproval<Types>({
+    name: BUDGET_ADJUSTMENT_LIFECYCLE,
+    collection: 'budgetAdjustments',
+    initial: 'draft',
+    version: 1,
+    applicant: (r) => r.applicantId,
+    directory: (s) => s.directory,
+    calendar: () => d.calendar.approvalCalendar(),
+    freeze: fields,
+    adminRole: 'approval.admin',
+    afterEnd: [readAction],
+    notify: async ({ task, reason, services }) => {
+      const record = await d.db
+        .repository<BudgetAdjustmentRecord>('budgetAdjustments')
+        .findOne({ filter: { id: task.recordId } });
+      await d.notifications.task({
+        task,
+        reason,
+        directory: services.directory,
+        applicantId: record?.applicantId,
+        kind: BUDGET_ADJUSTMENT_LIFECYCLE,
+        at: new Date().toISOString(),
+      });
+    },
+    states: [
+      'draft',
+      'revision',
+      approvalState(
+        'head',
+        stage.single({
+          ...settings,
+          assignee: ({ record }) => record.headApproverId ?? undefined,
+        }),
+      ),
+      approvalState(
+        'finance',
+        stage.any({
+          ...settings,
+          assignees: ({ services }) =>
+            services.directory.roleMembers('financeManager'),
+        }),
+      ),
+      approvalState(
+        'cfo',
+        stage.single({
+          ...settings,
+          assignee: ({ services }) =>
+            services.directory.uniqueRoleMember('cfo'),
+        }),
+      ),
+      approvalState(
+        'gm',
+        stage.single({
+          ...settings,
+          assignee: ({ services }) => services.directory.uniqueRoleMember('gm'),
+        }),
+      ),
+      ...(['approved', 'rejected', 'withdrawn', 'terminated'] as const).map(
+        (name) => ({ name, final: true }),
+      ),
+    ],
+    create: {
+      guard: ({ values, actor, services }) =>
+        values.applicantId === actor.id ||
+        services.directory.hasRole(actor.id, 'hr'),
+    },
+    transitions: {
+      edit: {
+        from: ['draft', 'revision'],
+        to: ['draft', 'revision'],
+        guard: owner,
+        route: ({ record }) => record.status as 'draft' | 'revision',
+        accept: fields,
+        onTransition: async ({ record, tx }) => {
+          const connection = tx.handle as DatabaseConnection;
+          await lockUserForAdministration(connection, record.applicantId);
+        },
+      },
+      submit: {
+        from: ['draft', 'revision'],
+        to: 'head',
+        guard: owner,
+        set: async ({ record, services, now }) => {
+          const connection = services.connection!;
+          await lockUserForAdministration(connection, record.applicantId);
+          await validate(record, connection, services.directory);
+          const snapshot =
+            record.ruleSnapshot ??
+            (await d.rules.snapshot(
+              [
+                'budget.increaseGm',
+                'sla.remindHours',
+                'sla.escalateHours',
+                'sla.urgeCooldownHours',
+              ],
+              now,
+              connection,
+            ));
+          if (
+            snapshot['sla.remindHours'] !== 24 ||
+            snapshot['sla.escalateHours'] !== 48
+          )
+            refuse(
+              'BUDGET_ADJUSTMENT_SLA_CONFIGURATION_UNSUPPORTED',
+              'This release supports the default 24/48 working-hour approval clocks only.',
+            );
+          try {
+            exceedsBudgetThreshold(
+              record.amountCents,
+              snapshot['budget.increaseGm'],
+            );
+          } catch {
+            refuse(
+              'BUDGET_ADJUSTMENT_INVALID_RULE',
+              'The budget increase threshold must be a valid nonnegative amount.',
+            );
+          }
+          const nextAccount =
+            record.adjustmentType === 'transfer'
+              ? {
+                  departmentId: record.departmentId,
+                  year: record.year,
+                  subject: record.sourceSubject!,
+                }
+              : null;
+          return {
+            heldAccount: nextAccount,
+            heldCents: nextAccount ? record.amountCents : 0,
+            ruleSnapshot: snapshot,
+            number:
+              record.number ??
+              (await d.sequences.next('BUDGET', connection, now)),
+            headApproverId:
+              (await d.org.headOf(record.departmentId, connection)) ?? null,
+          };
+        },
+        onTransition: async ({ record, previous, actor, tx }) => {
+          const connection = tx.handle as DatabaseConnection;
+          if (
+            previous.heldAccount &&
+            (previous.heldAccount.departmentId !==
+              record.heldAccount?.departmentId ||
+              previous.heldAccount.year !== record.heldAccount?.year ||
+              previous.heldAccount.subject !== record.heldAccount?.subject)
+          )
+            await releaseReservation(
+              previous,
+              connection,
+              actor.id,
+              `budget-adjustment:${record.id}:${previous.lifecycleVersion}:release-old`,
+            );
+          if (record.heldAccount)
+            await d.budgets.adjustHold(
+              {
+                ...budgetCommand(
+                  record,
+                  actor.id,
+                  `budget-adjustment:${record.id}:${previous.lifecycleVersion}:hold`,
+                ),
+                cents: record.amountCents,
+              },
+              connection,
+            );
+        },
+      },
+      headApproved: {
+        from: 'head',
+        to: 'finance',
+        approvalOutcome: 'approved',
+      },
+      financeApproved: {
+        from: 'finance',
+        to: 'cfo',
+        approvalOutcome: 'approved',
+      },
+      cfoApproved: {
+        from: 'cfo',
+        to: ['gm', 'approved'],
+        approvalOutcome: 'approved',
+        route: ({ record }) => (needsGm(record) ? 'gm' : 'approved'),
+        set: ({ record }) =>
+          needsGm(record) ? {} : { heldAccount: null, heldCents: 0 },
+        onTransition: async ({ record, actor, to, tx }) => {
+          if (to === 'approved')
+            await applyBudget(
+              record,
+              actor.id,
+              tx.handle as DatabaseConnection,
+            );
+        },
+      },
+      gmApproved: {
+        from: 'gm',
+        to: 'approved',
+        approvalOutcome: 'approved',
+        set: () => ({ heldAccount: null, heldCents: 0 }),
+        onTransition: ({ record, actor, tx }) =>
+          applyBudget(record, actor.id, tx.handle as DatabaseConnection),
+      },
+      rejected: {
+        from: ['head', 'finance', 'cfo', 'gm'],
+        to: 'rejected',
+        approvalOutcome: 'rejected',
+        set: () => ({ heldAccount: null, heldCents: 0 }),
+        onTransition: ({ previous, actor, tx }) =>
+          releaseReservation(
+            previous,
+            tx.handle as DatabaseConnection,
+            actor.id,
+            `budget-adjustment:${previous.id}:${previous.lifecycleVersion}:reject`,
+          ),
+      },
+      returned: {
+        from: ['head', 'finance', 'cfo', 'gm'],
+        to: 'revision',
+        approvalOutcome: 'returned',
+      },
+      withdraw: {
+        from: ['draft', 'revision', 'head', 'finance', 'cfo', 'gm'],
+        to: 'withdrawn',
+        guard: owner,
+        set: () => ({ heldAccount: null, heldCents: 0 }),
+        onTransition: ({ previous, actor, tx }) =>
+          releaseReservation(
+            previous,
+            tx.handle as DatabaseConnection,
+            actor.id,
+            `budget-adjustment:${previous.id}:${previous.lifecycleVersion}:withdraw`,
+          ),
+      },
+      terminate: {
+        set: () => ({ heldAccount: null, heldCents: 0 }),
+        onTransition: async ({ record, previous, actor, input, tx }) => {
+          const connection = tx.handle as DatabaseConnection;
+          await releaseReservation(
+            previous,
+            connection,
+            actor.id,
+            `budget-adjustment:${previous.id}:${previous.lifecycleVersion}:terminate`,
+          );
+          await d.audit.record(
+            {
+              actorId: actor.id,
+              action: 'budgetAdjustment.terminate',
+              targetType: 'budgetAdjustments',
+              targetId: record.id,
+              reason: typeof input.reason === 'string' ? input.reason : null,
+            },
+            connection,
+          );
+        },
+        from: ['revision', 'head', 'finance', 'cfo', 'gm'],
+        to: 'terminated',
+        guard: ({ actor, services, input }) =>
+          services.directory.hasRole(actor.id, 'approval.admin') &&
+          typeof input.reason === 'string' &&
+          input.reason.trim().length > 0,
+      },
+    },
+    onEnter: Object.fromEntries(
+      ['approved', 'rejected', 'revision'].map((state) => [
+        state,
+        [
+          {
+            name: `budgetAdjustment.notify.${state}`,
+            retry: { attempts: 5, backoffMs: 1000 },
+            run: ({
+              record,
+              idempotencyKey,
+            }: {
+              record: BudgetAdjustmentRecord;
+              idempotencyKey: string;
+            }) =>
+              d.notifications.result({
+                recordId: record.id,
+                applicantId: record.applicantId,
+                state,
+                transitionId: idempotencyKey,
+                kind: BUDGET_ADJUSTMENT_LIFECYCLE,
+              }),
+          },
+        ],
+      ]),
+    ),
+  });
+  runtime.register(approval, { services: source });
+  const approvals = new ApprovalService(
+    runtime,
+    [approval.approval as unknown as Approval<never>],
+    source,
+  );
+  async function refresh() {
+    outside = {
+      directory: await processDirectorySnapshot(
+        d.directory,
+        'oa.budgetAdjustment',
+      ),
+    };
+  }
+  async function canRead(
+    id: string,
+    actorId: string,
+    policy?: RepositoryPolicy,
+  ) {
+    await refresh();
+    const r = await d.db
+      .repository<BudgetAdjustmentRecord>('budgetAdjustments')
+      .findOne({ filter: { id } });
+    if (!r)
+      throw new BudgetAdjustmentError(
+        'BUDGET_ADJUSTMENT_NOT_FOUND',
+        'BudgetAdjustment request not found.',
+        'notFound',
+      );
+    if (
+      r.createdById === actorId ||
+      r.applicantId === actorId ||
+      (await approvals.involvementOf(BUDGET_ADJUSTMENT_LIFECYCLE, id, actorId))
+        .length ||
+      Boolean(
+        policy &&
+        (await d.db
+          .repository<BudgetAdjustmentRecord>('budgetAdjustments')
+          .withPolicy(policy)
+          .findOne({ filter: { id } })),
+      )
+    )
+      return normalizeBudgetRecord(r);
+    throw new BudgetAdjustmentError(
+      'BUDGET_ADJUSTMENT_ACCESS_DENIED',
+      'This budget adjustment is not accessible.',
+      'permission',
+    );
+  }
+  function fullRows(
+    rows: Partial<BudgetAdjustmentRecord>[],
+  ): BudgetAdjustmentRecord[] {
+    const fields = [
+      'id',
+      'applicantId',
+      'createdById',
+      'number',
+      'departmentId',
+      'year',
+      'subject',
+      'adjustmentType',
+      'sourceSubject',
+      'amountCents',
+      'reason',
+      'heldAccount',
+      'heldCents',
+      'ruleSnapshot',
+      'headApproverId',
+      'status',
+      'lifecycleVersion',
+      'createdAt',
+    ];
+    if (rows.some((row) => fields.some((field) => !(field in row))))
+      throw new BudgetAdjustmentError(
+        'BUDGET_ADJUSTMENT_FIELDS_RESTRICTED',
+        'This release requires all budget adjustment business fields for reading.',
+        'permission',
+      );
+    return rows.map((row) =>
+      normalizeBudgetRecord(row as BudgetAdjustmentRecord),
+    );
+  }
+  async function enrich(records: BudgetAdjustmentRecord[]) {
+    const ids = [
+      ...new Set(
+        records
+          .flatMap((r) => [r.applicantId, r.createdById, r.headApproverId])
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const users = new Map(
+      (await Promise.all(ids.map((id) => d.users.get(id))))
+        .filter((u) => u !== undefined)
+        .map((u) => [u.id, { id: u.id, name: u.name }]),
+    );
+    return records.map((r) => ({
+      ...r,
+      applicant: users.get(r.applicantId) ?? null,
+      createdBy: users.get(r.createdById) ?? null,
+      headApprover: r.headApproverId
+        ? (users.get(r.headApproverId) ?? null)
+        : null,
+    }));
+  }
+  async function notifyHeld(id: string) {
+    const views = await approvals.runViewsFor(BUDGET_ADJUSTMENT_LIFECYCLE, id);
+    for (const view of views) {
+      if (isOpenRun(view.run)) {
+        for (const task of view.tasks) {
+          if (
+            task.status !== 'pending' ||
+            !task.dueAt ||
+            Date.parse(task.dueAt) > Date.now() ||
+            !task.assigneeId ||
+            outside.directory.managerOf(task.assigneeId)
+          )
+            continue;
+          await d.notifications.alarm({
+            recordId: id,
+            recipients: outside.directory.roleMembers('approval.admin'),
+            eventId: `chain-top:${task.id}:${task.dueAt}`,
+            reason: 'chainTop',
+            kind: BUDGET_ADJUSTMENT_LIFECYCLE,
+          });
+        }
+      }
+      if (isOpenRun(view.run) && view.tasks.length === 0)
+        await d.notifications.alarm({
+          recordId: id,
+          recipients: outside.directory.roleMembers('approval.admin'),
+          eventId: `hold:${view.run.id}`,
+          reason: 'unassigned',
+          kind: BUDGET_ADJUSTMENT_LIFECYCLE,
+        });
+    }
+  }
+  return {
+    initialize: refresh,
+    async readableIds(actorId: string) {
+      await refresh();
+      return readDirectory.run(outside.directory, async () => {
+        const records = await d.db
+          .repository<BudgetAdjustmentRecord>('budgetAdjustments')
+          .findMany();
+        const ids: string[] = [];
+        for (const record of records) {
+          if (
+            record.applicantId === actorId ||
+            record.createdById === actorId ||
+            ['finance', 'financeManager', 'cfo', 'gm', 'approval.admin'].some(
+              (role) => outside.directory.hasRole(actorId, role),
+            )
+          ) {
+            ids.push(record.id);
+            continue;
+          }
+          const involvement = await approvals.involvementOf(
+            BUDGET_ADJUSTMENT_LIFECYCLE,
+            record.id,
+            actorId,
+          );
+          if (involvement.length) {
+            ids.push(record.id);
+            continue;
+          }
+          const runs = await runTaskViewsFor(
+            approvals,
+            BUDGET_ADJUSTMENT_LIFECYCLE,
+            record.id,
+          );
+          const head = Boolean(
+            (await d.org.activeChain(record.departmentId))?.some(
+              (department) => department.managerId === actorId,
+            ),
+          );
+          if (
+            record.applicantId === actorId ||
+            record.createdById === actorId ||
+            involvement.length ||
+            runs.some((r) => r.tasks.some((t) => t.actorId === actorId)) ||
+            outside.directory.hasRole(actorId, 'finance') ||
+            outside.directory.hasRole(actorId, 'financeManager') ||
+            outside.directory.hasRole(actorId, 'cfo') ||
+            outside.directory.hasRole(actorId, 'gm') ||
+            outside.directory.hasRole(actorId, 'approval.admin') ||
+            head ||
+            (await d.employees.isAboveInReportingLine(
+              actorId,
+              record.applicantId,
+            ))
+          )
+            ids.push(record.id);
+        }
+        return ids;
+      });
+    },
+    runtime,
+    approvals,
+    approvalDefinition:
+      approval.approval as unknown as import('@nocobase/app-plugin-approval/server').Approval<never>,
+    async create(
+      input: BudgetAdjustmentInput,
+      actorId: string,
+      applicantId = actorId,
+      policy?: RepositoryPolicy,
+    ) {
+      await refresh();
+      const create = () =>
+        runtime.create(
+          BUDGET_ADJUSTMENT_LIFECYCLE,
+          {
+            id: randomUUID(),
+            ...input,
+            applicantId,
+            createdById: actorId,
+            number: null,
+            heldAccount: null,
+            heldCents: 0,
+            ruleSnapshot: null,
+            headApproverId: null,
+            createdAt: new Date().toISOString(),
+          },
+          { actor: { id: actorId } },
+        );
+      return policy ? writePolicy.run(policy, create) : create();
+    },
+    async transition(
+      id: string,
+      transition: string,
+      actorId: string,
+      version: number,
+      requestId: string,
+      input: JsonObject = {},
+      policy?: RepositoryPolicy,
+      mutationPolicy?: RepositoryPolicy,
+    ) {
+      await canRead(id, actorId, policy);
+      const fire = () =>
+        runtime.fire(BUDGET_ADJUSTMENT_LIFECYCLE, id, transition, {
+          manual: true,
+          actor: { id: actorId },
+          input,
+          expect: { version },
+          requestId,
+        });
+      return mutationPolicy ? writePolicy.run(mutationPolicy, fire) : fire();
+    },
+    async action(
+      id: string,
+      input: Omit<PerformInput, 'actor'>,
+      actorId: string,
+      policy?: RepositoryPolicy,
+    ) {
+      await canRead(id, actorId, policy);
+      const views = await approvals.runViewsFor(
+        BUDGET_ADJUSTMENT_LIFECYCLE,
+        id,
+      );
+      const target = input.target;
+      if (
+        !views.some((v) =>
+          'runId' in target
+            ? v.run.id === target.runId
+            : v.tasks.some((t) => t.id === target.taskId),
+        )
+      )
+        throw new BudgetAdjustmentError(
+          'BUDGET_ADJUSTMENT_TARGET_MISMATCH',
+          'The action target belongs to another request.',
+          'permission',
+        );
+      const perform = () =>
+        approvals.perform({ ...input, actor: { id: actorId } });
+      return ['appoint', 'reassign'].includes(input.action)
+        ? intervention.run(
+            {
+              actorId,
+              recordId: id,
+              action: input.action,
+              reason: input.comment ?? null,
+              depth: 0,
+            },
+            perform,
+          )
+        : perform();
+    },
+    async candidates(
+      id: string,
+      taskId: string,
+      action: string,
+      actorId: string,
+      query: { search?: string; offset?: number; limit?: number },
+      policy?: RepositoryPolicy,
+    ) {
+      await canRead(id, actorId, policy);
+      const views = await approvals.runViewsFor(
+        BUDGET_ADJUSTMENT_LIFECYCLE,
+        id,
+      );
+      if (!views.some((view) => view.tasks.some((task) => task.id === taskId)))
+        throw new BudgetAdjustmentError(
+          'BUDGET_ADJUSTMENT_TARGET_MISMATCH',
+          'The action target belongs to another request.',
+          'permission',
+        );
+      const page = await approvals.candidatesFor({
+        target: { taskId },
+        action,
+        actor: { id: actorId },
+        query,
+      });
+      const people = await Promise.all(
+        page.people.map(async (id) => {
+          const user = await d.users.get(id);
+          return { id, name: user?.name ?? id };
+        }),
+      );
+      return { people, nextOffset: page.nextOffset };
+    },
+    async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
+      const record = await canRead(id, actorId, policy);
+      return readDirectory.run(outside.directory, async () => {
+        const actor = { id: actorId };
+        const runs = await approvals.runViewsFor(
+          BUDGET_ADJUSTMENT_LIFECYCLE,
+          id,
+        );
+        const userIds = [
+          ...new Set(
+            [
+              record.applicantId,
+              record.createdById,
+              record.headApproverId,
+
+              ...runs.flatMap((v) =>
+                v.tasks.flatMap((t) => [t.assigneeId, t.actorId]),
+              ),
+            ].filter((v): v is string => Boolean(v)),
+          ),
+        ];
+        const users = (await Promise.all(userIds.map((id) => d.users.get(id))))
+          .filter((v) => v !== undefined)
+          .map((v) => ({ id: v.id, name: v.name }));
+        return {
+          record,
+          users,
+          view: await runtime.view(BUDGET_ADJUSTMENT_LIFECYCLE, id, actor),
+          runs: await approvals.runViewsFor(BUDGET_ADJUSTMENT_LIFECYCLE, id),
+          taskActions: await approvals.actionsFor(
+            BUDGET_ADJUSTMENT_LIFECYCLE,
+            id,
+            actor,
+          ),
+          runActions: await approvals.runActionsFor(
+            BUDGET_ADJUSTMENT_LIFECYCLE,
+            id,
+            actor,
+          ),
+          upcoming: await approvals.upcomingStagesFor(
+            BUDGET_ADJUSTMENT_LIFECYCLE,
+            id,
+            actor,
+          ),
+          timeline: await approvals.timelineFor(
+            BUDGET_ADJUSTMENT_LIFECYCLE,
+            id,
+          ),
+        };
+      });
+    },
+    async list(actorId: string, view: string, policy?: RepositoryPolicy) {
+      await refresh();
+      return readDirectory.run(outside.directory, async () => {
+        const repository =
+          d.db.repository<BudgetAdjustmentRecord>('budgetAdjustments');
+        const scoped = policy ? repository.withPolicy(policy) : repository;
+        if (view === 'mine')
+          return enrich(
+            fullRows(
+              await scoped.findMany({
+                filter: (f) =>
+                  f.or([
+                    f.string('applicantId').eq(actorId),
+                    f.string('createdById').eq(actorId),
+                  ]),
+                sort: (s) => [s.field('createdAt').desc()],
+              }),
+            ),
+          );
+        // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
+        // offered operations and persisted actor identities over each request before exposing it in the center.
+        const records = fullRows(
+          await scoped.findMany({
+            sort: (s) => [s.field('createdAt').desc()],
+          }),
+        );
+        const selected: BudgetAdjustmentRecord[] = [];
+        for (const record of records) {
+          const runs =
+            view === 'done' || view === 'copied'
+              ? await runTaskViewsFor(
+                  approvals,
+                  BUDGET_ADJUSTMENT_LIFECYCLE,
+                  record.id,
+                )
+              : [];
+          const tasks = runs.flatMap((r) => r.tasks);
+          const match =
+            view === 'copied'
+              ? tasks.some((t) => t.kind === 'copy' && t.assigneeId === actorId)
+              : view === 'done'
+                ? tasks.some(
+                    (t) =>
+                      t.actorId === actorId &&
+                      ['completed', 'transferred'].includes(t.status),
+                  )
+                : (
+                    await approvals.actionsFor(
+                      BUDGET_ADJUSTMENT_LIFECYCLE,
+                      record.id,
+                      {
+                        id: actorId,
+                      },
+                    )
+                  ).some(
+                    (a) =>
+                      // Administrative reassignment is available without being the reviewer.
+                      // Personal approval work requires an offered decision; actionsFor also resolves delegates.
+                      a.task.role !== 'info' &&
+                      a.actions.some((action) =>
+                        ['approve', 'reject', 'return'].includes(action.name),
+                      ),
+                  );
+          if (match) selected.push(record);
+        }
+        return enrich(selected);
+      });
+    },
+    async maintenance() {
+      await refresh();
+      const sweep = await approvals.sweepReport();
+      await runtime.reclaim();
+      await runtime.recover();
+      const held = await d.db
+        .repository<BudgetAdjustmentRecord>('budgetAdjustments')
+        .findMany({
+          filter: (f) =>
+            f.or(
+              ['head', 'finance', 'cfo', 'gm'].map((s) =>
+                f.string('status').eq(s),
+              ),
+            ),
+        });
+      for (const record of held) await notifyHeld(record.id);
+      return sweep;
+    },
+  };
+}
+export type BudgetAdjustmentService = ReturnType<
+  typeof createBudgetAdjustmentService
+>;
+export const budgetAdjustmentServiceToken =
+  createServiceToken<BudgetAdjustmentService>('oa/budget-adjustment-service');

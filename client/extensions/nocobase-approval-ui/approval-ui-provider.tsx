@@ -1,3 +1,4 @@
+import { UserAvatar } from '#components/user-name';
 import { useMemo, type ReactElement, type ReactNode } from 'react';
 
 import {
@@ -21,7 +22,13 @@ export function ApprovalUiProvider({
   const value = useMemo<ApprovalUi>(
     () => ({
       personName: personName ?? APPROVAL_UI_DEFAULTS.personName,
-      renderAvatar: renderAvatar ?? APPROVAL_UI_DEFAULTS.renderAvatar,
+      renderAvatar:
+        renderAvatar ??
+        ((id) => (
+          <UserAvatar
+            name={(personName ?? APPROVAL_UI_DEFAULTS.personName)(id)}
+          />
+        )),
       formatDateTime: formatDateTime ?? APPROVAL_UI_DEFAULTS.formatDateTime,
     }),
     [personName, renderAvatar, formatDateTime],

@@ -1,3 +1,5 @@
+import { InputGroupAddon } from '#components/ui/input-group';
+import { UserAvatar, UserName } from '#components/user-name';
 import { Combobox as ComboboxPrimitive } from '@base-ui/react';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -10,8 +12,8 @@ import {
   useState,
 } from 'react';
 
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Button } from '@/components/ui/button';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Button } from '#components/ui/button';
 import {
   Combobox,
   ComboboxChip,
@@ -24,7 +26,7 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from '@/components/ui/combobox';
+} from '#components/ui/combobox';
 
 /** An authentication user as the picker shows it. */
 export interface UserOption {
@@ -209,7 +211,9 @@ function UserOptionContent({
   const secondary = user.email || user.username;
   return (
     <span className='flex min-w-0 flex-col'>
-      <span className='truncate'>{user.name}</span>
+      <span className='truncate'>
+        <UserName name={user.name} />
+      </span>
       {secondary ? (
         <span className='truncate text-xs text-muted-foreground'>
           {secondary}
@@ -338,7 +342,13 @@ export function UserPicker({
         aria-invalid={invalid || undefined}
         onBlur={onBlur}
         showClear={!!selected && !disabled}
-      />
+      >
+        {selected && !query ? (
+          <InputGroupAddon align='inline-start'>
+            <UserAvatar name={selected.name} />
+          </InputGroupAddon>
+        ) : null}
+      </ComboboxInput>
       <ComboboxContent>
         <UserResults loading={search.loading} />
       </ComboboxContent>
@@ -412,8 +422,12 @@ export function UserMultiPicker({
           {(users: UserOption[]) => (
             <>
               {users.map((user) => (
-                <ComboboxChip key={user.id} showRemove={false}>
-                  {user.name}
+                <ComboboxChip
+                  key={user.id}
+                  showRemove={false}
+                  className='h-auto min-h-8'
+                >
+                  <UserName name={user.name} />
                   {disabled ? null : (
                     // The primitive's own remove button has no accessible name, so render it here with one.
                     <ComboboxPrimitive.ChipRemove

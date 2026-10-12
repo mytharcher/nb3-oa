@@ -1,16 +1,17 @@
 import {
-  defineSettingsRoutes,
+  defineAppRoutes,
   type AppClientRouteContribution,
 } from '@nocobase/app-client/plugins';
-import { BookText, CalendarDays, Hash, History, Scale } from 'lucide-react';
+import { BookText, CalendarDays, History, Scale } from 'lucide-react';
 
 /**
- * Routes of the `platform` OA module: work calendar, dictionaries, approval rules and sequences under 流程配置
+ * Routes of the `platform` OA module: work calendar, dictionaries, approval rules under 流程配置
  * (`oa-configuration`), the audit log under 系统 (`oa-system`). Each page checks its own settings item, which the
  * platform provider registers and its endpoints check.
  */
-const settingsRoutes: AppClientRouteContribution = defineSettingsRoutes([
+const settingsRoutes: AppClientRouteContribution = defineAppRoutes([
   {
+    auth: 'required',
     parent: 'oa-configuration',
     name: 'platform-work-calendar',
     path: '/work-calendar',
@@ -26,14 +27,14 @@ const settingsRoutes: AppClientRouteContribution = defineSettingsRoutes([
     componentLoader: () => import('../pages/platform/work-calendar/index.js'),
     children: [
       {
-        // /settings/work-calendar/days/new: add a day (static segment before :date)
+        // /work-calendar/days/new: add a day (static segment before :date)
         name: 'platform-work-calendar-day-new',
         path: 'days/new',
         componentLoader: () =>
           import('../pages/platform/work-calendar/day-dialog.js'),
       },
       {
-        // /settings/work-calendar/days/2026-10-01: edit a day
+        // /work-calendar/days/2026-10-01: edit a day
         name: 'platform-work-calendar-day-edit',
         path: 'days/:date',
         componentLoader: () =>
@@ -48,6 +49,7 @@ const settingsRoutes: AppClientRouteContribution = defineSettingsRoutes([
     ],
   },
   {
+    auth: 'required',
     parent: 'oa-configuration',
     name: 'platform-dictionaries',
     path: '/dictionaries',
@@ -77,6 +79,7 @@ const settingsRoutes: AppClientRouteContribution = defineSettingsRoutes([
     ],
   },
   {
+    auth: 'required',
     parent: 'oa-configuration',
     name: 'platform-approval-rules',
     path: '/approval-rules',
@@ -92,21 +95,21 @@ const settingsRoutes: AppClientRouteContribution = defineSettingsRoutes([
     componentLoader: () => import('../pages/platform/approval-rules/index.js'),
     children: [
       {
-        // /settings/approval-rules/edit/spend.vp: the change dialog alone over the list (a row's menu)
+        // /approval-rules/edit/spend.vp: the change dialog alone over the list (a row's menu)
         name: 'platform-approval-rules-edit',
         path: 'edit/:key',
         componentLoader: () =>
           import('../pages/platform/approval-rules/change-dialog.js'),
       },
       {
-        // /settings/approval-rules/spend.vp: the version history drawer
+        // /approval-rules/spend.vp: the version history drawer
         name: 'platform-approval-rules-history',
         path: ':key',
         componentLoader: () =>
           import('../pages/platform/approval-rules/history-drawer.js'),
         children: [
           {
-            // /settings/approval-rules/spend.vp/edit: the change dialog stacked on the drawer
+            // /approval-rules/spend.vp/edit: the change dialog stacked on the drawer
             name: 'platform-approval-rules-history-edit',
             path: 'edit',
             componentLoader: () =>
@@ -117,21 +120,7 @@ const settingsRoutes: AppClientRouteContribution = defineSettingsRoutes([
     ],
   },
   {
-    parent: 'oa-configuration',
-    name: 'platform-sequences',
-    path: '/sequences',
-    authz: {
-      resource: { type: 'settings', id: 'oa.platform.sequences' },
-      action: 'read',
-    },
-    navigation: {
-      title: 'platform.navigation.sequences',
-      icon: Hash,
-      order: 40,
-    },
-    componentLoader: () => import('../pages/platform/sequences/index.js'),
-  },
-  {
+    auth: 'required',
     parent: 'oa-system',
     name: 'platform-audit-logs',
     path: '/audit-logs',
@@ -143,7 +132,7 @@ const settingsRoutes: AppClientRouteContribution = defineSettingsRoutes([
     navigation: {
       title: 'platform.navigation.auditLogs',
       icon: History,
-      order: 10,
+      order: 60,
     },
     componentLoader: () => import('../pages/platform/audit-logs/index.js'),
     children: [

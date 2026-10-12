@@ -373,6 +373,45 @@ describe('import service', () => {
     });
   });
 
+  it('previews first-employment-date constraints before writing an employee import', async () => {
+    const person = await test.createUser('CareerImport');
+    const file = await kindFile('employees', [
+      {
+        code: 'CAREER-PREVIEW',
+        name: 'Career Import',
+        user: person.user.email,
+        hireDate: '2025-01-01',
+        careerStartDate: '2025-01-02',
+        status: 'regular',
+      },
+    ]);
+    const preview = await test.imports.preview('employees', file, actor);
+    expect(preview.errors).toContainEqual(
+      expect.objectContaining({
+        column: 'careerStartDate',
+        code: 'CAREER_START_AFTER_HIRE',
+      }),
+    );
+    const future = await kindFile('employees', [
+      {
+        code: 'CAREER-FUTURE',
+        name: 'Career Future',
+        user: person.user.email,
+        careerStartDate: '2099-01-01',
+        status: 'regular',
+      },
+    ]);
+    expect(
+      (await test.imports.preview('employees', future, actor)).errors,
+    ).toContainEqual(
+      expect.objectContaining({
+        column: 'careerStartDate',
+        code: 'CAREER_START_FUTURE',
+      }),
+    );
+    expect(await test.employees.getByUserId(person.user.id)).toBeUndefined();
+  });
+
   it('creates archives with managers defined later and primary departments, then updates them by code', async () => {
     const tree = new Map(
       (await test.organization.listTree()).map((node) => [node.code, node]),
@@ -387,6 +426,7 @@ describe('import service', () => {
         positionCode: 'BUYER',
         gradeCode: 'P5',
         hireDate: new Date(Date.UTC(2026, 9, 8)),
+        careerStartDate: '2010-07-01',
         probationEndDate: '2027/1/7',
         status: '试用',
       },
@@ -407,6 +447,7 @@ describe('import service', () => {
       code: '0002',
       managerId: head.id,
       hireDate: '2026-10-08',
+      careerStartDate: '2010-07-01',
       probationEndDate: '2027-01-07',
       status: 'probation',
     });

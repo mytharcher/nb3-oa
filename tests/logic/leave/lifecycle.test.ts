@@ -124,7 +124,12 @@ describe('leave lifecycle on SQLite', () => {
   });
   it('rejects balance-backed and overlapping requests without allocating approval work', async () => {
     const annual = await service.create(
-      { ...form, leaveType: 'annual' },
+      {
+        ...form,
+        leaveType: 'annual',
+        startDate: '2026-10-13',
+        endDate: '2026-10-13',
+      },
       employeeId,
     );
     await expect(
@@ -135,7 +140,7 @@ describe('leave lifecycle on SQLite', () => {
         Number(annual.record.lifecycleVersion),
         'annual-submit',
       ),
-    ).rejects.toMatchObject({ code: 'LEAVE_BALANCE_UNAVAILABLE' });
+    ).rejects.toMatchObject({ code: 'LEAVE_BALANCE_INSUFFICIENT' });
     expect(
       (await service.detail(String(annual.record.id), employeeId)).runs,
     ).toHaveLength(0);
@@ -264,19 +269,12 @@ describe('leave lifecycle on SQLite', () => {
         updatedAt: now,
       },
     });
-    const draft = await service.create(
-      { ...form, attachments: ['invented-file'] },
-      noManager.user.id,
-    );
     await expect(
-      service.transition(
-        String(draft.record.id),
-        'submit',
+      service.create(
+        { ...form, attachments: ['invented-file'] },
         noManager.user.id,
-        Number(draft.record.lifecycleVersion),
-        'fake-attachment',
       ),
-    ).rejects.toMatchObject({ code: 'LEAVE_ATTACHMENTS_UNAVAILABLE' });
+    ).rejects.toMatchObject({ code: 'LEAVE_ATTACHMENT_INVALID' });
     const safe = await service.create(form, noManager.user.id);
     const id = String(safe.record.id);
     await service.transition(

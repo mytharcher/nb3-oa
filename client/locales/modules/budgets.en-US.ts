@@ -1,0 +1,108 @@
+export default {
+  budgets: {
+    title: 'Budget management',
+    description:
+      'Finance records annual budgets and audited manual changes; reserved and used funds come from business documents.',
+    new: 'New annual budget',
+    newDescription:
+      'Create one budget account for a department, year and subject.',
+    adjustTitle: 'Adjust budget',
+    adjustDescription:
+      'Record a manual allocation change with a reason. Existing reservations and spending stay in the ledger.',
+    detail: 'Budget account',
+    detailDescription: 'Review balances and immutable budget changes.',
+    accountTitle: '{{department}} · {{year}} · {{subject}}',
+    department: 'Department',
+    year: 'Year',
+    subject: 'Subject',
+    allocatedCents: 'Allocated',
+    heldCents: 'Reserved',
+    usedCents: 'Used',
+    availableCents: 'Available',
+    amount: 'Annual allocation',
+    changeAmount: 'Allocation change',
+    amountHint: 'Currency units, positive, with at most two decimal places.',
+    deltaHint:
+      'A positive amount adds funds; a negative amount reduces them. Reserved and used funds cannot be removed.',
+    reason: 'Reason',
+    ledger: 'Budget changes',
+    kind: 'Change type',
+    at: 'Time',
+    reference: 'Source',
+    actor: 'Operator',
+    allocatedDelta: 'Allocation change',
+    heldDelta: 'Reservation change',
+    usedDelta: 'Usage change',
+    allSubjects: 'All subjects',
+    selectSubject: 'Select a subject',
+    yearPlaceholder: 'Filter by year',
+    refresh: 'Refresh',
+    clear: 'Clear filters',
+    cancel: 'Cancel',
+    save: 'Save',
+    adjust: 'Adjust',
+    view: 'View',
+    retry: 'Retry',
+    loading: 'Loading',
+    rowActions: 'Actions for {{name}}',
+    saved: 'Saved budget for "{{name}}"',
+    currentAccount:
+      '{{department}} · {{year}} · {{subject}} · allocated {{amount}}',
+    openExisting: 'Open existing account',
+    required: 'Fill in this required field.',
+    invalidYear: 'Enter a year from 1900 to 9999.',
+    invalidAmount:
+      'Enter a nonzero amount with at most two decimal places within the safe integer cents limit.',
+    positiveAmount:
+      'Enter a positive amount with at most two decimal places within the safe integer cents limit.',
+    longReason: 'Keep the reason within 4,000 characters.',
+    invalidField: 'Check this field and try again.',
+    kinds: {
+      consume: 'Partial settlement',
+      allocate: 'Allocation',
+      hold: 'Reservation',
+      release: 'Released',
+      settle: 'Settlement',
+      transferOut: 'Transferred out',
+      transferIn: 'Transferred in',
+    },
+    empty: {
+      accountsTitle: 'No budgets yet',
+      accountsDescription:
+        'Create annual allocations to enable budget control.',
+      readonlyTitle: 'No budgets yet',
+      readonlyDescription: 'Ask finance to enter the annual budgets.',
+      filteredTitle: 'No matching budgets',
+      filteredDescription: 'Clear or change the filters to find an account.',
+      ledgerTitle: 'No changes yet',
+      ledgerDescription: 'Budget changes appear here when recorded.',
+    },
+    error: {
+      failed:
+        'The budget could not be loaded or saved. Retry with the same input.',
+      forbidden: 'You do not have budget permission. Contact an administrator.',
+      missing: 'This budget no longer exists. Return to the list.',
+      BUDGET_NOT_FOUND: 'This budget no longer exists. Return to the list.',
+      BUDGET_ALREADY_EXISTS:
+        'A budget exists for this account. Open it and use Adjust.',
+      BUDGET_IDEMPOTENCY_CONFLICT:
+        'This request key already identifies another change. Review your input and save again.',
+      BUDGET_INSUFFICIENT:
+        'The adjustment would leave too little available budget. Reduce the decrease.',
+      BUDGET_INVALID_DEPARTMENT: 'Select an active department.',
+      BUDGET_INVALID_SUBJECT: 'Select an active budget subject.',
+      BUDGET_INVALID_AMOUNT:
+        'Check the amount and use at most two decimal places.',
+      BUDGET_INVALID_COMMAND: 'Check the required reason and request details.',
+      BUDGET_INVALID_ACCOUNT: 'Check the department, year and subject.',
+      BUDGET_INVALID_PAGE: 'Check the page and page size.',
+      invalid: 'Check the required fields and correct the highlighted values.',
+    },
+    authz: {
+      title: 'Budget management',
+      read: 'Read accounts and budget changes',
+      update: 'Create budgets and record manual adjustments',
+      permissionSet: 'Finance budget management',
+    },
+  },
+};

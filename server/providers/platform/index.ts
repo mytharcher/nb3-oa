@@ -159,3 +159,5 @@ export default class PlatformProvider extends ServiceProvider<Application> {
     this.refreshTimer = undefined;
   }
 }
+
+export { LocalDateTimeError } from './time-zone.js';

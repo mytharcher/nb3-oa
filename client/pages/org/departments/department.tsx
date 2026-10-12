@@ -1,3 +1,5 @@
+import { UserNameText } from '#components/user-name';
+import { UserName } from '#components/user-name';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useLocale, useTranslation } from '@nocobase/i18n/client';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -28,8 +30,8 @@ import {
   useParams,
 } from 'react-router';
 
-import { DataTable } from '@/components/data-table';
-import { DataTableColumnHeader } from '@/components/data-table/column-header';
+import { DataTable } from '#components/data-table';
+import { DataTableColumnHeader } from '#components/data-table/column-header';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,10 +41,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+} from '#components/ui/alert-dialog';
+import { Alert, AlertDescription } from '#components/ui/alert';
+import { Badge } from '#components/ui/badge';
+import { Button } from '#components/ui/button';
 import {
   Card,
   CardAction,
@@ -50,7 +52,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '#components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,7 +60,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '#components/ui/dropdown-menu';
 import {
   Empty,
   EmptyContent,
@@ -66,9 +68,9 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Spinner } from '@/components/ui/spinner';
+} from '#components/ui/empty';
+import { Skeleton } from '#components/ui/skeleton';
+import { Spinner } from '#components/ui/spinner';
 
 import { LoadError, TableSkeleton } from '../org-ui.js';
 import { type ListBody, useErrorText } from '../shared.js';
@@ -214,7 +216,9 @@ function DepartmentDetail({
           />
         ),
         cell: ({ row }) => (
-          <span className='font-medium'>{row.original.user.name}</span>
+          <span className='font-medium'>
+            <UserName name={row.original.user.name} />
+          </span>
         ),
       },
       {
@@ -481,16 +485,18 @@ function DepartmentDetail({
             <dt className='text-muted-foreground'>
               {t('org.departments.fields.manager')}
             </dt>
-            <Value>{department.manager?.name ?? <Dash />}</Value>
+            <Value>
+              <UserName name={department.manager?.name} />
+            </Value>
             <dt className='text-muted-foreground'>
               {t('org.departments.fields.executive')}
             </dt>
             <Value>
               {department.executive ? (
-                department.executive.name
+                <UserName name={department.executive.name} />
               ) : executiveSource?.executive ? (
                 <>
-                  {executiveSource.executive.name}{' '}
+                  <UserName name={executiveSource.executive.name} />{' '}
                   <span className='text-muted-foreground'>
                     {t('org.departments.inheritedFrom', {
                       name: executiveSource.title,
@@ -607,12 +613,17 @@ function DepartmentDetail({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirm.kind === 'disable'
-                ? disableTitle
-                : t('org.departments.members.removeTitle', {
-                    name: confirm.member?.user.name ?? '',
-                    department: department.title,
-                  })}
+              <UserNameText
+                text={
+                  confirm.kind === 'disable'
+                    ? disableTitle
+                    : t('org.departments.members.removeTitle', {
+                        name: confirm.member?.user.name ?? '',
+                        department: department.title,
+                      })
+                }
+                name={confirm.member?.user.name ?? ''}
+              />
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirm.kind === 'disable'

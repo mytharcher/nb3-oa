@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation, useResolvedPath } from 'react-router';
-import { PageContainer } from '@/components/page-container';
+import { PageContainer } from '#components/page-container';
 export default function ApprovalsPage() {
   const location = useLocation();
   const base = useResolvedPath('.');

@@ -5,26 +5,26 @@ import { HistoryIcon, MoreHorizontalIcon, PencilIcon } from 'lucide-react';
 import { type ReactElement, useMemo } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 
-import { DataTable } from '@/components/data-table';
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { DataTable } from '#components/data-table';
+import { PageContainer } from '#components/page-container';
+import { PageHeader } from '#components/page-header';
+import { Badge } from '#components/ui/badge';
+import { Button } from '#components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '#components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Spinner } from '@/components/ui/spinner';
+} from '#components/ui/dropdown-menu';
+import { Spinner } from '#components/ui/spinner';
 
 import { LoadErrorAlert, TableSkeleton } from '../shared/states.js';
 import { RULE_DOMAINS, type RuleSummary } from '../shared/types.js';
@@ -37,7 +37,7 @@ import {
 } from './rule-format.js';
 
 /**
- * Route /settings/approval-rules: every rule key of the rules area, grouped by domain, with the value in effect and
+ * Route /approval-rules: every rule key of the rules area, grouped by domain, with the value in effect and
  * the versions scheduled for later. A change adds a version; requests submitted earlier keep their snapshot.
  */
 export default function ApprovalRulesPage(): ReactElement {

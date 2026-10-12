@@ -1,35 +1,49 @@
+import {
+  useRequestFormSubmission,
+  preventComposingSubmit,
+} from '#hooks/use-request-form-submission';
+import {
+  RequestFormButtons,
+  RequestSubmissionFeedback,
+} from '#components/request-form-submission';
+import { LeaveAttachmentEditor } from './attachments.js';
+import { createRequestId } from './request-id.js';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
+import {
+  ApiClientError,
+  useApiClient,
+  useToaster,
+  useNavigationGuard,
+} from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { format, parseISO } from 'date-fns';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import {
-  useBlocker,
   useLocation,
   useNavigate,
   useOutletContext,
   useParams,
 } from 'react-router';
 import { z } from 'zod';
-import { BackButton } from '@/components/back-button';
-import { DatePicker } from '@/components/date-picker';
-import { UserPicker } from '@/components/user-picker';
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
-import { RouteChildPage } from '@/components/route-child-page';
-import { Button } from '@/components/ui/button';
+import { BackButton } from '#components/back-button';
+import { DatePicker } from '#components/date-picker';
+import { UserPicker } from '#components/user-picker';
+import { PageContainer } from '#components/page-container';
+import { PageHeader } from '#components/page-header';
+import { RouteFormPage } from '#components/route-form-page';
+import { Button } from '#components/ui/button';
 import {
   Field,
   FieldGroup,
   FieldLabel,
   FieldError,
   FieldDescription,
-} from '@/components/ui/field';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
+} from '#components/ui/field';
+import { Textarea } from '#components/ui/textarea';
+import { Checkbox } from '#components/ui/checkbox';
 import {
   Select,
   SelectTrigger,
@@ -37,8 +51,8 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-} from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+} from '#components/ui/select';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -47,12 +61,11 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogCancel,
-} from '@/components/ui/alert-dialog';
-import { Spinner } from '@/components/ui/spinner';
+} from '#components/ui/alert-dialog';
 import {
   ApprovalUiProvider,
   ApprovalRoutePreview,
-} from '@/extensions/nocobase-approval-ui';
+} from '#extensions/nocobase-approval-ui';
 import { FieldsSkeleton } from '../platform/shared/states.js';
 import { useResource } from './use-resource.js';
 import { ErrorState } from './states.js';
@@ -69,6 +82,7 @@ import type {
 const POPUP =
   'w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal';
 export default function LeaveFormPage() {
+  const { t: drawerTitle } = useTranslation();
   const { requestId } = useParams();
   const parent = useOutletContext<SourceContext & Partial<DetailContext>>();
   const options = useResource<LeaveOptions>('leaveRequests/options');
@@ -83,7 +97,12 @@ export default function LeaveFormPage() {
       parent.reload();
   }, [detail.error, parent]);
   return (
-    <RouteChildPage>
+    <RouteFormPage
+      printable
+      title={drawerTitle(
+        requestId ? 'approvals.editLeave' : 'approvals.newLeave',
+      )}
+    >
       <PageContainer>
         {options.error || detail.error ? (
           <>
@@ -111,7 +130,7 @@ export default function LeaveFormPage() {
           />
         )}
       </PageContainer>
-    </RouteChildPage>
+    </RouteFormPage>
   );
 }
 function LeaveForm({
@@ -142,6 +161,9 @@ function LeaveForm({
     resource: { type: 'user', id: '*' },
     action: 'read',
   }).can;
+  const submission = useRequestFormSubmission<LeaveRecord>({
+    resource: 'leaveRequests',
+  });
   const schema = useMemo(
     () =>
       z
@@ -170,7 +192,12 @@ function LeaveForm({
         }),
     [t],
   );
-  const record = detail?.record;
+  const [createdDraft, setCreatedDraft] = useState<LeaveRecord>();
+  const record = detail?.record ?? createdDraft;
+  const [attachments, setAttachments] = useState<string[]>(
+    detail?.record.attachments ?? [],
+  );
+  const [uploading, setUploading] = useState(false);
   const form = useForm({
     resolver: zodResolver(schema),
     mode: 'onSubmit',
@@ -199,9 +226,19 @@ function LeaveForm({
   const [nextPath, setNextPath] = useState<string | null>(null);
 
   const [discard, setDiscard] = useState(false);
-  const busy = form.formState.isSubmitting;
-  const dirty = form.formState.isDirty && !saved;
-  const blocker = useBlocker(!saved && (dirty || busy));
+  const busy = form.formState.isSubmitting || uploading;
+  const dirty =
+    (form.formState.isDirty ||
+      JSON.stringify(attachments) !==
+        JSON.stringify(record?.attachments ?? [])) &&
+    !saved;
+  // AppClientProviders hosts a declarative router. Its public navigation guard preserves the mounted form
+  // when a sidebar link or browser history traversal is declined; React Router useBlocker requires a data router.
+  useNavigationGuard(() => {
+    if (saved || (!dirty && !busy)) return true;
+    if (busy) return false;
+    return window.confirm(t('approvals.discardDescription'));
+  });
   useEffect(() => {
     if (saved && nextPath)
       void navigate(
@@ -210,11 +247,11 @@ function LeaveForm({
       );
   }, [saved, nextPath, navigate, location.search]);
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty && !busy) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
+  }, [dirty, busy]);
   const previewInput = {
     leaveType: values.leaveType,
     startDate: values.startDate,
@@ -222,7 +259,7 @@ function LeaveForm({
     startHalf: values.startHalf,
     endHalf: values.endHalf,
     reason: values.reason ?? '',
-    attachments: [],
+    attachments,
     handoverUserId: values.handoverUserId || null,
     enableDelegation: values.enableDelegation ?? false,
   };
@@ -287,55 +324,97 @@ function LeaveForm({
       label:
         type.label[i18n.language] ?? type.label['en-US'] ?? type.label['zh-CN'],
     }));
-  const denied = record
+  const denied = detail?.record
     ? !detail?.view.available.some((a) => a.name === 'edit' && a.allowed)
     : !canCreate;
+  async function ensureDraft() {
+    if (record) return record.id;
+    if (!(await form.trigger())) throw new Error('Invalid draft');
+    const input = form.getValues();
+    const { data } = await api.request<{ data: { record: LeaveRecord } }>({
+      method: 'POST',
+      path: 'leaveRequests',
+      json: {
+        ...input,
+        applicantId: input.applicantId || undefined,
+        handoverUserId: input.handoverUserId || null,
+        attachments: [],
+      },
+    });
+    setCreatedDraft(data.record);
+    parent.reload();
+    return data.record.id;
+  }
   async function submit(input: z.infer<typeof schema>) {
+    if (uploading) return;
     setWriteError(undefined);
     try {
       const json = {
         ...input,
-        attachments: [],
+        attachments,
         handoverUserId: input.handoverUserId || null,
       };
-      let result: LeaveRecord;
-      if (record) {
-        const { data } = await api.request<{ data: { record: LeaveRecord } }>({
-          method: 'POST',
-          path: `leaveRequests/${record.id}/transition`,
-          json: {
-            transition: 'edit',
-            version: record.lifecycleVersion,
-            requestId: crypto.randomUUID(),
-            input: { ...json, applicantId: undefined },
-          },
-        });
-        result = data.record;
-      } else {
-        const { data } = await api.request<{ data: { record: LeaveRecord } }>({
-          method: 'POST',
-          path: 'leaveRequests',
-          json: { ...json, applicantId: input.applicantId || undefined },
-        });
-        result = data.record;
-      }
+      const savedRecord = await submission.save(
+        json,
+        record,
+        async (current) => {
+          let result: LeaveRecord;
+          if (current) {
+            const { data } = await api.request<{
+              data: { record: LeaveRecord };
+            }>({
+              method: 'POST',
+              path: `leaveRequests/${current.id}/transition`,
+              json: {
+                transition: 'edit',
+                version: current.lifecycleVersion,
+                requestId: createRequestId(),
+                input: { ...json, applicantId: undefined },
+              },
+            });
+            result = data.record;
+          } else {
+            const { data } = await api.request<{
+              data: { record: LeaveRecord };
+            }>({
+              method: 'POST',
+              path: 'leaveRequests',
+              json: { ...json, applicantId: input.applicantId || undefined },
+            });
+            result = data.record;
+          }
+          setCreatedDraft(result);
+          return result;
+        },
+      );
+      const result = await submission.finish(savedRecord);
       form.reset(input);
       setSaved(true);
       parent.update?.(result);
       parent.reload();
       toaster.show({
         type: 'success',
-        title: t('approvals.saved', {
-          name: result.number ?? t('approvals.draft'),
-        }),
+        title: t(
+          submission.intent.current === 'submit'
+            ? 'approvals.submitted'
+            : 'approvals.saved',
+          {
+            name: result.number ?? t('approvals.draft'),
+          },
+        ),
       });
-      const fromDetail = !!record && !location.pathname.includes('/editLeave/');
-      setNextPath(fromDetail ? '..' : `../leave/${result.id}`);
+      const fromDetail =
+        !!detail?.record && !location.pathname.includes('/editLeave/');
+      setNextPath(
+        fromDetail || submission.intent.current === 'submit'
+          ? '..'
+          : `../leave/${result.id}`,
+      );
     } catch (error) {
       setWriteError(error);
     }
   }
-  const discardDialog = discard || blocker.state === 'blocked';
+  const discardDialog = discard;
   return (
     <>
       <BackButton />
@@ -357,10 +436,13 @@ function LeaveForm({
             >
               {t('approvals.cancel')}
             </Button>
-            <Button type='submit' form='leave-form' disabled={busy || denied}>
-              {busy ? <Spinner data-icon='inline-start' /> : null}
-              {t(record ? 'approvals.save' : 'approvals.saveDraft')}
-            </Button>
+            <RequestFormButtons
+              resource='oa.leave'
+              form='leave-form'
+              busy={busy}
+              disabled={denied}
+              revision={record?.status === 'revision'}
+            />
           </>
         }
       />
@@ -369,17 +451,23 @@ function LeaveForm({
           <AlertDescription>{t('approvals.readOnly')}</AlertDescription>
         </Alert>
       ) : null}
+      <RequestSubmissionFeedback
+        failed={submission.submitFailed}
+        unknown={submission.submitUnknown}
+      />
       {writeError ? (
         <ErrorState error={writeError} retry={() => setReloadConfirm(true)} />
       ) : null}
       <form
         id='leave-form'
+        onSubmitCapture={submission.captureIntent}
+        onKeyDown={preventComposingSubmit}
         className='max-w-3xl'
         onSubmit={(event) => {
           void form.handleSubmit(submit)(event);
         }}
       >
-        <FieldGroup>
+        <FieldGroup inert={submission.submitUnknown || undefined}>
           {canDelegate && !record && canPick ? (
             <Controller
               name='applicantId'
@@ -550,14 +638,19 @@ function LeaveForm({
               </Field>
             )}
           />
-          <Alert>
-            <AlertDescription>
-              {t('approvals.attachmentLimit')}
-            </AlertDescription>
-          </Alert>
-          <Alert>
-            <AlertDescription>{t('approvals.balanceLimit')}</AlertDescription>
-          </Alert>
+          <LeaveAttachmentEditor
+            leaveId={record?.id}
+            ids={attachments}
+            onChange={setAttachments}
+            ensureDraft={ensureDraft}
+            disabled={busy || denied}
+            onBusyChange={setUploading}
+          />
+          {!options.balanceAvailable ? (
+            <Alert>
+              <AlertDescription>{t('approvals.balanceLimit')}</AlertDescription>
+            </Alert>
+          ) : null}
           {options.timeZone ? (
             <FieldDescription>
               {t('approvals.calendarTimeZone', { zone: options.timeZone })}
@@ -609,7 +702,6 @@ function LeaveForm({
         onOpenChange={(open) => {
           if (!open && !busy) {
             setDiscard(false);
-            if (blocker.state === 'blocked') blocker.reset();
           }
         }}
       >
@@ -630,11 +722,7 @@ function LeaveForm({
               onClick={() => {
                 setSaved(true);
                 setDiscard(false);
-                if (blocker.state === 'blocked') blocker.proceed();
-                else {
-                  setSaved(true);
-                  setNextPath('..');
-                }
+                setNextPath('..');
               }}
             >
               {t('approvals.discardConfirm')}

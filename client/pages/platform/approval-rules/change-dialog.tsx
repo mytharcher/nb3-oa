@@ -7,24 +7,24 @@ import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
 
-import { RouteDialog } from '@/components/route-dialog';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { RouteDialog } from '#components/route-dialog';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import {
   Field,
   FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
-} from '@/components/ui/field';
+} from '#components/ui/field';
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
   InputGroupText,
-} from '@/components/ui/input-group';
-import { Textarea } from '@/components/ui/textarea';
-import { useRouteOverlay } from '@/components/use-route-overlay';
+} from '#components/ui/input-group';
+import { Textarea } from '#components/ui/textarea';
+import { useRouteOverlay } from '#components/use-route-overlay';
 
 import {
   effectiveFromOf,
@@ -156,7 +156,7 @@ function ChangeForm({
           )
           .refine(
             (value) =>
-              (rule.type !== 'count' && rule.type !== 'rank') ||
+              !['count', 'rank', 'integer'].includes(rule.type) ||
               Number.isInteger(Number(value)),
             t('platform.rules.errors.integer'),
           )

@@ -2,8 +2,8 @@ import { ApiClientError } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { type ReactElement, useMemo } from 'react';
 
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Button } from '@/components/ui/button';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Button } from '#components/ui/button';
 import {
   Combobox,
   ComboboxContent,
@@ -11,18 +11,20 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-} from '@/components/ui/combobox';
+} from '#components/ui/combobox';
 import {
   type DepartmentOption,
   type DepartmentPathOption,
   useDepartmentOptions,
-} from '@/hooks/use-department-options';
+} from '#hooks/use-department-options';
 
 export type { DepartmentOption, DepartmentPathOption };
 
 export interface DepartmentPickerProps {
   /** The selected department's id; an empty string when none is selected. */
   readonly value: string;
+  /** Optional business-authorized subset; omission preserves directory picker behavior. */
+  readonly allowedIds?: readonly string[];
   readonly onChange: (
     value: string,
     department: DepartmentPathOption | null,
@@ -80,6 +82,7 @@ function isSameDepartment(
  */
 export function DepartmentPicker({
   value,
+  allowedIds,
   onChange,
   id,
   onBlur,
@@ -105,9 +108,10 @@ export function DepartmentPicker({
     return departments.filter(
       (department) =>
         !excluded.has(department.id) &&
+        (!allowedIds || allowedIds.includes(department.id)) &&
         (includeInactive || department.active || department.id === value),
     );
-  }, [departments, excludeSubtreeOf, includeInactive, value]);
+  }, [departments, excludeSubtreeOf, includeInactive, value, allowedIds]);
 
   if (error) {
     if (error instanceof ApiClientError && error.status === 401)

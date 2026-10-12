@@ -12,11 +12,11 @@ import {
 } from 'react';
 import { Link, Outlet, useLocation, useParams } from 'react-router';
 
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { PageContainer } from '#components/page-container';
+import { PageHeader } from '#components/page-header';
+import { Badge } from '#components/ui/badge';
+import { Button } from '#components/ui/button';
+import { Card, CardContent } from '#components/ui/card';
 import {
   Empty,
   EmptyContent,
@@ -24,15 +24,15 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty';
+} from '#components/ui/empty';
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from '@/components/ui/input-group';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Spinner } from '@/components/ui/spinner';
-import { useUrlSearch } from '@/hooks/use-url-search';
+} from '#components/ui/input-group';
+import { Skeleton } from '#components/ui/skeleton';
+import { Spinner } from '#components/ui/spinner';
+import { useUrlSearch } from '#hooks/use-url-search';
 
 import { LoadError } from '../org-ui.js';
 import { type ListBody, ORG_SETTINGS, useCanUpdate } from '../shared.js';

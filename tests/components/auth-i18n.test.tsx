@@ -47,13 +47,19 @@ describe('authentication translations', () => {
     const value = await runtime();
     renderPage(value, <LoginPage />);
     await act(() => value.changeLanguage('zh-CN'));
-    expect(screen.getByRole('heading', { name: '欢迎回来' })).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: '欢迎回到 OA 工作台' }),
+    ).toBeVisible();
     expect(screen.getByLabelText('用户名或邮箱')).toBeVisible();
     expect(screen.getByRole('button', { name: '显示密码' })).toBeVisible();
     expect(screen.getByRole('link', { name: '注册' })).toBeVisible();
-    expect(screen.getByText('AI 原生应用平台')).toBeVisible();
+    expect(screen.getByText('连接团队与日常工作')).toBeVisible();
     await act(() => value.changeLanguage('en-US'));
-    expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+    expect(
+      screen.getByRole('heading', {
+        name: 'Welcome back to your OA workspace',
+      }),
+    ).toBeVisible();
   });
   it('retranslates an existing password mismatch', async () => {
     const value = await runtime();

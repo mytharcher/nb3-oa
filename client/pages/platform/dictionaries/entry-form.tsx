@@ -6,8 +6,8 @@ import { type ReactElement, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import {
   Field,
   FieldContent,
@@ -18,9 +18,16 @@ import {
   FieldLegend,
   FieldSeparator,
   FieldSet,
-} from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
+} from '#components/ui/field';
+import { Input } from '#components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '#components/ui/select';
+import { Switch } from '#components/ui/switch';
 
 import { fieldViolationsOf, reasonOf, statusOf } from '../shared/errors.js';
 import {
@@ -60,6 +67,10 @@ export function EntryForm({
     const extra: Record<string, z.ZodType> = {};
     for (const field of definition.extraFields) {
       if (field.type === 'boolean') extra[field.name] = z.boolean();
+      else if (field.type === 'enum')
+        extra[field.name] = z.enum(field.options as [string, ...string[]], {
+          error: t('platform.dictionaries.invalidStandardKind'),
+        });
       else
         extra[field.name] = z
           .string()
@@ -133,9 +144,13 @@ export function EntryForm({
             field.name,
             field.type === 'boolean'
               ? value === true
-              : typeof value === 'number'
-                ? String(value)
-                : '',
+              : field.type === 'enum'
+                ? typeof value === 'string'
+                  ? value
+                  : (field.options?.[0] ?? '')
+                : typeof value === 'number'
+                  ? String(value)
+                  : '',
           ];
         }),
       ),
@@ -152,9 +167,11 @@ export function EntryForm({
               field.name,
               field.type === 'boolean'
                 ? value === true
-                : value === ''
-                  ? null
-                  : Number(value),
+                : field.type === 'enum'
+                  ? value
+                  : value === ''
+                    ? null
+                    : Number(value),
             ];
           }),
         )
@@ -389,6 +406,40 @@ function ExtraFieldInput({
 }: ExtraFieldInputProps): ReactElement {
   const { t } = useTranslation();
   const label = t(`platform.dictionaries.extra.${definition.name}`);
+  if (definition.type === 'enum')
+    return (
+      <Field data-invalid={error ? true : undefined}>
+        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+        <Select
+          value={typeof value === 'string' ? value : ''}
+          onValueChange={onChange}
+        >
+          <SelectTrigger
+            ref={inputRef}
+            id={id}
+            onBlur={onBlur}
+            aria-invalid={error ? true : undefined}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
+            {definition.options?.map((option) => (
+              <SelectItem key={option} value={option}>
+                {t(
+                  `platform.dictionaries.extraOptions.${definition.name}.${option}`,
+                )}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {definition.name === 'travelStandardKind' ? (
+          <FieldDescription>
+            {t('platform.dictionaries.travelStandardKindHelp')}
+          </FieldDescription>
+        ) : null}
+        <FieldError errors={[error]} />
+      </Field>
+    );
   if (definition.type === 'boolean')
     return (
       <Field orientation='horizontal' data-invalid={error ? true : undefined}>

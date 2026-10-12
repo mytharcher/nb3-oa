@@ -20,9 +20,9 @@ import {
 } from 'react';
 import { Link, Outlet, useLocation, useSearchParams } from 'react-router';
 
-import { DataTable } from '@/components/data-table';
-import { DataTableColumnHeader } from '@/components/data-table/column-header';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
+import { DataTable } from '#components/data-table';
+import { DataTableColumnHeader } from '#components/data-table/column-header';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,8 +32,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+} from '#components/ui/alert-dialog';
+import { Button } from '#components/ui/button';
 import {
   Card,
   CardAction,
@@ -41,7 +41,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '#components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,7 +49,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '#components/ui/dropdown-menu';
 import {
   Empty,
   EmptyContent,
@@ -57,8 +57,8 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty';
-import { Spinner } from '@/components/ui/spinner';
+} from '#components/ui/empty';
+import { Spinner } from '#components/ui/spinner';
 
 import { statusOf } from '../shared/errors.js';
 import { LoadErrorAlert, TableSkeleton } from '../shared/states.js';

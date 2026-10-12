@@ -27,26 +27,14 @@ function flatten(
 
 describe('platform client routes', () => {
   it('places each settings page in its group with its settings item', () => {
-    const routes = flatten(resolve().settingsRouteTree);
+    const routes = flatten(resolve().routes);
     const page = (name: string) => routes.find((route) => route.name === name);
     const expected: [string, string, string][] = [
-      [
-        'platform-work-calendar',
-        '/settings/work-calendar',
-        'oa.platform.calendar',
-      ],
-      [
-        'platform-dictionaries',
-        '/settings/dictionaries',
-        'oa.platform.dictionaries',
-      ],
-      [
-        'platform-approval-rules',
-        '/settings/approval-rules',
-        'oa.platform.rules',
-      ],
-      ['platform-sequences', '/settings/sequences', 'oa.platform.sequences'],
-      ['platform-audit-logs', '/settings/audit-logs', 'oa.platform.auditLogs'],
+      ['platform-work-calendar', '/work-calendar', 'oa.platform.calendar'],
+      ['platform-dictionaries', '/dictionaries', 'oa.platform.dictionaries'],
+      ['platform-approval-rules', '/approval-rules', 'oa.platform.rules'],
+      ['platform-sequences', '/sequences', 'oa.platform.sequences'],
+      ['platform-audit-logs', '/audit-logs', 'oa.platform.auditLogs'],
     ];
     for (const [name, path, item] of expected) {
       const route = page(name);
@@ -64,7 +52,6 @@ describe('platform client routes', () => {
         'platform-work-calendar',
         'platform-dictionaries',
         'platform-approval-rules',
-        'platform-sequences',
       ]),
     );
     const system = routes.find((route) => route.name === 'oa-system');
@@ -74,7 +61,7 @@ describe('platform client routes', () => {
   });
 
   it('loads every page and overlay component', async () => {
-    const loaders = flatten(resolve().settingsRouteTree)
+    const loaders = flatten(resolve().routes)
       .filter((route) => route.name.startsWith('platform-'))
       .map((route) => route.componentLoader)
       .filter((loader) => loader !== undefined);

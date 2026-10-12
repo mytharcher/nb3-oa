@@ -3,15 +3,15 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { type ReactElement, useMemo } from 'react';
 import { Outlet, useOutletContext } from 'react-router';
 
-import { DataTable, DataTableColumnHeader } from '@/components/data-table';
-import { Badge } from '@/components/ui/badge';
+import { DataTable, DataTableColumnHeader } from '#components/data-table';
+import { Badge } from '#components/ui/badge';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '#components/ui/card';
 
 import {
   EMPLOYEE_STATUSES,
@@ -31,6 +31,7 @@ const FIELD_LABELS = {
   positionId: 'position',
   gradeId: 'grade',
   hireDate: 'hireDate',
+  careerStartDate: 'careerStartDate',
   probationEndDate: 'probationEndDate',
 } as const;
 

@@ -28,7 +28,13 @@ export function ExtraSummary({
       t('platform.dictionaries.extraValue', {
         name,
         value:
-          typeof value === 'number' ? String(value) : JSON.stringify(value),
+          field.type === 'enum'
+            ? t(
+                `platform.dictionaries.extraOptions.${field.name}.${String(value)}`,
+              )
+            : typeof value === 'number'
+              ? String(value)
+              : JSON.stringify(value),
       }),
     ];
   });

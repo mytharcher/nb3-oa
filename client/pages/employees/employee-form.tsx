@@ -7,11 +7,11 @@ import { type ReactElement, useEffect, useMemo } from 'react';
 import { Controller, useForm, type Control } from 'react-hook-form';
 import { z } from 'zod';
 
-import { DatePicker } from '@/components/date-picker';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { UserPicker } from '@/components/user-picker';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { DatePicker } from '#components/date-picker';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { UserPicker } from '#components/user-picker';
+import { Alert, AlertDescription } from '#components/ui/alert';
+import { Button } from '#components/ui/button';
 import {
   Field,
   FieldError,
@@ -19,8 +19,8 @@ import {
   FieldLabel,
   FieldLegend,
   FieldSet,
-} from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
+} from '#components/ui/field';
+import { Input } from '#components/ui/input';
 import {
   Select,
   SelectContent,
@@ -28,7 +28,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '#components/ui/select';
 
 import { EmployeePicker } from './employee-picker.js';
 import type { Employee } from './types.js';
@@ -42,10 +42,28 @@ const NONE = '__none__';
 const REASON_FIELDS: Record<
   string,
   {
-    field: 'userId' | 'code' | 'managerId' | 'positionId' | 'gradeId';
+    field:
+      | 'userId'
+      | 'code'
+      | 'managerId'
+      | 'positionId'
+      | 'gradeId'
+      | 'careerStartDate';
     key: string;
   }
 > = {
+  EMPLOYEE_CAREER_START_INVALID: {
+    field: 'careerStartDate',
+    key: 'employees.form.careerStartInvalid',
+  },
+  EMPLOYEE_CAREER_START_FUTURE: {
+    field: 'careerStartDate',
+    key: 'employees.form.careerStartFuture',
+  },
+  EMPLOYEE_CAREER_START_AFTER_HIRE: {
+    field: 'careerStartDate',
+    key: 'employees.form.careerStartAfterHire',
+  },
   EMPLOYEE_USER_TAKEN: { field: 'userId', key: 'employees.form.userTaken' },
   EMPLOYEE_USER_NOT_FOUND: {
     field: 'userId',
@@ -128,6 +146,7 @@ export function EmployeeForm({
           .max(128, t('employees.form.tooLong', { max: 128 })),
         status: z.enum(['probation', 'regular']),
         hireDate: z.date().optional(),
+        careerStartDate: z.date().optional(),
         probationEndDate: z.date().optional(),
         managerId: z.string(),
         positionId: z.string(),
@@ -151,7 +170,17 @@ export function EmployeeForm({
             path: ['userId'],
             message: t('employees.form.userRequired'),
           });
-        if (!values.hireDate)
+        if (
+          values.careerStartDate &&
+          values.hireDate &&
+          values.careerStartDate > values.hireDate
+        )
+          context.addIssue({
+            code: 'custom',
+            path: ['careerStartDate'],
+            message: t('employees.form.careerStartAfterHire'),
+          });
+        if (creating && !values.hireDate)
           context.addIssue({
             code: 'custom',
             path: ['hireDate'],
@@ -168,6 +197,7 @@ export function EmployeeForm({
       name: employee?.name ?? '',
       status: 'probation' as 'probation' | 'regular',
       hireDate: toDate(employee?.hireDate),
+      careerStartDate: toDate(employee?.careerStartDate),
       probationEndDate: toDate(employee?.probationEndDate),
       managerId: employee?.managerId ?? '',
       positionId: employee?.positionId ?? '',
@@ -189,6 +219,7 @@ export function EmployeeForm({
       code: values.code,
       name: values.name,
       hireDate: toDay(values.hireDate),
+      careerStartDate: toDay(values.careerStartDate),
       probationEndDate: toDay(values.probationEndDate),
       managerId: values.managerId || null,
       positionId: values.positionId || null,
@@ -352,10 +383,16 @@ export function EmployeeForm({
             ) : null}
             <DateField
               control={form.control}
+              name='careerStartDate'
+              id={id('careerStartDate')}
+              label={t('employees.fields.careerStartDate')}
+            />
+            <DateField
+              control={form.control}
               name='hireDate'
               id={id('hireDate')}
               label={t('employees.fields.hireDate')}
-              required
+              required={creating}
             />
             <DateField
               control={form.control}
@@ -465,6 +502,7 @@ interface FormShape {
   name: string;
   status: 'probation' | 'regular';
   hireDate?: Date;
+  careerStartDate?: Date;
   probationEndDate?: Date;
   managerId: string;
   positionId: string;
@@ -523,7 +561,7 @@ function DateField({
   required = false,
 }: {
   readonly control: Control<FormShape>;
-  readonly name: 'hireDate' | 'probationEndDate';
+  readonly name: 'hireDate' | 'probationEndDate' | 'careerStartDate';
   readonly id: string;
   readonly label: string;
   readonly required?: boolean;

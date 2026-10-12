@@ -180,8 +180,11 @@ const platformEnUS = {
         extraInvalid: 'This value is not accepted.',
       },
       types: {
+        expensePlanType: 'Expense request matters',
+        officeItem: 'Office supplies',
         leaveType: 'Leave types',
         annualLeaveTier: 'Annual leave by service',
+        paymentMethod: 'Payment method',
         expenseCategory: 'Expense categories',
         budgetSubject: 'Budget subjects',
         sealType: 'Seal types',
@@ -189,12 +192,25 @@ const platformEnUS = {
         assetCategory: 'Asset categories',
         supplierCategory: 'Supplier categories',
         vehicleType: 'Vehicle types',
+        departureType: 'Departure type',
         resignationReason: 'Resignation reasons',
         recruitmentReason: 'Hiring reasons',
         certificateType: 'Certificate types',
         travelStandard: 'Travel standards',
       },
+      travelStandardKindHelp:
+        'Use the corresponding category for lodging and allowance. An aggregate travel category does not represent either and has no daily standard.',
+      invalidStandardKind: 'Choose a valid travel standard classification.',
+      extraOptions: {
+        travelStandardKind: {
+          none: 'Not applicable',
+          lodging: 'Lodging per night',
+          allowance: 'Allowance per day',
+        },
+      },
       extra: {
+        travelStandardKind: 'Travel standard classification',
+        requiresPrintInfo: 'Needs printing details',
         deductsBalance: 'Deducts balance',
         requiresAttachment: 'Needs an attachment',
         attachmentAboveDays: 'Attachment above (days)',
@@ -300,6 +316,7 @@ const platformEnUS = {
       units: {
         money: '¥{{value}}',
         count: '{{value}} times',
+        integer: '{{value}}',
         days: '{{value}} days',
         hours: '{{value}} hours',
         workingHours: '{{value}} working hours',
@@ -308,6 +325,7 @@ const platformEnUS = {
       unitSuffix: {
         money: 'yuan',
         count: 'times',
+        integer: '',
         days: 'days',
         hours: 'hours',
         workingHours: 'working hours',
@@ -315,6 +333,21 @@ const platformEnUS = {
         rank: 'rank',
       },
       keys: {
+        leave_annualAccrualEnabled: {
+          label: 'Annual leave automatic accrual',
+          description:
+            '0 disables automatic grants; 1 enables daily accrual. Fill employees’ career start dates before enabling.',
+        },
+        leave_annualCarryExpiryMonth: {
+          label: 'Annual leave carryover expiry month',
+          description:
+            'Month in the following year when unused annual leave expires (1–12).',
+        },
+        leave_annualCarryExpiryDay: {
+          label: 'Annual leave carryover expiry day',
+          description:
+            'Last valid day in the expiry month (1–31); shorter months use their last day.',
+        },
         spend_vp: {
           label: 'Vice president threshold',
           description: 'Amounts above this need the vice president in charge.',

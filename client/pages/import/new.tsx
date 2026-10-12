@@ -10,17 +10,17 @@ import {
 import { type ReactElement, useId, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router';
 
-import { RouteDialog } from '@/components/route-dialog';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { RouteDialog } from '#components/route-dialog';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Alert, AlertDescription, AlertTitle } from '#components/ui/alert';
+import { Button } from '#components/ui/button';
 import {
   Field,
   FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
-} from '@/components/ui/field';
+} from '#components/ui/field';
 import {
   Select,
   SelectContent,
@@ -28,9 +28,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Spinner } from '@/components/ui/spinner';
-import { useRouteOverlay } from '@/components/use-route-overlay';
+} from '#components/ui/select';
+import { Spinner } from '#components/ui/spinner';
+import { useRouteOverlay } from '#components/use-route-overlay';
 
 import { useTemplateDownload } from './download.js';
 import { ProblemTable } from './problems.js';

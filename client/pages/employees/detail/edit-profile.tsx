@@ -1,3 +1,4 @@
+import { UserName } from '#components/user-name';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -8,11 +9,11 @@ import { Controller, useForm } from 'react-hook-form';
 import { useOutletContext } from 'react-router';
 import { z } from 'zod';
 
-import { DatePicker } from '@/components/date-picker';
-import { RouteDrawer } from '@/components/route-drawer';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
-import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { DatePicker } from '#components/date-picker';
+import { RouteDrawer } from '#components/route-drawer';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { Alert, AlertAction, AlertDescription } from '#components/ui/alert';
+import { Button } from '#components/ui/button';
 import {
   Field,
   FieldError,
@@ -20,11 +21,11 @@ import {
   FieldLabel,
   FieldLegend,
   FieldSet,
-} from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/spinner';
-import { Textarea } from '@/components/ui/textarea';
-import { useRouteOverlay } from '@/components/use-route-overlay';
+} from '#components/ui/field';
+import { Input } from '#components/ui/input';
+import { Spinner } from '#components/ui/spinner';
+import { Textarea } from '#components/ui/textarea';
+import { useRouteOverlay } from '#components/use-route-overlay';
 
 import type {
   EmployeeProfile,
@@ -154,7 +155,7 @@ export default function EditProfileDrawer(): ReactElement {
   return (
     <RouteDrawer
       title={t('employees.profile.editTitle')}
-      description={employee.name}
+      description={<UserName name={employee.name} />}
       beforeClose={() => !submittingRef.current}
       footer={footer}
     >

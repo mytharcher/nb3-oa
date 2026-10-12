@@ -3,16 +3,16 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { AlertCircleIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
 import {
   Alert,
   AlertAction,
   AlertDescription,
   AlertTitle,
-} from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+} from '#components/ui/alert';
+import { Badge } from '#components/ui/badge';
+import { Button } from '#components/ui/button';
+import { Skeleton } from '#components/ui/skeleton';
 
 /**
  * A failed load, by status (guideline S4): 401 offers signing in again, 403 and 404 explain without "Retry", anything

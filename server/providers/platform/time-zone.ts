@@ -119,3 +119,58 @@ export function instantOfLocal(
 export function periodOf(timeZone: string, instant: Date): string {
   return localDateOf(timeZone, instant).slice(0, 7).replace('-', '');
 }
+
+/** Machine-readable failures let business routes translate a clock-time error without exposing raw messages. */
+export class LocalDateTimeError extends RangeError {
+  constructor(
+    public readonly code:
+      'INVALID_LOCAL_TIME' | 'NONEXISTENT_LOCAL_TIME' | 'AMBIGUOUS_LOCAL_TIME',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'LocalDateTimeError';
+  }
+}
+
+/** Strict booking conversion: gaps and repeated wall times require a different explicit time. */
+export function resolveLocalDateTime(
+  timeZone: string,
+  date: LocalDate,
+  time: string,
+): Date {
+  if (!isLocalDate(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))
+    throw new LocalDateTimeError(
+      'INVALID_LOCAL_TIME',
+      'A real local date and HH:mm time are required.',
+    );
+  const wall = Date.parse(`${date}T${time}:00Z`);
+  const formatter = formatterOf(timeZone);
+  const wallAt = (instant: number) => {
+    const parts = formatter.formatToParts(new Date(instant));
+    const part = (type: string) =>
+      Number(parts.find((p) => p.type === type)!.value);
+    // setUTCFullYear avoids Date.UTC's special interpretation of years 00..99.
+    const value = new Date(0);
+    value.setUTCFullYear(part('year'), part('month') - 1, part('day'));
+    value.setUTCHours(part('hour'), part('minute'), part('second'), 0);
+    return value.getTime();
+  };
+  const offsets = new Set<number>();
+  // Sample both sides of nearby transitions, including a date-line jump. Every candidate is round-trip checked;
+  // unlike the working-hours helper, this API never normalizes a skipped clock time into another appointment.
+  for (let hours = -48; hours <= 48; hours++) {
+    const sample = wall + hours * 3_600_000;
+    offsets.add(wallAt(sample) - sample);
+  }
+  const candidates = [...offsets]
+    .map((offset) => wall - offset)
+    .filter((candidate) => wallAt(candidate) === wall);
+  if (candidates.length !== 1)
+    throw new LocalDateTimeError(
+      candidates.length ? 'AMBIGUOUS_LOCAL_TIME' : 'NONEXISTENT_LOCAL_TIME',
+      candidates.length
+        ? 'The local clock time occurs more than once.'
+        : 'The local clock time does not exist.',
+    );
+  return new Date(candidates[0]);
+}

@@ -32,6 +32,7 @@ export interface Employee {
   readonly positionId?: string | null;
   readonly gradeId?: string | null;
   readonly hireDate?: string | null;
+  readonly careerStartDate?: string | null;
   readonly probationEndDate?: string | null;
   readonly status?: EmployeeStatus;
   readonly lastWorkingDay?: string | null;

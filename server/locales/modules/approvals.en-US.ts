@@ -13,5 +13,6 @@ export default {
     terminated: 'Your application has been terminated.',
     result: 'The status of your application has changed.',
     attention: 'An approval needs administrator attention.',
+    deadline: '{{name}} is due on {{date}}.',
   },
 };

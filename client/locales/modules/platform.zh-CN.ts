@@ -164,8 +164,11 @@ const platformZhCN: LocaleResource<PlatformLocale> = {
         extraInvalid: '该值不被接受。',
       },
       types: {
+        expensePlanType: '事前费用事项',
+        officeItem: '办公用品',
         leaveType: '假期类型',
         annualLeaveTier: '年假工龄档',
+        paymentMethod: '付款方式',
         expenseCategory: '费用类别',
         budgetSubject: '预算科目',
         sealType: '印章类型',
@@ -173,12 +176,25 @@ const platformZhCN: LocaleResource<PlatformLocale> = {
         assetCategory: '资产类别',
         supplierCategory: '供应商类别',
         vehicleType: '车辆类型',
+        departureType: '离职类型',
         resignationReason: '离职原因',
         recruitmentReason: '招聘原因',
         certificateType: '证明类型',
         travelStandard: '差旅标准',
       },
+      travelStandardKindHelp:
+        '住宿及补助应使用对应类别。汇总差旅类别不代表住宿或补助，不套用每日标准。',
+      invalidStandardKind: '请选择有效的差旅标准类型。',
+      extraOptions: {
+        travelStandardKind: {
+          none: '不适用',
+          lodging: '住宿（每晚）',
+          allowance: '补助（每日）',
+        },
+      },
       extra: {
+        travelStandardKind: '差旅标准类型',
+        requiresPrintInfo: '需印制信息',
         deductsBalance: '扣余额',
         requiresAttachment: '需附件',
         attachmentAboveDays: '超过天数需附件',
@@ -265,6 +281,7 @@ const platformZhCN: LocaleResource<PlatformLocale> = {
       units: {
         money: '¥{{value}}',
         count: '{{value}} 次',
+        integer: '{{value}}',
         days: '{{value}} 天',
         hours: '{{value}} 小时',
         workingHours: '{{value}} 工作小时',
@@ -273,6 +290,7 @@ const platformZhCN: LocaleResource<PlatformLocale> = {
       unitSuffix: {
         money: '元',
         count: '次',
+        integer: '',
         days: '天',
         hours: '小时',
         workingHours: '工作小时',
@@ -280,6 +298,20 @@ const platformZhCN: LocaleResource<PlatformLocale> = {
         rank: '级',
       },
       keys: {
+        leave_annualAccrualEnabled: {
+          label: '年假自动计提',
+          description:
+            '0 为停用，1 为启用每日自动计提。启用前请补齐员工首次参加工作日期。',
+        },
+        leave_annualCarryExpiryMonth: {
+          label: '年假结转到期月份',
+          description: '未使用年假在次年的到期月份，范围 1–12。',
+        },
+        leave_annualCarryExpiryDay: {
+          label: '年假结转到期日',
+          description:
+            '到期月份最后可使用的日期，范围 1–31；月份天数不足时取月末。',
+        },
         spend_vp: {
           label: '分管副总审批起点',
           description: '金额超过此值须分管副总审批。',

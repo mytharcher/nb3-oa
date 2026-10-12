@@ -1,0 +1,28 @@
+export default {
+  form: {
+    create: '创建转正草稿',
+    edit: '编辑自评',
+    save: '保存草稿',
+    saved: '已保存转正草稿“{{name}}”',
+    draftName: '{{name}} — 草稿',
+    employee: '员工',
+    selfEvaluation: '自评',
+    employeeRequired: '请选择试用期员工。',
+    invalid: '请检查该值后重试。',
+    notEditable: '当前权限下无法编辑该草稿。',
+    conflict: '草稿已变化。请读取最新版本后再保存保留的输入。',
+    unknownEdit: '保存结果尚未确认，请用原请求核对结果。',
+    unknownCreate: '保存结果尚未确认。请核对草稿后再继续，不要重复创建。',
+    replay: '核对前次保存',
+    checkDrafts: '核对已保存草稿',
+    candidateHint:
+      '以下草稿由你在本次尝试期间为所选员工创建。请打开核对内容，匹配记录不代表已确认保存。如结果仍不明确，请管理员核对后再创建。',
+    openDraft: '打开申请',
+    noDraftConfirmed: '未看到匹配的申请，前次创建结果仍未确认。',
+    employeesDenied: '选择员工需要员工档案查看权限。',
+    employeeSearch: '搜索员工姓名或工号',
+    chooseEmployee: '选择试用期员工',
+    previousEmployees: '上一页员工',
+    nextEmployees: '更多员工',
+  },
+};

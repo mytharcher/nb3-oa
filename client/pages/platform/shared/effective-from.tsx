@@ -2,7 +2,7 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { addDays, startOfDay } from 'date-fns';
 import { type ReactElement, useState } from 'react';
 
-import { DatePicker } from '@/components/date-picker';
+import { DatePicker } from '#components/date-picker';
 import {
   Field,
   FieldDescription,
@@ -10,8 +10,8 @@ import {
   FieldLabel,
   FieldSet,
   FieldLegend,
-} from '@/components/ui/field';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+} from '#components/ui/field';
+import { RadioGroup, RadioGroupItem } from '#components/ui/radio-group';
 
 import type { EffectiveMode } from './effective-from-value.js';
 

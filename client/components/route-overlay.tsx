@@ -15,7 +15,7 @@ import {
 } from 'react';
 import { useLocation, useNavigate, type To } from 'react-router';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '#components/ui/button';
 import {
   Dialog,
   DialogClose,
@@ -23,14 +23,17 @@ import {
   DialogOverlay,
   DialogPortal,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '#components/ui/dialog';
 import { cn } from 'cn';
+import { PrintSurfaceButton } from './print-surface-button.js';
 
 import { RouteOverlayContext } from './use-route-overlay.js';
 
 export interface RouteOverlayProps {
   readonly title: ReactNode;
   readonly description?: ReactNode;
+  /** Record status shown beside the title, wrapping on narrow screens. */
+  readonly headerStatus?: ReactNode;
   readonly children?: ReactNode;
   readonly footer?: ReactNode;
   /** Where closing navigates. Defaults to the parent route, keeping the current search string. */
@@ -38,6 +41,9 @@ export interface RouteOverlayProps {
   /** Runs before every close; resolving `false` keeps the overlay open, for example to guard unsaved changes. */
   readonly beforeClose?: () => boolean | Promise<boolean>;
   readonly className?: string;
+  /** Print the current readable fields (including unfinished forms) with native PDF support. */
+  readonly printable?: boolean;
+  readonly printDisabled?: boolean;
 }
 
 // Lets an overlay rendered through another overlay's outlet return focus into
@@ -54,12 +60,15 @@ const ParentPopupContext =
 export function RouteOverlay({
   title,
   description,
+  headerStatus,
   children,
   footer,
   closeTo,
   beforeClose,
   className,
   drawer = false,
+  printable = false,
+  printDisabled = false,
 }: RouteOverlayProps & { readonly drawer?: boolean }): ReactElement {
   const { t } = useTranslation();
   const parentPopup = useContext(ParentPopupContext);
@@ -99,7 +108,11 @@ export function RouteOverlay({
         const allowed = beforeClose ? await beforeClose() : true;
         if (allowed && generationRef.current === requestGeneration) {
           await navigate(
-            closeTo ?? { pathname: '..', search: location.search, hash: '' },
+            closeTo ?? {
+              pathname: '..',
+              search: location.search,
+              hash: location.hash,
+            },
             { relative: 'route', replace: true },
           );
         }
@@ -134,6 +147,8 @@ export function RouteOverlay({
             <DialogOverlay forceRender />
             <DialogPrimitive.Popup
               ref={popupRef}
+              data-slot='route-overlay-content'
+              data-presentation={drawer ? 'drawer' : 'dialog'}
               finalFocus={() => {
                 const previous = previousFocusRef.current;
                 if (parentPopup?.current) {
@@ -153,17 +168,34 @@ export function RouteOverlay({
                 className,
               )}
             >
-              <header className='shrink-0 space-y-2 border-b p-4 pr-12'>
-                <DialogTitle>{title}</DialogTitle>
+              <header
+                data-slot='route-overlay-header'
+                className='flex shrink-0 flex-col gap-2 border-b p-4 pr-12 sm:p-6 sm:pr-14'
+              >
+                <div className='flex flex-wrap items-center gap-x-3 gap-y-2'>
+                  <DialogTitle className='min-w-0 break-words'>
+                    {title}
+                  </DialogTitle>
+                  {headerStatus}
+                </div>
                 {description != null && (
                   <DialogDescription>{description}</DialogDescription>
                 )}
               </header>
-              <div className='min-h-0 flex-1 overflow-y-auto p-4'>
+              <div
+                data-slot='route-overlay-body'
+                className='min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6'
+              >
                 {children}
               </div>
-              {footer != null && (
-                <footer className='flex shrink-0 flex-wrap justify-end gap-2 border-t p-4'>
+              {(footer != null || printable) && (
+                <footer
+                  data-slot='route-overlay-footer'
+                  className='flex shrink-0 flex-wrap justify-end gap-2 border-t bg-popover p-4 sm:p-6'
+                >
+                  {printable ? (
+                    <PrintSurfaceButton disabled={printDisabled} />
+                  ) : null}
                   {footer}
                 </footer>
               )}
@@ -172,7 +204,7 @@ export function RouteOverlay({
                   <Button
                     variant='ghost'
                     size='icon-sm'
-                    className='absolute top-2 right-2'
+                    className='absolute top-4 right-4'
                   />
                 }
               >

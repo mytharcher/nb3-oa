@@ -1,14 +1,14 @@
+import { ResponsiveTable as Table } from '#components/responsive-table';
 import { useTranslation } from '@nocobase/i18n/client';
 import type { ReactElement } from 'react';
 
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '#components/ui/table';
 
 import { useProblemText } from './problem-text.js';
 import type { ImportRowError } from './types.js';

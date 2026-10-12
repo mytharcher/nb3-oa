@@ -1,3 +1,4 @@
+import { ResponsiveTable as Table } from '#components/responsive-table';
 import { useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useLocale, useTranslation } from '@nocobase/i18n/client';
@@ -11,8 +12,8 @@ import {
   useParams,
 } from 'react-router';
 
-import { RouteDrawer } from '@/components/route-drawer';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
+import { RouteDrawer } from '#components/route-drawer';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,18 +23,17 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
+} from '#components/ui/alert-dialog';
+import { Badge } from '#components/ui/badge';
+import { Button } from '#components/ui/button';
+import { Spinner } from '#components/ui/spinner';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '#components/ui/table';
 
 import { OverlayCloseButton } from '../shared/overlay-buttons.js';
 import { reasonOf, statusOf } from '../shared/errors.js';

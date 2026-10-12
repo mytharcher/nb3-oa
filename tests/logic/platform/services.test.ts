@@ -57,6 +57,31 @@ describe('seeds', () => {
 });
 
 describe('approval rules', () => {
+  test('annual accrual defaults remain opt-in and require whole-number configuration', async ({
+    app,
+  }) => {
+    const rules = app.container.resolve(ruleServiceToken);
+    expect(
+      await rules.snapshot([
+        'leave.annualAccrualEnabled',
+        'leave.annualCarryExpiryMonth',
+        'leave.annualCarryExpiryDay',
+      ]),
+    ).toEqual({
+      'leave.annualAccrualEnabled': 0,
+      'leave.annualCarryExpiryMonth': 3,
+      'leave.annualCarryExpiryDay': 31,
+    });
+    for (const [key, value] of [
+      ['leave.annualAccrualEnabled', 2],
+      ['leave.annualCarryExpiryMonth', 0],
+      ['leave.annualCarryExpiryMonth', 2.5],
+      ['leave.annualCarryExpiryDay', 32],
+    ] as const)
+      await expect(
+        rules.set({ key, value, actorId: null }),
+      ).rejects.toBeDefined();
+  });
   test('a future version is not in effect yet; a past snapshot keeps the old value', async ({
     app,
   }) => {

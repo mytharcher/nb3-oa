@@ -1,3 +1,5 @@
+import { ApplicationToolbar } from '#components/application-toolbar';
+import { UserName } from '#components/user-name';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -12,33 +14,33 @@ import {
   useState,
 } from 'react';
 
-import { DataTableServer } from '@/components/data-table';
-import { DepartmentPicker } from '@/components/department-picker';
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
-import { SessionExpiredAlert } from '@/components/session-expired-alert';
+import { DataTableServer } from '#components/data-table';
+import { DepartmentPicker } from '#components/department-picker';
+import { PageContainer } from '#components/page-container';
+import { PageHeader } from '#components/page-header';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
 import {
   Alert,
   AlertAction,
   AlertDescription,
   AlertTitle,
-} from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+} from '#components/ui/alert';
+import { Button } from '#components/ui/button';
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty';
+} from '#components/ui/empty';
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from '@/components/ui/input-group';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Spinner } from '@/components/ui/spinner';
-import { useUrlSearch } from '@/hooks/use-url-search';
+} from '#components/ui/input-group';
+import { Skeleton } from '#components/ui/skeleton';
+import { Spinner } from '#components/ui/spinner';
+import { useUrlSearch } from '#hooks/use-url-search';
 
 import type { DirectoryEntry } from './employees/types.js';
 
@@ -172,7 +174,9 @@ export default function DirectoryPage(): ReactElement {
         id: 'name',
         header: t('employees.fields.name'),
         cell: ({ row }) => (
-          <span className='font-medium'>{row.original.name}</span>
+          <span className='font-medium'>
+            <UserName name={row.original.name} />
+          </span>
         ),
       },
       {
@@ -193,7 +197,7 @@ export default function DirectoryPage(): ReactElement {
       {
         id: 'manager',
         header: t('employees.fields.manager'),
-        cell: ({ row }) => plain(row.original.manager?.name),
+        cell: ({ row }) => <UserName name={row.original.manager?.name} />,
       },
       {
         id: 'phone',
@@ -314,8 +318,11 @@ export default function DirectoryPage(): ReactElement {
         title={t('employees.directory.title')}
         description={t('employees.directory.description')}
       />
-      <div className='flex flex-wrap items-center gap-2'>
-        <InputGroup className='w-full sm:max-w-xs'>
+      <ApplicationToolbar>
+        <InputGroup
+          data-slot='application-search'
+          className='w-full sm:max-w-xs'
+        >
           <InputGroupAddon>
             <SearchIcon />
           </InputGroupAddon>
@@ -346,7 +353,7 @@ export default function DirectoryPage(): ReactElement {
         {loading && rows !== undefined ? (
           <Spinner className='text-muted-foreground' />
         ) : null}
-      </div>
+      </ApplicationToolbar>
       {content}
     </PageContainer>
   );

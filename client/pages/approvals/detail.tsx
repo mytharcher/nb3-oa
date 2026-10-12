@@ -1,6 +1,13 @@
+import { ApprovalProgress } from '#components/approval-progress';
+import { StatusBadge } from '#components/status-badge';
+import { UserName } from '#components/user-name';
+import { PrintEntry } from '../template-print/entry.js';
+import { createRequestId } from './request-id.js';
+import { LeaveAttachments } from './attachments.js';
 import { useLeaveLabel } from './use-leave-label.js';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
+import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { offeredActions } from '@nocobase/app-plugin-approval/client';
 import { RefreshCw } from 'lucide-react';
@@ -13,13 +20,10 @@ import {
   useOutletContext,
   useParams,
 } from 'react-router';
-import { BackButton } from '@/components/back-button';
-import { PageContainer } from '@/components/page-container';
-import { PageHeader } from '@/components/page-header';
-import { RouteChildPage } from '@/components/route-child-page';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+
+import { RecordDetailDrawer } from '#components/record-detail-drawer';
+import { Button } from '#components/ui/button';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -28,20 +32,19 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogCancel,
-} from '@/components/ui/alert-dialog';
-import { Spinner } from '@/components/ui/spinner';
+} from '#components/ui/alert-dialog';
+import { Spinner } from '#components/ui/spinner';
 import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-} from '@/components/ui/tooltip';
+} from '#components/ui/tooltip';
 import {
   ApprovalUiProvider,
-  ApprovalProgress,
   ApprovalTimeline,
   ApprovalActionBar,
   type ApprovalBarAction,
-} from '@/extensions/nocobase-approval-ui';
+} from '#extensions/nocobase-approval-ui';
 import { FieldsSkeleton } from '../platform/shared/states.js';
 import { useResource } from './use-resource.js';
 import { ErrorState } from './states.js';
@@ -55,6 +58,11 @@ import {
 } from './types.js';
 
 export default function LeaveDetailPage() {
+  const { session } = useAuthentication();
+  const cancellationPermission = useCan({
+    resource: { type: 'composite', id: 'oa.leaveCancellation' },
+    action: 'submit',
+  });
   const { requestId } = useParams();
   const { t, i18n } = useTranslation();
   const typeLabel = useLeaveLabel();
@@ -109,7 +117,7 @@ export default function LeaveDetailPage() {
         json: {
           transition: action,
           version: record.lifecycleVersion,
-          requestId: requestKey || crypto.randomUUID(),
+          requestId: requestKey || createRequestId(),
           input: {},
         },
       });
@@ -146,7 +154,7 @@ export default function LeaveDetailPage() {
           target: action.target,
           action: action.name,
           contentHash: action.contentHash ?? undefined,
-          requestId: crypto.randomUUID(),
+          requestId: createRequestId(),
         },
       });
       resource.update({ ...data, taskActions: [], runActions: [] });
@@ -167,12 +175,13 @@ export default function LeaveDetailPage() {
   );
   const balanceBlocked =
     !!record &&
+    !options.data?.balanceAvailable &&
     (['annual', 'compensatory'].includes(record.leaveType) ||
       !!kind?.extra?.deductsBalance);
   const attachmentBlocked =
     !!record &&
-    (record.attachments.length > 0 ||
-      (record.leaveType === 'sick' && Number(record.days) > 1) ||
+    !record.attachments.length &&
+    ((record.leaveType === 'sick' && Number(record.days) > 1) ||
       (!!kind?.extra?.requiresAttachment &&
         (typeof kind.extra.attachmentAboveDays !== 'number' ||
           Number(record.days) > kind.extra.attachmentAboveDays)));
@@ -222,114 +231,156 @@ export default function LeaveDetailPage() {
     },
   }));
   return (
-    <RouteChildPage>
-      <PageContainer>
-        <BackButton />
-        <PageHeader
-          title={name}
-          description={t('approvals.facts')}
-          actions={
-            <>
-              <div className='flex flex-wrap items-center gap-2'>
-                {bar.length ? (
-                  <ApprovalActionBar actions={bar} busy={pending} />
-                ) : null}
-                {lifecycleActions.map((action) =>
-                  action.name === 'edit' ? (
-                    action.allowed ? (
-                      <Button
-                        key={action.name}
-                        variant='outline'
-                        render={
-                          <Link
-                            to={{ pathname: 'edit', search: location.search }}
-                          />
-                        }
-                        nativeButton={false}
-                      >
-                        {t('approvals.edit')}
-                      </Button>
-                    ) : null
-                  ) : action.name === 'terminate' ? (
-                    action.allowed ? (
-                      <Button
-                        key={action.name}
-                        variant='destructive'
-                        render={
-                          <Link
-                            to={{
-                              pathname: 'action/terminate/record',
-                              search: location.search,
-                            }}
-                          />
-                        }
-                        nativeButton={false}
-                      >
-                        {t('approvals.terminate')}
-                      </Button>
-                    ) : null
-                  ) : (
-                    <Tooltip key={action.name}>
-                      <TooltipTrigger
-                        render={
-                          <Button
-                            variant={
-                              action.name === 'submit' ? 'default' : 'outline'
-                            }
-                            disabled={
-                              pending ||
-                              !action.allowed ||
-                              resource.loading ||
-                              (action.name === 'submit' && submissionBlocked)
-                            }
-                            onClick={() => {
-                              setWriteError(undefined);
-                              setRequestKey(crypto.randomUUID());
-                              setConfirm(action.name);
-                            }}
-                          />
-                        }
-                      >
-                        {t(`approvals.${action.name}`)}
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {action.name === 'submit' && balanceBlocked
-                          ? t('approvals.balanceLimit')
-                          : action.name === 'submit' && attachmentBlocked
-                            ? t('approvals.attachmentLimit')
-                            : action.allowed
-                              ? t(`approvals.${action.name}`)
-                              : action.blockers
-                                  .map((v) =>
-                                    t(v.message, { defaultValue: v.message }),
-                                  )
-                                  .join(' · ') || t('approvals.unavailable')}
-                      </TooltipContent>
-                    </Tooltip>
-                  ),
-                )}
-              </div>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant='outline'
-                      size='icon'
-                      aria-label={t('approvals.refresh')}
-                      disabled={pending || resource.loading}
-                      onClick={resource.reload}
-                    />
-                  }
-                >
-                  <RefreshCw
-                    className={resource.loading ? 'animate-spin' : undefined}
+    <RecordDetailDrawer
+      headerStatus={
+        record ? (
+          <StatusBadge
+            tone={
+              ['approved', 'completed', 'issued', 'active'].includes(
+                record.status,
+              )
+                ? 'success'
+                : 'neutral'
+            }
+          >
+            {t(`approvals.states.${record.status}`)}
+          </StatusBadge>
+        ) : null
+      }
+      printable
+      printDisabled={!data || resource.loading || !!resource.error}
+      title={name}
+      description={t('approvals.facts')}
+      footer={
+        <>
+          <div className='flex flex-wrap items-center gap-2'>
+            <PrintEntry
+              source='leave'
+              readable={!!data && !resource.error && !resource.loading}
+            />
+            {record?.status === 'approved' &&
+            record.applicantId === session?.user.id &&
+            cancellationPermission.can ? (
+              <Button
+                variant='outline'
+                render={
+                  <Link
+                    to={{
+                      pathname: 'newCancellation',
+                      search: (() => {
+                        const query = new URLSearchParams(location.search);
+                        query.set('originalLeaveId', record.id);
+                        return `?${query.toString()}`;
+                      })(),
+                    }}
                   />
-                </TooltipTrigger>
-                <TooltipContent>{t('approvals.refresh')}</TooltipContent>
-              </Tooltip>
-            </>
-          }
-        />
+                }
+                nativeButton={false}
+              >
+                {t('leaveCancellations.new')}
+              </Button>
+            ) : null}
+            {bar.length ? (
+              <ApprovalActionBar actions={bar} busy={pending} />
+            ) : null}
+            {lifecycleActions.map((action) =>
+              action.name === 'edit' ? (
+                action.allowed ? (
+                  <Button
+                    key={action.name}
+                    variant='outline'
+                    render={
+                      <Link
+                        to={{ pathname: 'edit', search: location.search }}
+                      />
+                    }
+                    nativeButton={false}
+                  >
+                    {t('approvals.edit')}
+                  </Button>
+                ) : null
+              ) : action.name === 'terminate' ? (
+                action.allowed ? (
+                  <Button
+                    key={action.name}
+                    variant='destructive'
+                    render={
+                      <Link
+                        to={{
+                          pathname: 'action/terminate/record',
+                          search: location.search,
+                        }}
+                      />
+                    }
+                    nativeButton={false}
+                  >
+                    {t('approvals.terminate')}
+                  </Button>
+                ) : null
+              ) : (
+                <Tooltip key={action.name}>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant={
+                          action.name === 'submit' ? 'default' : 'outline'
+                        }
+                        disabled={
+                          pending ||
+                          !action.allowed ||
+                          resource.loading ||
+                          (action.name === 'submit' && submissionBlocked)
+                        }
+                        onClick={() => {
+                          setWriteError(undefined);
+                          setRequestKey(createRequestId());
+                          setConfirm(action.name);
+                        }}
+                      />
+                    }
+                  >
+                    {t(`approvals.${action.name}`)}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {action.name === 'submit' && balanceBlocked
+                      ? t('approvals.balanceLimit')
+                      : action.name === 'submit' && attachmentBlocked
+                        ? t('approvals.attachmentLimit')
+                        : action.allowed
+                          ? t(`approvals.${action.name}`)
+                          : action.blockers
+                              .map((v) =>
+                                t(v.message, { defaultValue: v.message }),
+                              )
+                              .join(' · ') || t('approvals.unavailable')}
+                  </TooltipContent>
+                </Tooltip>
+              ),
+            )}
+          </div>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant='outline'
+                  size='icon'
+                  aria-label={t('approvals.refresh')}
+                  disabled={pending || resource.loading}
+                  onClick={resource.reload}
+                />
+              }
+            >
+              <RefreshCw
+                className={resource.loading ? 'animate-spin' : undefined}
+              />
+            </TooltipTrigger>
+            <TooltipContent>{t('approvals.refresh')}</TooltipContent>
+          </Tooltip>
+        </>
+      }
+      beforeClose={() => !pending}
+    >
+      <div className='space-y-6'>
         {resource.error ? (
           <ErrorState error={resource.error} retry={resource.reload} />
         ) : null}
@@ -350,12 +401,15 @@ export default function LeaveDetailPage() {
               }).format(new Date(v))
             }
           >
-            <Badge variant='secondary'>
-              {t(`approvals.states.${record!.status}`)}
-            </Badge>
             <dl className='grid max-w-4xl gap-4 sm:grid-cols-[8rem_1fr]'>
               {[
-                [t('approvals.applicant'), text.name(record!.applicantId)],
+                [
+                  t('approvals.applicant'),
+                  <UserName
+                    key={t('approvals.applicant')}
+                    name={text.name(record!.applicantId)}
+                  />,
+                ] as const,
                 [t('approvals.type'), typeLabel(record!.leaveType)],
                 [
                   t('approvals.startDate'),
@@ -374,17 +428,21 @@ export default function LeaveDetailPage() {
                 [t('approvals.reason'), record!.reason],
                 [
                   t('approvals.handover'),
-                  record!.handoverUserId
-                    ? text.name(record!.handoverUserId)
-                    : '—',
-                ],
+                  record!.handoverUserId ? (
+                    <UserName
+                      key='handover'
+                      name={text.name(record!.handoverUserId)}
+                    />
+                  ) : (
+                    '—'
+                  ),
+                ] as const,
                 [
                   t('approvals.delegate'),
                   t(
                     record!.enableDelegation ? 'approvals.yes' : 'approvals.no',
                   ),
                 ],
-                [t('approvals.attachments'), t('approvals.attachmentLimit')],
               ].map(([label, value]) => (
                 <div key={label} className='contents'>
                   <dt className='text-muted-foreground'>{label}</dt>
@@ -394,14 +452,23 @@ export default function LeaveDetailPage() {
                 </div>
               ))}
             </dl>
-            {['annual', 'compensatory'].includes(record!.leaveType) ? (
+            <section className='flex flex-col gap-2'>
+              <h2 className='text-base font-medium'>
+                {t('approvals.attachments')}
+              </h2>
+              <LeaveAttachments
+                leaveId={record!.id}
+                ids={record!.attachments}
+              />
+            </section>
+            {balanceBlocked ? (
               <Alert>
                 <AlertDescription>
                   {t('approvals.balanceLimit')}
                 </AlertDescription>
               </Alert>
             ) : null}
-            {record!.leaveType === 'sick' && Number(record!.days) > 1 ? (
+            {attachmentBlocked ? (
               <Alert>
                 <AlertDescription>
                   {t('approvals.attachmentLimit')}
@@ -468,6 +535,13 @@ export default function LeaveDetailPage() {
         {data ? (
           <Outlet
             context={{
+              printSource: 'leave',
+              printRefresh: () => {
+                resource.reload();
+                parent.reload();
+              },
+              printRecordId: data.record.id,
+              printRecordName: name,
               detail: data,
               reload: () => {
                 resource.reload();
@@ -478,7 +552,7 @@ export default function LeaveDetailPage() {
             }}
           />
         ) : null}
-      </PageContainer>
-    </RouteChildPage>
+      </div>
+    </RecordDetailDrawer>
   );
 }

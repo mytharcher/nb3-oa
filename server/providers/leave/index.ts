@@ -1,5 +1,7 @@
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 
+import { leaveAttachmentServiceToken } from '../leave-attachments/service.js';
+import { leaveBalanceServiceToken } from '../leave-balances/contract.js';
 import { orgServiceToken } from '../org/contract.js';
 import { auditServiceToken } from '../audit/index.js';
 import { ServiceProvider } from '@nocobase/service-provider';
@@ -64,6 +66,11 @@ export default class LeaveProvider extends ServiceProvider<Application> {
     c.singleton(leaveServiceToken, () => {
       const service: LeaveService = createLeaveService({
         db: c.resolve(databaseManagerToken),
+        balances: c.resolve(leaveBalanceServiceToken),
+        attachments: {
+          assertLinked: (...args) =>
+            c.resolve(leaveAttachmentServiceToken).assertLinked(...args),
+        },
         org: c.resolve(orgServiceToken),
 
         audit: c.resolve(auditServiceToken),
