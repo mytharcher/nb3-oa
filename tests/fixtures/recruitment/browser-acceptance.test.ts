@@ -240,10 +240,16 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
         .getByRole('button', { name: 'Approve', exact: true })
         .last()
         .click();
+      const approvalResponse = reviewer.waitForResponse(
+        (response) =>
+          response.request().method() === 'POST' &&
+          response.url().endsWith(`/recruitmentRequests/${id}/actions`),
+      );
       await reviewer
         .getByRole('alertdialog')
         .getByRole('button', { name: 'Approve', exact: true })
         .click();
+      expect((await approvalResponse).status()).toBe(200);
       const restricted = await h.pageFor(await director.session());
       await restricted.goto(`${base}/recruitment-requests/${id}/review-edit`);
       await restricted
