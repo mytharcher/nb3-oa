@@ -128,7 +128,17 @@ it.runIf(process.env.OA_PAGE_PATROL === '1')(
             await page
               .waitForLoadState('networkidle', { timeout: 20000 })
               .catch(() => undefined);
-            const main = page.getByRole('main').first();
+            let main = page.getByRole('main').first();
+            if (
+              role === 'system' &&
+              route === '/vendorQualificationConfiguration'
+            ) {
+              const childPage = page
+                .locator('[data-slot="route-child-page"]')
+                .last();
+              await browserExpect(childPage).toBeVisible({ timeout: 60000 });
+              main = childPage;
+            }
             const text = await main.innerText();
             const denied = /无权|没有权限|访问受限|无法访问/u.test(text);
             const loadFailure = /无法加载页面|加载失败|发生错误/u.test(text);
@@ -150,12 +160,14 @@ it.runIf(process.env.OA_PAGE_PATROL === '1')(
                     disabled: element.hasAttribute('disabled'),
                   })),
               );
-            const entryDialogs = await page.getByRole('dialog').count();
+            const overlays = page.locator(
+              '[data-slot="route-overlay-content"]',
+            );
+            const entryDialogs = await overlays.count();
             if (entryDialogs) {
-              // Legacy configuration redirects intentionally open a definition
-              // drawer. Its backdrop blocks the parent tabs until it is closed.
+              // Modal routes cover their parent's controls until closed.
               await page.keyboard.press('Escape');
-              await browserExpect(page.getByRole('dialog')).toHaveCount(0);
+              await browserExpect(overlays).toHaveCount(0);
               await page.waitForLoadState('networkidle');
             }
             const tabChecks: string[] = [];

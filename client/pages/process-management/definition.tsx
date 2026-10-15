@@ -186,14 +186,15 @@ export default function ProcessDefinitionPage() {
                     </section>
                   </CardContent>
                 </Card>
-                <Card className='min-w-0'>
-                  <CardHeader>
+                {/* Let the graph determine the desktop row height, not the rules. */}
+                <Card className='min-h-0 min-w-0 lg:[contain:size]'>
+                  <CardHeader className='shrink-0'>
                     <CardTitle>{t('processManagement.rules')}</CardTitle>
                     <CardDescription className='text-xs'>
                       {t('processManagement.dynamicPeople')}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className='text-xs leading-5'>
+                  <CardContent className='max-h-96 min-h-0 flex-1 overflow-y-auto overscroll-contain text-xs leading-5 lg:max-h-none'>
                     <div className='flex flex-col gap-4'>
                       {data.states.map((state) => {
                         const stage = data.stages.find(

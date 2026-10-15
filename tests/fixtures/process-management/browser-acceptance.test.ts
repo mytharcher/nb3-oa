@@ -355,7 +355,9 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
         path: path.join(directory, 'screenshots/action-result.png'),
         fullPage: true,
       });
-      await expect(dialog).toHaveCount(0, { timeout: 20000 });
+      await expect(
+        page.locator('[data-slot="route-overlay-content"]'),
+      ).toHaveCount(0, { timeout: 20000 });
       await expect(
         page.getByRole('cell').filter({ hasText: 'Browser Recipient' }).first(),
       ).toBeVisible();

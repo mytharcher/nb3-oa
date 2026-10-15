@@ -380,7 +380,7 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
         values: { initialized: true },
       });
       checks.push(
-        'uninitialized capacity displays unavailable state; position-filtered Excel retains raw capacity arithmetic and explicit unavailable state',
+        'uninitialized capacity displays unavailable state; position-filtered Excel leaves unavailable capacity blank and retains explicit unavailable state',
       );
       for (const locale of ['en-US', 'zh-CN'])
         for (const theme of ['light', 'dark'])
@@ -496,12 +496,15 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
       ]);
       const scopedDownload = page.waitForEvent('download');
       await page
+        .getByRole('tabpanel', { name: 'Headcount balances', exact: true })
         .getByRole('button', { name: 'Export Excel', exact: true })
         .click();
       const scopedBook = new ExcelJS.Workbook();
       await scopedBook.xlsx.readFile((await (await scopedDownload).path())!);
       expect(scopedBook.worksheets[0].rowCount).toBe(2);
-      expect(scopedBook.worksheets[0].getCell('A2').value).toBe(department.id);
+      expect(scopedBook.worksheets[0].getCell('A2').value).toBe(
+        department.title,
+      );
       checks.push(
         'actual headed-department permission filters foreign headcount in browser list and Excel',
       );
@@ -544,22 +547,20 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
 
       for (const [dataset, title] of datasets) {
         await page.goto(base);
-        await page.getByRole('tab', { name: title, exact: true }).click();
+        await page.waitForLoadState('networkidle');
         const r = await data(page, dataset);
         if (dataset === 'contract-ledger') {
+          await page.getByRole('tab', { name: title, exact: true }).click();
           expect(r.status).toBe(200);
           expect(r.body.data).toEqual([]);
           await expect(
-            page.getByText('No matching records.', { exact: true }),
+            page.getByText('No report data yet', { exact: true }),
           ).toBeVisible();
         } else {
           expect(r.status).toBe(403);
           await expect(
-            page.getByText(
-              'You do not have permission to read this report source.',
-              { exact: true },
-            ),
-          ).toBeVisible();
+            page.getByRole('tab', { name: title, exact: true }),
+          ).toHaveCount(0);
           expect((await data(page, `${dataset}.xlsx`)).status).toBe(403);
         }
         await expect(
