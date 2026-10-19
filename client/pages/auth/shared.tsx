@@ -1,8 +1,8 @@
-import { resolveAssetUrl } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { Blocks, ShieldCheck, Sparkles } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 
+import { NocoOaLogo } from '#components/brand-logo';
 import { AuthSplitLayout } from '#extensions/nocobase-auth-split-layout/auth-split-layout';
 
 export interface AuthPageProps {
@@ -27,21 +27,13 @@ export function AuthPage({
       aside={<BrandPanel />}
       asideLabel={t('auth.about')}
       description={description}
-      logo={
-        <>
-          <img
-            alt=''
-            className='dark:hidden'
-            src={resolveAssetUrl('/assets/logo-mark.png')}
-          />
-          <img
-            alt=''
-            className='hidden dark:block'
-            src={resolveAssetUrl('/assets/logo-mark-dark.png')}
-          />
-        </>
+      name={
+        <NocoOaLogo
+          aria-label={t('auth.brandName')}
+          role='img'
+          className='h-[21.6px] w-auto'
+        />
       }
-      name={t('auth.brandName')}
       title={title}
     >
       {children}

@@ -92,7 +92,8 @@ const zhCN = {
   assets: assetLocale,
   ...system,
   // Application-owned OA copy overrides the template authentication branding.
-  'auth.brandName': 'OA 协同办公',
+  'auth.brandName': 'NocoOA',
+  'navigation.brandHome': 'NocoOA 首页',
   'auth.welcome': '欢迎回到 OA 工作台',
   'auth.loginDescription':
     '使用用户名或邮箱登录，处理待办、查看进展，开启一天的协作。',
