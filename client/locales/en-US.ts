@@ -93,7 +93,8 @@ const enUS = {
   assets: assetLocale,
   ...system,
   // Application-owned OA copy overrides the template authentication branding.
-  'auth.brandName': 'OA Workspace',
+  'auth.brandName': 'NocoOA',
+  'navigation.brandHome': 'NocoOA home',
   'auth.welcome': 'Welcome back to your OA workspace',
   'auth.loginDescription':
     'Sign in with your username or email to manage tasks and stay connected with your team.',

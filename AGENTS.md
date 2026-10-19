@@ -62,6 +62,8 @@ Register new modules in `server/providers/index.ts`, `server/routes/index.ts`, `
 
 ## Essential conventions
 
+- Shell Logo customization follows [OA branding](.agents/rules/branding.md).
+
 - Every endpoint independently enforces authentication, action permissions, record scopes, and field permissions. Hiding navigation does not replace server authorization.
 - Call other modules through public service tokens, not their implementations or plugin internal tables. Commit business writes, audits, and related changes in the same transaction. Use platform services for working days, rule snapshots, and document numbers.
 - Published migrations are immutable; add new migrations for changes. Do not edit generated collections. Register permission seeds in the main application only after their providers and actions are registered.
