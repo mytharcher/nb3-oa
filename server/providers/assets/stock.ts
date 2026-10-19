@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createHash } from 'node:crypto';
 import type { DatabaseConnection } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -103,7 +104,7 @@ export function createAssetStockService(d: {
         requestKey: c.requestKey,
         fingerprint,
         result: { value: result },
-        createdAt: new Date(),
+        createdAt: demoNow(),
       },
     });
     await d.audit.record(
@@ -186,7 +187,7 @@ export function createAssetStockService(d: {
           sourceId: fact.sourceId,
           state: 'pending',
         },
-        values: { state, updatedAt: new Date() },
+        values: { state, updatedAt: demoNow() },
       });
     }
   }
@@ -395,7 +396,7 @@ export function createAssetStockService(d: {
                 values: {
                   employeeId: intent.employeeId,
                   state: 'pending',
-                  updatedAt: new Date(),
+                  updatedAt: demoNow(),
                 },
               });
             else
@@ -406,8 +407,8 @@ export function createAssetStockService(d: {
                   sourceId: c.sourceId,
                   employeeId: intent.employeeId,
                   state: 'pending',
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
+                  createdAt: demoNow(),
+                  updatedAt: demoNow(),
                 },
               });
             result.push(current);
@@ -456,7 +457,7 @@ export function createAssetStockService(d: {
                 borrowDueDate:
                   intent.operation === 'borrow' ? intent.borrowDueDate : null,
                 serialNumber: serial,
-                updatedAt: new Date(),
+                updatedAt: demoNow(),
               },
             });
             await tx.repository('assetIssueFacts').createOne({
@@ -473,7 +474,7 @@ export function createAssetStockService(d: {
                     intent.operation === 'borrow' ? 'borrowed' : 'assigned',
                   holderEmployeeId: intent.employeeId,
                 },
-                createdAt: new Date(),
+                createdAt: demoNow(),
               },
             });
           }
@@ -537,7 +538,7 @@ export function createAssetStockService(d: {
                   status: 'available',
                   holderEmployeeId: null,
                   borrowDueDate: null,
-                  updatedAt: new Date(),
+                  updatedAt: demoNow(),
                 },
               });
               await tx.repository('assetReturnFacts').createOne({
@@ -548,7 +549,7 @@ export function createAssetStockService(d: {
                   employeeId: intent.employeeId,
                   actorId: c.actorId,
                   snapshot: snapshot(locked),
-                  createdAt: new Date(),
+                  createdAt: demoNow(),
                 },
               });
             }
@@ -574,7 +575,7 @@ export function createAssetStockService(d: {
               status: 'scrapped',
               holderEmployeeId: null,
               borrowDueDate: null,
-              updatedAt: new Date(),
+              updatedAt: demoNow(),
             },
           });
           await tx.repository('assetDisposalFacts').createOne({
@@ -585,7 +586,7 @@ export function createAssetStockService(d: {
               employeeId: intent.employeeId,
               actorId: c.actorId,
               snapshot: snapshot(item),
-              createdAt: new Date(),
+              createdAt: demoNow(),
             },
           });
           await consume(facts, tx, 'consumed');

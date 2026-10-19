@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { DepartureError } from './errors.js';
 import {
   approvalState,
@@ -152,7 +153,7 @@ export function departureApproval(
         reason,
         directory: services.directory,
         kind: DEPARTURE_LIFECYCLE,
-        at: new Date().toISOString(),
+        at: demoNow().toISOString(),
       }),
     onEnter: Object.fromEntries(
       [

@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { actionMutation } from './action-mutation.js';
 import { requestBusinessRead } from '../request-performance/business-reads.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -62,7 +63,7 @@ export function createWorkItemService(d: {
   now?: () => Date;
   notify?: (users: string[], id: string, key: string) => Promise<void>;
 }): WorkItemService & { runtime: LifecycleRuntime } {
-  const now = () => d.now?.() ?? new Date();
+  const now = () => d.now?.() ?? demoNow();
   const qualificationReads = {};
   function readQualification<T>(
     tx: DatabaseConnection,

@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
   createAppApprovalService,
@@ -240,6 +241,7 @@ export function createOvertimeService(d: OvertimeDependencies) {
   const source = (handle: unknown): Services =>
     handle ? snapshots.get(handle)! : outside;
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: wrap(base),
     dispatcher: d.dispatcher,
   });
@@ -357,7 +359,7 @@ export function createOvertimeService(d: OvertimeDependencies) {
         directory: services.directory,
         applicantId: record?.applicantId,
         kind: OVERTIME_LIFECYCLE,
-        at: new Date().toISOString(),
+        at: demoNow().toISOString(),
       });
     },
     states: [
@@ -789,7 +791,7 @@ export function createOvertimeService(d: OvertimeDependencies) {
             hrRecipients: [],
             requiresHr: false,
             managerApproverId: null,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: actorId } },
         );
@@ -1000,7 +1002,7 @@ export function createOvertimeService(d: OvertimeDependencies) {
     },
     async maintenance() {
       await refresh();
-      const now = new Date();
+      const now = demoNow();
       const expiredLots = (
         await d.db.repository<MinuteLot>('overtimeMinuteLots').findMany()
       ).filter(

@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
   createAppApprovalService,
@@ -228,6 +229,7 @@ export function createGeneralRequestService(d: GeneralRequestDependencies) {
   const source = (handle: unknown): Services =>
     handle ? snapshots.get(handle)! : outside;
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: wrap(base),
     dispatcher: d.dispatcher,
   });
@@ -322,7 +324,7 @@ export function createGeneralRequestService(d: GeneralRequestDependencies) {
         directory: services.directory,
         applicantId: record?.applicantId,
         kind: GENERAL_LIFECYCLE,
-        at: new Date().toISOString(),
+        at: demoNow().toISOString(),
       });
     },
     states: [
@@ -689,7 +691,7 @@ export function createGeneralRequestService(d: GeneralRequestDependencies) {
             number: null,
             ruleSnapshot: null,
             managerApproverId: null,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: actorId } },
         );

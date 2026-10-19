@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseManager, DatabaseConnection } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -142,7 +143,7 @@ export function createAnnualLeaveService(deps: {
         return { status: 'granted', record };
       });
     },
-    async reconcile(at = new Date()) {
+    async reconcile(at = demoNow()) {
       const result: AnnualLeaveSweepResult = {
         granted: 0,
         existing: 0,

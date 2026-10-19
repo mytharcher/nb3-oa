@@ -1,3 +1,4 @@
+import demoData from '../../client/locales/modules/demo-data.zh-CN.js';
 import processManagementLocale from '../../client/locales/modules/process-management.zh-CN.js';
 import personalSchedulesLocale from './modules/personal-schedules.zh-CN.js';
 import transferLocale from './modules/transfer.zh-CN.js';
@@ -24,6 +25,7 @@ import approvals from './modules/approvals.zh-CN.js';
 import annualLeave from './modules/annual-leave.zh-CN.js';
 
 const zhCN: AppServerResource = {
+  demoData,
   ...processManagementLocale,
   ...personalSchedulesLocale,
   transfer: transferLocale,

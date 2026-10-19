@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -119,7 +120,7 @@ export function createFinanceAssignmentService(d: {
                       accountantId: input.accountantId,
                       active: true,
                       version: 1,
-                      updatedAt: new Date(),
+                      updatedAt: demoNow(),
                     },
                   })
               ).record,
@@ -170,7 +171,7 @@ export function createFinanceAssignmentService(d: {
         const after = (
           await repo.updateOne({
             filter: { id },
-            values: { accountantId, active, updatedAt: new Date() },
+            values: { accountantId, active, updatedAt: demoNow() },
           })
         ).record;
         return audited(before, after, input, tx);

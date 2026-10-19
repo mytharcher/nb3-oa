@@ -1,3 +1,4 @@
+import { DemoBanner } from '../demo-data/banner.js';
 import { approvalStatusTone } from '../approvals/status-tone.js';
 import { PersonalCards } from './personal-cards.js';
 import { UserName } from '#components/user-name';
@@ -189,6 +190,7 @@ export default function HomePage() {
           title={t('workbench.title')}
           description={t('workbench.description')}
         />
+        <DemoBanner />
         <PersonalCards />
         <LoadingCards />
       </PageContainer>
@@ -227,6 +229,7 @@ export default function HomePage() {
         title={t('workbench.title')}
         description={t('workbench.description')}
       />
+      <DemoBanner />
       <PersonalCards />
       <Alert role='status'>
         <AlertDescription>{t('workbench.noAccess')}</AlertDescription>
@@ -679,6 +682,7 @@ function Workbench() {
           </>
         }
       />
+      <DemoBanner />
       <PersonalCards key={personalRevision} />
       <div className='grid grid-cols-2 gap-4 xl:grid-cols-4'>
         {metrics.map((metric) => {

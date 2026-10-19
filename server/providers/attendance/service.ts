@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { isDeepStrictEqual } from 'node:util';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
 import type { EmployeeService } from '../employees/contract.js';
@@ -93,7 +94,7 @@ export function createAttendanceService(d: {
             );
           return previous;
         }
-        const now = new Date().toISOString();
+        const now = demoNow().toISOString();
         const { record } = await repository.createOne({
           values: {
             ...input,
@@ -328,7 +329,7 @@ export function createAttendanceService(d: {
           'ATTENDANCE_INVALID_TIME',
           'The corrected punch time must fall on the missing-punch date.',
         );
-      const now = new Date().toISOString();
+      const now = demoNow().toISOString();
       const changed = await repository.updateMany({
         filter: {
           id: original.id,

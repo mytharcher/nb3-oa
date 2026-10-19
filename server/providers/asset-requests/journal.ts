@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseManager } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -74,7 +75,7 @@ export function createAssetRequestJournal(
               requestKey: command.requestId,
               recordId,
               fingerprint,
-              createdAt: new Date(),
+              createdAt: demoNow(),
             },
           });
           await audit.record(

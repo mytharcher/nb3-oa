@@ -1,3 +1,4 @@
+import demoData from '../../client/locales/modules/demo-data.en-US.js';
 import processManagementLocale from '../../client/locales/modules/process-management.en-US.js';
 import personalSchedulesLocale from './modules/personal-schedules.en-US.js';
 import transferLocale from './modules/transfer.en-US.js';
@@ -27,6 +28,7 @@ import annualLeave from './modules/annual-leave.en-US.js';
 // plugin's namespace; add keys here as the application starts producing its own, and use `overrides` to reword a
 // plugin's.
 const enUS = {
+  demoData,
   ...processManagementLocale,
   ...personalSchedulesLocale,
   transfer: transferLocale,

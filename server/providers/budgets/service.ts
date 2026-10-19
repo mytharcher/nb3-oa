@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -292,7 +293,7 @@ export function createBudgetService(
           requestKey: input.requestKey,
           actorId: input.actorId,
           reason: input.reason.trim(),
-          at: new Date(),
+          at: demoNow(),
         },
       });
       await operations.createOne({
@@ -475,7 +476,7 @@ export function createBudgetService(
               requestKey: input.requestKey,
               actorId: input.actorId,
               reason: input.reason.trim(),
-              at: new Date(),
+              at: demoNow(),
             },
           });
           await operations.createOne({

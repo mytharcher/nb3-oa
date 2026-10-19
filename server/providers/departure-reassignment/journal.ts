@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createHash } from 'node:crypto';
 import type { DatabaseManager } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -56,7 +57,7 @@ export function createReassignmentJournal(
               toId: input.to,
               reason: input.reason,
               actorId,
-              createdAt: new Date(),
+              createdAt: demoNow(),
             },
           });
           await audit.record(

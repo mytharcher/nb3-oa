@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createServiceToken } from '@nocobase/service-provider';
 import type { DatabaseManager, RepositoryPolicy } from '@nocobase/db';
 import type { CalendarService } from '../platform/calendar.js';
@@ -30,7 +31,7 @@ export function createExpenseSummary(
   return {
     async list(query: ExpenseSummaryQuery, policy: RepositoryPolicy) {
       const year =
-        query.year ?? Number(calendar.localDate(new Date()).slice(0, 4));
+        query.year ?? Number(calendar.localDate(demoNow()).slice(0, 4));
       if (
         !Number.isInteger(year) ||
         year < 1900 ||

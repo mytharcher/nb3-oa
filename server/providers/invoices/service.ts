@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -199,7 +200,7 @@ export function createInvoiceService(
         requestKey: input.requestKey,
         before: { ...before },
         after: { ...after },
-        at: new Date(),
+        at: demoNow(),
       },
     });
     await audit.record(

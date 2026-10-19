@@ -353,3 +353,42 @@ describe('approval directory and proxy delegations', () => {
     expect(adjacent.active).toBe(true);
   });
 });
+
+test('separates a demo unique role from the real business role without editing either membership', async ({
+  testApp,
+}) => {
+  const { demoContext, demoContexts } =
+    await import('../../../server/providers/demo-data/context.js');
+  const container = testApp.application.container;
+  const org = container.resolve(organizationServiceToken),
+    service = container.resolve(approvalDirectoryServiceToken);
+  const real = await createEmployee(testApp, 'Existing company director');
+  await org.addDutyRoleMember('gm', real.userId, { actorId: real.userId });
+  const scope = {
+    id: `demo-directory-${randomUUID()}`,
+    locale: 'en-US' as const,
+    baseDate: '2026-10-19',
+    users: new Set<string>(),
+  };
+  let demoId = '';
+  try {
+    await demoContext.run(scope, async () => {
+      const demo = await createEmployee(testApp, 'Fictional company director');
+      demoId = demo.userId;
+      scope.users.add(demoId);
+      demoContexts.set(demoId, scope);
+      await org.addDutyRoleMember('gm', demoId, { actorId: demoId });
+      expect((await service.snapshot()).uniqueRoleMember('gm')).toBe(demoId);
+      expect((await service.snapshot()).roleMembers('gm')).toEqual([demoId]);
+    });
+    const realDirectory = await service.snapshot();
+    expect(realDirectory.uniqueRoleMember('gm')).toBe(real.userId);
+    expect(realDirectory.roleMembers('gm')).toEqual([real.userId]);
+    expect(realDirectory.isActive(demoId)).toBe(false);
+    expect(await org.listDutyRoleMembers('gm')).toEqual(
+      expect.arrayContaining([real.userId, demoId]),
+    );
+  } finally {
+    demoContexts.delete(demoId);
+  }
+});

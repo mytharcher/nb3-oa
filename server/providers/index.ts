@@ -1,3 +1,4 @@
+import DemoDataProvider from './demo-data/index.js';
 import ProcessManagementProvider from './process-management/index.js';
 import PersonalSchedulesProvider from './personal-schedules/index.js';
 import TransferProvider from './transfer/index.js';
@@ -124,6 +125,7 @@ const serviceProviders: readonly ApplicationServiceProviderConstructor[] = [
   DepartureReassignmentProvider,
   ProcessManagementProvider,
   ApprovalQueryProvider,
+  DemoDataProvider,
 ];
 
 export default serviceProviders;

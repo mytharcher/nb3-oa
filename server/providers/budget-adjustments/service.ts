@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
   createAppApprovalService,
@@ -280,6 +281,7 @@ export function createBudgetAdjustmentService(d: BudgetAdjustmentDependencies) {
   const source = (handle: unknown): Services =>
     handle ? snapshots.get(handle)! : outside;
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: wrap(base),
     dispatcher: d.dispatcher,
   });
@@ -473,7 +475,7 @@ export function createBudgetAdjustmentService(d: BudgetAdjustmentDependencies) {
         directory: services.directory,
         applicantId: record?.applicantId,
         kind: BUDGET_ADJUSTMENT_LIFECYCLE,
-        at: new Date().toISOString(),
+        at: demoNow().toISOString(),
       });
     },
     states: [
@@ -958,7 +960,7 @@ export function createBudgetAdjustmentService(d: BudgetAdjustmentDependencies) {
             heldCents: 0,
             ruleSnapshot: null,
             headApproverId: null,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: actorId } },
         );

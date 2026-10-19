@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { projectTimeline } from './timeline.js';
 import { RepositoryError } from '@nocobase/db';
 import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
@@ -145,7 +146,7 @@ export function createOnboardingService(d: {
       return task;
     },
     async maintenance() {
-      const today = d.calendar.localDate(d.now?.() ?? new Date());
+      const today = d.calendar.localDate(d.now?.() ?? demoNow());
       await d.database.transaction(async (tx) => {
         const tasks = await tx
           .repository<OnboardingTask>('onboardingTasks')
@@ -203,7 +204,7 @@ export function createOnboardingService(d: {
                 onboardingId: parent.id,
                 recipientIds: [...recipients],
                 status: 'pending',
-                createdAt: new Date(),
+                createdAt: demoNow(),
               },
             });
         }
@@ -240,7 +241,7 @@ export function createOnboardingService(d: {
           continue;
         await d.database.repository('onboardingReminders').updateMany({
           filter: { id: reminder.id, status: 'pending' },
-          values: { status: 'sent', sentAt: new Date() },
+          values: { status: 'sent', sentAt: demoNow() },
         });
         sent++;
       }
@@ -396,8 +397,8 @@ export function createOnboardingService(d: {
             status: 'left',
             kind: 'departure',
             active: false,
-            effectiveAt: d.calendar.localDate(new Date()),
-            lastWorkingDay: d.calendar.localDate(new Date()),
+            effectiveAt: d.calendar.localDate(demoNow()),
+            lastWorkingDay: d.calendar.localDate(demoNow()),
             note: command.reason,
           },
           {
@@ -416,7 +417,7 @@ export function createOnboardingService(d: {
         );
         const tasks = tx.repository<OnboardingTask>('onboardingTasks'),
           old = await tasks.findMany({ filter: { onboardingId: id } });
-        const now = new Date();
+        const now = demoNow();
         for (const task of old) {
           if (task.status === 'completed')
             await tasks.createOne({
@@ -696,7 +697,7 @@ export function createOnboardingService(d: {
               task.status === 'completed' ||
               task.status === 'cancelled' ||
               (task.kind === 'it' &&
-                d.calendar.localDate(new Date()) < parent.hireDate)
+                d.calendar.localDate(demoNow()) < parent.hireDate)
             )
               throw new OnboardingError('ONBOARDING_FORBIDDEN');
           } else if (
@@ -821,7 +822,7 @@ export function createOnboardingService(d: {
                 id: privateFactsId,
                 onboardingId: input.id,
                 facts,
-                createdAt: new Date(),
+                createdAt: demoNow(),
               },
             });
             safeFacts = { privateFactsId };
@@ -849,7 +850,7 @@ export function createOnboardingService(d: {
           values: {
             ...values,
             version: input.expectedVersion + 1,
-            updatedAt: new Date(),
+            updatedAt: demoNow(),
           },
         });
         if (changed.updatedCount !== 1)
@@ -872,7 +873,7 @@ export function createOnboardingService(d: {
             values: {
               status: 'completed',
               version: Number(parent.version) + 1,
-              updatedAt: new Date(),
+              updatedAt: demoNow(),
             },
           });
           if (updated.updatedCount !== 1)
@@ -926,7 +927,7 @@ export function createOnboardingService(d: {
           : null;
         if (!result) throw new OnboardingError('ONBOARDING_SOURCE_INVALID');
         await commands.createOne({
-          values: { id: key, fingerprint, result, createdAt: new Date() },
+          values: { id: key, fingerprint, result, createdAt: demoNow() },
         });
         return result;
       });
@@ -1035,7 +1036,7 @@ export function createOnboardingService(d: {
             throw new OnboardingError('ONBOARDING_SOURCE_INVALID');
           const hireYear = Number(input.employee.hireDate.slice(0, 4)),
             companyYear = Number(
-              d.calendar.localDate(d.now?.() ?? new Date()).slice(0, 4),
+              d.calendar.localDate(d.now?.() ?? demoNow()).slice(0, 4),
             );
           if (source.sourceYear !== hireYear) {
             if (!input.targetAccountId || hireYear !== companyYear)
@@ -1125,7 +1126,7 @@ export function createOnboardingService(d: {
                 gradeId: source.gradeId,
                 effectiveFrom: input.employee.hireDate,
               },
-              createdAt: new Date(),
+              createdAt: demoNow(),
             },
           });
           await d.requisitions.consume(
@@ -1135,7 +1136,7 @@ export function createOnboardingService(d: {
             { ...command, requestKey: `${command.requestKey}:consume` },
             tx,
           );
-          const now = new Date();
+          const now = demoNow();
           const record: Onboarding = {
             id: input.id,
             creatorId: command.actorId,

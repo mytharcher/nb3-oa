@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -159,7 +160,7 @@ export function createLoanLedgerService(
       repaidDelta,
       actorId: input.actorId,
       reason: input.reason,
-      at: input.now ?? new Date(),
+      at: input.now ?? demoNow(),
     };
     await tx.repository('loanLedger').createOne({ values });
     await audit.record(
@@ -243,7 +244,7 @@ export function createLoanLedgerService(
           'INSUFFICIENT',
           'Pending repayments exceed the remaining loan balance.',
         );
-      const at = input.now ?? new Date();
+      const at = input.now ?? demoNow();
       if (current) {
         current = (
           await repo.updateOne({
@@ -336,7 +337,7 @@ export function createLoanLedgerService(
         (
           await repo.updateOne({
             filter: { id: current!.id },
-            values: { state, updatedAt: input.now ?? new Date() },
+            values: { state, updatedAt: input.now ?? demoNow() },
           })
         ).record,
       );
@@ -381,7 +382,7 @@ export function createLoanLedgerService(
                       applicantId: input.applicantId,
                       principalCents: input.principalCents,
                       dueDate: input.dueDate,
-                      issuedAt: input.now ?? new Date(),
+                      issuedAt: input.now ?? demoNow(),
                       version: 0,
                     },
                   })

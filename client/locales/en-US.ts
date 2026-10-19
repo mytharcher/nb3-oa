@@ -1,3 +1,4 @@
+import demoData from './modules/demo-data.en-US.js';
 import processManagementLocale from './modules/process-management.en-US.js';
 import attendanceImportEnUS from './modules/attendance-import.en-US.js';
 import reportsExpenseEnUS from './modules/reports-expense.en-US.js';
@@ -68,6 +69,7 @@ import approvalsEnUS from './modules/approvals.en-US.js';
 import system from './system/en-US.js';
 
 const enUS = {
+  demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,
   ...reportsExpenseEnUS,

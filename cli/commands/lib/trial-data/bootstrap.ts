@@ -1,3 +1,10 @@
+import { demoText } from '../../../../server/providers/demo-data/content.js';
+import {
+  rememberShared,
+  rememberUser,
+  hashKey,
+} from '../../../../server/providers/demo-data/ownership.js';
+import { currentDemo } from '../../../../server/providers/demo-data/context.js';
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
@@ -23,10 +30,10 @@ import { calendarServiceToken } from '../../../../server/providers/platform/inde
 import { attendanceManagementServiceToken } from '../../../../server/providers/attendance-management/contract.js';
 import { vendorQualificationHttpServiceToken } from '../../../../server/providers/vendor-qualification/service.js';
 import {
-  trialAccounts,
+  getTrialAccounts,
   trialEmail,
   trialUsername,
-  trialPrefix,
+  getTrialPrefix,
   type TrialRole,
 } from './accounts.js';
 
@@ -40,6 +47,7 @@ export const trustedPolicy: RepositoryPolicy = {
 };
 export interface TrialFacts {
   instant(date: string, time: string): string;
+  workDate?(offset: number): string;
   users: Record<TrialRole, string>;
   employees: Record<TrialRole, string>;
   departments: Record<string, string>;
@@ -77,41 +85,89 @@ export async function bootstrap(
   const employees = employeeModuleService(c.resolve(employeeServiceToken));
   const today =
     baseDate ?? c.resolve(calendarServiceToken).localDate(new Date());
-  const date = addDays(today, 7);
+  let date = addDays(today, 7);
+  const calendar = c.resolve(calendarServiceToken);
+  if (currentDemo()) {
+    let remaining = 370;
+    while (!calendar.isWorkday(date)) {
+      if (--remaining === 0) throw new Error('DEMO_WORK_CALENDAR_UNAVAILABLE');
+      date = addDays(date, 1);
+    }
+  }
   const instant = (value: string, time: string): string =>
     c
       .resolve(calendarServiceToken)
       .resolveLocalDateTime(value, time)
       .toISOString();
-  const year = Number(date.slice(0, 4));
+  const year = Number((currentDemo() ? today : date).slice(0, 4));
   // All identity/roster/resource initialization commits together. Business flows use their own public transactions.
   const facts = await db.transaction(async (tx) => {
     const ids = {} as Record<TrialRole, string>;
-    for (const person of trialAccounts) {
-      const existing = await tx
-        .repository('user')
-        .findOne({ filter: { email: trialEmail(person.key) } });
+    for (const person of getTrialAccounts()) {
+      const scope = currentDemo();
+      const serviceIdentity = Boolean(scope && person.key === 'system');
+      const existing =
+        serviceIdentity && scope?.identities?.system
+          ? await users.withConnection(tx).get(scope.identities.system)
+          : await tx
+              .repository('user')
+              .findOne({ filter: { email: trialEmail(person.key) } });
       if (
         existing &&
-        (existing.username !== trialUsername(person.key) ||
-          existing.name !== person.name)
+        (existing.name !== person.name ||
+          (!serviceIdentity && existing.username !== trialUsername(person.key)))
       )
         throw new Error(
           `Trial identity collision for ${person.key}; no existing account will be modified.`,
         );
-      ids[person.key] = existing
-        ? String(existing.id)
-        : (
-            await users.withConnection(tx).create({
+      if (
+        scope &&
+        existing &&
+        !(await tx.repository('demoDataRecords').exists({
+          filter: {
+            datasetId: scope.id,
+            collection: '@user',
+            keyHash: hashKey({ id: String(existing.id) }),
+          },
+        }))
+      )
+        throw new Error('DEMO_IDENTITY_COLLISION');
+      const identity =
+        existing ??
+        (serviceIdentity
+          ? await users.withConnection(tx).createServiceAccount({
+              name: person.name,
+              description: 'Fictional demo-data generation service',
+            })
+          : await users.withConnection(tx).create({
               name: person.name,
               email: trialEmail(person.key),
               username: trialUsername(person.key),
               password: passwordFor(password, person.key),
-            })
-          ).id;
+            }));
+      ids[person.key] = String(identity.id);
     }
+    if (currentDemo())
+      for (const userId of Object.values(ids)) await rememberUser(tx, userId);
+    if (currentDemo())
+      await tx.repository('demoDataSets').updateOne({
+        filter: { id: currentDemo()!.id },
+        values: {
+          accounts: getTrialAccounts().map((p) => ({
+            role: p.key,
+            id: ids[p.key],
+            name: p.name,
+            email: trialEmail(p.key),
+            username: trialUsername(p.key),
+          })),
+        },
+      });
     const actorId = ids.system;
-    const context = { actorId, connection: tx, reason: 'OA虚构试用数据初始化' };
+    const context = {
+      actorId,
+      connection: tx,
+      reason: demoText('OA虚构试用数据初始化'),
+    };
     const permissions = c
       .resolve(authorizationToken)
       .permissionSets.withTransaction(tx);
@@ -137,7 +193,7 @@ export async function bootstrap(
         )
           legacyIds.add(String(user.id));
       const duties = new Set(
-        trialAccounts.flatMap((person) => [...person.duties]),
+        getTrialAccounts().flatMap((person) => [...person.duties]),
       );
       for (const duty of duties)
         for (const userId of await organization.listDutyRoleMembers(duty, tx))
@@ -147,14 +203,14 @@ export async function bootstrap(
     const tree = await organization.listTree(tx);
     const departments: Record<string, string> = {};
     for (const [key, title, head] of [
-      ['management', '示例·管理中心', 'gm'],
-      ['engineering', '示例·研发部', 'head'],
-      ['sales', '示例·销售部', 'sales'],
-      ['hr', '示例·人事部', 'hrDirector'],
-      ['finance', '示例·财务部', 'financeManager'],
-      ['administration', '示例·行政部', 'admin2'],
+      ['management', demoText('示例·管理中心'), 'gm'],
+      ['engineering', demoText('示例·研发部'), 'head'],
+      ['sales', demoText('示例·销售部'), 'sales'],
+      ['hr', demoText('示例·人事部'), 'hrDirector'],
+      ['finance', demoText('示例·财务部'), 'financeManager'],
+      ['administration', demoText('示例·行政部'), 'admin2'],
     ] as const) {
-      const code = `${trialPrefix}-${key}`;
+      const code = `${getTrialPrefix()}-${key}`;
       departments[key] =
         tree.find((row) => row.code === code)?.id ??
         (
@@ -169,24 +225,24 @@ export async function bootstrap(
           )
         ).id;
     }
-    const positionCode = `${trialPrefix}-position`;
+    const positionCode = `${getTrialPrefix()}-position`;
     const positionId =
       (await organization.listPositions(tx)).find(
         (row) => row.code === positionCode,
       )?.id ??
       (
         await organization.createPosition(
-          { code: positionCode, title: '示例·业务专员' },
+          { code: positionCode, title: demoText('示例·业务专员') },
           context,
         )
       ).id;
-    const gradeCode = `${trialPrefix}-grade`;
+    const gradeCode = `${getTrialPrefix()}-grade`;
     const gradeId =
       (await organization.listGrades(tx)).find((row) => row.code === gradeCode)
         ?.id ??
       (
         await organization.createGrade(
-          { code: gradeCode, title: '示例·专业级', rank: 2 },
+          { code: gradeCode, title: demoText('示例·专业级'), rank: 2 },
           context,
         )
       ).id;
@@ -196,12 +252,16 @@ export async function bootstrap(
       )?.id ??
       (
         await organization.createGrade(
-          { code: `${gradeCode}-senior`, title: '示例·高级专业级', rank: 3 },
+          {
+            code: `${gradeCode}-senior`,
+            title: demoText('示例·高级专业级'),
+            rank: 3,
+          },
           context,
         )
       ).id;
     const employeeIds = {} as Record<TrialRole, string>;
-    for (const person of trialAccounts) {
+    for (const person of getTrialAccounts()) {
       const existing = await employees.getByUserId(ids[person.key], tx);
       const manager =
         person.key === 'gm' || person.key === 'system'
@@ -223,17 +283,49 @@ export async function bootstrap(
           await employees.createEmployee(
             {
               userId: ids[person.key],
-              code: `${trialPrefix}-${person.key}`,
+              code: `${getTrialPrefix()}-${person.key}`,
               name: person.name,
               status: person.key === 'probation' ? 'probation' : 'regular',
               positionId,
               gradeId,
               managerId: manager,
-              hireDate: addDays(today, -60),
-              careerStartDate: '2020-01-01',
-              probationEndDate: addDays(today, 14),
+              hireDate: addDays(
+                today,
+                currentDemo() && person.key !== 'probation'
+                  ? -365 *
+                      (1 +
+                        (getTrialAccounts().findIndex(
+                          (p) => p.key === person.key,
+                        ) %
+                          3))
+                  : -60,
+              ),
+              careerStartDate: currentDemo()
+                ? addDays(
+                    today,
+                    -365 *
+                      (4 +
+                        (getTrialAccounts().findIndex(
+                          (p) => p.key === person.key,
+                        ) %
+                          5)),
+                  )
+                : '2020-01-01',
+              probationEndDate:
+                currentDemo() && person.key !== 'probation'
+                  ? addDays(
+                      today,
+                      -365 *
+                        (1 +
+                          (getTrialAccounts().findIndex(
+                            (p) => p.key === person.key,
+                          ) %
+                            3)) +
+                        90,
+                    )
+                  : addDays(today, 14),
               email: trialEmail(person.key),
-              workLocation: '示例园区',
+              workLocation: demoText('示例园区'),
             },
             trustedPolicy,
             actorId,
@@ -259,12 +351,14 @@ export async function bootstrap(
           await organization.addDutyRoleMember(duty, ids[person.key], context);
     }
     const salary = c.resolve(salaryGradeServiceToken);
+    if (!currentDemo())
+      await rememberShared(tx, 'salaryGradeCurrent', { id: 'current' });
     const current = await salary.current(tx);
     if (!current.revision?.bands.some((band) => band.gradeId === gradeId))
       await salary.publish(
         {
           actorId,
-          requestKey: `${trialPrefix}-salary`,
+          requestKey: `${getTrialPrefix()}-salary`,
           reason: context.reason,
           expectedVersion: current.version,
           bands: [
@@ -322,8 +416,8 @@ export async function bootstrap(
             subject,
             actorId,
             deltaCents: 100000000,
-            requestKey: `${trialPrefix}-budget-${departmentId}-${year}-${subject}`,
-            reference: trialPrefix,
+            requestKey: `${getTrialPrefix()}-budget-${departmentId}-${year}-${subject}`,
+            reference: getTrialPrefix(),
             reason: context.reason,
           },
           tx,
@@ -359,7 +453,7 @@ export async function bootstrap(
             year,
             limit: 50,
             actorId,
-            requestKey: `${trialPrefix}-capacity-${key}-${year}`,
+            requestKey: `${getTrialPrefix()}-capacity-${key}-${year}`,
             reason: context.reason,
           },
           tx,
@@ -372,23 +466,23 @@ export async function bootstrap(
             expectedVersion: Number(account.version),
             actorId,
             reason: context.reason,
-            requestKey: `${trialPrefix}-reconcile-${key}-${year}`,
-            employeeIds: trialAccounts
+            requestKey: `${getTrialPrefix()}-reconcile-${key}-${year}`,
+            employeeIds: getTrialAccounts()
               .filter((p) => p.department === key)
               .map((p) => employeeIds[p.key]),
           },
           tx,
         );
     }
-    for (const person of trialAccounts)
+    for (const person of getTrialAccounts())
       await c.resolve(leaveBalanceServiceToken).grant(
         {
           employeeId: employeeIds[person.key],
           leaveType: 'annual',
           units: 20,
           actorId,
-          requestKey: `${trialPrefix}-leave-${person.key}`,
-          reference: trialPrefix,
+          requestKey: `${getTrialPrefix()}-leave-${person.key}`,
+          reference: getTrialPrefix(),
           reason: context.reason,
         },
         tx,
@@ -399,8 +493,8 @@ export async function bootstrap(
         date: addDays(today, -1),
         punchKind: 'in',
         punchedAt: null,
-        source: trialPrefix,
-        sourceKey: `${trialPrefix}-missing-punch`,
+        source: getTrialPrefix(),
+        sourceKey: `${getTrialPrefix()}-missing-punch`,
         sourceData: { fictional: true },
       },
       context,
@@ -408,7 +502,7 @@ export async function bootstrap(
     const attendanceManagement = c.resolve(attendanceManagementServiceToken);
     const previousShift = await tx
       .repository('attendanceShifts')
-      .findOne({ filter: { code: `${trialPrefix}-shift` } });
+      .findOne({ filter: { code: `${getTrialPrefix()}-shift` } });
     const shiftRevisionId = previousShift
       ? String(
           (
@@ -423,13 +517,13 @@ export async function bootstrap(
       : (
           await attendanceManagement.saveShift(
             {
-              code: `${trialPrefix}-shift`,
+              code: `${getTrialPrefix()}-shift`,
               enabled: true,
               expectedVersion: null,
               actorId: ids.hr,
               reason: context.reason,
               definition: {
-                name: '示例·标准工作班次',
+                name: demoText('示例·标准工作班次'),
                 timeZone: c.resolve(calendarServiceToken).timeZone(),
                 intervals: [
                   {
@@ -478,7 +572,7 @@ export async function bootstrap(
     const committee = c.resolve(
       vendorQualificationHttpServiceToken,
     ).configuration;
-    for (const version of await committee.versions(tx)) {
+    for (const version of currentDemo() ? [] : await committee.versions(tx)) {
       const assignments = await committee.assignments(version.version, tx);
       for (const seat of version.seats) {
         const assignment = assignments.find((v) => v.seatKey === seat.key);
@@ -497,7 +591,11 @@ export async function bootstrap(
                 : seat.source === 'legal'
                   ? ids.legal
                   : undefined;
-        if (person)
+        if (person) {
+          await rememberShared(tx, 'vendorCommitteeAssignments', {
+            committeeVersion: version.version,
+            seatKey: seat.key,
+          });
           await committee.assign(
             {
               committeeVersion: version.version,
@@ -509,32 +607,33 @@ export async function bootstrap(
             },
             tx,
           );
+        }
       }
     }
     const existingVendor = await tx
       .repository('vendors')
-      .findOne({ filter: { code: `${trialPrefix}-vendor` } });
+      .findOne({ filter: { code: `${getTrialPrefix()}-vendor` } });
     const vendor =
       existingVendor ??
       (await c.resolve(vendorServiceToken).create(
         {
           actorId,
           reason: context.reason,
-          code: `${trialPrefix}-vendor`,
-          name: '示例·办公设备供应商（虚构）',
+          code: `${getTrialPrefix()}-vendor`,
+          name: demoText('示例·办公设备供应商（虚构）'),
           category: dictionary.supplierCategory,
-          contactName: '示例联系人',
+          contactName: demoText('示例联系人'),
           contactPhone: '00000000000',
           contactEmail: 'vendor@oa-trial.example.test',
-          bankName: '示例银行（不可支付）',
+          bankName: demoText('示例银行（不可支付）'),
           bankAccount: '0000000000000000',
-          bankAccountName: '虚构试用账户',
+          bankAccountName: demoText('虚构试用账户'),
         },
         tx,
       ));
     const assetIds: string[] = [];
     for (let i = 1; i <= 8; i++) {
-      const code = `${trialPrefix}-asset-${i}`;
+      const code = `${getTrialPrefix()}-asset-${i}`;
       const existing = await tx
         .repository('assets')
         .findOne({ filter: { code } });
@@ -546,7 +645,7 @@ export async function bootstrap(
             reason: context.reason,
             code,
             category: dictionary.assetCategory,
-            name: `示例·办公设备${i}`,
+            name: demoText(`示例·办公设备${i}`),
             serialNumber: `TRIAL-SERIAL-${i}`,
             originalValueCents: 500000,
           },
@@ -555,16 +654,22 @@ export async function bootstrap(
       assetIds.push(String(asset.id));
     }
     if (
-      !(await tx
-        .repository('vehicles')
-        .findOne({ filter: { plateNumber: 'TRIAL-001' } }))
+      !(await tx.repository('vehicles').findOne({
+        filter: {
+          plateNumber: currentDemo()
+            ? `DEMO-${getTrialPrefix().slice(-8)}`
+            : 'TRIAL-001',
+        },
+      }))
     )
       await c.resolve(vehicleServiceToken).create(
         {
           actorId,
           reason: context.reason,
-          plateNumber: 'TRIAL-001',
-          name: '示例·公务车',
+          plateNumber: currentDemo()
+            ? `DEMO-${getTrialPrefix().slice(-8)}`
+            : 'TRIAL-001',
+          name: demoText('示例·公务车'),
           vehicleType: dictionary.vehicleType,
           capacity: 7,
           status: 'active',
@@ -588,15 +693,15 @@ export async function bootstrap(
     if (
       !(await tx
         .repository('seals')
-        .findOne({ filter: { code: `${trialPrefix}-seal` } }))
+        .findOne({ filter: { code: `${getTrialPrefix()}-seal` } }))
     )
       await c.resolve(sealServiceToken).saveInstance(
         {
           actorId: ids.admin,
           reason: context.reason,
-          requestKey: `${trialPrefix}-seal`,
-          code: `${trialPrefix}-seal`,
-          name: '示例·公章',
+          requestKey: `${getTrialPrefix()}-seal`,
+          code: `${getTrialPrefix()}-seal`,
+          name: demoText('示例·公章'),
           sealType: dictionary.sealType,
           active: true,
         },
@@ -604,9 +709,11 @@ export async function bootstrap(
         trustedPolicy,
       );
     for (const requiresAdminConfirmation of [false, true]) {
-      const name = requiresAdminConfirmation
-        ? '示例·董事会议室'
-        : '示例·团队会议室';
+      const name =
+        (requiresAdminConfirmation
+          ? demoText('示例·董事会议室')
+          : demoText('示例·团队会议室')) +
+        (currentDemo() ? ` · ${getTrialPrefix().slice(-4).toUpperCase()}` : '');
       const existingRoom = await tx
         .repository('meetingRooms')
         .findOne({ filter: { name } });
@@ -616,11 +723,11 @@ export async function bootstrap(
           {
             actorId: ids.admin,
             reason: context.reason,
-            requestId: `${trialPrefix}-room-${requiresAdminConfirmation}`,
+            requestId: `${getTrialPrefix()}-room-${requiresAdminConfirmation}`,
             name,
             capacity: 12,
-            location: '示例园区一楼',
-            facilities: '投影、白板',
+            location: demoText('示例园区一楼'),
+            facilities: demoText('投影、白板'),
             active: true,
             requiresAdminConfirmation,
           },
@@ -630,16 +737,16 @@ export async function bootstrap(
         !(await tx.repository('meetingBookings').findOne({
           filter: {
             roomId: String(room.id),
-            title: `${trialPrefix}·团队试用说明会`,
+            title: demoText(`${getTrialPrefix()}·团队试用说明会`),
           },
         }))
       )
         await c.resolve(meetingRoomServiceToken).create(
           {
             actorId: ids.employee,
-            requestId: `${trialPrefix}-booking-${requiresAdminConfirmation}`,
+            requestId: `${getTrialPrefix()}-booking-${requiresAdminConfirmation}`,
             roomId: String(room.id),
-            title: `${trialPrefix}·团队试用说明会`,
+            title: demoText(`${getTrialPrefix()}·团队试用说明会`),
             attendeeUserIds: [ids.employee2, ids.manager],
             date,
             startTime: '10:00',
@@ -649,8 +756,8 @@ export async function bootstrap(
           tx,
         );
     }
-    for (const person of trialAccounts) {
-      const title = `${trialPrefix}·${person.name}试用日程`;
+    for (const person of getTrialAccounts()) {
+      const title = demoText(`${getTrialPrefix()}·${person.name}试用日程`);
       if (
         !(await tx
           .repository('personalSchedules')
@@ -659,7 +766,7 @@ export async function bootstrap(
         await c.resolve(personalScheduleServiceToken).create(
           {
             title,
-            description: '虚构试用数据：登录并查看待办。',
+            description: demoText('虚构试用数据：登录并查看待办。'),
             startAt: instant(date, '09:00'),
             endAt: instant(date, '09:30'),
           },
@@ -670,6 +777,9 @@ export async function bootstrap(
     }
     return {
       instant,
+      ...(currentDemo()
+        ? { workDate: (offset: number) => calendar.addWorkdays(date, offset) }
+        : {}),
       users: ids,
       employees: employeeIds,
       departments,
@@ -700,17 +810,17 @@ export async function bootstrap(
       await employees.updateProfile(
         employeeId,
         {
-          bankName: '示例银行（不可支付）',
+          bankName: demoText('示例银行（不可支付）'),
           bankAccount: '0000000000000000',
-          bankAccountName: '虚构试用账户',
+          bankAccountName: demoText('虚构试用账户'),
         },
         trustedPolicy,
         facts.users.hr,
       );
     if (
-      !(await db
-        .repository('employeeCompensation')
-        .findOne({ filter: { employeeId, sourceApplication: trialPrefix } }))
+      !(await db.repository('employeeCompensation').findOne({
+        filter: { employeeId, sourceApplication: getTrialPrefix() },
+      }))
     )
       await employees.appendCompensation(
         {
@@ -718,9 +828,9 @@ export async function bootstrap(
           gradeId: facts.gradeId,
           baseSalary: '8000.00',
           effectiveFrom: addDays(today, -60),
-          note: '虚构试用薪资',
+          note: demoText('虚构试用薪资'),
         },
-        { actorId: facts.users.hr, sourceApplication: trialPrefix },
+        { actorId: facts.users.hr, sourceApplication: getTrialPrefix() },
       );
   }
   return facts;
