@@ -196,7 +196,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --pass-with-no-tests"
   },
-  "packageManager": "pnpm@11.7.0",
+  "packageManager": "pnpm",
   "imports": {
     "#components/*": "./client/components/*.js",
     "#hooks/*": "./client/hooks/*.js",
