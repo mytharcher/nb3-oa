@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { requestUserSummary } from '../request-performance/user-summaries.js';
@@ -466,7 +467,7 @@ export function createCertificateApplication(d: CertificateDependencies) {
                 createdById: actorId,
                 employeeId: employee.id,
                 departmentId: department.id,
-                createdAt: new Date().toISOString(),
+                createdAt: demoNow().toISOString(),
                 preparationId: null,
                 issueId: null,
                 exceptionReason: null,
@@ -1236,7 +1237,7 @@ export function createCertificateApplication(d: CertificateDependencies) {
           applicantId: r.applicantId,
           employeeId: r.employeeId,
           preparedById: actorId,
-          preparedAt: new Date(),
+          preparedAt: demoNow(),
           status: 'prepared',
           sensitivity,
           safeFacts,

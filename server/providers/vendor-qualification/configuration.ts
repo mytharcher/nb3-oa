@@ -1,3 +1,4 @@
+import { demoNow, demoPartition } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import { refuse } from './errors.js';
 import type { DatabaseConnection } from '@nocobase/db';
@@ -44,6 +45,31 @@ export function createCommitteeConfiguration(
         : [validateCommittee(DEFAULT_COMMITTEE)];
     },
     async assignments(version: number, tx: DatabaseConnection) {
+      const demo = demoPartition(tx);
+      if (demo?.identities) {
+        const structure = (await this.versions(tx)).find(
+          (v) => v.version === version,
+        );
+        const roles = {
+          purchasing: 'purchasing2',
+          finance: 'finance',
+          technical: 'committeeTech',
+          legal: 'legal',
+        } as const;
+        return (structure?.seats ?? [])
+          .filter((seat) => seat.source !== 'applicantHead')
+          .map((seat) => ({
+            id: `${demo.id}:${seat.key}`,
+            committeeVersion: version,
+            seatKey: seat.key,
+            personId:
+              seat.source === 'applicantHead'
+                ? null
+                : (demo.identities![roles[seat.source]] ?? null),
+            version: 0,
+            updatedAt: demoNow(),
+          }));
+      }
       return tx.repository<Assignment>('vendorCommitteeAssignments').findMany({
         filter: { committeeVersion: version },
         sort: (s) => [s.field('seatKey').asc()],
@@ -91,7 +117,7 @@ export function createCommitteeConfiguration(
       const values = {
         personId: input.personId,
         version: input.expectedVersion + 1,
-        updatedAt: new Date(),
+        updatedAt: demoNow(),
       };
       if (before) {
         const changed = await repo.updateMany({
@@ -147,7 +173,7 @@ export function createCommitteeConfiguration(
             ...DEFAULT_COMMITTEE,
             seats: [...DEFAULT_COMMITTEE.seats],
             createdById: input.actorId,
-            createdAt: new Date(),
+            createdAt: demoNow(),
           },
         });
       await repo.createOne({
@@ -155,7 +181,7 @@ export function createCommitteeConfiguration(
           ...clean,
           seats: [...clean.seats],
           createdById: input.actorId,
-          createdAt: new Date(),
+          createdAt: demoNow(),
         },
       });
       await audit.record(
@@ -214,7 +240,7 @@ export function createCommitteeConfiguration(
       const values = {
         personId: input.personId,
         version: input.expectedVersion + 1,
-        updatedAt: new Date(),
+        updatedAt: demoNow(),
       };
       if (before) {
         const result = await repo.updateMany({

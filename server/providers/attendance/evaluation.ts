@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import {
   lockUserForAdministration,
@@ -318,7 +319,7 @@ export function createAttendanceEvaluationService(d: {
             requestKey: values.requestKey,
             actorId: values.actorId,
             reason: values.reason,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
             snapshot: {
               engineVersion: 1,
               userId: values.userId,

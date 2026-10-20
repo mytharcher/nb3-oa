@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
   createAppApprovalService,
@@ -283,6 +284,7 @@ export function createCancellationService(d: CancellationDependencies) {
   const source = (handle: unknown): Services =>
     handle ? snapshots.get(handle)! : outside;
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: wrap(base),
     dispatcher: d.dispatcher,
   });
@@ -450,7 +452,7 @@ export function createCancellationService(d: CancellationDependencies) {
         directory: services.directory,
         applicantId: record?.applicantId,
         kind: CANCELLATION_LIFECYCLE,
-        at: new Date().toISOString(),
+        at: demoNow().toISOString(),
       });
     },
     states: [
@@ -981,7 +983,7 @@ export function createCancellationService(d: CancellationDependencies) {
             },
             ruleSnapshot: null,
             managerApproverId: reviewer,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: actorId } },
         );

@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 import { createServiceToken } from '@nocobase/service-provider';
@@ -56,7 +57,7 @@ export function createReplacementNotifications(d: {
       },
     }),
     dispatcher: d.dispatcher,
-    clock: d.now,
+    clock: d.now ?? demoNow,
   });
   const effect = defineEffect<{ record: Notice; state: Notice['status'] }>({
     name: 'oa.headcounts.replacementBlocked',

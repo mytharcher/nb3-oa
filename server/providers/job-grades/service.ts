@@ -1,3 +1,4 @@
+import { demoNow, demoPartition } from '../demo-data/context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { DatabaseConnection } from '@nocobase/db';
@@ -5,6 +6,15 @@ import type { OrgService } from '../org/contract.js';
 import type { AuditService } from '../audit/index.js';
 import type { SalaryGradeRevision, SalaryGradeService } from './contract.js';
 import { freezeSalaryRanges } from './ranges.js';
+/** Separate storage prevents demo publications from replacing the company's current table. */
+export function salaryCollections(tx?: DatabaseConnection) {
+  return demoPartition(tx)
+    ? {
+        pointer: 'demoSalaryGradeCurrent',
+        revision: 'demoSalaryGradeRevisions',
+      }
+    : { pointer: 'salaryGradeCurrent', revision: 'salaryGradeRevisions' };
+}
 export class SalaryTableError extends Error {
   constructor(
     public readonly reason:
@@ -45,7 +55,7 @@ export function createSalaryGradeService(d: {
     tx: DatabaseConnection,
   ): Promise<SalaryGradeRevision> {
     const row = await tx
-      .repository('salaryGradeRevisions')
+      .repository(salaryCollections(tx).revision)
       .findOne({ filter: { id } });
     const bands = bandsSchema.safeParse(row?.bands);
     const createdAt =
@@ -78,8 +88,9 @@ export function createSalaryGradeService(d: {
   const service: SalaryGradeService = {
     async current(tx) {
       const pointer = await tx
-        .repository('salaryGradeCurrent')
+        .repository(salaryCollections(tx).pointer)
         .findOne({ filter: { id: 'current' } });
+      if (!pointer && demoPartition(tx)) return { version: 0, revision: null };
       if (
         !pointer ||
         typeof pointer.version !== 'number' ||
@@ -109,11 +120,24 @@ export function createSalaryGradeService(d: {
         throw new SalaryTableError('INVALID_PUBLICATION');
       return connection.transaction(async (tx) => {
         const pointerRepository = policies
-          ? tx.repository('salaryGradeCurrent').withPolicy(policies.pointer)
-          : tx.repository('salaryGradeCurrent');
+          ? tx
+              .repository(salaryCollections(tx).pointer)
+              .withPolicy(policies.pointer)
+          : tx.repository(salaryCollections(tx).pointer);
         const revisionRepository = policies
-          ? tx.repository('salaryGradeRevisions').withPolicy(policies.revision)
-          : tx.repository('salaryGradeRevisions');
+          ? tx
+              .repository(salaryCollections(tx).revision)
+              .withPolicy(policies.revision)
+          : tx.repository(salaryCollections(tx).revision);
+        if (
+          demoPartition(tx) &&
+          !(await tx
+            .repository(salaryCollections(tx).pointer)
+            .exists({ filter: { id: 'current' } }))
+        )
+          await tx.repository(salaryCollections(tx).pointer).createOne({
+            values: { id: 'current', version: 0, revisionId: null },
+          });
         const locked = await pointerRepository.updateMany({
           filter: { id: 'current' },
           values: { version: { increment: 0 } },
@@ -139,7 +163,7 @@ export function createSalaryGradeService(d: {
           : undefined;
         if (input.requestKey) {
           const prior = await tx
-            .repository('salaryGradeRevisions')
+            .repository(salaryCollections(tx).revision)
             .findOne({
               filter: {
                 createdById: input.actorId,
@@ -167,7 +191,7 @@ export function createSalaryGradeService(d: {
           bands,
           createdById: input.actorId,
           reason: input.reason.trim(),
-          createdAt: new Date(),
+          createdAt: demoNow(),
         };
         await revisionRepository.createOne({
           values: {

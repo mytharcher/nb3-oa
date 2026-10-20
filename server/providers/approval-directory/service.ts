@@ -1,3 +1,5 @@
+import { demoNow } from '../demo-data/context.js';
+import { inDemoPartition } from '../demo-data/context.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { requestBusinessRead } from '../request-performance/business-reads.js';
 import type { AppAuthorization } from '@nocobase/app-plugin-authorization/server';
@@ -327,35 +329,46 @@ export function createApprovalDirectoryService({
       }
     }
     return {
-      isActive: (person) => active.has(person),
+      isActive: (person) =>
+        active.has(person) && inDemoPartition(person, connection),
       managerOf: (person) => managers.get(person),
       headOf: (person) => heads.get(person),
       executiveOf: (person) => executives.get(person),
       hasRole: (person, role) =>
         role === 'approval.admin'
           ? administrators.has(person)
-          : (roles.get(role)?.includes(person) ?? false),
+          : inDemoPartition(person, connection) &&
+            (roles.get(role)?.includes(person) ?? false),
       roleMembers: (role) =>
         role === 'approval.admin'
           ? [...administrators]
-          : (roles.get(role) ?? []),
+          : (roles.get(role) ?? []).filter((id) =>
+              inDemoPartition(id, connection),
+            ),
       uniqueRoleMember: (role) =>
-        roles.get(role)?.length === 1 ? roles.get(role)?.[0] : undefined,
+        roles.get(role)?.filter((id) => inDemoPartition(id, connection))
+          .length === 1
+          ? roles.get(role)?.find((id) => inDemoPartition(id, connection))
+          : undefined,
       searchPeople: ({ search, offset, limit }) =>
         people
           .filter(
             (person) =>
-              !search ||
-              person.name
-                .toLocaleLowerCase()
-                .includes(search.toLocaleLowerCase()) ||
-              person.code
-                .toLocaleLowerCase()
-                .includes(search.toLocaleLowerCase()),
+              inDemoPartition(person.userId, connection) &&
+              (!search ||
+                person.name
+                  .toLocaleLowerCase()
+                  .includes(search.toLocaleLowerCase()) ||
+                person.code
+                  .toLocaleLowerCase()
+                  .includes(search.toLocaleLowerCase())),
           )
           .map((person) => person.userId)
           .slice(offset, offset + limit),
-      ...delegationLookups(delegations, (id) => active.has(id)),
+      ...delegationLookups(
+        delegations,
+        (id) => active.has(id) && inDemoPartition(id, connection),
+      ),
     };
   }
   async function validate(
@@ -454,7 +467,7 @@ export function createApprovalDirectoryService({
       ].sort())
         await lockUserForAdministration(tx, principal);
       await validate(input, tx, id);
-      const now = new Date();
+      const now = demoNow();
       const values = {
         ...input,
         from: new Date(input.from),
@@ -518,7 +531,7 @@ export function createApprovalDirectoryService({
       if (!before.active) return before;
       await tx.repository('approvalDelegations').updateOne({
         filter: { id },
-        values: { active: false, updatedAt: new Date() },
+        values: { active: false, updatedAt: demoNow() },
       });
       const after = (await list(tx)).find((entry) => entry.id === id)!;
       await audit.record(

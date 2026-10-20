@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createHash } from 'node:crypto';
 import { createServiceToken } from '@nocobase/service-provider';
 import type { DatabaseConnection } from '@nocobase/db';
@@ -98,7 +99,7 @@ export function createEmployeeArchiveService(dependencies: {
             contentHash: input.contentHash,
             sensitivity: input.sensitivity,
             archivedById: input.actorId,
-            archivedAt: new Date(),
+            archivedAt: demoNow(),
           },
         });
       await dependencies.audit.record(

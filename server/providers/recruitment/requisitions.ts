@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createHash } from 'node:crypto';
 import type {
   DatabaseConnection,
@@ -123,7 +124,7 @@ export function createRequisitionService(d: {
       }
       const result = await work(tx);
       await repository.createOne({
-        values: { id, fingerprint, result, createdAt: new Date() },
+        values: { id, fingerprint, result, createdAt: demoNow() },
       });
       return result;
     });
@@ -138,7 +139,7 @@ export function createRequisitionService(d: {
       .repository<Requisition>('requisitions')
       .updateMany({
         filter: { id, version },
-        values: { ...values, version: version + 1, updatedAt: new Date() },
+        values: { ...values, version: version + 1, updatedAt: demoNow() },
       });
     if (changed.updatedCount !== 1)
       throw new RecruitmentSubmissionError('RECRUITMENT_VERSION_CONFLICT');
@@ -168,7 +169,7 @@ export function createRequisitionService(d: {
           throw new RecruitmentSubmissionError(
             'RECRUITMENT_RESERVATION_UNAVAILABLE',
           );
-        const now = new Date();
+        const now = demoNow();
         const created = await tx
           .repository<Requisition>('requisitions')
           .createOne({

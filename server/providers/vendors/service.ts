@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type {
   DatabaseConnection,
@@ -159,7 +160,7 @@ export function createVendorService(d: {
             'A vendor with this code already exists.',
             'conflict',
           );
-        const now = new Date();
+        const now = demoNow();
         const row = (
           await (policy ? repo.withPolicy(policy) : repo).createOne({
             values: {
@@ -235,7 +236,7 @@ export function createVendorService(d: {
           fail('INVALID_INPUT', 'Active must be a boolean.');
         const values: Partial<Vendor> = {
           version: input.version + 1,
-          updatedAt: new Date(),
+          updatedAt: demoNow(),
         };
         for (const k of keys) if (k in patch) values[k] = clean[k];
         if (input.active !== undefined) {
@@ -355,7 +356,7 @@ export function createVendorService(d: {
         : null;
       const values: Partial<Vendor> = {
         version: before.version + 1,
-        updatedAt: new Date(),
+        updatedAt: demoNow(),
         status: input.outcome === 'qualified' ? 'qualified' : 'disabled',
         active: input.outcome === 'qualified',
         qualificationId: input.qualificationId,

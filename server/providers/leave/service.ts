@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { runTaskViewsFor } from '../approval-runtime/task-views.js';
 import {
   hasApprovalCandidate,
@@ -281,6 +282,7 @@ export function createLeaveService(d: LeaveDependencies) {
   const source = (handle: unknown): Services =>
     handle ? snapshots.get(handle)! : outside;
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: wrap(base),
     dispatcher: d.dispatcher,
   });
@@ -500,7 +502,7 @@ export function createLeaveService(d: LeaveDependencies) {
         directory: services.directory,
         applicantId: record?.applicantId,
         kind: LEAVE_LIFECYCLE,
-        at: new Date().toISOString(),
+        at: demoNow().toISOString(),
       });
     },
     states: [
@@ -1027,7 +1029,7 @@ export function createLeaveService(d: LeaveDependencies) {
             hrRecipients: [],
             requiresHr: false,
             managerApproverId: null,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: actorId } },
         );
@@ -1232,7 +1234,7 @@ export function createLeaveService(d: LeaveDependencies) {
           'permission',
         );
       const year =
-        query.year ?? Number(d.calendar.localDate(new Date()).slice(0, 4));
+        query.year ?? Number(d.calendar.localDate(demoNow()).slice(0, 4));
       const sources = await d.db
         .repository<LeaveRecord>('leaveRequests')
         .withPolicy(policy)

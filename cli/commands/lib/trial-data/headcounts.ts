@@ -1,3 +1,4 @@
+import { demoText } from '../../../../server/providers/demo-data/content.js';
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken } from '@nocobase/db';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
@@ -5,13 +6,13 @@ import { organizationServiceToken } from '../../../../server/providers/org/index
 import { headcountServiceToken } from '../../../../server/providers/headcounts/contract.js';
 import { calendarServiceToken } from '../../../../server/providers/platform/index.js';
 import {
-  trialAccounts,
+  getTrialAccounts,
   trialEmail,
   trialUsername,
-  trialPrefix,
+  getTrialPrefix,
 } from './accounts.js';
 export const headcountSamplePlan = {
-  dataset: trialPrefix,
+  dataset: getTrialPrefix(),
   scope: 'headcounts-only',
   accounts: [
     'six existing trial departments, current company year, existing trial position, limit 50',
@@ -41,7 +42,7 @@ export async function populateHeadcountSamples(
   // Narrow mode requires existing exact fictional identities. Never recreate users,
   // root grants, departments, workflow records or a missing trial manifest here.
   let actorId = '';
-  for (const p of trialAccounts) {
+  for (const p of getTrialAccounts()) {
     const existing = (
       await users.list({
         search: trialEmail(p.key),
@@ -61,7 +62,7 @@ export async function populateHeadcountSamples(
   }
   const tree = await org.listTree(),
     position = (await org.listPositions()).find(
-      (p) => p.code === `${trialPrefix}-position`,
+      (p) => p.code === `${getTrialPrefix()}-position`,
     );
   if (!position?.active)
     throw new Error('Existing trial position is missing or inactive.');
@@ -73,7 +74,9 @@ export async function populateHeadcountSamples(
     'administration',
     'management',
   ].map((key) => {
-    const department = tree.find((d) => d.code === `${trialPrefix}-${key}`);
+    const department = tree.find(
+      (d) => d.code === `${getTrialPrefix()}-${key}`,
+    );
     if (!department?.active)
       throw new Error(
         `Existing trial department is missing or inactive: ${key}`,
@@ -102,7 +105,7 @@ export async function populateHeadcountSamples(
         initialized: boolean;
         created: boolean;
       }[] = [];
-      const reason = 'OA虚构试用编制数据补充';
+      const reason = demoText('OA虚构试用编制数据补充');
       async function ensure(
         key: string,
         departmentId: string,
@@ -124,7 +127,7 @@ export async function populateHeadcountSamples(
               limit,
               actorId,
               reason,
-              requestKey: `${trialPrefix}-ledger-create-${key}-${accountYear}`,
+              requestKey: `${getTrialPrefix()}-ledger-create-${key}-${accountYear}`,
             },
             locked,
           ));
@@ -138,7 +141,7 @@ export async function populateHeadcountSamples(
               ),
               actorId,
               reason,
-              requestKey: `${trialPrefix}-ledger-initialize-${key}-${accountYear}`,
+              requestKey: `${getTrialPrefix()}-ledger-initialize-${key}-${accountYear}`,
             },
             locked,
           );
@@ -168,13 +171,13 @@ export async function populateHeadcountSamples(
         50,
         true,
       );
-      const teachingCode = `${trialPrefix}-headcounts-uninitialized`;
+      const teachingCode = `${getTrialPrefix()}-headcounts-uninitialized`;
       const teaching =
         (await org.listPositions(locked)).find(
           (p) => p.code === teachingCode,
         ) ??
         (await org.createPosition(
-          { code: teachingCode, title: '示例·待初始化岗位' },
+          { code: teachingCode, title: demoText('示例·待初始化岗位') },
           { actorId, reason, connection: locked },
         ));
       await ensure(

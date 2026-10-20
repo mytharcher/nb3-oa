@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
 import type {
   NotificationConfig,
@@ -190,7 +191,7 @@ export function createApprovalNotificationService(
       const proxy = directory?.delegateOf?.(
         task.assigneeId,
         kind ?? task.source,
-        at ?? new Date().toISOString(),
+        at ?? demoNow().toISOString(),
         task.createdAt,
       );
       if (

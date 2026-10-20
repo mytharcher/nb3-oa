@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type {
   DatabaseConnection,
@@ -58,7 +59,7 @@ export function createAnnouncementService(d: {
     policy: RepositoryPolicy,
   ) => Promise<NonNullable<Announcement['knowledgeLink']>>;
 }): AnnouncementService & { runtime: LifecycleRuntime } {
-  const now = () => d.now?.() ?? new Date();
+  const now = () => d.now?.() ?? demoNow();
   const active = (a: Announcement) =>
     a.status === 'published' &&
     new Date(a.validFrom) <= now() &&

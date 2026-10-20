@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { runTaskViewsFor } from '../approval-runtime/task-views.js';
 import {
   hasApprovalCandidate,
@@ -220,6 +221,7 @@ export function createPaymentRequestService(d: PaymentRequestDependencies) {
   const source = (handle: unknown): Services =>
     handle ? adapter.snapshots.get(handle)! : outside;
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: adapter.store,
     dispatcher: d.dispatcher,
   });
@@ -511,7 +513,7 @@ export function createPaymentRequestService(d: PaymentRequestDependencies) {
         directory: services.directory,
         applicantId: r?.applicantId,
         kind: PAYMENT_REQUEST_LIFECYCLE,
-        at: new Date().toISOString(),
+        at: demoNow().toISOString(),
       });
     },
     create: {
@@ -1298,7 +1300,7 @@ export function createPaymentRequestService(d: PaymentRequestDependencies) {
             exceptionContentHash: null,
             handlingFailureReason: null,
             forcedReason: null,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: actorId }, transaction },
         );

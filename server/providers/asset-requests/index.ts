@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import {
   assetSelectionServiceToken,
   createAssetSelectionService,
@@ -265,7 +266,7 @@ export default class AssetRequestsProvider extends ServiceProvider<Application> 
       start: async () => {
         const result = await this.app.container
           .resolve(assetRequestServiceToken)
-          .remindBorrowers(new Date());
+          .remindBorrowers(demoNow());
         return result.pending
           ? {
               state: 'failed',

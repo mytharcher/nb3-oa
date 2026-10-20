@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import type { HeadcountService } from '../headcounts/contract.js';
 import { requestConnectionRead } from '../request-performance/business-reads.js';
 import { createHash } from 'node:crypto';
@@ -703,7 +704,7 @@ export function createEmployeeService(
         'EMPLOYEE_CAREER_START_INVALID',
         'The first employment date must be a valid local date.',
       );
-    if (date > deps.calendar().localDate(new Date()))
+    if (date > deps.calendar().localDate(demoNow()))
       throw new EmployeeError(
         'EMPLOYEE_CAREER_START_FUTURE',
         'The first employment date cannot be in the future.',
@@ -905,7 +906,7 @@ export function createEmployeeService(
             'EMPLOYEE_PROBATION_END_INVALID',
             'Onboarding hire and probation dates must be valid and ordered.',
           );
-        const now = new Date();
+        const now = demoNow();
         await tx.repository('employees').createOne({
           values: {
             userId: input.userId,
@@ -1247,7 +1248,7 @@ export function createEmployeeService(
             positionId: input.positionId,
             gradeId: input.gradeId,
             managerId: input.managerId,
-            updatedAt: new Date(),
+            updatedAt: demoNow(),
           },
         });
         const after = (await getById(input.employeeId, tx))!;
@@ -1285,7 +1286,7 @@ export function createEmployeeService(
             id: sourceId,
             employeeId: input.employeeId,
             fingerprint,
-            createdAt: new Date(),
+            createdAt: demoNow(),
           },
         });
         notifyAfterCommit(tx, await affectedUsers(before, after, tx));
@@ -1302,7 +1303,7 @@ export function createEmployeeService(
         );
       const values: RepositoryRecord = {
         status: input.status,
-        updatedAt: new Date(),
+        updatedAt: demoNow(),
       };
       if (input.lastWorkingDay !== undefined)
         values.lastWorkingDay = input.lastWorkingDay;
@@ -1399,7 +1400,7 @@ export function createEmployeeService(
             sourceApplication: origin.sourceApplication ?? null,
             note: input.note ?? null,
             createdById: origin.actorId,
-            createdAt: new Date(),
+            createdAt: demoNow(),
           },
         });
         const record = toCompensation(result.record);
@@ -1443,7 +1444,7 @@ export function createEmployeeService(
             sourceApplication: origin.sourceApplication ?? null,
             note: input.note ?? null,
             createdById: origin.actorId,
-            createdAt: new Date(),
+            createdAt: demoNow(),
           },
         });
         const record = toHistory(result.record);
@@ -1559,7 +1560,7 @@ export function createEmployeeService(
             careerStartDate: input.careerStartDate ?? null,
             hireDate: input.hireDate ?? null,
           });
-          const now = new Date();
+          const now = demoNow();
           const values: RepositoryRecord = {
             id,
             userId: input.userId,
@@ -1633,7 +1634,7 @@ export function createEmployeeService(
             hireDate:
               input.hireDate === undefined ? before.hireDate : input.hireDate,
           });
-          const values: RepositoryRecord = { updatedAt: new Date() };
+          const values: RepositoryRecord = { updatedAt: demoNow() };
           for (const field of EMPLOYEE_EDITABLE_FIELDS)
             if (input[field] !== undefined) values[field] = input[field];
           await scoped.updateOne({ filter: { id }, values });
@@ -1689,7 +1690,7 @@ export function createEmployeeService(
           const before = (await getById(id, connection))!;
           const values: RepositoryRecord = {
             status: input.status,
-            updatedAt: new Date(),
+            updatedAt: demoNow(),
           };
           if (input.lastWorkingDay !== undefined)
             values.lastWorkingDay = input.lastWorkingDay;
@@ -1713,10 +1714,10 @@ export function createEmployeeService(
               kind: 'correction',
               before: changed.before,
               after: changed.after,
-              effectiveAt: new Date().toISOString().slice(0, 10),
+              effectiveAt: demoNow().toISOString().slice(0, 10),
               note: input.reason,
               createdById: actorId,
-              createdAt: new Date(),
+              createdAt: demoNow(),
             },
           });
           await deps.audit().record(
@@ -1790,7 +1791,7 @@ export function createEmployeeService(
           .repository('employeeProfiles')
           .findOne({ filter: { employeeId } });
         const before = beforeRow ? toProfile(beforeRow) : {};
-        const values: RepositoryRecord = { updatedAt: new Date() };
+        const values: RepositoryRecord = { updatedAt: demoNow() };
         for (const field of PROFILE_EDITABLE_FIELDS)
           if (input[field] !== undefined) values[field] = input[field];
         await scoped.updateOne({ filter: { employeeId }, values });

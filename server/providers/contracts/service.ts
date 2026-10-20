@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { z } from 'zod';
 import { hasApprovalAssignment } from '../approval-runtime/query-service.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -635,7 +636,7 @@ export function createContractService(d: Dependencies) {
                       baseVersion: clean.baseVersion,
                       ruleSnapshot: {},
                       nonStandard: null,
-                      createdAt: new Date().toISOString(),
+                      createdAt: demoNow().toISOString(),
                       submittedAt: null,
                     },
                     { actor: { id: actorId }, transaction: tx },
@@ -956,7 +957,7 @@ export function createContractService(d: Dependencies) {
             fileId,
             version,
             actorId,
-            at: new Date(),
+            at: demoNow(),
           };
           await tx
             .repository('contractTextVersions')
@@ -1163,7 +1164,7 @@ export function createContractService(d: Dependencies) {
         .findMany({
           sort: (s) => [s.field('updatedAt').desc(), s.field('id').desc()],
         });
-      const asOf = d.calendar.localDate(new Date());
+      const asOf = d.calendar.localDate(demoNow());
       const data = [];
       for (const source of sources) {
         if (

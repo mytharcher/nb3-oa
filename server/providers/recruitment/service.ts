@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { runTaskViewsFor } from '../approval-runtime/task-views.js';
 import {
   hasApprovalCandidate,
@@ -393,6 +394,7 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
   } satisfies import('./approval.js').RecruitmentApprovalHooks;
   const definition = createRecruitmentApproval(hooks);
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: wrap(base),
     dispatcher: d.dispatcher,
   });
@@ -451,7 +453,7 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
         band: input.band ? { ...input.band } : null,
         gradeRevisionId: input.band?.revisionId ?? null,
         gradeTableVersion: input.band?.tableVersion ?? null,
-        createdAt: new Date(),
+        createdAt: demoNow(),
         createdById: actorId,
       },
     });
@@ -520,7 +522,7 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
                 id: key,
                 fingerprint,
                 result: result as unknown as JsonObject,
-                createdAt: new Date(),
+                createdAt: demoNow(),
               },
             });
             return result;
@@ -657,7 +659,7 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
             applicantId: command.actorId,
             privateSalaryRevisionId,
             snapshot: null,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: command.actorId }, transaction: tx },
         );
@@ -786,7 +788,7 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
           context.getStore()!.prepared = await hooks.prepare(
             { ...updated, privateSalaryRevisionId, status: 'revision' },
             command.actorId,
-            new Date(),
+            demoNow(),
             tx,
           );
           const result = await runtime.fire(
@@ -840,7 +842,7 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
             context.getStore()!.prepared = await hooks.prepare(
               record,
               command.actorId,
-              new Date(),
+              demoNow(),
               tx,
             );
           }

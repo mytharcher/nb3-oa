@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import type { RepositoryRecord } from '@nocobase/db';
 import type { WorkItem, WorkItemAction } from './contract.js';
 /** Read-only capability probe covering every field this owner writes for an action.
@@ -11,7 +12,7 @@ export function actionMutation(
 ): RepositoryRecord {
   const values: RepositoryRecord = {
     version: item.version + 1,
-    statusChangedAt: new Date(),
+    statusChangedAt: demoNow(),
   };
   const pool = !!item.dutyRoleCode;
   values.status =
@@ -56,11 +57,11 @@ export function actionMutation(
     values.resultAttachments = [...item.resultAttachments];
     values.completedAt =
       action === 'forceComplete' || !item.requiresConfirmation
-        ? new Date()
+        ? demoNow()
         : null;
     if (action === 'forceComplete') values.forced = true;
   }
-  if (action === 'confirm') values.completedAt = new Date();
+  if (action === 'confirm') values.completedAt = demoNow();
   if (action === 'return' || action === 'reassign') {
     values.result = null;
     values.resultAttachments = [];

@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
   createAppApprovalService,
@@ -348,6 +349,7 @@ export function createReimbursementService(d: ReimbursementDependencies) {
   const source = (handle: unknown): Services =>
     handle ? snapshots.get(handle)! : outside;
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: wrap(base),
     dispatcher: d.dispatcher,
   });
@@ -752,7 +754,7 @@ export function createReimbursementService(d: ReimbursementDependencies) {
         directory: services.directory,
         applicantId: record?.applicantId,
         kind: REIMBURSEMENT_LIFECYCLE,
-        at: new Date().toISOString(),
+        at: demoNow().toISOString(),
       });
     },
     create: {
@@ -1914,7 +1916,7 @@ export function createReimbursementService(d: ReimbursementDependencies) {
             boundLoanId: null,
             debtHeldCents: 0,
             debtHoldRecorded: false,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: actorId }, transaction },
         );

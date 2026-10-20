@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseConnection } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -130,7 +131,7 @@ export function createHeadcountService(d: {
         fail('VERSION_CONFLICT', 'The account version cannot safely advance.');
       const update = await tx.repository('headcountAccounts').updateMany({
         filter: { id: row.id, version: row.version },
-        values: { version: row.version + 1, updatedAt: new Date() },
+        values: { version: row.version + 1, updatedAt: demoNow() },
       });
       if (update.updatedCount !== 1)
         fail('VERSION_CONFLICT', 'The headcount account changed.');
@@ -218,7 +219,7 @@ export function createHeadcountService(d: {
         requestKey: input.requestKey,
         fingerprint,
         result: { value: result ?? null },
-        createdAt: new Date(),
+        createdAt: demoNow(),
       },
     });
     return result;
@@ -251,7 +252,7 @@ export function createHeadcountService(d: {
         actorId: c.actorId,
         reason: c.reason,
         evidence: snapshot,
-        at: new Date(),
+        at: demoNow(),
       },
     });
     await d.audit.record(
@@ -409,7 +410,7 @@ export function createHeadcountService(d: {
         state: 'used',
         claimSeatId: null,
         sourceReference,
-        createdAt: new Date(),
+        createdAt: demoNow(),
         releasedAt: null,
       },
     });
@@ -543,7 +544,7 @@ export function createHeadcountService(d: {
     else
       await c
         .repository('headcountSources')
-        .createOne({ values: { ...s, createdAt: new Date() } });
+        .createOne({ values: { ...s, createdAt: demoNow() } });
     const start = previousSeats.length
       ? Math.max(...previousSeats.map((s) => s.ordinal)) + 1
       : 0;
@@ -560,7 +561,7 @@ export function createHeadcountService(d: {
           state: o?.state === 'used' ? 'futurePending' : 'pending',
           replacementOccupancyId: o?.id ?? null,
           employeeId: null,
-          createdAt: new Date(),
+          createdAt: demoNow(),
         },
       });
       if (o)
@@ -687,8 +688,8 @@ export function createHeadcountService(d: {
               limit: input.limit,
               initialized: false,
               version: 1,
-              createdAt: new Date(),
-              updatedAt: new Date(),
+              createdAt: demoNow(),
+              updatedAt: demoNow(),
             },
           });
           // Composite read scope also fixes the account identity boundary for creation.
@@ -877,7 +878,7 @@ export function createHeadcountService(d: {
           const s = await source(input, c);
           await accounts([s.accountId], c);
           const a = await account(s.accountId, c);
-          if (a.year !== Number(d.calendar.localDate(new Date()).slice(0, 4)))
+          if (a.year !== Number(d.calendar.localDate(demoNow()).slice(0, 4)))
             fail(
               'YEAR_REBIND_REQUIRED',
               'Rebind old-year allocations to the current company year before onboarding.',
@@ -964,7 +965,7 @@ export function createHeadcountService(d: {
                 state: 'released',
                 activeKey: hash(['released', o.id]),
                 releaseKind: 'departure',
-                releasedAt: new Date(),
+                releasedAt: demoNow(),
               },
             });
             if (o.claimSeatId) {
@@ -1141,7 +1142,7 @@ export function createHeadcountService(d: {
             to = await account(s.accountId, c);
           if (
             from.year !== to.year ||
-            to.year !== Number(d.calendar.localDate(new Date()).slice(0, 4))
+            to.year !== Number(d.calendar.localDate(demoNow()).slice(0, 4))
           )
             fail(
               'YEAR_REBIND_REQUIRED',
@@ -1176,7 +1177,7 @@ export function createHeadcountService(d: {
               state: 'released',
               activeKey: hash(['released', o.id]),
               releaseKind: 'transfer',
-              releasedAt: new Date(),
+              releasedAt: demoNow(),
             },
           });
           await addOccupancy(input.employeeId, to, s.id, c);

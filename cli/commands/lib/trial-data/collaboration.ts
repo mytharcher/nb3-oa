@@ -1,3 +1,6 @@
+import { assertDemoOwnership } from '../../../../server/providers/demo-data/ownership.js';
+import { currentDemo } from '../../../../server/providers/demo-data/context.js';
+import { demoText } from '../../../../server/providers/demo-data/content.js';
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken } from '@nocobase/db';
 import { knowledgeServiceToken } from '../../../../server/providers/knowledge/contract.js';
@@ -9,7 +12,7 @@ import {
   PRINT_SOURCES,
 } from '../../../../server/providers/template-print/contract.js';
 import { strToU8, zipSync } from 'fflate';
-import { trialPrefix, trialAccounts } from './accounts.js';
+import { getTrialPrefix, getTrialAccounts } from './accounts.js';
 import { trustedPolicy, type TrialFacts, addDays } from './bootstrap.js';
 import type { ScenarioResult } from './engine.js';
 import { recordOf } from './http.js';
@@ -22,23 +25,26 @@ export async function collaboration(
   const db = c.resolve(databaseManagerToken);
   const result: ScenarioResult[] = [];
   await db.transaction(async (tx) => {
-    const title = `${trialPrefix}·试用操作指南`;
+    const title = demoText(`${getTrialPrefix()}·试用操作指南`);
     const existing = await tx
       .repository('knowledgeDocuments')
       .findOne({ filter: { title } });
+    if (existing)
+      await assertDemoOwnership(tx, 'knowledgeDocuments', existing.id);
     const knowledge =
       existing ??
       (await c.resolve(knowledgeServiceToken).save(
         {
           actorId: f.users.hr,
-          requestKey: `${trialPrefix}-knowledge`,
+          requestKey: `${getTrialPrefix()}-knowledge`,
           title,
           folderId: null,
           departmentIds: Object.values(f.departments),
           dutyRoleCodes: [],
           kind: 'markdown',
-          markdown:
+          markdown: demoText(
             '# OA试用指南\n\n所有记录均为虚构数据。\n\n1. 普通员工在任务中心发起申请。\n2. 主管、负责人和职能角色分别处理各自待办。\n3. 财务金额和人事受控字段按已有权限显示。\n4. 反复执行初始化会保留已经试用过的记录。',
+          ),
         },
         tx,
         trustedPolicy,
@@ -47,24 +53,29 @@ export async function collaboration(
       ));
     result.push({
       key: 'knowledge',
-      title: '知识库',
+      title: demoText('知识库'),
       path: '/knowledge',
       id: String(knowledge.id),
       status: 'active',
       actor: 'hr',
     });
-    const announcementTitle = `${trialPrefix}·OA试用通知（需回执）`;
+    const announcementTitle = demoText(
+      `${getTrialPrefix()}·OA试用通知（需回执）`,
+    );
     const previous = await tx
       .repository('announcements')
       .findOne({ filter: { title: announcementTitle } });
+    if (previous) await assertDemoOwnership(tx, 'announcements', previous.id);
     let announcement =
       previous ??
       (await c.resolve(announcementServiceToken).save(
         {
           actorId: f.users.admin,
-          requestId: `${trialPrefix}-announcement`,
+          requestId: `${getTrialPrefix()}-announcement`,
           title: announcementTitle,
-          body: '虚构试用通知：请登录各角色账号，查看待办、申请、台账及知识库，并确认收到本通知。',
+          body: demoText(
+            '虚构试用通知：请登录各角色账号，查看待办、申请、台账及知识库，并确认收到本通知。',
+          ),
           audience: {
             all: false,
             departmentIds: Object.values(f.departments),
@@ -86,7 +97,7 @@ export async function collaboration(
         {
           id: String(announcement.id),
           actorId: f.users.admin,
-          requestId: `${trialPrefix}-publish`,
+          requestId: `${getTrialPrefix()}-publish`,
           expectedVersion: Number(announcement.version),
           action: 'publish',
         },
@@ -96,14 +107,15 @@ export async function collaboration(
       );
     result.push({
       key: 'announcement',
-      title: '公告／回执',
+      title: demoText('公告／回执'),
       path: '/announcements',
       id: String(announcement.id),
       status: String(announcement.status),
       actor: 'admin',
     });
-    for (const person of trialAccounts) {
-      const taskTitle = `${trialPrefix}·${person.name}操作练习`;
+    for (const person of getTrialAccounts()) {
+      if (currentDemo() && person.key === 'system') continue;
+      const taskTitle = demoText(`${getTrialPrefix()}·${person.name}操作练习`);
       const old = await tx
         .repository('workItems')
         .findOne({ filter: { title: taskTitle } });
@@ -112,10 +124,11 @@ export async function collaboration(
         (await c.resolve(workItemServiceToken).save(
           {
             actorId: f.users.manager,
-            requestId: `${trialPrefix}-task-${person.key}`,
+            requestId: `${getTrialPrefix()}-task-${person.key}`,
             title: taskTitle,
-            description:
+            description: demoText(
               '虚构任务：查看当前角色菜单和待办，完成一次操作后填写试用结果。',
+            ),
             targetUserId: f.users[person.key],
             dutyRoleCode: null,
             dueAt: f.instant(addDays(f.date, 14), '18:00'),
@@ -129,7 +142,7 @@ export async function collaboration(
         task = await c.resolve(workItemServiceToken).act(
           {
             actorId: f.users.manager,
-            requestId: `${trialPrefix}-dispatch-${person.key}`,
+            requestId: `${getTrialPrefix()}-dispatch-${person.key}`,
             id: String(task.id),
             expectedVersion: Number(task.version),
             action: 'dispatch',
@@ -139,7 +152,7 @@ export async function collaboration(
         );
       result.push({
         key: `work-${person.key}`,
-        title: '协同任务',
+        title: demoText('协同任务'),
         path: '/workItems',
         id: String(task.id),
         status: String(task.status),
@@ -172,20 +185,28 @@ export async function collaboration(
       '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
     ),
     'word/document.xml': strToU8(
-      '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>OA虚构试用模板，仅用于功能演示。编号：{d.number}</w:t></w:r></w:p></w:body></w:document>',
+      demoText(
+        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>OA虚构试用模板，仅用于功能演示。编号：{d.number}</w:t></w:r></w:p></w:body></w:document>',
+      ),
     ),
   });
   for (const source of PRINT_SOURCES) {
-    const name = `${trialPrefix}·${source}打印模板`;
+    const name = demoText(`${getTrialPrefix()}·${source}打印模板`);
     const existing = await db
       .repository('printTemplates')
       .findOne({ filter: { name } });
+    if (existing)
+      await assertDemoOwnership(db.connection(), 'printTemplates', existing.id);
     const template =
       existing ??
       recordOf(
         await templateService.create(
           f.users.system,
-          { source, name, requestKey: `${trialPrefix}-template-${source}` },
+          {
+            source,
+            name,
+            requestKey: `${getTrialPrefix()}-template-${source}`,
+          },
           trustedPolicy,
         ),
       );
@@ -195,7 +216,7 @@ export async function collaboration(
         id,
         f.users.system,
         {
-          requestKey: `${trialPrefix}-template-upload-${source}`,
+          requestKey: `${getTrialPrefix()}-template-upload-${source}`,
           version: Number(template.version),
           file: new File([new Uint8Array(docx)], `oa-trial-${source}.docx`, {
             type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -205,7 +226,7 @@ export async function collaboration(
       );
     result.push({
       key: `print-${source}`,
-      title: '打印模板',
+      title: demoText('打印模板'),
       path: '/printTemplates',
       id,
       status: 'active',

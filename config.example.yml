@@ -60,6 +60,9 @@ auth:
 
 notification:
   channels:
+    # Dedicated demo recipients only; does not send email or external messages.
+    demo-inbox:
+      provider: in-app
     inbox:
       provider: in-app
 

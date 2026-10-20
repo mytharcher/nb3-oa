@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { purchaseQuoteBasis } from './quotes.js';
 import type { DatabaseConnection } from '@nocobase/db';
 export const MAX_PURCHASE_FILE_SIZE = 5 * 1024 * 1024;
@@ -174,7 +175,7 @@ export function createPurchaseAttachmentService(d: {
             directory.delegateOf?.(
               task.assigneeId,
               PURCHASE_LIFECYCLE,
-              new Date().toISOString(),
+              demoNow().toISOString(),
               task.createdAt,
             )?.to === actorId),
       )

@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -212,7 +213,7 @@ export function createPurchaseOrderService(d: {
             account: record.heldAccount,
             status: 'awaitingReceipt',
             version: 1,
-            createdAt: new Date(),
+            createdAt: demoNow(),
             acceptedAt: null,
             acceptedById: null,
             receiptDate: null,
@@ -281,7 +282,7 @@ export function createPurchaseOrderService(d: {
         const after = {
           ...order,
           status: 'accepted' as const,
-          acceptedAt: new Date(),
+          acceptedAt: demoNow(),
           acceptedById: input.actorId,
           receiptDate: input.receiptDate,
           receiptReason: input.reason.trim(),
@@ -403,7 +404,7 @@ export function createPurchaseOrderService(d: {
             cents: amount,
             state: 'pending',
             requiresAdditionalApproval: exceedsApproved,
-            createdAt: new Date(),
+            createdAt: demoNow(),
           };
         if (previous) {
           const changed = await repo.updateMany({

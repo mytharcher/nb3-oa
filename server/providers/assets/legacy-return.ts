@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createHash } from 'node:crypto';
 import type { DatabaseConnection, RepositoryPolicy } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -160,7 +161,7 @@ export function createLegacyAssetReturn(d: {
             status: 'available',
             holderEmployeeId: null,
             borrowDueDate: null,
-            updatedAt: new Date(),
+            updatedAt: demoNow(),
           },
         });
       const receiptId = createHash('sha256')
@@ -183,7 +184,7 @@ export function createLegacyAssetReturn(d: {
             version: row.version,
             originalValueCents: Number(row.originalValueCents),
           },
-          createdAt: new Date(),
+          createdAt: demoNow(),
         },
       });
       await tx.repository('assetStockCommands').createOne({
@@ -193,7 +194,7 @@ export function createLegacyAssetReturn(d: {
           requestKey,
           fingerprint,
           result: { receiptId },
-          createdAt: new Date(),
+          createdAt: demoNow(),
         },
       });
       await d.audit.record(

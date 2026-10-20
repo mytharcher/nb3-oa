@@ -1,3 +1,5 @@
+import { processDirectorySnapshot } from '../process-management/context.js';
+import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
   createAppApprovalService,
@@ -209,7 +211,11 @@ export function createTransferService(d: TransferDependencies) {
                     connection: handle,
                     directory:
                       readDirectory.getStore() ??
-                      (await d.directory.snapshot(handle)),
+                      (await processDirectorySnapshot(
+                        d.directory,
+                        TRANSFER_LIFECYCLE,
+                        handle,
+                      )),
                     prepared: context.getStore()?.prepared,
                     preparedSalaryRevisionId:
                       context.getStore()?.preparedSalaryRevisionId,
@@ -275,7 +281,10 @@ export function createTransferService(d: TransferDependencies) {
   async function refresh() {
     outside = {
       connection: d.db.connection(),
-      directory: await d.directory.snapshot(),
+      directory: await processDirectorySnapshot(
+        d.directory,
+        TRANSFER_LIFECYCLE,
+      ),
     };
   }
   async function active(actorId: string, tx: DatabaseConnection) {
@@ -358,7 +367,7 @@ export function createTransferService(d: TransferDependencies) {
         gradeRevisionId: prepared?.band.revisionId ?? null,
         gradeTableVersion: prepared?.band.tableVersion ?? null,
         createdById: actorId,
-        createdAt: new Date(),
+        createdAt: demoNow(),
       },
     });
     return revisionId;
@@ -382,7 +391,7 @@ export function createTransferService(d: TransferDependencies) {
     const proposed = await prepare(
       { ...record, targetSalary: await rawTarget(record, tx) },
       record.applicantId,
-      new Date(),
+      demoNow(),
       tx,
       frozen ?? undefined,
     );
@@ -495,7 +504,7 @@ export function createTransferService(d: TransferDependencies) {
           targetSalary: `${Math.floor(salary.targetCents / 100)}.${String(salary.targetCents % 100).padStart(2, '0')}`,
         },
         record.applicantId,
-        new Date(),
+        demoNow(),
         tx,
         record.snapshot,
       );
@@ -559,7 +568,7 @@ export function createTransferService(d: TransferDependencies) {
           sourceAccountId: record.sourceAccountId,
           snapshot: record.snapshot,
           salary: await privateSalary(record, tx),
-          now: new Date(),
+          now: demoNow(),
         },
         tx,
       );
@@ -598,6 +607,7 @@ export function createTransferService(d: TransferDependencies) {
   };
   const definition = createTransferApproval(hooks),
     runtime = new LifecycleRuntime({
+      clock: demoNow,
       store: wrap(base),
       dispatcher: d.dispatcher,
     });
@@ -707,7 +717,7 @@ export function createTransferService(d: TransferDependencies) {
                 action: kind,
                 fingerprint,
                 result: result as unknown as JsonObject,
-                createdAt: new Date(),
+                createdAt: demoNow(),
               },
             });
             return result;
@@ -728,7 +738,7 @@ export function createTransferService(d: TransferDependencies) {
       policies: TransferPolicies,
     ) =>
       durable('create', undefined, input, command, policies, async (tx) => {
-        await prepare(input, command.actorId, new Date(), tx);
+        await prepare(input, command.actorId, demoNow(), tx);
         const id = randomUUID(),
           { targetSalary, ...values } = input;
         const privateSalaryRevisionId = await salaryRevision(
@@ -748,7 +758,7 @@ export function createTransferService(d: TransferDependencies) {
             cancelConfirmerId: null,
             cancellationReason: null,
             executionFailureCode: null,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: command.actorId }, transaction: tx },
         );
@@ -769,7 +779,7 @@ export function createTransferService(d: TransferDependencies) {
         await prepare(
           input,
           command.actorId,
-          new Date(),
+          demoNow(),
           tx,
           before.snapshot ?? undefined,
         );
@@ -1003,7 +1013,7 @@ export function createTransferService(d: TransferDependencies) {
           !(await d.org.hasDutyRole(command.actorId, 'hr', tx))
         )
           refuse('TRANSFER_REBIND_FORBIDDEN');
-        const year = Number(d.calendar.localDate(new Date()).slice(0, 4));
+        const year = Number(d.calendar.localDate(demoNow()).slice(0, 4));
         const policy = {
           read: true,
           create: false,
@@ -1141,7 +1151,7 @@ export function createTransferService(d: TransferDependencies) {
                       field === 'kinds'
                         ? ['transfer']
                         : field === 'effectiveDate'
-                          ? d.calendar.localDate(new Date())
+                          ? d.calendar.localDate(demoNow())
                           : '',
                   } as RepositoryRecord,
                 });
@@ -1610,7 +1620,7 @@ export function createTransferService(d: TransferDependencies) {
       await approvals.sweepReport();
       await runtime.reclaim();
       await runtime.recover();
-      const today = d.calendar.localDate(new Date()),
+      const today = d.calendar.localDate(demoNow()),
         rows = await d.db
           .repository<TransferRecord>('transferRequests')
           .findMany({ filter: { status: 'pendingEffective' } });

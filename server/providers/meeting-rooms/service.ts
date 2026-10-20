@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
 import { createHash, randomUUID } from 'node:crypto';
 import type {
@@ -62,7 +63,7 @@ export function createMeetingRoomService(d: {
   calendar: CalendarService;
   now?: () => Date;
 }): MeetingRoomService & { runtime: LifecycleRuntime } {
-  const now = () => d.now?.() ?? new Date();
+  const now = () => d.now?.() ?? demoNow();
   const notice = defineEffect<{
     record: MeetingBooking & { readonly [key: string]: unknown };
     state: MeetingBooking['status'];

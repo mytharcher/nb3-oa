@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { defineLifecycle, type LifecycleRuntime } from '@nocobase/lifecycle';
 import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
@@ -96,18 +97,16 @@ export function departureExecution(
             throw new Error('DEPARTURE_CANCELLATION_PENDING');
           await lockUserForAdministration(connection, record.applicantId);
           if (
-            !(await connection
-              .repository('departureRequests')
-              .exists({
-                filter: (f) =>
-                  f.and([
-                    f.string('id').eq(record.departureId),
-                    f.or([
-                      f.string('status').eq('handover'),
-                      f.string('status').eq('completed'),
-                    ]),
+            !(await connection.repository('departureRequests').exists({
+              filter: (f) =>
+                f.and([
+                  f.string('id').eq(record.departureId),
+                  f.or([
+                    f.string('status').eq('handover'),
+                    f.string('status').eq('completed'),
                   ]),
-              }))
+                ]),
+            }))
           )
             throw new Error('DEPARTURE_CANCELLATION_PENDING');
           const employee = await d.employees.getById(
@@ -187,7 +186,7 @@ export function departureExecution(
       },
     },
   });
-  async function reconcile(now = new Date()) {
+  async function reconcile(now = demoNow()) {
     const rows = await d.db
       .repository<DepartureExecutionRecord>('departureExecutions')
       .findMany();

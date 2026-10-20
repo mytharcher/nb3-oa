@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import type { HeadcountService } from '../headcounts/contract.js';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
 import type { ServerFileRepository } from '@nocobase/app-plugin-file/server';
@@ -236,7 +237,7 @@ export function createImportService(
         errorCount: result.errorCount,
         errors: values.status === 'failed' ? [...result.errors] : null,
         createdAt: values.createdAt,
-        finishedAt: new Date(),
+        finishedAt: demoNow(),
       },
     });
   }
@@ -308,7 +309,7 @@ export function createImportService(
 
     async run(kind, file, actorId) {
       const id = deps.generateId();
-      const createdAt = new Date();
+      const createdAt = demoNow();
       const reason = `import:${id}`;
       // Kept before the import's transaction opens (the upload commits on its own), so a failed attempt keeps it too.
       const { record } = await deps.files().uploadOne({ file });

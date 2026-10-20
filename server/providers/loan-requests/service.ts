@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
   createAppApprovalService,
@@ -323,6 +324,7 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
   const source = (handle: unknown): Services =>
     handle ? snapshots.get(handle)! : outside;
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: wrap(base),
     dispatcher: d.dispatcher,
   });
@@ -455,7 +457,7 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
       !Number.isFinite(Date.parse(`${record.dueDate}T12:00:00Z`)) ||
       new Date(`${record.dueDate}T12:00:00Z`).toISOString().slice(0, 10) !==
         record.dueDate ||
-      record.dueDate < d.calendar.localDate(new Date())
+      record.dueDate < d.calendar.localDate(demoNow())
     )
       refuse(
         'LOAN_REQUEST_INVALID_DATE',
@@ -560,7 +562,7 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
         directory: services.directory,
         applicantId: record?.applicantId,
         kind: LOAN_REQUEST_LIFECYCLE,
-        at: new Date().toISOString(),
+        at: demoNow().toISOString(),
       });
     },
     states: [
@@ -1178,7 +1180,7 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
         ),
         rules: await d.rules.snapshot(
           ['loan.personalMax', 'spend.vp', 'spend.gm'],
-          new Date(),
+          demoNow(),
         ),
       };
     },
@@ -1418,7 +1420,7 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
               input: {
                 travelCancellation: true,
                 reason: input.reason,
-                returnDate: d.calendar.localDate(input.now ?? new Date()),
+                returnDate: d.calendar.localDate(input.now ?? demoNow()),
               },
               requestId: `travel-cancel:${input.requestKey}`,
               transaction: tx,
@@ -1488,7 +1490,7 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
             returnDueDate: null,
             departmentId: null,
 
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           {
             actor: { id: actorId },

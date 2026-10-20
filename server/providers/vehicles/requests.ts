@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
   createAppApprovalService,
@@ -359,6 +360,7 @@ export function createVehicleRequestService(d: VehicleRequestDependencies) {
   const services = (handle: unknown): Services =>
     handle ? snapshots.get(handle)! : outside;
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: wrap(store),
     dispatcher: d.dispatcher,
   });
@@ -461,7 +463,7 @@ export function createVehicleRequestService(d: VehicleRequestDependencies) {
         directory: services.directory,
         applicantId: r?.applicantId,
         kind: VEHICLE_LIFECYCLE,
-        at: new Date().toISOString(),
+        at: demoNow().toISOString(),
       });
     },
     states: [
@@ -849,7 +851,7 @@ export function createVehicleRequestService(d: VehicleRequestDependencies) {
             approvedAt: null,
             ruleSnapshot: null,
             managerApproverId: null,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: actorId } },
         );
@@ -911,7 +913,7 @@ export function createVehicleRequestService(d: VehicleRequestDependencies) {
           approvedAt: null,
           ruleSnapshot: null,
           managerApproverId: null,
-          createdAt: new Date().toISOString(),
+          createdAt: demoNow().toISOString(),
         };
         const createInTx = () =>
           runtime.create(VEHICLE_LIFECYCLE, initial, {
@@ -926,7 +928,7 @@ export function createVehicleRequestService(d: VehicleRequestDependencies) {
             id,
             fingerprint,
             receipt: JSON.parse(JSON.stringify(result)) as JsonObject,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
         });
         return result;
@@ -1144,7 +1146,7 @@ export function createVehicleRequestService(d: VehicleRequestDependencies) {
         const record = await tx
           .repository<VehicleRequest>('vehicleRequests')
           .findOne({ filter: { id } });
-        const reader = new LifecycleRuntime({ store: child });
+        const reader = new LifecycleRuntime({ clock: demoNow, store: child });
         reader.register(approval, { services });
         const readerApprovals = createAppApprovalService(
           reader,
@@ -1169,7 +1171,7 @@ export function createVehicleRequestService(d: VehicleRequestDependencies) {
         );
       });
     },
-    async maintenance(now = new Date()) {
+    async maintenance(now = demoNow()) {
       await refresh();
       const result = await approvals.sweepReport();
       await runtime.reclaim();

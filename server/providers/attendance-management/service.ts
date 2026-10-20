@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseConnection, FilterBuilder } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -111,7 +112,7 @@ export function createAttendanceManagementService(d: {
           shiftId: id,
           revision: revisionNumber,
           actorId: input.actorId,
-          createdAt: new Date().toISOString(),
+          createdAt: demoNow().toISOString(),
         };
         await revisions.createOne({ values: revision });
         const values = {
@@ -280,7 +281,7 @@ export function createAttendanceManagementService(d: {
             restDay: input.restDay,
             actorId: input.actorId,
             reason: input.reason.trim(),
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
         });
         const values = { currentRevisionId: revisionId, version };
