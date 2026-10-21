@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -157,7 +158,7 @@ export function createLeaveBalanceService(
         'LEAVE_BALANCE_INVALID_REFERENCE',
         'An idempotency key and source reference are required.',
       );
-    const at = date(input.at) ?? new Date();
+    const at = date(input.at) ?? demoNow();
     const expiresAt = date('expiresAt' in input ? input.expiresAt : null);
     if (kind === 'grant' || (kind === 'adjust' && input.units! > 0)) {
       units(input.units);
@@ -442,7 +443,7 @@ export function createLeaveBalanceService(
     },
     async expire(account, connection) {
       validAccount(account);
-      const at = date(account.at) ?? new Date();
+      const at = date(account.at) ?? demoNow();
       return connection.transaction(async (tx) => {
         await lock(account, tx);
         const lots = fold(await rowsOf(account, tx));
@@ -474,7 +475,7 @@ export function createLeaveBalanceService(
         );
       });
     },
-    async expireDue(at = new Date()) {
+    async expireDue(at = demoNow()) {
       const rows = await db.repository('leaveLedger').findMany({
         filter: (f) =>
           f.and([
@@ -500,7 +501,7 @@ export function createLeaveBalanceService(
       return balanceOf(
         account,
         fold(await rowsOf(account, connection)),
-        new Date(),
+        demoNow(),
       );
     },
     async list(employeeId, connection = db.connection()) {

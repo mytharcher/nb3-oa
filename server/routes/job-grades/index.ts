@@ -1,6 +1,9 @@
 import { calendarServiceToken } from '../../providers/platform/index.js';
 import { salaryGradeServiceToken } from '../../providers/job-grades/contract.js';
-import { SalaryTableError } from '../../providers/job-grades/service.js';
+import {
+  SalaryTableError,
+  salaryCollections,
+} from '../../providers/job-grades/service.js';
 import { SalaryRangeError } from '../../providers/job-grades/ranges.js';
 import { Hono, type Context } from 'hono';
 import {
@@ -169,7 +172,7 @@ export default [
           input = ctx.req.valid('json');
         const row = await db.transaction(async (tx) => {
           const pointer = await tx
-            .repository('salaryGradeCurrent')
+            .repository(salaryCollections().pointer)
             .withPolicy(p.salaryGradeCurrent)
             .findOne({ filter: { id: 'current' } });
           if (
@@ -185,7 +188,7 @@ export default [
               revision: p.salaryGradeRevisions,
             });
           const visible = await tx
-            .repository('salaryGradeRevisions')
+            .repository(salaryCollections().revision)
             .withPolicy(p.salaryGradeRevisions)
             .findOne({ filter: { id: published.id } });
           if (
@@ -223,7 +226,7 @@ export default [
         const p = await policies(ctx, 'view'),
           q = ctx.req.valid('query');
         const repository = db
-          .repository('salaryGradeRevisions')
+          .repository(salaryCollections().revision)
           .withPolicy(p.salaryGradeRevisions);
         const version = /^\d+$/.test(q.search) ? Number(q.search) : NaN;
         const filter = !q.search
@@ -267,7 +270,7 @@ export default [
         const p = await policies(ctx, 'viewSalary');
         const data = await db.transaction(async (tx) => {
           const pointer = await tx
-            .repository('salaryGradeCurrent')
+            .repository(salaryCollections().pointer)
             .withPolicy(p.salaryGradeCurrent)
             .findOne({ filter: { id: 'current' } });
           if (
@@ -281,7 +284,7 @@ export default [
           if (typeof pointer.revisionId !== 'string')
             return fail(ctx, 'ACCESS_DENIED');
           const row = await tx
-            .repository('salaryGradeRevisions')
+            .repository(salaryCollections().revision)
             .withPolicy(p.salaryGradeRevisions)
             .findOne({ filter: { id: pointer.revisionId } });
           if (!row) return fail(ctx, 'ACCESS_DENIED');
@@ -312,7 +315,7 @@ export default [
       async (ctx) => {
         const p = await policies(ctx, 'viewSalary');
         const row = await db
-          .repository('salaryGradeRevisions')
+          .repository(salaryCollections().revision)
           .withPolicy(p.salaryGradeRevisions)
           .findOne({ filter: { id: ctx.req.valid('param').revisionId } });
         if (!row) return fail(ctx, 'NOT_FOUND');

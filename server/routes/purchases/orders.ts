@@ -10,7 +10,11 @@ import {
   authorizationToken,
   type AuthorizationEnv,
 } from '@nocobase/app-plugin-authorization/server';
-import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
+import {
+  databaseManagerToken,
+  type DatabaseConnection,
+  type RepositoryPolicy,
+} from '@nocobase/db';
 import {
   defineApiRoutes,
   ApiError,
@@ -178,10 +182,13 @@ export const routes = defineApiRoutes<Application>((app) => {
       });
     return id;
   }
-  async function enrich(row: PurchaseOrder) {
-    const applicant = await users.get(row.applicantId),
+  async function enrich(row: PurchaseOrder, connection?: DatabaseConnection) {
+    // Mutation responses must reuse their transaction instead of borrowing a
+    // second pooled connection while the business write is still uncommitted.
+    const lookup = connection ? users.withConnection(connection) : users;
+    const applicant = await lookup.get(row.applicantId),
       acceptedBy = row.acceptedById
-        ? await users.get(row.acceptedById)
+        ? await lookup.get(row.acceptedById)
         : undefined;
     return {
       ...row,
@@ -213,7 +220,7 @@ export const routes = defineApiRoutes<Application>((app) => {
       return context.json({
         ...result,
         timeZone: c.resolve(calendarServiceToken).timeZone(),
-        data: await Promise.all(result.data.map(enrich)),
+        data: await Promise.all(result.data.map((row) => enrich(row))),
       });
     },
   );
@@ -286,6 +293,7 @@ export const routes = defineApiRoutes<Application>((app) => {
               { ...input, actorId: context.get('auth')!.user.id },
               tx,
             ),
+            tx,
           ),
         ),
       });
@@ -310,6 +318,7 @@ export const routes = defineApiRoutes<Application>((app) => {
               { ...input, actorId: context.get('auth')!.user.id },
               tx,
             ),
+            tx,
           ),
         ),
       });

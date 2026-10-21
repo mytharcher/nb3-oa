@@ -1,9 +1,10 @@
+import { demoText } from '../../../../server/providers/demo-data/content.js';
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken } from '@nocobase/db';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { auditServiceToken } from '../../../../server/providers/audit/index.js';
 import {
-  trialAccounts,
+  getTrialAccounts,
   trialEmail,
   trialUsername,
   type TrialRole,
@@ -74,8 +75,8 @@ export async function resetTrialPasswords(
       }
       const name =
         role === 'newhire'
-          ? '示例·待入职员工'
-          : trialAccounts.find((p) => p.key === role)!.name;
+          ? demoText('示例·待入职员工')
+          : getTrialAccounts().find((p) => p.key === role)!.name;
       if (user.username !== trialUsername(role) || user.name !== name)
         throw new Error(
           `Trial identity collision for ${role}; password reset refused.`,
@@ -92,7 +93,7 @@ export async function resetTrialPasswords(
           action: 'trialUser.resetPassword',
           targetType: 'user',
           targetId: target.id,
-          reason: '用户要求将示例账号密码改为完整姓名拼音规则',
+          reason: demoText('用户要求将示例账号密码改为完整姓名拼音规则'),
         },
         tx,
       );

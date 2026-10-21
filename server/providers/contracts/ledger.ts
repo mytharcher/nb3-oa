@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -256,7 +257,7 @@ export function createContractLedgerService(
             ...old,
             state: 'held',
             cents: input.cents!,
-            updatedAt: input.now ?? new Date(),
+            updatedAt: input.now ?? demoNow(),
           }
         : {
             id: randomUUID(),
@@ -264,7 +265,7 @@ export function createContractLedgerService(
             reference: input.reference,
             cents: input.cents!,
             state: 'held',
-            updatedAt: input.now ?? new Date(),
+            updatedAt: input.now ?? demoNow(),
           };
       if (existed)
         await tx.repository('contractPaymentReservations').updateOne({
@@ -299,7 +300,7 @@ export function createContractLedgerService(
       old = {
         ...old,
         state: kind === 'settle' ? 'paid' : 'released',
-        updatedAt: input.now ?? new Date(),
+        updatedAt: input.now ?? demoNow(),
       };
       await tx.repository('contractPaymentReservations').updateOne({
         filter: { id: old.id },
@@ -316,7 +317,7 @@ export function createContractLedgerService(
         paidDelta,
         actorId: input.actorId,
         reason: input.reason,
-        at: input.now ?? new Date(),
+        at: input.now ?? demoNow(),
       },
     });
     await auditWrite(
@@ -559,7 +560,7 @@ export function createContractLedgerService(
       }
       if (await source(input.id, tx))
         fail('SOURCE_CONFLICT', 'This contract already exists.');
-      const now = input.now ?? new Date();
+      const now = input.now ?? demoNow();
       await tx.repository('contracts').createOne({
         values: {
           id: input.id,
@@ -678,7 +679,7 @@ export function createContractLedgerService(
         );
       const version = current.version + 1,
         status = input.terminate ? 'terminated' : 'activePendingSeal',
-        at = input.now ?? new Date();
+        at = input.now ?? demoNow();
       const updated = await tx.repository('contracts').updateMany({
         filter: { id: current.id, version: input.baseVersion },
         values: {
@@ -761,7 +762,7 @@ export function createContractLedgerService(
           'Only an effective published contract can be sealed.',
         );
       const proof = await verifier(tx);
-      const now = input.now ?? new Date();
+      const now = input.now ?? demoNow();
       if (
         !proof ||
         proof.status !== 'completed' ||

@@ -1,6 +1,10 @@
+import {
+  demoText,
+  demoMarker,
+} from '../../../../server/providers/demo-data/content.js';
 import { randomUUID } from 'node:crypto';
 import { addDays, type TrialFacts } from './bootstrap.js';
-import { trialPrefix, type TrialRole } from './accounts.js';
+import { getTrialPrefix, type TrialRole } from './accounts.js';
 
 export interface TrialScenario {
   key: string;
@@ -30,38 +34,38 @@ export interface TrialScenario {
 }
 
 export const trialWorkflowNames = [
-  '请假',
-  '销假',
-  '加班',
-  '补卡／考勤更正',
-  '外出',
-  '办公用品领用',
-  '通用申请',
-  '证明开具',
-  '培训',
-  '费用事前申请',
-  '出差',
-  '出差撤销',
-  '报销',
-  '借款／还款',
-  '采购',
-  '付款',
-  '预算调整',
-  '转正',
-  '合同',
-  '合同变更／续签／终止',
-  '用印',
-  '供应商准入',
-  '资产领用／借用／报废',
-  '车辆',
-  '招聘',
-  '入职办理',
-  '离职交接',
-  '转岗／调薪／晋升',
+  demoText('请假'),
+  demoText('销假'),
+  demoText('加班'),
+  demoText('补卡／考勤更正'),
+  demoText('外出'),
+  demoText('办公用品领用'),
+  demoText('通用申请'),
+  demoText('证明开具'),
+  demoText('培训'),
+  demoText('费用事前申请'),
+  demoText('出差'),
+  demoText('出差撤销'),
+  demoText('报销'),
+  demoText('借款／还款'),
+  demoText('采购'),
+  demoText('付款'),
+  demoText('预算调整'),
+  demoText('转正'),
+  demoText('合同'),
+  demoText('合同变更／续签／终止'),
+  demoText('用印'),
+  demoText('供应商准入'),
+  demoText('资产领用／借用／报废'),
+  demoText('车辆'),
+  demoText('招聘'),
+  demoText('入职办理'),
+  demoText('离职交接'),
+  demoText('转岗／调薪／晋升'),
 ] as const;
 
 export function scenarios(f: TrialFacts): TrialScenario[] {
-  const marker = (key: string) => `${trialPrefix}·${key}`;
+  const marker = demoMarker;
   const at = (offset: number, time: string) =>
     f.instant(addDays(f.date, offset), time);
   const make = (
@@ -87,12 +91,12 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
   ) =>
     make(
       key,
-      '请假',
+      demoText('请假'),
       'leaveRequests',
       {
         leaveType: 'personal',
-        startDate: addDays(f.date, offset),
-        endDate: addDays(f.date, offset),
+        startDate: f.workDate?.(offset) ?? addDays(f.date, offset),
+        endDate: f.workDate?.(offset) ?? addDays(f.date, offset),
         startHalf: 'am',
         endHalf: 'pm',
         attachments: [],
@@ -104,7 +108,7 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
   const loan = (key: string, extra: Partial<TrialScenario> = {}) =>
     make(
       key,
-      '借款',
+      demoText('借款'),
       'loanRequests',
       {
         amountCents: 200000,
@@ -119,11 +123,14 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
     baseVersion: 0,
     proposal: {
       contractType: f.dictionary.contractType,
-      counterparty: { kind: 'customer', name: '示例·客户公司（虚构）' },
+      counterparty: {
+        kind: 'customer',
+        name: demoText('示例·客户公司（虚构）'),
+      },
       amountCents: 1000000,
       startsOn: f.date,
       endsOn: addDays(f.date, 300),
-      paymentTerms: '示例付款条款，不发生实际支付',
+      paymentTerms: demoText('示例付款条款，不发生实际支付'),
       standardTemplate: false,
       textVersionId: null,
       attachments: [],
@@ -134,27 +141,27 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
     leave('leave-draft', 0, { draft: true }),
     leave('leave-manager', 1),
     leave('leave-approved', 2, { complete: true }),
-    make('overtime-manager', '加班', 'overtimeRequests', {
+    make('overtime-manager', demoText('加班'), 'overtimeRequests', {
       date: addDays(f.date, 3),
       minutes: 120,
       settlement: 'compensatory',
     }),
-    make('attendance-change', '补卡', 'attendanceChangeRequests', {
+    make('attendance-change', demoText('补卡'), 'attendanceChangeRequests', {
       date: f.attendanceDate,
       originalAttendanceId: f.attendanceId,
       originalVersion: f.attendanceVersion,
       correctionAt: f.instant(f.attendanceDate, '09:00'),
-      proof: '虚构考勤说明',
+      proof: demoText('虚构考勤说明'),
       attachments: [],
     }),
-    make('outing-manager', '外出', 'outingRequests', {
+    make('outing-manager', demoText('外出'), 'outingRequests', {
       startAt: at(4, '09:00'),
       endAt: at(4, '12:00'),
-      location: '示例客户办公室',
+      location: demoText('示例客户办公室'),
     }),
     make(
       'supply-head',
-      '办公用品领用',
+      demoText('办公用品领用'),
       'supplyRequests',
       {
         items: [{ code: f.dictionary.officeItem, quantity: 2 }],
@@ -170,14 +177,14 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
     ),
     make(
       'general-approval',
-      '通用申请',
+      demoText('通用申请'),
       'generalRequests',
       {},
       {
         markerField: 'title',
         body: {
           title: marker('general-approval'),
-          body: '虚构示例：申请跨部门协作支持。',
+          body: demoText('虚构示例：申请跨部门协作支持。'),
           attachments: [],
           extraApproverIds: [f.users.legal, f.users.hr],
         },
@@ -185,7 +192,7 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
     ),
     make(
       'certificate-head',
-      '在职证明',
+      demoText('在职证明'),
       'certificateRequests',
       {},
       {
@@ -196,13 +203,13 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
           purpose: marker('certificate-head'),
           copies: 1,
           deliveryMethod: 'digital',
-          requestKey: `${trialPrefix}-certificate-head`,
+          requestKey: `${getTrialPrefix()}-certificate-head`,
         },
       },
     ),
     make(
       'seal-head',
-      '用印',
+      demoText('用印'),
       'sealRequests',
       {},
       {
@@ -217,28 +224,28 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
           external: false,
           returnDueAt: null,
           purpose: marker('seal-head'),
-          contact: '示例联系人',
-          requestKey: `${trialPrefix}-seal-head`,
+          contact: demoText('示例联系人'),
+          requestKey: `${getTrialPrefix()}-seal-head`,
         },
       },
     ),
-    make('training-review', '培训', 'trainingRequests', {
-      name: '示例·项目管理培训',
-      institution: '示例培训机构',
+    make('training-review', demoText('培训'), 'trainingRequests', {
+      name: demoText('示例·项目管理培训'),
+      institution: demoText('示例培训机构'),
       startAt: at(5, '09:00'),
       endAt: at(5, '17:00'),
       usesWorkingTime: true,
       amountCents: 100000,
     }),
-    make('expense-plan-head', '费用事前申请', 'expensePlans', {
+    make('expense-plan-head', demoText('费用事前申请'), 'expensePlans', {
       matterType: f.dictionary.expensePlanType,
       amountCents: 500000,
       subject: 'entertainment',
       participants: 10,
       eventDate: addDays(f.date, 6),
     }),
-    make('travel-head', '出差', 'travelRequests', {
-      destination: '示例城市',
+    make('travel-head', demoText('出差'), 'travelRequests', {
+      destination: demoText('示例城市'),
       international: false,
       startAt: at(7, '09:00'),
       endAt: at(8, '18:00'),
@@ -255,20 +262,20 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
     loan('loan-cashier', { stopAt: 'cashier' }),
     make(
       'reimbursement-head',
-      '报销',
+      demoText('报销'),
       'reimbursementRequests',
       {
         authorizationId: null,
         loanId: null,
         offsetCents: 0,
-        overrunReason: '示例独立报销',
+        overrunReason: demoText('示例独立报销'),
         lines: [],
       },
       { attachment: 'reimbursement' },
     ),
     make(
       'purchase-head',
-      '采购',
+      demoText('采购'),
       'purchaseRequests',
       {},
       {
@@ -277,10 +284,10 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
           items: [
             {
               id: randomUUID(),
-              name: '示例办公设备',
-              specification: '试用型号',
+              name: demoText('示例办公设备'),
+              specification: demoText('试用型号'),
               quantity: '2',
-              unit: '台',
+              unit: demoText('台'),
             },
           ],
           subject: 'equipment',
@@ -293,22 +300,22 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
     ),
     make(
       'payment-head',
-      '付款',
+      demoText('付款'),
       'paymentRequests',
       {
         sourceMode: 'none',
         purchaseOrderId: null,
         contractId: null,
-        noPriorApprovalReason: '虚构试用付款：无事前审批示例',
+        noPriorApprovalReason: demoText('虚构试用付款：无事前审批示例'),
         vendorId: f.vendorId,
         amountCents: 100000,
-        invoiceNumber: `${trialPrefix}-PAY-001`,
+        invoiceNumber: `${getTrialPrefix()}-PAY-001`,
         attachments: [],
         paymentMethod: f.dictionary.paymentMethod,
       },
       { attachment: 'payment' },
     ),
-    make('budget-head', '预算调整', 'budgetAdjustments', {
+    make('budget-head', demoText('预算调整'), 'budgetAdjustments', {
       departmentId: f.departments.engineering,
       year: f.year,
       subject: 'travel',
@@ -318,7 +325,7 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
     }),
     make(
       'probation-manager',
-      '转正',
+      demoText('转正'),
       'probationRequests',
       {},
       {
@@ -332,7 +339,7 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
     ),
     make(
       'contract-review',
-      '合同',
+      demoText('合同'),
       'contractRequests',
       {},
       {
@@ -340,14 +347,14 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
         attachment: 'contracts',
         actor: 'employee2',
         body: {
-          requestId: `${trialPrefix}-contract-review`,
+          requestId: `${getTrialPrefix()}-contract-review`,
           input: baseContract,
         },
       },
     ),
     make(
       'qualification-review',
-      '供应商准入',
+      demoText('供应商准入'),
       'vendorQualifications',
       {},
       {
@@ -355,16 +362,16 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
         attachment: 'qualification',
         actor: 'purchasing',
         body: {
-          requestId: `${trialPrefix}-qualification-review`,
+          requestId: `${getTrialPrefix()}-qualification-review`,
           input: {
             operation: 'qualify',
             vendorId: f.vendorId,
-            name: '示例·办公设备供应商（虚构）',
+            name: demoText('示例·办公设备供应商（虚构）'),
             category: f.dictionary.supplierCategory,
             reason: marker('qualification-review'),
             quoteCents: 1000000,
-            cases: '虚构供应商合作案例',
-            contactName: '示例联系人',
+            cases: demoText('虚构供应商合作案例'),
+            contactName: demoText('示例联系人'),
             contactPhone: '00000000000',
             contactEmail: 'vendor@oa-trial.example.test',
             attachments: [],
@@ -376,7 +383,7 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
     ...(['use', 'borrow', 'scrap'] as const).map((operation) =>
       make(
         `asset-${operation}`,
-        `资产${operation}`,
+        demoText(`资产${operation}`),
         'assetRequests',
         {},
         {
@@ -387,21 +394,28 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
           body: {
             operation,
             category: f.dictionary.assetCategory,
-            assetIds: operation === 'scrap' ? [f.assetIds[7]] : [],
+            // Dedicated units avoid reserving another sample or a user's asset.
+            assetIds: [
+              f.assetIds[
+                operation === 'scrap' ? 7 : operation === 'borrow' ? 1 : 0
+              ],
+            ],
             quantity: 1,
             purpose: marker(`asset-${operation}`),
             borrowDueDate: operation === 'borrow' ? addDays(f.date, 30) : null,
             scrapReason:
-              operation === 'scrap' ? '示例故障设备，上传照片后可提交' : '',
+              operation === 'scrap'
+                ? demoText('示例故障设备，上传照片后可提交')
+                : '',
             photos: [],
-            requestId: `${trialPrefix}-asset-${operation}`,
+            requestId: `${getTrialPrefix()}-asset-${operation}`,
           },
         },
       ),
     ),
     make(
       'vehicle-head',
-      '车辆',
+      demoText('车辆'),
       'vehicleRequests',
       {},
       {
@@ -409,7 +423,7 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
         mode: 'plural',
         body: {
           purpose: marker('vehicle-head'),
-          destination: '示例客户园区',
+          destination: demoText('示例客户园区'),
           startAt: at(10, '09:00'),
           endAt: at(10, '17:00'),
           passengers: 3,
@@ -419,7 +433,7 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
     ),
     make(
       'departure-review',
-      '离职',
+      demoText('离职'),
       'departureRequests',
       {
         departureType: f.dictionary.departureType,
@@ -430,14 +444,14 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
     ),
     make(
       'recruitment-review',
-      '招聘',
+      demoText('招聘'),
       'recruitmentRequests',
       {},
       {
         actor: 'head',
         mode: 'command',
         body: {
-          requestKey: `${trialPrefix}-recruitment-review`,
+          requestKey: `${getTrialPrefix()}-recruitment-review`,
           reason: marker('recruitment-review'),
           proposal: {
             departmentId: f.departments.engineering,
@@ -451,7 +465,7 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
             minimumCents: 800000,
             maximumCents: 1200000,
             expectedStartDate: addDays(f.date, 14),
-            jobDescription: '示例岗位：业务与技术协作',
+            jobDescription: demoText('示例岗位：业务与技术协作'),
             reason: marker('recruitment-review'),
           },
         },
@@ -459,14 +473,14 @@ export function scenarios(f: TrialFacts): TrialScenario[] {
     ),
     make(
       'transfer-review',
-      '转岗／调薪／晋升',
+      demoText('转岗／调薪／晋升'),
       'transferRequests',
       {},
       {
         actor: 'hr',
         mode: 'command',
         body: {
-          requestKey: `${trialPrefix}-transfer-review`,
+          requestKey: `${getTrialPrefix()}-transfer-review`,
           reason: marker('transfer-review'),
           proposal: {
             employeeId: f.employees.employee2,

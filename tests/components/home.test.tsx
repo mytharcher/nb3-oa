@@ -37,6 +37,10 @@ const { api, permission, auth } = vi.hoisted(() => ({
   },
   auth: { refresh: vi.fn() },
 }));
+// Banner behavior is covered by demo-data.test.tsx.
+vi.mock('../../client/pages/demo-data/banner.js', () => ({
+  DemoBanner: () => null,
+}));
 vi.mock('@nocobase/app-client', async (original) => ({
   ...(await original<typeof import('@nocobase/app-client')>()),
   useApiClient: () => api,

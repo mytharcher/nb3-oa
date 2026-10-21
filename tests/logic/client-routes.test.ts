@@ -68,6 +68,14 @@ describe('app client routes', () => {
       ]),
     );
   });
+  it('registers the protected demo-data settings page in the application routes', () => {
+    const resolved = resolveRoutes();
+    expect(pagePaths(resolved.routes)).toContain('/demo-data');
+    expect(pageAuthorizations(resolved.routes)).toContainEqual({
+      name: 'demo-data',
+      authorizedAs: 'settings:oa.demoData',
+    });
+  });
   it('does not expose database exploration or document counter pages', () => {
     const paths = pagePaths(resolveRoutes().routes);
     expect(

@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createAppApprovalService } from '../approval-runtime/query-service.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { type Approval } from '@nocobase/app-plugin-approval/server';
@@ -143,7 +144,11 @@ export function createContractRuntime(
       throw new Error('Contract SDK calls require a trusted service context.');
     return snapshot;
   };
-  const runtime = new LifecycleRuntime({ store: wrap(base), dispatcher });
+  const runtime = new LifecycleRuntime({
+    clock: demoNow,
+    store: wrap(base),
+    dispatcher,
+  });
   const definition = contractGraph(host);
   runtime.register(definition, { services: source });
   const approvals = createAppApprovalService(

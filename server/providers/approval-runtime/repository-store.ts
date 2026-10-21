@@ -1,3 +1,4 @@
+import { demoRecordPartition } from '../demo-data/context.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { DatabaseConnection } from '@nocobase/db';
 import {
@@ -51,6 +52,20 @@ export function createAppLifecycleStore(
                 target.transactionHandle ??
                 joinedTransactions.getStore(),
             });
+        if (property === 'findRecord')
+          return async (...args: Parameters<LifecycleStore['findRecord']>) => {
+            const record = await target.findRecord(...args);
+            demoRecordPartition(target.transactionHandle, record);
+            return record;
+          };
+        if (property === 'createRecord')
+          return async (
+            ...args: Parameters<LifecycleStore['createRecord']>
+          ) => {
+            const record = await target.createRecord(...args);
+            demoRecordPartition(target.transactionHandle, record);
+            return record;
+          };
         if (property === 'findTransition')
           return (id: string) =>
             target.findTransition(canonicalTransitionReference(id));

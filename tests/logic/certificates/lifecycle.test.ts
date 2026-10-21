@@ -447,6 +447,7 @@ test('real manager and HR claim, frozen income DOCX, failed generation and audit
       'id',
       'kind',
       'number',
+      'title',
       'applicantId',
       'applicant',
       'status',

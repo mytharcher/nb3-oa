@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type {
   DatabaseManager,
@@ -76,7 +77,7 @@ export function createTemplatePrintService(d: Dependencies) {
             requestKey,
             bodyHash: hash(body),
             receipt: null,
-            createdAt: new Date(),
+            createdAt: demoNow(),
           },
         });
       } catch (error) {
@@ -290,8 +291,8 @@ export function createTemplatePrintService(d: Dependencies) {
                 currentRevisionId: null,
                 version: 1,
                 createdById: actorId,
-                createdAt: new Date(),
-                updatedAt: new Date(),
+                createdAt: demoNow(),
+                updatedAt: demoNow(),
               },
             })
         ).record;
@@ -348,7 +349,7 @@ export function createTemplatePrintService(d: Dependencies) {
                 name: input.name,
                 active: input.active,
                 version: input.version + 1,
-                updatedAt: new Date(),
+                updatedAt: demoNow(),
               },
             })
         ).record;
@@ -453,7 +454,7 @@ export function createTemplatePrintService(d: Dependencies) {
             paths: checked.paths,
             schemaVersion: source.schemaVersion,
             createdById: actorId,
-            createdAt: new Date(),
+            createdAt: demoNow(),
           };
           await tx
             .repository<PrintRevision>('printTemplateRevisions')
@@ -467,7 +468,7 @@ export function createTemplatePrintService(d: Dependencies) {
                 values: {
                   currentRevisionId: revision.id,
                   version: input.version + 1,
-                  updatedAt: new Date(),
+                  updatedAt: demoNow(),
                 },
               })
           ).record;

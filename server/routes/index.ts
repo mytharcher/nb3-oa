@@ -1,3 +1,4 @@
+import demoDataRoutes from './demo-data/index.js';
 import processManagementRoutes from './process-management/index.js';
 import personalSchedulesRoutes from './personal-schedules/index.js';
 import approvalReturnRateRoutes from './reports/approval-return-rate.js';
@@ -60,6 +61,7 @@ import approvalEfficiencyRoutes from './reports/approval-efficiency.js';
 
 // Each OA module owns `server/routes/<module>/` and exports its contributions from its `index.ts`.
 const routes: readonly AppRouteContribution<Application>[] = [
+  ...demoDataRoutes,
   ...workbenchRoutes,
   ...processManagementRoutes,
   ...personalSchedulesRoutes,

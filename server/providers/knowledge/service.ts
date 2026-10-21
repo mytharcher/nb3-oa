@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID, createHash } from 'node:crypto';
 import type {
   DatabaseConnection,
@@ -408,7 +409,7 @@ export function createKnowledgeService(d: {
         active: true,
         departmentIds: input.departmentIds,
         dutyRoleCodes: input.dutyRoleCodes,
-        updatedAt: new Date(),
+        updatedAt: demoNow(),
       };
       await mutation(tx, 'knowledgeDocuments', policy, values, input.id);
       await tx
@@ -423,7 +424,7 @@ export function createKnowledgeService(d: {
             markdown,
             fileId,
             authorId: input.actorId,
-            createdAt: new Date(),
+            createdAt: demoNow(),
           },
         });
       const document = (

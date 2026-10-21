@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
 import type { DatabaseConnection } from '@nocobase/db';
@@ -194,7 +195,7 @@ export function createVehicleService(
     }
     const value = await work();
     await repo.createOne({
-      values: { id, fingerprint, receipt: { value }, createdAt: new Date() },
+      values: { id, fingerprint, receipt: { value }, createdAt: demoNow() },
     });
     return value;
   }
@@ -424,7 +425,7 @@ export function createVehicleService(
           vehicleId: vehicle.id,
           driverId: driver?.id ?? null,
           dispatchedById: c.actorId,
-          createdAt: new Date().toISOString(),
+          createdAt: demoNow().toISOString(),
         };
         await tx.repository('vehicleUses').createOne({ values: row });
         await audit(c, 'vehicle.dispatch', row.id, row, tx);
@@ -473,7 +474,7 @@ export function createVehicleService(
               mileage: c.mileage,
               exception: c.exception,
               registeredById: c.actorId,
-              createdAt: new Date(),
+              createdAt: demoNow(),
             },
           });
           await tx

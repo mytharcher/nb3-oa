@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
   createAppApprovalService,
@@ -294,7 +295,7 @@ export function createDepartureService(d: DepartureDependencies) {
   }
   const runtime = new LifecycleRuntime({
     store: wrap(base),
-    clock: d.clock,
+    clock: d.clock ?? demoNow,
     dispatcher: d.dispatcher,
   });
   const definition = defineLifecycle<Types>({
@@ -747,7 +748,7 @@ export function createDepartureService(d: DepartureDependencies) {
           hrInterviewCompleted: false,
           sourceProbationId: null,
           sourceKey: null,
-          createdAt: new Date().toISOString(),
+          createdAt: demoNow().toISOString(),
         },
         { actor: { id: actorId } },
       );
@@ -775,7 +776,7 @@ export function createDepartureService(d: DepartureDependencies) {
     if (
       record.expectedLastWorkingDay &&
       record.expectedLastWorkingDay <
-        d.calendar.localDate(d.clock?.() ?? new Date())
+        d.calendar.localDate(d.clock?.() ?? demoNow())
     )
       blockers.push('DEPARTURE_DATE_PAST');
     const recipient = record.handoverUserId
@@ -807,7 +808,7 @@ export function createDepartureService(d: DepartureDependencies) {
         'sla.escalateHours',
         'sla.urgeCooldownHours',
       ],
-      d.clock?.() ?? new Date(),
+      d.clock?.() ?? demoNow(),
     );
     if (rules['sla.remindHours'] !== 24 || rules['sla.escalateHours'] !== 48)
       blockers.push('DEPARTURE_SLA_UNSUPPORTED');
@@ -939,7 +940,7 @@ export function createDepartureService(d: DepartureDependencies) {
             hrInterviewCompleted: false,
             sourceProbationId,
             sourceKey: requestKey,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: delegatedById }, transaction: connection },
         ),
@@ -990,7 +991,7 @@ export function createDepartureService(d: DepartureDependencies) {
         olderThan: new Date(Date.now() - 30 * 24 * 60 * 60_000),
       });
     },
-    async reconcile(now = new Date()) {
+    async reconcile(now = demoNow()) {
       await refresh();
       return execution.reconcile(now);
     },
@@ -1220,7 +1221,7 @@ export function createDepartureService(d: DepartureDependencies) {
               offer.name === 'settle'
                 ? {
                     settlementDate: d.calendar.localDate(
-                      d.clock?.() ?? new Date(),
+                      d.clock?.() ?? demoNow(),
                     ),
                     settlementNote: 'Eligibility preview',
                   }

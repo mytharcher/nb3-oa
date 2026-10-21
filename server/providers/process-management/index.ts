@@ -72,3 +72,5 @@ export default class ProcessManagementProvider extends ServiceProvider<Applicati
     );
   }
 }
+
+export { retireOwnedProcesses } from './demo-retirement.js';

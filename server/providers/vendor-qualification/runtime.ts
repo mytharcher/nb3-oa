@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createAppApprovalService } from '../approval-runtime/query-service.js';
 import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -134,7 +135,11 @@ export function createQualificationRuntime(
       );
     return snapshot;
   };
-  const runtime = new LifecycleRuntime({ store: wrap(base), dispatcher });
+  const runtime = new LifecycleRuntime({
+    clock: demoNow,
+    store: wrap(base),
+    dispatcher,
+  });
   const definition = qualificationGraph(host);
   runtime.register(definition, { services: source });
   const approvals = createAppApprovalService(

@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { runTaskViewsFor } from '../approval-runtime/task-views.js';
 import {
   hasApprovalCandidate,
@@ -338,7 +339,7 @@ export function createProbationService(d: ProbationDependencies) {
                         gradeId: proposal.gradeId,
                         baseSalary: proposal.baseSalary,
                         createdById: proposal.actorId,
-                        createdAt: new Date(),
+                        createdAt: demoNow(),
                       },
                     });
                     await d.audit.record(
@@ -388,6 +389,7 @@ export function createProbationService(d: ProbationDependencies) {
   const source = (handle: unknown): Services =>
     handle ? snapshots.get(handle)! : outside;
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: wrap(base),
     dispatcher: d.dispatcher,
   });
@@ -655,7 +657,7 @@ export function createProbationService(d: ProbationDependencies) {
         directory: services.directory,
         applicantId: record?.applicantId,
         kind: PROBATION_LIFECYCLE,
-        at: new Date().toISOString(),
+        at: demoNow().toISOString(),
       });
     },
     states: [
@@ -1094,7 +1096,7 @@ export function createProbationService(d: ProbationDependencies) {
             gmApproverId: null,
             headMerged: null,
             ruleSnapshot: null,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: actorId } },
         );
@@ -1471,7 +1473,7 @@ export function createProbationService(d: ProbationDependencies) {
       }
       return report;
     },
-    async reconcile(now = new Date()) {
+    async reconcile(now = demoNow()) {
       const today = d.calendar.localDate(now);
       const employees = await d.db
         .repository('employees')

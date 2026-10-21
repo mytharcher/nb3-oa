@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { createServiceToken } from '@nocobase/service-provider';
 import {
@@ -293,7 +294,7 @@ export function createVendorQualificationService(d: QualificationDependencies) {
             if (
               record.operation === 'qualify' &&
               (!record.qualificationExpiry ||
-                record.qualificationExpiry <= d.calendar.localDate(new Date()))
+                record.qualificationExpiry <= d.calendar.localDate(demoNow()))
             )
               refuse(
                 'QUALIFICATION_EXPIRED',
@@ -686,8 +687,8 @@ export function createVendorQualificationService(d: QualificationDependencies) {
                   committeeSnapshot: null,
                   sourceVendorVersion: null,
                   ruleSnapshot: {},
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
+                  createdAt: demoNow().toISOString(),
+                  updatedAt: demoNow().toISOString(),
                 },
                 { actor: { id: actorId }, transaction: tx },
               ),
@@ -703,7 +704,7 @@ export function createVendorQualificationService(d: QualificationDependencies) {
             bankAccount: '',
             bankAccountName: '',
             version: 1,
-            updatedAt: new Date(),
+            updatedAt: demoNow(),
           },
         });
         await repo.createOne({
@@ -713,7 +714,7 @@ export function createVendorQualificationService(d: QualificationDependencies) {
             requestKey,
             requestId: id,
             fingerprint,
-            createdAt: new Date(),
+            createdAt: demoNow(),
           },
         });
         return result;
@@ -1188,7 +1189,7 @@ export function createVendorQualificationService(d: QualificationDependencies) {
             values: {
               ...account,
               version: input.bankVersion + 1,
-              updatedAt: new Date(),
+              updatedAt: demoNow(),
             },
           });
         if (!changed.updatedCount)
@@ -1255,7 +1256,7 @@ export function createVendorQualificationService(d: QualificationDependencies) {
       }
       return report;
     },
-    async expiryReminders(now = new Date()) {
+    async expiryReminders(now = demoNow()) {
       const today = d.calendar.localDate(now);
       const directory = await d.directory.snapshot();
       const recipients = directory.roleMembers('purchasing');

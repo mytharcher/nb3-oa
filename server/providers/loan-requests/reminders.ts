@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseManager } from '@nocobase/db';
 import type { CalendarService } from '../platform/calendar.js';
@@ -24,7 +25,7 @@ export function createLoanReminderService(d: {
   notifications: ApprovalNotificationService;
 }) {
   return {
-    async run(now = new Date()) {
+    async run(now = demoNow()) {
       const today = d.calendar.localDate(now),
         connection = d.db.connection(),
         repo = connection.repository<Reminder>('loanReminderEvents');

@@ -39,6 +39,26 @@ it('generates real PostgreSQL trial identities, resource holds and actionable ro
   expect((await db.repository('budgets').findMany()).length).toBeGreaterThan(
     20,
   );
+  // Each scenario must reserve a different dataset-owned physical unit.
+  const assetSamples = result.scenarios.filter(
+    (s) => s.path === '/assetRequests',
+  );
+  expect(assetSamples).toHaveLength(4);
+  const allocated = await Promise.all(
+    assetSamples.map(async (s) => {
+      const row = await db
+        .repository('assetRequests')
+        .findOne({ filter: { id: s.id } });
+      const units = row?.allocation as { id: string }[];
+      expect(units).toHaveLength(1);
+      const unit = await db
+        .repository('assets')
+        .findOne({ filter: { id: units[0].id } });
+      expect(unit?.code).toMatch(/^oa-trial-v1-asset-/);
+      return units[0].id;
+    }),
+  );
+  expect(new Set(allocated).size).toBe(4);
 }, 360000);
 
 it('uses distinct business permissions and preserves user progress on a repeat run', async () => {

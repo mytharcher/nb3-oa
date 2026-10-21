@@ -1,3 +1,4 @@
+import { currentDemo } from '../../../../server/providers/demo-data/context.js';
 import type { Application } from '@nocobase/app-server/application';
 import type { TrialRole } from './accounts.js';
 import { trialEmail } from './accounts.js';
@@ -26,20 +27,28 @@ export async function trialSession(
     app.config.get<string>('app.publicOrigin') ?? 'http://localhost';
   // Application.fetch is the internal handler; the standalone host strips publicBasePath before dispatch.
   const api = `${origin}/api`;
-  const login = await app.fetch(
-    new Request(`${api}/auth/sign-in/email`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', origin },
-      body: JSON.stringify({ email: trialEmail(role), password }),
-    }),
-  );
-  if (!login.ok)
-    throw new Error(`Trial sign-in ${role} failed (${login.status}).`);
-  const data = (await login.json()) as { user: { id: string } };
-  const cookie = login.headers
-    .getSetCookie()
-    .map((value) => value.split(';')[0])
-    .join('; ');
+  const scope = currentDemo();
+  let cookie = '';
+  let userId: string;
+  const serviceKey = role === 'system' ? scope?.systemKey : undefined;
+  if (serviceKey) userId = scope!.identities!.system;
+  else {
+    const login = await app.fetch(
+      new Request(`${api}/auth/sign-in/email`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin },
+        body: JSON.stringify({ email: trialEmail(role), password }),
+      }),
+    );
+    if (!login.ok)
+      throw new Error(`Trial sign-in ${role} failed (${login.status}).`);
+    const data = (await login.json()) as { user: { id: string } };
+    cookie = login.headers
+      .getSetCookie()
+      .map((value) => value.split(';')[0])
+      .join('; ');
+    userId = data.user.id;
+  }
   const call = async (
     path: string,
     body?: unknown,
@@ -47,7 +56,10 @@ export async function trialSession(
     method?: string,
     extraHeaders?: Record<string, string>,
   ): Promise<Record<string, unknown>> => {
+    if (scope?.now && (body !== undefined || multipart))
+      scope.now = new Date(scope.now.getTime() + 60000);
     const headers = new Headers({ ...extraHeaders, cookie, origin });
+    if (serviceKey) headers.set('x-api-key', serviceKey);
     if (body !== undefined) headers.set('content-type', 'application/json');
     const response = await app.fetch(
       new Request(`${api}${path}`, {
@@ -69,7 +81,7 @@ export async function trialSession(
     return answer;
   };
   return {
-    userId: data.user.id,
+    userId,
     request: (path, body, method) => call(path, body, undefined, method),
     upload: (path, file, headers, fields) => {
       const form = new FormData();

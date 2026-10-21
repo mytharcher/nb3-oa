@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
   createAppApprovalService,
@@ -314,6 +315,7 @@ export function createPurchaseService(d: PurchaseDependencies) {
   const source = (handle: unknown): Services =>
     handle ? snapshots.get(handle)! : outside;
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: wrap(base),
     dispatcher: d.dispatcher,
   });
@@ -650,7 +652,7 @@ export function createPurchaseService(d: PurchaseDependencies) {
         directory: services.directory,
         applicantId: record?.applicantId,
         kind: PURCHASE_LIFECYCLE,
-        at: new Date().toISOString(),
+        at: demoNow().toISOString(),
       });
     },
     states: [
@@ -1515,7 +1517,7 @@ export function createPurchaseService(d: PurchaseDependencies) {
             handlingActorId: null,
             departmentId: null,
             year: null,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: actorId } },
         );

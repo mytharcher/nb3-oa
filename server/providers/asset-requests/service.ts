@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
   createAppApprovalService,
@@ -458,6 +459,7 @@ export function createAssetRequestService(d: AssetRequestDependencies) {
       }),
   });
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: store.store,
     dispatcher: d.dispatcher,
   });
@@ -810,8 +812,8 @@ export function createAssetRequestService(d: AssetRequestDependencies) {
             handlingReason: null,
             approvedFingerprint: null,
             exceptionReason: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
+            updatedAt: demoNow().toISOString(),
           },
           { actor: { id: actorId } },
         ),

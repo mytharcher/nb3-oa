@@ -1,9 +1,16 @@
+import { trialAssetPhoto } from './asset-photo.js';
+import { assertDemoOwnership } from '../../../../server/providers/demo-data/ownership.js';
+import { demoText } from '../../../../server/providers/demo-data/content.js';
 import { randomUUID } from 'node:crypto';
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken } from '@nocobase/db';
 import { type TrialFacts } from './bootstrap.js';
 import type { TrialScenario } from './scenarios.js';
-import { trialAccounts, trialPrefix, type TrialRole } from './accounts.js';
+import {
+  getTrialAccounts,
+  getTrialPrefix,
+  type TrialRole,
+} from './accounts.js';
 import { dataOf, recordOf, type TrialSession } from './http.js';
 
 export type TrialSessions = Record<TrialRole, TrialSession>;
@@ -84,7 +91,7 @@ export async function transition(
       transition: name,
       version,
       requestKey: requestId,
-      reason: '虚构试用流程准备',
+      reason: demoText('虚构试用流程准备'),
     });
   } else {
     const plural = s.mode === 'plural';
@@ -132,19 +139,32 @@ export async function performOffered(
   id: string,
   action: string,
   input?: Record<string, unknown>,
+  comment?: string,
+  suffix = 'action',
 ): Promise<void> {
   const detail = dataOf(await session.request(`${path}/${id}`));
+  if (path === '/sealRequests')
+    detail.capabilities = dataOf(
+      await session.request(`/sealBrowser/requests/${id}/capabilities`),
+    );
   const offer = offered(detail).find((v) =>
     v.actions.some((a) => a.name === action),
   );
   if (!offer)
     throw new Error(`${path}: no current ${action} offer for the trial actor.`);
-  const runs = detail.runs as { run: { id: string; contentHash: string } }[];
-  const run = runs.find((v) => v.run.id === (offer.task?.runId ?? offer.runId));
-  await session.request(`${path}/${id}/action`, {
+  const runs = detail.runs as {
+    run?: { id: string; contentHash: string };
+    id?: string;
+    contentHash?: string;
+  }[];
+  const run = runs.find(
+    (v) => (v.run?.id ?? v.id) === (offer.task?.runId ?? offer.runId),
+  );
+  await session.request(`${path}/${id}/${suffix}`, {
     target: { taskId: offer.task?.id ?? offer.taskId },
     action,
-    contentHash: offer.contentHash ?? run?.run.contentHash,
+    ...(comment ? { comment } : {}),
+    contentHash: offer.contentHash ?? run?.run?.contentHash ?? run?.contentHash,
     requestId: randomUUID(),
     ...(input ? { input } : {}),
   });
@@ -230,7 +250,7 @@ export async function advance(
         action: 'reassign',
         contentHash: offer.contentHash ?? run?.run.contentHash,
         requestId: randomUUID(),
-        comment: '迁移旧示例职责，恢复当前试用单据负责人',
+        comment: demoText('迁移旧示例职责，恢复当前试用单据负责人'),
         input: { to: sessions[role].userId },
       });
       continue;
@@ -259,8 +279,9 @@ export async function advance(
         action: 'appoint',
         contentHash: offer.run.contentHash,
         requestId: randomUUID(),
-        comment:
+        comment: demoText(
           '旧示例唯一职责迁移后，为尚未初始化完成的试用节点指定当前负责人',
+        ),
         input: { to: sessions[s.stopAt].userId },
       });
       continue;
@@ -282,7 +303,7 @@ export async function advance(
       }
     }
     let progressed = false;
-    for (const person of trialAccounts) {
+    for (const person of getTrialAccounts()) {
       if (person.key === 'system') continue;
       if (
         assignedIds.size &&
@@ -326,12 +347,12 @@ export async function advance(
         requestId: randomUUID(),
         contentHash:
           offer.contentHash ?? run?.run?.contentHash ?? run?.contentHash,
-        comment: '虚构示例：准备下一角色的试用待办',
+        comment: demoText('虚构示例：准备下一角色的试用待办'),
       };
       if (s.mode === 'command') {
         body.requestKey = body.requestId;
         delete body.requestId;
-        body.reason = '虚构试用流程准备';
+        body.reason = demoText('虚构试用流程准备');
       }
       if (
         action === 'approve' &&
@@ -344,7 +365,7 @@ export async function advance(
         String(record.status) === 'manager'
       )
         body.input = {
-          evaluation: '示例试用期评价',
+          evaluation: demoText('示例试用期评价'),
           conclusion: 'regular',
           deferredTo: null,
         };
@@ -393,6 +414,8 @@ export async function populateScenario(
           .repository(s.collection)
           .findOne({ filter: { [s.markerField]: marker } })
       : undefined);
+  if (existing)
+    await assertDemoOwnership(db.connection(), s.collection, existing.id);
   let record: Record<string, unknown> =
     existing ?? recordOf(await session.request(s.path, s.body));
   const id = String(record.id);
@@ -413,11 +436,11 @@ export async function populateScenario(
         ...s.body,
         lines: [
           {
-            id: `${trialPrefix}-line`,
+            id: `${getTrialPrefix()}-line`,
             category: facts.dictionary.expenseCategory,
             date: facts.date,
             amountCents: 30000,
-            invoiceNumber: `${trialPrefix}-INV-001`,
+            invoiceNumber: `${getTrialPrefix()}-INV-001`,
             attachmentIds: [upload.id],
             standardExceptionReason: '',
           },
@@ -472,11 +495,11 @@ export async function populateScenario(
         {
           lifecycleVersion: record.lifecycleVersion,
           bankVersion: (bank.account as { version: number }).version,
-          reason: '虚构示例银行资料',
+          reason: demoText('虚构示例银行资料'),
           account: {
-            bankName: '示例银行（不可支付）',
+            bankName: demoText('示例银行（不可支付）'),
             bankAccount: '0000000000000000',
-            bankAccountName: '虚构试用账户',
+            bankAccountName: demoText('虚构试用账户'),
           },
         },
         'PATCH',
@@ -492,16 +515,7 @@ export async function populateScenario(
         fileIds: [upload.id],
       });
     } else if (s.attachment === 'asset') {
-      const png = new File(
-        [
-          Buffer.from(
-            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9ZkAAAAASUVORK5CYII=',
-            'base64',
-          ),
-        ],
-        'oa-trial-placeholder.png',
-        { type: 'image/png' },
-      );
+      const png = trialAssetPhoto();
       const upload = recordOf(
         await session.upload('/assetRequestPhotos/uploadOne', png, {
           'x-asset-request-id': id,

@@ -1,7 +1,12 @@
+import { currentDemo } from '../../../../server/providers/demo-data/context.js';
+import {
+  demoText,
+  demoMarker,
+} from '../../../../server/providers/demo-data/content.js';
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken } from '@nocobase/db';
 import { addDays, type TrialFacts } from './bootstrap.js';
-import { trialPrefix } from './accounts.js';
+import { getTrialPrefix, trialEmail, trialUsername } from './accounts.js';
 import { scenarios, type TrialScenario } from './scenarios.js';
 import {
   populateScenario,
@@ -22,15 +27,17 @@ export function cloneScenario(
   copy.stopAt = undefined;
   copy.complete = false;
   copy.draft = false;
-  const marker = `${trialPrefix}·${key}`;
+  const marker = demoMarker(key);
   const input = copy.body.input as Record<string, unknown> | undefined;
   const proposal = (copy.body.proposal ?? input?.proposal) as
     Record<string, unknown> | undefined;
   if (proposal) proposal[copy.markerField] = marker;
   else if (input) input[copy.markerField] = marker;
   else copy.body[copy.markerField] = marker;
-  if ('requestId' in copy.body) copy.body.requestId = `${trialPrefix}-${key}`;
-  if ('requestKey' in copy.body) copy.body.requestKey = `${trialPrefix}-${key}`;
+  if ('requestId' in copy.body)
+    copy.body.requestId = `${getTrialPrefix()}-${key}`;
+  if ('requestKey' in copy.body)
+    copy.body.requestKey = `${getTrialPrefix()}-${key}`;
   return { ...copy, ...patch };
 }
 
@@ -64,7 +71,7 @@ export async function followUps(
       stopAt: 'gm',
       body: {
         ...seed('expense-plan-head').body,
-        reason: `${trialPrefix}·expense-plan-gm`,
+        reason: demoMarker('expense-plan-gm'),
         amountCents: 30000000,
       },
     }),
@@ -77,7 +84,7 @@ export async function followUps(
       stopAt: 'admin',
       body: {
         ...seed('vehicle-head').body,
-        purpose: `${trialPrefix}·vehicle-dispatch`,
+        purpose: demoMarker('vehicle-dispatch'),
         startAt: f.instant(addDays(f.date, 11), '09:00'),
         endAt: f.instant(addDays(f.date, 11), '17:00'),
       },
@@ -86,9 +93,11 @@ export async function followUps(
   await prepare(
     cloneScenario(seed('supply-head'), 'supply-issue', { stopAt: 'admin' }),
   );
-  await prepare(
-    cloneScenario(seed('asset-use'), 'asset-issue', { stopAt: 'admin' }),
-  );
+  const assetIssue = cloneScenario(seed('asset-use'), 'asset-issue', {
+    stopAt: 'admin',
+  });
+  assetIssue.body.assetIds = [f.assetIds[2]];
+  await prepare(assetIssue);
   await prepare(
     cloneScenario(seed('seal-head'), 'seal-keeper', { stopAt: 'sealKeeper' }),
   );
@@ -96,7 +105,7 @@ export async function followUps(
   if (originalLeave)
     await prepare({
       key: 'leave-cancellation',
-      title: '销假',
+      title: demoText('销假'),
       path: '/leaveCancellations',
       collection: 'leaveCancellations',
       markerField: 'reason',
@@ -104,9 +113,9 @@ export async function followUps(
       body: {
         originalLeaveId: originalLeave.id,
         cancelAll: true,
-        endDate: addDays(f.date, 2),
+        endDate: f.workDate?.(2) ?? addDays(f.date, 2),
         endHalf: 'pm',
-        reason: `${trialPrefix}·leave-cancellation`,
+        reason: demoMarker('leave-cancellation'),
       },
     });
   const travel = cloneScenario(seed('travel-head'), 'travel-approved', {
@@ -122,14 +131,14 @@ export async function followUps(
   if (sourceTrip)
     await prepare({
       key: 'travel-cancellation',
-      title: '出差撤销',
+      title: demoText('出差撤销'),
       path: '/travelCancellations',
       collection: 'travelCancellations',
       markerField: 'reason',
       actor: 'employee',
       body: {
         sourceId: sourceTrip.id,
-        reason: `${trialPrefix}·travel-cancellation`,
+        reason: demoMarker('travel-cancellation'),
       },
     });
   const contract = await prepare(
@@ -177,7 +186,7 @@ export async function followUps(
         throw new Error(
           'Recruitment approval did not allocate a real requisition.',
         );
-      const id = `${trialPrefix}-onboarding`;
+      const id = `${getTrialPrefix()}-onboarding`;
       const existing = await db
         .repository('onboardings')
         .findOne({ filter: { id } });
@@ -188,30 +197,32 @@ export async function followUps(
             id,
             requisitionId: requisition.id,
             requisitionVersion: Number(requisition.version),
-            requestId: `${trialPrefix}-onboarding`,
-            reason: '虚构入职试用数据',
+            requestId: `${getTrialPrefix()}-onboarding`,
+            reason: demoText('虚构入职试用数据'),
             account: {
-              name: '示例·待入职员工',
-              email: 'newhire@oa-trial.example.test',
-              username: 'trial.newhire',
+              name: demoText('示例·待入职员工'),
+              email: trialEmail('newhire'),
+              username: trialUsername('newhire'),
               password: passwordFor(password, 'newhire'),
             },
             employee: {
-              code: `${trialPrefix}-newhire`,
-              name: '示例·待入职员工',
+              code: `${getTrialPrefix()}-newhire`,
+              name: demoText('示例·待入职员工'),
               managerId: f.employees.manager,
               hireDate: addDays(f.date, 14),
-              careerStartDate: '2020-01-01',
+              careerStartDate: currentDemo()
+                ? addDays(f.date, -1460)
+                : '2020-01-01',
               probationEndDate: addDays(f.date, 104),
             },
             mentorEmployeeId: f.employees.employee,
-            workstationRequirement: '示例工位及电脑',
+            workstationRequirement: demoText('示例工位及电脑'),
             baseSalary: '9000.00',
           }),
         );
       await checkpoint({
         key: 'onboarding',
-        title: '入职办理',
+        title: demoText('入职办理'),
         path: '/onboardings',
         id: String(row.id),
         status: String(row.status),
@@ -254,10 +265,10 @@ export async function followUps(
           `${issuedLoan.path}/${issuedLoan.id}/repayments`,
           {
             operation: 'record',
-            receiptId: `${trialPrefix}-repayment-receipt`,
+            receiptId: `${getTrialPrefix()}-repayment-receipt`,
             cents: 50000,
-            requestKey: `${trialPrefix}-repayment`,
-            reason: '虚构试用现金还款，等待借款人确认',
+            requestKey: `${getTrialPrefix()}-repayment`,
+            reason: demoText('虚构试用现金还款，等待借款人确认'),
           },
         );
       const repaymentView = dataOf(
@@ -268,14 +279,19 @@ export async function followUps(
       const receipt = (
         repaymentView.reservations as { reference: string; state: string }[]
       ).find(
-        (entry) => entry.reference === `cash:${trialPrefix}-repayment-receipt`,
+        (entry) =>
+          entry.reference === `cash:${getTrialPrefix()}-repayment-receipt`,
       );
       if (!receipt)
         throw new Error('The real trial repayment receipt is missing.');
+      const issued = recordOf(
+        await sessions.cashier.request(`${issuedLoan.path}/${issuedLoan.id}`),
+      );
+      await checkpoint({ ...issuedLoan, status: String(issued.status) });
       await checkpoint({
         ...issuedLoan,
         key: 'loan-repayment',
-        title: '还款待确认',
+        title: demoText('还款待确认'),
         status: receipt.state,
       });
     } catch (error) {
@@ -284,6 +300,7 @@ export async function followUps(
   }
   // Prove every trial identity can read the actual center. This is an HTTP check, not a UI acceptance claim.
   for (const [role, session] of Object.entries(sessions)) {
+    if (currentDemo() && role === 'system') continue;
     try {
       dataOf(
         await session.request(

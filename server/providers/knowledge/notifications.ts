@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import type { AppAuthorization } from '@nocobase/app-plugin-authorization/server';
 import type {
   DatabaseConnection,
@@ -140,7 +141,7 @@ export function createKnowledgeNotifications(d: {
       },
     }),
     dispatcher: d.dispatcher,
-    clock: d.now,
+    clock: d.now ?? demoNow,
   });
   runtime.register(
     defineLifecycle<{ record: Notice; state: Notice['status'] }>({

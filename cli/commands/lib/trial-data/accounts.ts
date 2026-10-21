@@ -1,3 +1,13 @@
+import {
+  currentDemo,
+  demoPrefix,
+  demoEmail,
+  demoUsername,
+} from '../../../../server/providers/demo-data/context.js';
+import {
+  demoChineseNames,
+  demoEnglishNames,
+} from '../../../../server/providers/demo-data/content.js';
 export const trialAccounts = [
   {
     key: 'system',
@@ -135,7 +145,23 @@ export const trialAccounts = [
 
 export type TrialRole = (typeof trialAccounts)[number]['key'];
 export const trialPrefix = 'oa-trial-v1';
-export const trialEmail = (key: string): string =>
-  `${key.toLowerCase()}@oa-trial.example.test`;
-export const trialUsername = (key: string): string =>
-  `trial.${key.toLowerCase()}`;
+export const trialEmail = (key: string): string => demoEmail(key);
+export const trialUsername = (key: string): string => demoUsername(key);
+
+export const getTrialPrefix = demoPrefix;
+export function getTrialAccounts(): readonly {
+  key: TrialRole;
+  name: string;
+  department: (typeof trialAccounts)[number]['department'];
+  duties: readonly string[];
+}[] {
+  const scope = currentDemo();
+  return scope
+    ? trialAccounts.map((p, index) => ({
+        ...p,
+        name: (scope.locale === 'en-US' ? demoEnglishNames : demoChineseNames)[
+          index
+        ],
+      }))
+    : trialAccounts;
+}

@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createLegacyAssetReturn } from './legacy-return.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseConnection } from '@nocobase/db';
@@ -133,7 +134,7 @@ export function createAssetService(d: {
             'This asset code already exists.',
             'conflict',
           );
-        const now = new Date().toISOString();
+        const now = demoNow().toISOString();
         const id = randomUUID();
         await (policy ? repo.withPolicy(policy) : repo).createOne({
           values: {
@@ -238,7 +239,7 @@ export function createAssetService(d: {
               ? {}
               : { originalValueCents: clean.originalValueCents }),
             version: input.version + 1,
-            updatedAt: new Date().toISOString(),
+            updatedAt: demoNow().toISOString(),
           },
         });
         if (!changed.updatedCount)

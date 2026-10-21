@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -142,8 +143,7 @@ export function createExpenseAuthorizationService(d: {
     input: ExpenseCommand,
     tx: DatabaseConnection,
   ) {
-    if (g.state !== 'open' || !expired(g, input.now ?? new Date()))
-      return false;
+    if (g.state !== 'open' || !expired(g, input.now ?? demoNow())) return false;
     if ((await claims(g.id, tx)).some((c) => c.state === 'pending'))
       return false;
     if (g.budgetMode === 'reserved')
@@ -229,7 +229,7 @@ export function createExpenseAuthorizationService(d: {
             .repository<ExpenseClaim>('expenseAuthorizationClaims')
             .updateOne({
               filter: { id: c.id },
-              values: { state, updatedAt: input.now ?? new Date() },
+              values: { state, updatedAt: input.now ?? demoNow() },
             })
         ).record,
       );
@@ -320,7 +320,7 @@ export function createExpenseAuthorizationService(d: {
           grantedCents: input.grantedCents,
           ...account,
         };
-        const now = input.now ?? new Date(),
+        const now = input.now ?? demoNow(),
           date = d.calendar.localDate(now),
           deadline = new Date(Date.parse(`${date}T00:00:00Z`) + 90 * 86400000)
             .toISOString()
@@ -427,7 +427,7 @@ export function createExpenseAuthorizationService(d: {
             fail('CLAIM_NOT_FOUND', 'The replayed claim no longer exists.');
           return old;
         }
-        if (g.state !== 'open' || expired(g, input.now ?? new Date()))
+        if (g.state !== 'open' || expired(g, input.now ?? demoNow()))
           fail(
             'EXPIRED',
             'This authorization is closed or past its claim deadline.',
@@ -458,7 +458,7 @@ export function createExpenseAuthorizationService(d: {
             'OVERRUN_REASON',
             'Explain reimbursement totals exceeding the approved amount by more than 20%.',
           );
-        const now = input.now ?? new Date();
+        const now = input.now ?? demoNow();
         const c: ExpenseClaim = {
           id: randomUUID(),
           authorizationId: g.id,
@@ -541,7 +541,7 @@ export function createExpenseAuthorizationService(d: {
                 values: {
                   cents: input.cents,
                   overrunReason: input.overrunReason?.trim() ?? '',
-                  updatedAt: input.now ?? new Date(),
+                  updatedAt: input.now ?? demoNow(),
                 },
               })
           ).record,
@@ -600,7 +600,7 @@ export function createExpenseAuthorizationService(d: {
         return after;
       });
     },
-    async expireDue(now = new Date()) {
+    async expireDue(now = demoNow()) {
       let count = 0,
         pending = 0;
       const rows = await d.db

@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import { runTaskViewsFor } from '../approval-runtime/task-views.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { hasApprovalCandidate } from '../approval-runtime/query-service.js';
@@ -66,7 +67,7 @@ export interface SealDependencies {
   now?: () => Date;
 }
 export function createSealApplication(d: SealDependencies) {
-  const clock = () => d.now?.() ?? new Date(),
+  const clock = () => d.now?.() ?? demoNow(),
     physical = createSealLedger(d),
     accessContext = new AsyncLocalStorage<SealAccess>();
   function normalize(row: SealRequest): SealRequest {

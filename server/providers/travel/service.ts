@@ -1,3 +1,4 @@
+import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
   createAppApprovalService,
@@ -280,6 +281,7 @@ export function createTravelService(d: TravelDependencies) {
   const source = (handle: unknown): Services =>
     handle ? snapshots.get(handle)! : outside;
   const runtime = new LifecycleRuntime({
+    clock: demoNow,
     store: wrap(base),
     dispatcher: d.dispatcher,
   });
@@ -548,7 +550,7 @@ export function createTravelService(d: TravelDependencies) {
           startAt: record.startAt,
           endAt: record.endAt,
           actorId,
-          now: new Date(),
+          now: demoNow(),
         },
         connection,
       );
@@ -670,7 +672,7 @@ export function createTravelService(d: TravelDependencies) {
         directory: services.directory,
         applicantId: record?.applicantId,
         kind: TRAVEL_LIFECYCLE,
-        at: new Date().toISOString(),
+        at: demoNow().toISOString(),
       });
     },
     states: [
@@ -950,7 +952,7 @@ export function createTravelService(d: TravelDependencies) {
                   record.amountCents > 0
                     ? (record.authorizationId ?? randomUUID())
                     : null,
-                approvalGrantedAt: new Date().toISOString(),
+                approvalGrantedAt: demoNow().toISOString(),
                 ...approvedFacts(record),
                 originalHeadApproverId: record.headApproverId,
               },
@@ -995,7 +997,7 @@ export function createTravelService(d: TravelDependencies) {
                   record.amountCents > 0
                     ? (record.authorizationId ?? randomUUID())
                     : null,
-                approvalGrantedAt: new Date().toISOString(),
+                approvalGrantedAt: demoNow().toISOString(),
                 ...approvedFacts(record),
                 originalHeadApproverId: record.headApproverId,
                 gmMerged: merged
@@ -1038,7 +1040,7 @@ export function createTravelService(d: TravelDependencies) {
             record.amountCents > 0
               ? (record.authorizationId ?? randomUUID())
               : null,
-          approvalGrantedAt: new Date().toISOString(),
+          approvalGrantedAt: demoNow().toISOString(),
           ...approvedFacts(record),
           originalHeadApproverId: record.headApproverId,
         }),
@@ -1660,7 +1662,7 @@ export function createTravelService(d: TravelDependencies) {
             gmMerged: null,
             authorizationId: null,
             departmentId: null,
-            createdAt: new Date().toISOString(),
+            createdAt: demoNow().toISOString(),
           },
           { actor: { id: actorId } },
         );
