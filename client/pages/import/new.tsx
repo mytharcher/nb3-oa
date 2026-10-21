@@ -10,7 +10,7 @@ import {
 import { type ReactElement, useId, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router';
 
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { SessionExpiredAlert } from '#components/session-expired-alert';
 import { Alert, AlertDescription, AlertTitle } from '#components/ui/alert';
 import { Button } from '#components/ui/button';
@@ -345,7 +345,8 @@ export default function NewImportDialog(): ReactElement {
   }
 
   return (
-    <RouteDialog
+    <RouteDrawer
+      className='sm:max-w-2xl'
       title={t('import.actions.new')}
       description={t('import.description')}
       beforeClose={() => !submittingRef.current}
@@ -378,7 +379,7 @@ export default function NewImportDialog(): ReactElement {
         ) : null}
         {body}
       </form>
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 

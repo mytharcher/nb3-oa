@@ -7,7 +7,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useOutletContext, useParams } from 'react-router';
@@ -19,7 +18,6 @@ import { Checkbox } from '#components/ui/checkbox';
 import { parseAmountCents, amountText } from './money.js';
 import type { TrainingOptions } from './options.js';
 import { fieldViolationsOf } from '../platform/shared/errors.js';
-import { UserPicker } from '#components/user-picker';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
 import { Textarea } from '#components/ui/textarea';
@@ -71,13 +69,9 @@ export default function TrainingFormDialog() {
     resource: { type: 'composite', id: 'oa.training' },
     action: 'submit',
   }).can;
-  const canDelegate = useCan({
-    resource: { type: 'composite', id: 'oa.training' },
-    action: 'delegate',
-  }).can;
   const allowed = requestId
     ? resource.data?.view.available.some((a) => a.name === 'edit' && a.allowed)
-    : canSubmit || canDelegate;
+    : canSubmit;
   useEffect(() => {
     if (
       resource.error instanceof ApiClientError &&
@@ -217,16 +211,7 @@ function TrainingForm({
   const api = useApiClient();
   const toaster = useToaster();
   const { close } = useRouteOverlay();
-  const { session } = useAuthentication();
   const parent = useOutletContext<SourceContext & Partial<DetailContext>>();
-  const delegate = useCan({
-    resource: { type: 'composite', id: 'oa.training' },
-    action: 'delegate',
-  }).can;
-  const pick = useCan({
-    resource: { type: 'user', id: '*' },
-    action: 'read',
-  }).can;
   const options = useResource<TrainingOptions>('trainingRequests/options');
   useEffect(
     () => onReady(!!options.data && !options.error && !options.loading),
@@ -243,7 +228,6 @@ function TrainingForm({
     () =>
       z
         .object({
-          applicantId: z.string(),
           name: z
             .string()
             .trim()
@@ -290,7 +274,6 @@ function TrainingForm({
     mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: {
-      applicantId: '',
       name: detail?.record.name ?? '',
       institution: detail?.record.institution ?? '',
       startAt: detail?.record.startAt ?? '',
@@ -317,7 +300,7 @@ function TrainingForm({
     runningRef.current = true;
     onBusy(true);
     setError(undefined);
-    const { applicantId, amount, ...fields } = values;
+    const { amount, ...fields } = values;
     const input = {
       ...fields,
       amountCents: parseAmountCents(amount)!,
@@ -331,7 +314,7 @@ function TrainingForm({
     try {
       const draftRequestId = attemptRef.current.requestId;
       const savedRecord = await submission.save(
-        { input, applicantId },
+        { input },
         detail?.record,
         async (current) => {
           const result = await api.request<{
@@ -350,12 +333,6 @@ function TrainingForm({
                 }
               : {
                   ...input,
-                  ...(delegate &&
-                  pick &&
-                  applicantId &&
-                  applicantId !== session?.user.id
-                    ? { applicantId }
-                    : {}),
                 },
           });
           return result.data.record;
@@ -372,7 +349,7 @@ function TrainingForm({
         title: t(
           submission.intent.current === 'submit'
             ? 'approvals.submitted'
-            : 'approvals.saved',
+            : 'training.actionForm.saved',
           {
             name: result.data.record.number ?? t('approvals.draft'),
           },
@@ -454,44 +431,22 @@ function TrainingForm({
         }}
       >
         <FieldGroup inert={submission.submitUnknown || undefined}>
-          {delegate && pick && !detail ? (
-            <Controller
-              name='applicantId'
-              control={form.control}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel htmlFor='training-applicant'>
-                    {t('approvals.applicant')}
-                  </FieldLabel>
-                  <UserPicker
-                    id='training-applicant'
-                    value={field.value}
-                    onChange={field.onChange}
-                    disabled={
-                      busy ||
-                      uncertain ||
-                      !allowed ||
-                      !!submission.current.current
-                    }
-                  />
-                </Field>
-              )}
-            />
-          ) : null}
-          {(['name', 'institution'] as const).map((name) => (
-            <Field key={name} data-invalid={!!form.formState.errors[name]}>
-              <FieldLabel htmlFor={`training-${name}`}>
-                {t(`training.${name}`)} *
-              </FieldLabel>
-              <Input
-                id={`training-${name}`}
-                {...form.register(name)}
-                disabled={busy || uncertain || !allowed}
-                aria-invalid={!!form.formState.errors[name]}
-              />
-              <FieldError errors={[form.formState.errors[name]]} />
-            </Field>
-          ))}
+          <div className='grid gap-4 sm:grid-cols-2'>
+            {(['name', 'institution'] as const).map((name) => (
+              <Field key={name} data-invalid={!!form.formState.errors[name]}>
+                <FieldLabel htmlFor={`training-${name}`}>
+                  {t(`training.${name}`)} *
+                </FieldLabel>
+                <Input
+                  id={`training-${name}`}
+                  {...form.register(name)}
+                  disabled={busy || uncertain || !allowed}
+                  aria-invalid={!!form.formState.errors[name]}
+                />
+                <FieldError errors={[form.formState.errors[name]]} />
+              </Field>
+            ))}
+          </div>
           {(['startAt', 'endAt'] as const).map((name) => (
             <Controller
               key={name}

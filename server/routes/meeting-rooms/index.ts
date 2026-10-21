@@ -1,3 +1,4 @@
+import { readBookingRoomNames } from './list-room-names.js';
 import { Hono, type Context } from 'hono';
 import {
   authenticationToken,
@@ -880,9 +881,24 @@ export default [
                 )
                 .slice((q.page - 1) * q.pageSize, q.page * q.pageSize)
             : matched;
+        const readableBookings = await visibleResult(
+          rows as MeetingBooking[],
+          p,
+          db.connection(),
+        );
+        const roomPolicy = await optionalPolicy(ctx, 'oa.meetingRooms', 'view');
+        const roomNames = await readBookingRoomNames(
+          db.connection(),
+          roomPolicy,
+          readableBookings.map((booking) => booking.roomId),
+        );
+        const enrichedBookings = await enrich(readableBookings);
         return ctx.json({
-          data: await enrich(
-            await visibleResult(rows as MeetingBooking[], p, db.connection()),
+          data: (enrichedBookings as Awaited<ReturnType<typeof dto>>[]).map(
+            (booking) => ({
+              ...booking,
+              roomName: roomNames.get(booking.roomId) ?? null,
+            }),
           ),
           meta: {
             page: q.page,

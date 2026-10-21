@@ -53,18 +53,22 @@ function Host({
   enabled = true,
   scope = 'pending',
   records = rows,
+  showHeader = false,
 }: {
   enabled?: boolean;
   scope?: string;
   records?: CenterRecord[];
+  showHeader?: boolean;
 }) {
   const batch = useBatchApprove(records, enabled, scope, reload);
+  const Header = batch.column.header as () => React.ReactNode;
   const Cell = batch.column.cell as (props: {
     row: { original: CenterRecord };
   }) => React.ReactNode;
   return (
     <>
       {batch.controls}
+      {showHeader ? <Header /> : null}
       {records.map((record) => (
         <Cell key={record.id} row={{ original: record }} />
       ))}
@@ -72,7 +76,12 @@ function Host({
   );
 }
 function view(
-  props: { enabled?: boolean; scope?: string; records?: CenterRecord[] } = {},
+  props: {
+    enabled?: boolean;
+    scope?: string;
+    records?: CenterRecord[];
+    showHeader?: boolean;
+  } = {},
 ) {
   return (
     <TestI18nProvider runtime={runtime}>
@@ -297,4 +306,34 @@ it('refreshing the same rows requires fresh candidates while keeping the next ch
   expect(
     screen.queryByRole('button', { name: 'Approve selected (0)' }),
   ).not.toBeInTheDocument();
+});
+
+it('selects at most twenty eligible tasks from the header and clears them together', async () => {
+  const records = Array.from({ length: 25 }, (_, index) => ({
+    ...rows[0],
+    id: `r${index}`,
+    number: `LV-${index}`,
+  }));
+  state.request.mockResolvedValue({
+    data: records.map((record) => ({ ...candidate, id: record.id })),
+  });
+  render(view({ records, showHeader: true }));
+  await screen.findByRole('checkbox', { name: 'Select LV-24' });
+  const all = screen.getByRole('checkbox', {
+    name: 'Select all eligible tasks (up to 20)',
+  });
+  await userEvent.click(all);
+  expect(
+    screen.getByRole('button', { name: 'Approve selected (20)' }),
+  ).toBeEnabled();
+  expect(screen.getAllByRole('checkbox', { checked: true })).toHaveLength(21);
+  expect(
+    screen.getByRole('checkbox', { name: 'Select LV-24' }),
+  ).toHaveAttribute('aria-disabled', 'true');
+  await userEvent.click(
+    screen.getByRole('checkbox', {
+      name: 'Select all eligible tasks (up to 20)',
+    }),
+  );
+  expect(screen.queryAllByRole('checkbox', { checked: true })).toHaveLength(0);
 });

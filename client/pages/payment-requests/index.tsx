@@ -1,3 +1,4 @@
+import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { statusTone } from './status-tone.js';
 import { ApplicationSearch } from '#components/application-search';
 import { UserName } from '#components/user-name';
@@ -207,6 +208,7 @@ export default function PaymentsPage() {
         header: ({ column }) => (
           <DataTableColumnHeader
             column={column}
+            className='justify-end'
             title={t('paymentRequests.amount')}
           />
         ),
@@ -426,7 +428,17 @@ export default function PaymentsPage() {
                 </EmptyHeader>
               </Empty>
             ) : (
-              t('paymentRequests.noResults')
+              <ApplicationTableEmpty
+                title={t('paymentRequests.noResults')}
+                clearFilters={{
+                  label: t('paymentRequests.clearFilters'),
+                  onClick: () =>
+                    clear((params) => {
+                      params.delete('status');
+                      params.delete('page');
+                    }),
+                }}
+              />
             )
           }
         />

@@ -1,3 +1,4 @@
+import { useDrawerFormGuard } from '#hooks/use-drawer-form-guard';
 import { createRequestKey } from '#lib/request-key';
 import { errorKey } from './errors.js';
 import { useMemo, useRef, useState } from 'react';
@@ -7,7 +8,7 @@ import { z } from 'zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useOutletContext, useParams } from 'react-router';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import {
   Field,
@@ -52,7 +53,8 @@ export default function RoomForm() {
     setBusy(value);
   };
   return (
-    <RouteDialog
+    <RouteDrawer
+      className='sm:max-w-2xl'
       title={t(roomId ? 'meetingRooms.editRoom' : 'meetingRooms.newRoom')}
       beforeClose={() => !workingRef.current}
       footer={<RoomFooter busy={busy} ready={ready} />}
@@ -78,7 +80,7 @@ export default function RoomForm() {
           </AlertDescription>
         </Alert>
       )}
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 function RoomFooter({ busy, ready }: { busy: boolean; ready: boolean }) {
@@ -121,8 +123,8 @@ function Body({
         location: z.string().max(2000),
         facilities: z.string().max(2000),
         capacity: z
-          .number()
-          .int()
+          .number({ error: t('meetingRooms.validation.capacity') })
+          .int(t('meetingRooms.validation.capacity'))
           .min(1, t('meetingRooms.validation.capacity'))
           .max(10000, t('meetingRooms.validation.capacity')),
         active: z.boolean(),
@@ -147,6 +149,10 @@ function Body({
       reason: '',
     },
   });
+  const drawerGuard = useDrawerFormGuard(
+    form.formState.isDirty,
+    form.formState.isSubmitting,
+  );
   const submit = form.handleSubmit(async (values) => {
     busy(true);
     try {
@@ -170,6 +176,7 @@ function Body({
         title: t('meetingRooms.savedRoom', { name: values.name }),
       });
       saved();
+      drawerGuard.markSaved();
       await close();
     } catch (error) {
       form.setError('root', {
@@ -185,6 +192,7 @@ function Body({
   });
   return (
     <form id='meeting-room-form' noValidate onSubmit={(e) => void submit(e)}>
+      {drawerGuard.confirmation}
       <FieldGroup>
         <FormError error={form.formState.errors.root} />
         {(
@@ -227,8 +235,23 @@ function Body({
                     type='number'
                     ref={field.ref}
                     onBlur={field.onBlur}
-                    value={Number(field.value)}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
+                    value={
+                      typeof field.value === 'number' &&
+                      Number.isFinite(field.value)
+                        ? field.value
+                        : ''
+                    }
+                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                    aria-invalid={fieldState.invalid}
+                    disabled={form.formState.isSubmitting}
+                  />
+                ) : name === 'name' ? (
+                  <Input
+                    id={`room-${name}`}
+                    ref={field.ref}
+                    onBlur={field.onBlur}
+                    value={String(field.value)}
+                    onChange={field.onChange}
                     aria-invalid={fieldState.invalid}
                     disabled={form.formState.isSubmitting}
                   />

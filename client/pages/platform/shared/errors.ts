@@ -19,3 +19,11 @@ export function fieldViolationsOf(error: unknown): string[] {
     .map((violation) => violation.field)
     .filter((field): field is string => typeof field === 'string');
 }
+
+/** The server's `metadata` of an error, such as the rule key a batch failure is about. */
+export function metadataOf(error: unknown): Record<string, string> {
+  if (!(error instanceof ApiClientError)) return {};
+  const payload = error.payload as
+    { error?: { metadata?: Record<string, string> } } | undefined;
+  return payload?.error?.metadata ?? {};
+}

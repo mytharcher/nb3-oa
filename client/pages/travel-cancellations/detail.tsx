@@ -1,3 +1,4 @@
+import { approvalStatusTone } from '../approvals/status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
 import { TravelCancellationFacts } from './facts.js';
 import { createRequestId } from '../approvals/request-id.js';
@@ -227,13 +228,7 @@ export default function TravelCancellationDetailPage() {
       headerStatus={
         record ? (
           <StatusBadge
-            tone={
-              record.status === 'approved'
-                ? 'success'
-                : ['rejected', 'terminated'].includes(record.status)
-                  ? 'warning'
-                  : 'neutral'
-            }
+            tone={approvalStatusTone(record.status, 'oa.travelCancellation')}
           >
             {t(
               [
@@ -245,7 +240,9 @@ export default function TravelCancellationDetailPage() {
                 'unbooking',
               ].includes(record.status)
                 ? `travelCancellation.stages.${record.status}`
-                : `approvals.states.${record.status}`,
+                : record.status === 'exception'
+                  ? 'travelCancellation.exception'
+                  : `approvals.states.${record.status}`,
             )}
           </StatusBadge>
         ) : null
@@ -366,7 +363,7 @@ export default function TravelCancellationDetailPage() {
       }
       beforeClose={() => !pending}
     >
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         {resource.error ? (
           <ErrorState error={resource.error} retry={resource.reload} />
         ) : null}

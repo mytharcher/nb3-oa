@@ -1,5 +1,10 @@
 export default {
   announcements: {
+    removeDepartment: 'Remove department "{{name}}"',
+
+    confirmTitle: '{{action}} announcement "{{name}}"?',
+    discardNamed: 'Discard changes to announcement "{{name}}"?',
+
     ownPendingCount: '{{count}} announcements awaiting your confirmation',
     title: 'Announcements',
     description: 'Read current notices and confirm your own receipt',

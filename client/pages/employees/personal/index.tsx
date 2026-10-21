@@ -14,7 +14,8 @@ import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { SessionExpiredAlert } from '#components/session-expired-alert';
 import { Alert, AlertAction, AlertDescription } from '#components/ui/alert';
-import { Badge } from '#components/ui/badge';
+import { EmployeeStatusBadge } from '../status-badge.js';
+import { UserName } from '#components/user-name';
 import { Button } from '#components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '#components/ui/card';
 import {
@@ -180,13 +181,18 @@ function PersonalArchive(): ReactElement {
           value: employee.position?.title,
         },
         { label: t('employees.fields.grade'), value: employee.grade?.title },
-        { label: t('employees.fields.manager'), value: employee.manager?.name },
+        {
+          label: t('employees.fields.manager'),
+          value: employee.manager ? (
+            <UserName name={employee.manager.name} />
+          ) : (
+            '—'
+          ),
+        },
         {
           label: t('employees.fields.status'),
           value: employee.status ? (
-            <Badge variant='secondary'>
-              {t(`employees.status.${employee.status}`)}
-            </Badge>
+            <EmployeeStatusBadge status={employee.status} />
           ) : null,
         },
         ...(

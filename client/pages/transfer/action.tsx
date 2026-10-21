@@ -236,7 +236,12 @@ function TransferActionContent() {
   }
   const notify = useToaster();
   function toaster() {
-    notify.show({ type: 'success', title: t('transfer.saved') });
+    notify.show({
+      type: 'success',
+      title: t('transfer.savedRecord', {
+        name: detail?.facts.employee.name ?? t('approvals.unknownPerson'),
+      }),
+    });
   }
   return (
     <RouteDrawer
@@ -331,7 +336,7 @@ function TransferActionContent() {
                 )?.name ?? t('transfer.select')}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent className='min-w-(--anchor-width) max-w-(--available-width)'>
+            <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
               <SelectGroup>
                 {candidates.data?.data.people.map((person) => (
                   <SelectItem key={person.id} value={person.id}>
@@ -377,7 +382,7 @@ function TransferActionContent() {
                   t('transfer.select')}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent className='min-w-(--anchor-width) max-w-(--available-width)'>
+            <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
               <SelectGroup>
                 {places.map((value) => (
                   <SelectItem key={value.place} value={value.place}>
@@ -402,7 +407,7 @@ function TransferActionContent() {
             <SelectTrigger id='transfer-sign-mode'>
               <SelectValue>{t(`approvals.signer${signerMode}`)}</SelectValue>
             </SelectTrigger>
-            <SelectContent className='min-w-(--anchor-width) max-w-(--available-width)'>
+            <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
               <SelectGroup>
                 {['before', 'alongside'].map((value) => (
                   <SelectItem key={value} value={value}>
@@ -436,10 +441,15 @@ function TransferActionContent() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{title}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('transfer.namedAction', {
+                action: title,
+                name:
+                  detail?.facts.employee.name ?? t('approvals.unknownPerson'),
+              })}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               <UserName name={detail?.facts.employee.name} /> ·{' '}
-              {detail?.record.id}.{' '}
               {t(
                 operation === 'requestCancellation'
                   ? 'transfer.cancelConsequence'
@@ -459,7 +469,7 @@ function TransferActionContent() {
                 void save();
               }}
             >
-              {t('transfer.confirm')}
+              {title}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

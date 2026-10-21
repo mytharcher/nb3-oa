@@ -1,6 +1,8 @@
+import { CompactEmpty } from './compact-empty.js';
+import { SourceReference } from './source-reference.js';
 import { useTranslation } from '@nocobase/i18n/client';
 import type { ColumnDef } from '@tanstack/react-table';
-import { type ReactElement, useMemo } from 'react';
+import { type ReactElement, useCallback, useMemo } from 'react';
 import { Outlet, useOutletContext } from 'react-router';
 
 import { DataTable, DataTableColumnHeader } from '#components/data-table';
@@ -19,6 +21,8 @@ import {
   type EmployeePageOutletContext,
 } from '../types.js';
 import { useDateText } from '../dates.js';
+import { useApiClient } from '@nocobase/app-client';
+import { useEffect, useState } from 'react';
 import { TabLoadError, TabSkeleton } from './load-state.js';
 import { useTabList } from './use-tab-list.js';
 
@@ -47,15 +51,68 @@ export default function EmployeeHistoryTab(): ReactElement {
     context.employee.id,
     'history',
   );
+  const changed = context.onSourceChanged;
+  const sourceChanged = useCallback(() => {
+    changed?.();
+    retry();
+  }, [changed, retry]);
   const date = useDateText();
+  const api = useApiClient();
+  const [catalogs, setCatalogs] = useState<
+    Record<string, { id: string; title: string }[]>
+  >({});
+  useEffect(() => {
+    const controller = new AbortController();
+    for (const kind of ['positions', 'grades']) {
+      void api
+        .request<{ data: { id: string; title: string }[] }>({
+          path: `${kind}/options`,
+          query: { includeInactive: 'true' },
+          signal: controller.signal,
+        })
+        .then(
+          ({ data }) => {
+            if (!controller.signal.aborted && Array.isArray(data))
+              setCatalogs((old) => ({ ...old, [kind]: data }));
+          },
+          () => {
+            /* A missing catalog label must not expose an internal reference. */
+          },
+        );
+    }
+    return () => controller.abort();
+  }, [api]);
 
   const columns = useMemo<ColumnDef<EmployeeHistory>[]>(() => {
     const show = (field: string, value: unknown): string => {
       if (value === null || value === undefined || value === '') return '—';
+      if (
+        (field === 'positionId' || field === 'gradeId') &&
+        typeof value === 'string'
+      )
+        return (
+          catalogs[field === 'positionId' ? 'positions' : 'grades']?.find(
+            (r) => r.id === value,
+          )?.title ?? t('employees.history.referenceUnavailable')
+        );
+      if (field === 'managerId' && typeof value === 'string')
+        return context.employee.manager?.id === value
+          ? context.employee.manager.name
+          : t('employees.history.personUnavailable');
       if (field === 'status' && typeof value === 'string')
         return EMPLOYEE_STATUSES.some((status) => status === value)
           ? t(`employees.status.${value as (typeof EMPLOYEE_STATUSES)[number]}`)
           : value;
+      if (
+        [
+          'hireDate',
+          'careerStartDate',
+          'probationEndDate',
+          'lastWorkingDay',
+        ].includes(field) &&
+        typeof value === 'string'
+      )
+        return date(value) ?? '—';
       if (typeof value === 'boolean')
         return value ? t('employees.boolean.yes') : t('employees.boolean.no');
       return typeof value === 'string' || typeof value === 'number'
@@ -63,7 +120,9 @@ export default function EmployeeHistoryTab(): ReactElement {
         : JSON.stringify(value);
     };
     const label = (field: string): string =>
-      isLabelled(field) ? t(`employees.fields.${FIELD_LABELS[field]}`) : field;
+      isLabelled(field)
+        ? t(`employees.fields.${FIELD_LABELS[field]}`)
+        : t('employees.history.otherField');
     return [
       {
         accessorKey: 'effectiveAt',
@@ -119,10 +178,9 @@ export default function EmployeeHistoryTab(): ReactElement {
         accessorKey: 'sourceApplication',
         enableSorting: false,
         header: t('employees.fields.sourceApplication'),
-        cell: ({ row }) =>
-          row.original.sourceApplication ?? (
-            <span className='text-muted-foreground'>—</span>
-          ),
+        cell: ({ row }) => (
+          <SourceReference source={row.original.sourceApplication} />
+        ),
       },
       {
         accessorKey: 'note',
@@ -132,7 +190,7 @@ export default function EmployeeHistoryTab(): ReactElement {
           row.original.note ?? <span className='text-muted-foreground'>—</span>,
       },
     ];
-  }, [date, t]);
+  }, [date, t, catalogs, context.employee.manager]);
 
   let content: ReactElement;
   if (error) content = <TabLoadError error={error} onRetry={retry} />;
@@ -143,7 +201,8 @@ export default function EmployeeHistoryTab(): ReactElement {
         <CardHeader>
           <CardTitle>{t('employees.history.title')}</CardTitle>
           <CardDescription>
-            {t('employees.history.description')}
+            {t('employees.history.description')}{' '}
+            {t('employees.history.referenceNotice')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -154,7 +213,7 @@ export default function EmployeeHistoryTab(): ReactElement {
             pagination={false}
             showSelectedCount={false}
             initialSorting={[{ id: 'effectiveAt', desc: true }]}
-            emptyMessage={t('employees.history.empty')}
+            emptyMessage={<CompactEmpty title={t('employees.history.empty')} />}
           />
         </CardContent>
       </Card>
@@ -163,7 +222,13 @@ export default function EmployeeHistoryTab(): ReactElement {
   return (
     <>
       {content}
-      <Outlet context={context} />
+      <Outlet
+        context={{
+          ...context,
+          reload: sourceChanged,
+          onSourceChanged: sourceChanged,
+        }}
+      />
     </>
   );
 }

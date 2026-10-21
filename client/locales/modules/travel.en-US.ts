@@ -1,5 +1,14 @@
 export default {
   travel: {
+    fieldInvalid: 'Check {{field}}.',
+
+    confirmRetryBooking: 'Retry booking for this approved trip?',
+    confirmReviseTrip: 'Revise this trip and restart its approval?',
+    states: {
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+      exception: 'Booking exception',
+    },
     businessErrors: {
       TRAVEL_ITINERARY_REQUIRED:
         'International travel requires an itinerary attachment. Upload or select one before submitting.',
@@ -26,8 +35,6 @@ export default {
     unable: 'Unable to book',
     forceComplete: 'Force close booking',
     retryBooking: 'Retry booking',
-    standardTargetUnavailable:
-      'The selected employee travel standard is unavailable under your delegated target permission. Saving is blocked; the submitter standard will not be substituted.',
     standard: 'Frozen travel standard',
     lodgingPerNight: 'Lodging standard per night (yuan)',
     allowancePerDay: 'Allowance standard per day (yuan)',

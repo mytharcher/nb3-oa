@@ -1,3 +1,4 @@
+import { FormActions } from '#components/form-actions';
 import { useRouteFormCloseGuard } from '#hooks/use-route-form-close-guard';
 import { useState, useRef } from 'react';
 import {
@@ -33,7 +34,10 @@ export default function AssignPage() {
   const snapshot = useSnapshot();
   const catalog = useCatalog();
   return (
-    <RouteFormPage presentation='page' title={drawerTitle('access.assign')}>
+    <RouteFormPage
+      className='sm:max-w-4xl'
+      title={drawerTitle('access.assign')}
+    >
       {snapshot.error || catalog.error ? (
         <ErrorState
           error={snapshot.error ?? catalog.error}
@@ -76,7 +80,7 @@ function AssignmentForm({
     reload: () => void;
     assignmentsSaved?: (data: AccessSnapshot) => void | Promise<void>;
   }>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const api = useApiClient();
   const toaster = useToaster();
   const navigate = useNavigate();
@@ -187,13 +191,17 @@ function AssignmentForm({
                   {sensitiveSummary(options, set).length ? (
                     <span className='text-sm'>
                       <Badge variant='outline'>{t('access.sensitive')}</Badge>{' '}
-                      {sensitiveSummary(options, set).join('、')}
+                      {sensitiveSummary(options, set).join(
+                        i18n.language.startsWith('zh') ? '、' : ', ',
+                      )}
                     </span>
                   ) : null}
                   <span className='text-sm text-muted-foreground'>
                     {set.unrestricted
                       ? t('access.unrestricted')
-                      : operationSummary(options, set).join('、') ||
+                      : operationSummary(options, set, (label, value) =>
+                          t('access.labelValue', { label, value }),
+                        ).join(i18n.language.startsWith('zh') ? '、' : ', ') ||
                         t('access.special')}
                   </span>
                 </label>
@@ -210,7 +218,7 @@ function AssignmentForm({
       <p className='text-sm text-muted-foreground'>
         {t('access.preserveInherited')}
       </p>
-      <div className='flex justify-end gap-2'>
+      <FormActions>
         <Button
           variant='outline'
           disabled={busy}
@@ -225,10 +233,11 @@ function AssignmentForm({
           {busy ? <Spinner /> : null}
           {t('access.save')}
         </Button>
-      </div>
+      </FormActions>
       <ConfirmDialog
         open={confirm}
         title={t('access.confirmTitle', { name })}
+        variant='default'
         confirmLabel={t('access.save')}
         cancelLabel={t('access.cancel')}
         busy={busy}
@@ -238,14 +247,17 @@ function AssignmentForm({
         {t('access.assignmentImpact')}
         <span className='block mt-2'>
           {changed
-            .map(
-              (key) =>
-                `${selected.includes(key) ? '+' : '−'} ${titleText(snapshot.sets.find((set) => set.key === key)?.title, t)}: ${operationSummary(
+            .map((key) =>
+              t('access.labelValue', {
+                label: `${selected.includes(key) ? '+' : '−'} ${titleText(snapshot.sets.find((set) => set.key === key)?.title, t)}`,
+                value: operationSummary(
                   options,
                   snapshot.sets.find((set) => set.key === key)!,
-                ).join('、')}`,
+                  (label, value) => t('access.labelValue', { label, value }),
+                ).join(i18n.language.startsWith('zh') ? '、' : ', '),
+              }),
             )
-            .join('；')}
+            .join(i18n.language.startsWith('zh') ? '；' : '; ')}
         </span>
       </ConfirmDialog>
       <ConfirmDialog

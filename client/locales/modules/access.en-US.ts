@@ -1,5 +1,6 @@
 export default {
   access: {
+    labelValue: '{{label}}: {{value}}',
     clearModuleFilters: 'Clear filters',
     noModuleMatches: 'No permissions match in this module',
 

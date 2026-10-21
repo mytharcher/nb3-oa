@@ -1,3 +1,5 @@
+import { readLoanTravelName } from './travel-name.js';
+import { travelServiceToken } from '../../providers/travel/contract.js';
 import { LoanLedgerError } from '../../providers/loan-ledger/service.js';
 import {
   authenticationToken,
@@ -374,14 +376,32 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         Detail,
       ),
       apiValidator('param', LoanRequestParams),
-      async (c) =>
-        c.json({
-          data: await service.detail(
-            c.req.valid('param').id,
-            c.get('auth')!.user.id,
-            await readPolicy(c),
-          ),
-        }),
+      async (c) => {
+        const actorId = c.get('auth')!.user.id;
+        const detail = await service.detail(
+          c.req.valid('param').id,
+          actorId,
+          await readPolicy(c),
+        );
+        let travelName: string | null = null;
+        if (detail.record.travelId) {
+          const decision = await c.get('authz').authorize({
+            resource: { type: 'composite', id: 'oa.travel' },
+            action: 'view',
+          });
+          const policy =
+            decision.effect === 'deny'
+              ? undefined
+              : decision.conditions?.database?.travelRequests;
+          travelName = await readLoanTravelName(
+            app.container.resolve(travelServiceToken),
+            detail.record.travelId,
+            actorId,
+            policy || undefined,
+          );
+        }
+        return c.json({ data: { ...detail, travelName } });
+      },
     );
     router.post(
       '/loanRequests/:id/transition',

@@ -23,6 +23,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from '#components/ui/dropdown-menu';
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { Button } from '#components/ui/button';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import {
@@ -100,9 +101,6 @@ export default function TransferDetail() {
   };
   const footer = (
     <>
-      <Button variant='outline' onClick={reload} disabled={resource.loading}>
-        {t('transfer.refresh')}
-      </Button>
       <div className='flex flex-wrap gap-2'>
         {writable
           ? (detail.view.available ?? [])
@@ -223,6 +221,11 @@ export default function TransferDetail() {
           </Button>
         ) : null}
       </div>
+      <ApplicationRefreshButton
+        label={t('transfer.refresh')}
+        onClick={reload}
+        loading={resource.loading}
+      />
     </>
   );
   return (
@@ -236,8 +239,14 @@ export default function TransferDetail() {
       }
       printable
       printDisabled={!writable}
-      title={t('transfer.title')}
-      description={record?.id}
+      title={
+        detail
+          ? t('transfer.recordName', { name: detail.facts.employee.name })
+          : t('transfer.title')
+      }
+      description={record?.kinds
+        .map((kind) => t(`transfer.kinds.${kind}`))
+        .join(' · ')}
       footer={<>{footer}</>}
     >
       {resource.error ? (
@@ -260,9 +269,7 @@ export default function TransferDetail() {
                 <dt className='text-muted-foreground'>
                   {t(`transfer.factFields.${field}`)}
                 </dt>
-                <dd className='mt-1'>
-                  {detail.facts[field]?.name ?? t('transfer.none')}
-                </dd>
+                <dd className='mt-1'>{detail.facts[field]?.name ?? '—'}</dd>
               </div>
             ))}
             {(['kinds', 'effectiveDate', 'reason'] as const).map((field) => (
@@ -275,7 +282,12 @@ export default function TransferDetail() {
                     ? record.kinds
                         .map((kind) => t(`transfer.kinds.${kind}`))
                         .join(' · ')
-                    : record[field]}
+                    : field === 'effectiveDate'
+                      ? new Intl.DateTimeFormat(i18n.language, {
+                          dateStyle: 'medium',
+                          timeZone: 'UTC',
+                        }).format(new Date(`${record.effectiveDate}T00:00:00Z`))
+                      : record[field]}
                 </dd>
               </div>
             ))}
@@ -286,8 +298,8 @@ export default function TransferDetail() {
               </dd>
             </div>
           </dl>
-          <section className='space-y-3'>
-            <h2 className='text-lg font-medium'>{t('transfer.salary')}</h2>
+          <section className='flex flex-col gap-3'>
+            <h2 className='text-base font-medium'>{t('transfer.salary')}</h2>
             {viewSalary.can ? (
               salary.error ? (
                 <TransferError error={salary.error} retry={salary.reload} />
@@ -339,15 +351,19 @@ export default function TransferDetail() {
               }).format(new Date(value))
             }
           >
-            <section className='space-y-4'>
-              <h2 className='text-lg font-medium'>{t('approvals.progress')}</h2>
+            <section className='flex flex-col gap-4'>
+              <h2 className='text-base font-medium'>
+                {t('approvals.progress')}
+              </h2>
               <ApprovalProgress
                 steps={progressOf(detail, text, i18n.language)}
                 copies={copiesOf(detail)}
               />
             </section>
-            <section className='mt-6 space-y-4'>
-              <h2 className='text-lg font-medium'>{t('approvals.timeline')}</h2>
+            <section className='mt-6 flex flex-col gap-4'>
+              <h2 className='text-base font-medium'>
+                {t('approvals.timeline')}
+              </h2>
               <ApprovalTimeline lines={timelineOf(detail, text)} />
             </section>
           </ApprovalUiProvider>

@@ -1,3 +1,15 @@
+import { useFormDiscardGuard } from '#hooks/use-form-discard-guard';
+import {
+  FormDrawerContent,
+  FormDrawerHeader,
+  FormDrawerBody,
+  FormDrawerFooter,
+} from '#components/form-drawer';
+import { ApplicationTableEmpty } from '#components/application-table-empty';
+import { Skeleton } from '#components/ui/skeleton';
+import { SessionExpiredAlert } from '#components/session-expired-alert';
+import { ConfirmDialog } from '../../authorization/components/confirm-dialog.js';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import { ApplicationSearch } from '#components/application-search';
 import { ApplicationToolbar } from '#components/application-toolbar';
 import { UserNameText } from '#components/user-name';
@@ -22,6 +34,7 @@ import {
 import {
   authorizationClientToken,
   useCan,
+  useAuthorizationRevision,
 } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import {
@@ -35,9 +48,11 @@ import {
   UserRoundX,
 } from 'lucide-react';
 import {
+  useId,
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactElement,
@@ -106,6 +121,7 @@ import {
   type UserRoleScopeOption,
   type UserRoleValue,
   type UsersOptions,
+  isEmailAddress,
 } from '../user-client.js';
 import {
   assignableRoleScopes,
@@ -123,6 +139,14 @@ const EMPTY_PAGE: ManagedUserPage = {
 };
 
 export default function UsersPage(): ReactElement {
+  const { session } = useAuthentication();
+  const revision = useAuthorizationRevision();
+  return (
+    <UsersManagement key={`${session?.user.id ?? 'anonymous'}:${revision}`} />
+  );
+}
+
+function UsersManagement(): ReactElement {
   const { session } = useAuthentication();
   const { t } = useTranslation('@nocobase/app-plugin-users');
   const toaster = useToaster();
@@ -152,6 +176,11 @@ export default function UsersPage(): ReactElement {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<number>();
+  const [mutationError, setMutationError] = useState<string>();
+  const [revokeUser, setRevokeUser] = useState<ManagedUser>();
+  const loadGenerationRef = useRef(0);
   const [deleteUser, setDeleteUser] = useState<ManagedUser>();
   const reportError = useCallback(
     (reason: unknown) => {
@@ -182,6 +211,11 @@ export default function UsersPage(): ReactElement {
     Readonly<Record<string, UserCapabilities>>
   >({});
 
+  // This component is keyed by identity and authorization revision. No cached grants or rows survive either.
+  const metadataRef = useRef<
+    Promise<readonly [UsersOptions, UserCapabilities, boolean]> | undefined
+  >(undefined);
+  const capabilitiesRef = useRef(new Map<string, Promise<UserCapabilities>>());
   const localizedOptions: UsersOptions = {
     roleScopes: localizeRoleScopes(
       options.roleScopes,
@@ -202,11 +236,24 @@ export default function UsersPage(): ReactElement {
     t('page.allRoles'),
   );
   const load = useCallback(async () => {
+    const generation = ++loadGenerationRef.current;
     setLoading(true);
+    setLoadError(undefined);
     try {
-      const [nextOptions, nextPage, nextGlobalCapabilities, inspectAllowed] =
+      metadataRef.current ??= Promise.all([
+        users.options(),
+        loadUserCapabilities(authorization, '*'),
+        authorization.can({
+          resource: { type: 'settings', id: 'authorization.inspector' },
+          action: 'inspect',
+        }),
+      ]).catch((cause: unknown) => {
+        metadataRef.current = undefined;
+        throw cause;
+      });
+      const [[nextOptions, nextGlobalCapabilities, inspectAllowed], nextPage] =
         await Promise.all([
-          users.options(),
+          metadataRef.current,
           users.list({
             page,
             pageSize: 20,
@@ -219,11 +266,6 @@ export default function UsersPage(): ReactElement {
                   role: role.slice(role.indexOf(':') + 1),
                 }),
           }),
-          loadUserCapabilities(authorization, '*'),
-          authorization.can({
-            resource: { type: 'settings', id: 'authorization.inspector' },
-            action: 'inspect',
-          }),
         ]);
       const capabilityEntries: readonly (readonly [
         string,
@@ -232,24 +274,61 @@ export default function UsersPage(): ReactElement {
         nextPage.items.map(
           async (user): Promise<readonly [string, UserCapabilities]> => [
             user.id,
-            await loadUserCapabilities(authorization, user.id),
+            await (() => {
+              let pending = capabilitiesRef.current.get(user.id);
+              if (!pending) {
+                pending = loadUserCapabilities(authorization, user.id).catch(
+                  (cause: unknown) => {
+                    capabilitiesRef.current.delete(user.id);
+                    throw cause;
+                  },
+                );
+                capabilitiesRef.current.set(user.id, pending);
+              }
+              return pending;
+            })(),
           ],
         ),
       );
       const nextUserCapabilities: Readonly<Record<string, UserCapabilities>> =
         Object.fromEntries(capabilityEntries);
-      setInvitations(
-        nextGlobalCapabilities.invite ? await users.listInvitations() : [],
-      );
+      const nextInvitations = nextGlobalCapabilities.invite
+        ? await users.listInvitations()
+        : [];
+      if (generation !== loadGenerationRef.current) return;
+      setInvitations(nextInvitations);
       setCanInspect(inspectAllowed);
       setOptions(nextOptions);
       setResult(nextPage);
       setGlobalCapabilities(nextGlobalCapabilities);
       setUserCapabilities(nextUserCapabilities);
+      setLoaded(true);
     } catch (reason) {
+      if (generation !== loadGenerationRef.current) return;
+      const status = reason instanceof ApiClientError ? reason.status : 500;
+      setLoadError(status);
+      if ([401, 403, 404].includes(status)) {
+        metadataRef.current = undefined;
+        capabilitiesRef.current.clear();
+        setResult(EMPTY_PAGE);
+        setOptions({ roleScopes: [] });
+        setGlobalCapabilities(emptyUserCapabilities());
+        setUserCapabilities({});
+        setInvitations([]);
+        setCanInspect(false);
+        setEditor(undefined);
+        setInviting(false);
+        setRevokeUser(undefined);
+        setPasswordUser(undefined);
+        setAssignment(undefined);
+        setStateUser(undefined);
+        setDeleteUser(undefined);
+        setResent(undefined);
+        setLoaded(true);
+      }
       reportError(reason);
     } finally {
-      setLoading(false);
+      if (generation === loadGenerationRef.current) setLoading(false);
     }
   }, [authorization, page, role, search, status, users, reportError]);
 
@@ -259,19 +338,33 @@ export default function UsersPage(): ReactElement {
   }, [load]);
 
   useEffect(
-    () => authorization.onInvalidated(() => void load()),
+    () =>
+      authorization.onInvalidated(() => {
+        metadataRef.current = undefined;
+        capabilitiesRef.current.clear();
+        void load();
+      }),
     [authorization, load],
   );
 
   const perform = async (work: () => Promise<unknown>): Promise<void> => {
     setBusy(true);
+    setMutationError(undefined);
     try {
       await work();
+      metadataRef.current = undefined;
+      capabilitiesRef.current.clear();
       await load();
     } catch (reason) {
       if (reason instanceof ApiClientError && reason.status === 403) {
         authorization.invalidate();
       }
+      const code = reason instanceof ApiClientError ? reason.reason : undefined;
+      setMutationError(
+        t(`errors.${code ?? 'operationFailed'}`, {
+          defaultValue: t('errors.operationFailed'),
+        }),
+      );
       reportError(reason);
     } finally {
       setBusy(false);
@@ -291,7 +384,12 @@ export default function UsersPage(): ReactElement {
               </Button>
             ) : null}
             {globalCapabilities.create && globalCapabilities['assign-role'] ? (
-              <Button onClick={() => setEditor('create')}>
+              <Button
+                onClick={() => {
+                  setMutationError(undefined);
+                  setEditor('create');
+                }}
+              >
                 <Plus /> {t('page.add')}
               </Button>
             ) : null}
@@ -358,6 +456,27 @@ export default function UsersPage(): ReactElement {
         </p>
       ) : null}
 
+      {loadError === 401 ? (
+        <SessionExpiredAlert />
+      ) : loadError ? (
+        <Alert variant='destructive'>
+          <AlertDescription>
+            {t(
+              loadError === 403
+                ? 'errors.loadForbidden'
+                : loadError === 404
+                  ? 'errors.loadNotFound'
+                  : 'errors.loadFailed',
+            )}
+          </AlertDescription>
+          {![403, 404].includes(loadError) ? (
+            <Button variant='outline' onClick={() => void load()}>
+              {t('page.retry')}
+            </Button>
+          ) : null}
+        </Alert>
+      ) : null}
+      {loading && loaded ? <Spinner aria-label={t('page.loading')} /> : null}
       <div className='overflow-hidden rounded-xl border bg-card'>
         <Table>
           <TableHeader>
@@ -373,18 +492,19 @@ export default function UsersPage(): ReactElement {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell
-                  colSpan={3 + localizedOptions.roleScopes.length}
-                  className='h-32 text-center text-muted-foreground'
-                >
-                  <Spinner
-                    className='mx-auto size-5'
-                    aria-label={t('page.loading')}
-                  />
-                </TableCell>
-              </TableRow>
+            {loading && !loaded ? (
+              Array.from({ length: 5 }, (_, row) => (
+                <TableRow key={row}>
+                  {Array.from(
+                    { length: 3 + localizedOptions.roleScopes.length },
+                    (_, column) => (
+                      <TableCell key={column}>
+                        <Skeleton className='h-4 w-24' />
+                      </TableCell>
+                    ),
+                  )}
+                </TableRow>
+              ))
             ) : result.items.length ? (
               result.items.map((user) => {
                 const capabilities =
@@ -498,24 +618,31 @@ export default function UsersPage(): ReactElement {
                             )}
 
                             {capabilities.update ? (
-                              <DropdownMenuItem onClick={() => setEditor(user)}>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setMutationError(undefined);
+                                  setEditor(user);
+                                }}
+                              >
                                 {t('page.actions.edit')}
                               </DropdownMenuItem>
                             ) : null}
                             {capabilities['reset-password'] ? (
                               <DropdownMenuItem
-                                onClick={() => setPasswordUser(user)}
+                                onClick={() => {
+                                  setMutationError(undefined);
+                                  setPasswordUser(user);
+                                }}
                               >
                                 {t('page.actions.resetPassword')}
                               </DropdownMenuItem>
                             ) : null}
                             {capabilities['revoke-sessions'] ? (
                               <DropdownMenuItem
-                                onClick={() =>
-                                  void perform(() =>
-                                    users.revokeSessions(user.id),
-                                  )
-                                }
+                                onClick={() => {
+                                  setMutationError(undefined);
+                                  setRevokeUser(user);
+                                }}
                               >
                                 {t('page.actions.revokeSessions')}
                               </DropdownMenuItem>
@@ -553,7 +680,29 @@ export default function UsersPage(): ReactElement {
                   colSpan={3 + localizedOptions.roleScopes.length}
                   className='h-32 text-center text-muted-foreground'
                 >
-                  {t('page.noUsers')}
+                  {!loadError ? (
+                    <ApplicationTableEmpty
+                      title={t(
+                        search.trim() || status !== 'all' || role !== 'all'
+                          ? 'page.noMatches'
+                          : 'page.noUsers',
+                      )}
+                      description={t('page.emptyDescription')}
+                      clearFilters={
+                        search.trim() || status !== 'all' || role !== 'all'
+                          ? {
+                              label: t('page.clearFilters'),
+                              onClick: () => {
+                                setSearch('');
+                                setStatus('all');
+                                setRole('all');
+                                setPage(1);
+                              },
+                            }
+                          : undefined
+                      }
+                    />
+                  ) : null}
                 </TableCell>
               </TableRow>
             )}
@@ -601,6 +750,12 @@ export default function UsersPage(): ReactElement {
               assignment.scope.key,
               value,
             );
+            metadataRef.current = undefined;
+            capabilitiesRef.current.clear();
+            toaster.show({
+              type: 'success',
+              title: t('assignment.saved', { name: assignment.user.name }),
+            });
             setAssignment(undefined);
             await load();
           }}
@@ -612,6 +767,7 @@ export default function UsersPage(): ReactElement {
         : userCapabilities[editor.id]?.update) ? (
         <UserDialog
           busy={busy}
+          error={mutationError}
           options={localizedOptions}
           user={editor === 'create' ? undefined : editor}
           onClose={() => setEditor(undefined)}
@@ -621,12 +777,16 @@ export default function UsersPage(): ReactElement {
               else if (editor !== 'create') {
                 await users.update(editor.id, input.value);
               }
+              toaster.show({
+                type: 'success',
+                title: t('form.saved', { name: input.value.name }),
+              });
               setEditor(undefined);
             })
           }
         />
       ) : null}
-      {globalCapabilities.invite ? (
+      {globalCapabilities.invite && invitations.length > 0 ? (
         <InvitationsPanel
           invitations={invitations}
           busy={busy}
@@ -701,19 +861,50 @@ export default function UsersPage(): ReactElement {
               await users.remove(deleteUser.id);
               setDeleteUser(undefined);
               if (result.items.length === 1 && page > 1) setPage(page - 1);
-              toaster.show({ type: 'success', title: t('deletion.success') });
+              toaster.show({
+                type: 'success',
+                title: t('deletion.success', { name: deleteUser.name }),
+              });
             })
           }
         />
       ) : null}
+      {revokeUser ? (
+        <ConfirmDialog
+          open
+          busy={busy}
+          error={mutationError}
+          title={t('sessions.title', { name: revokeUser.name })}
+          confirmLabel={t('sessions.confirm')}
+          cancelLabel={t('form.cancel')}
+          onCancel={() => setRevokeUser(undefined)}
+          onConfirm={() =>
+            void perform(async () => {
+              await users.revokeSessions(revokeUser.id);
+              toaster.show({
+                type: 'success',
+                title: t('sessions.success', { name: revokeUser.name }),
+              });
+              setRevokeUser(undefined);
+            })
+          }
+        >
+          {t('sessions.description')}
+        </ConfirmDialog>
+      ) : null}
       {passwordUser && userCapabilities[passwordUser.id]?.['reset-password'] ? (
         <PasswordDialog
           busy={busy}
+          error={mutationError}
           user={passwordUser}
           onClose={() => setPasswordUser(undefined)}
           onSubmit={(password) =>
             void perform(async () => {
               await users.resetPassword(passwordUser.id, password);
+              toaster.show({
+                type: 'success',
+                title: t('password.saved', { name: passwordUser.name }),
+              });
               setPasswordUser(undefined);
             })
           }
@@ -731,6 +922,13 @@ export default function UsersPage(): ReactElement {
             void perform(async () => {
               if (stateUser.disabledAt) await users.enable(stateUser.id);
               else await users.disable(stateUser.id);
+              toaster.show({
+                type: 'success',
+                title: t(
+                  stateUser.disabledAt ? 'state.enabled' : 'state.disabled',
+                  { name: stateUser.name },
+                ),
+              });
               setStateUser(undefined);
             })
           }
@@ -797,6 +995,7 @@ function roleOptionCanToggle(
 
 function UserDialog({
   busy,
+  error,
   options,
   user,
   onClose,
@@ -804,15 +1003,18 @@ function UserDialog({
 }: {
   readonly busy: boolean;
   readonly options: UsersOptions;
+  readonly error?: string;
   readonly user?: ManagedUser;
   readonly onClose: () => void;
   readonly onSubmit: (input: UserDialogSubmitInput) => void;
 }): ReactElement {
   const { t } = useTranslation('@nocobase/app-plugin-users');
+  const formId = useId();
   const [name, setName] = useState(user?.name ?? '');
   const [username, setUsername] = useState(user?.username ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
   const [password, setPassword] = useState('');
+  const [validated, setValidated] = useState(false);
   const creationRoleScopes = assignableRoleScopes(options.roleScopes);
   const [roles, setRoles] = useState<Record<string, UserRoleValue>>(() =>
     emptyRoleScopeValues(creationRoleScopes),
@@ -821,8 +1023,34 @@ function UserDialog({
     creationRoleScopes,
     roles,
   );
+  const invalid = {
+    name: !name.trim() ? t('form.nameRequired') : undefined,
+    email: !isEmailAddress(email.trim()) ? t('form.emailInvalid') : undefined,
+    password: !user && !password ? t('form.passwordRequired') : undefined,
+  };
   const submit = (event: FormEvent): void => {
     event.preventDefault();
+    setValidated(true);
+    const first = (['name', 'email', 'password'] as const).find(
+      (key) => invalid[key],
+    );
+    if (first) {
+      document.getElementById(`${formId}-${first}`)?.focus();
+      return;
+    }
+    if (!user && !requiredRolesSelected) {
+      const missing = creationRoleScopes.find(
+        (scope) =>
+          scope.requiredOnCreate &&
+          roleValues(roles[scope.key] ?? '').length === 0,
+      );
+      if (missing)
+        document
+          .getElementById(`${formId}-roles-${missing.key}`)
+          ?.querySelector<HTMLElement>('button,[role=checkbox]')
+          ?.focus();
+      return;
+    }
     onSubmit(
       user
         ? {
@@ -841,87 +1069,165 @@ function UserDialog({
           },
     );
   };
+  const [initialRoles] = useState(() => JSON.stringify(roles));
+  const guard = useFormDiscardGuard(
+    name !== (user?.name ?? '') ||
+      username !== (user?.username ?? '') ||
+      email !== (user?.email ?? '') ||
+      !!password ||
+      JSON.stringify(roles) !== initialRoles,
+    busy,
+  );
+  const close = () => {
+    void guard.requestClose(onClose);
+  };
+
   return (
     <Dialog
       open
-      onOpenChange={(open) => (!open && !busy ? onClose() : undefined)}
+      onOpenChange={(open) => {
+        if (!open) close();
+      }}
     >
-      <DialogContent className={user ? undefined : 'sm:max-w-2xl'}>
-        <form onSubmit={submit} className='space-y-4'>
-          <DialogHeader>
+      <FormDrawerContent>
+        <form onSubmit={submit} noValidate className='flex flex-col gap-4'>
+          <FormDrawerHeader>
             <DialogTitle>
               {user ? t('form.editTitle') : t('form.addTitle')}
             </DialogTitle>
             <DialogDescription>
               {user ? t('form.editDescription') : t('form.addDescription')}
             </DialogDescription>
-          </DialogHeader>
-          <Field label={t('form.name')}>
-            <Input
-              required
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </Field>
-          <Field label={t('form.username')}>
-            <Input
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-            />
-          </Field>
-          <Field label={t('form.email')}>
-            <Input
-              required
-              type='email'
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </Field>
-          {!user ? (
-            <>
-              <Field label={t('form.password')}>
-                <Input
-                  required
-                  type='password'
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-              </Field>
-              {creationRoleScopes.map((scope) => (
-                <Field key={scope.key} label={scope.label}>
-                  <div className='flex max-h-80 flex-col overflow-hidden rounded-lg border'>
-                    <PermissionSelection
-                      disabled={busy}
-                      scope={scope}
-                      selected={roleValues(roles[scope.key] ?? '')}
-                      onChange={(value) =>
-                        setRoles((current) => ({
-                          ...current,
-                          [scope.key]:
-                            scope.selection === 'single'
-                              ? (value[0] ?? '')
-                              : value,
-                        }))
-                      }
-                    />
-                  </div>
+          </FormDrawerHeader>
+          <FormDrawerBody>
+            {error ? (
+              <Alert variant='destructive'>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+            <Field
+              label={t('form.name')}
+              htmlFor={`${formId}-name`}
+              error={validated ? invalid.name : undefined}
+              required={true}
+            >
+              <Input
+                required
+                id={`${formId}-name`}
+                aria-invalid={validated && Boolean(invalid.name)}
+                aria-describedby={
+                  validated && invalid.name ? `${formId}-name-error` : undefined
+                }
+                aria-required='true'
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </Field>
+            <Field
+              label={t('form.username')}
+              htmlFor={`${formId}-username`}
+              required={false}
+            >
+              <Input
+                id={`${formId}-username`}
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+              />
+            </Field>
+            <Field
+              label={t('form.email')}
+              htmlFor={`${formId}-email`}
+              error={validated ? invalid.email : undefined}
+              required={true}
+            >
+              <Input
+                required
+                type='email'
+                id={`${formId}-email`}
+                aria-invalid={validated && Boolean(invalid.email)}
+                aria-describedby={
+                  validated && invalid.email
+                    ? `${formId}-email-error`
+                    : undefined
+                }
+                aria-required='true'
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </Field>
+            {!user ? (
+              <>
+                <Field
+                  label={t('form.password')}
+                  htmlFor={`${formId}-password`}
+                  error={validated ? invalid.password : undefined}
+                  required={true}
+                >
+                  <Input
+                    required
+                    type='password'
+                    id={`${formId}-password`}
+                    aria-invalid={validated && Boolean(invalid.password)}
+                    aria-describedby={
+                      validated && invalid.password
+                        ? `${formId}-password-error`
+                        : undefined
+                    }
+                    aria-required='true'
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
                 </Field>
-              ))}
-            </>
-          ) : null}
-          <DialogFooter>
+                {creationRoleScopes.map((scope) => (
+                  <Field
+                    key={scope.key}
+                    label={scope.label}
+                    htmlFor={`${formId}-roles-${scope.key}`}
+                    required={scope.requiredOnCreate}
+                    error={
+                      validated &&
+                      scope.requiredOnCreate &&
+                      roleValues(roles[scope.key] ?? '').length === 0
+                        ? t('form.roleRequired', { name: scope.label })
+                        : undefined
+                    }
+                  >
+                    <div
+                      id={`${formId}-roles-${scope.key}`}
+                      role='group'
+                      aria-label={scope.label}
+                      className='flex max-h-80 flex-col overflow-hidden rounded-lg border'
+                    >
+                      <PermissionSelection
+                        disabled={busy}
+                        scope={scope}
+                        selected={roleValues(roles[scope.key] ?? '')}
+                        onChange={(value) =>
+                          setRoles((current) => ({
+                            ...current,
+                            [scope.key]:
+                              scope.selection === 'single'
+                                ? (value[0] ?? '')
+                                : value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </Field>
+                ))}
+              </>
+            ) : null}
+          </FormDrawerBody>
+          <FormDrawerFooter>
             <Button
               type='button'
               variant='outline'
               disabled={busy}
-              onClick={onClose}
+              onClick={close}
             >
               {t('form.cancel')}
             </Button>
-            <Button
-              type='submit'
-              disabled={busy || (!user && !requiredRolesSelected)}
-            >
+            <Button type='submit' disabled={busy}>
               {busy ? (
                 <Spinner
                   data-icon='inline-start'
@@ -930,9 +1236,10 @@ function UserDialog({
               ) : null}
               {user ? t('form.save') : t('form.create')}
             </Button>
-          </DialogFooter>
+          </FormDrawerFooter>
         </form>
-      </DialogContent>
+      </FormDrawerContent>
+      {guard.confirmation}
     </Dialog>
   );
 }
@@ -943,31 +1250,48 @@ type UserDialogSubmitInput =
 
 function PasswordDialog({
   busy,
+  error,
   user,
   onClose,
   onSubmit,
 }: {
   readonly busy: boolean;
+  readonly error?: string;
   readonly user: ManagedUser;
   readonly onClose: () => void;
   readonly onSubmit: (password: string) => void;
 }): ReactElement {
   const { t } = useTranslation('@nocobase/app-plugin-users');
+  const passwordId = useId();
   const [password, setPassword] = useState('');
+  const [validated, setValidated] = useState(false);
+  const guard = useFormDiscardGuard(!!password, busy);
+  const close = () => {
+    void guard.requestClose(onClose);
+  };
+
   return (
     <Dialog
       open
-      onOpenChange={(open) => (!open && !busy ? onClose() : undefined)}
+      onOpenChange={(open) => {
+        if (!open) close();
+      }}
     >
-      <DialogContent>
+      <FormDrawerContent>
         <form
-          className='space-y-4'
+          noValidate
+          className='flex flex-col gap-4'
           onSubmit={(event) => {
             event.preventDefault();
+            setValidated(true);
+            if (!password) {
+              document.getElementById(passwordId)?.focus();
+              return;
+            }
             onSubmit(password);
           }}
         >
-          <DialogHeader>
+          <FormDrawerHeader>
             <DialogTitle>{t('password.title')}</DialogTitle>
             <DialogDescription>
               <UserNameText
@@ -975,30 +1299,50 @@ function PasswordDialog({
                 name={user.name}
               />
             </DialogDescription>
-          </DialogHeader>
-          <Field label={t('password.newPassword')}>
-            <Input
+          </FormDrawerHeader>
+          <FormDrawerBody>
+            {error ? (
+              <Alert variant='destructive'>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+            <Field
+              label={t('password.newPassword')}
+              htmlFor={passwordId}
+              error={
+                validated && !password ? t('form.passwordRequired') : undefined
+              }
               required
-              type='password'
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </Field>
-          <DialogFooter>
+            >
+              <Input
+                aria-required='true'
+                aria-invalid={validated && !password}
+                aria-describedby={
+                  validated && !password ? `${passwordId}-error` : undefined
+                }
+                type='password'
+                id={passwordId}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </Field>
+          </FormDrawerBody>
+          <FormDrawerFooter>
             <Button
               type='button'
               variant='outline'
               disabled={busy}
-              onClick={onClose}
+              onClick={close}
             >
               {t('form.cancel')}
             </Button>
             <Button type='submit' disabled={busy}>
               <KeyRound /> {t('password.submit')}
             </Button>
-          </DialogFooter>
+          </FormDrawerFooter>
         </form>
-      </DialogContent>
+      </FormDrawerContent>
+      {guard.confirmation}
     </Dialog>
   );
 }
@@ -1077,15 +1421,37 @@ function roleValues(value: UserRoleValue): readonly string[] {
 
 function Field({
   label,
+  htmlFor,
+  required = false,
+  error,
   children,
 }: {
   readonly label: string;
+  readonly htmlFor?: string;
+  readonly required?: boolean;
+  readonly error?: string;
   readonly children: ReactElement;
 }): ReactElement {
   return (
-    <div className='space-y-1.5'>
-      <Label>{label}</Label>
+    <div className='flex flex-col gap-2'>
+      <Label htmlFor={htmlFor}>
+        {label}
+        {required ? (
+          <span aria-hidden='true' className='text-destructive'>
+            *
+          </span>
+        ) : null}
+      </Label>
       {children}
+      {error ? (
+        <p
+          id={`${htmlFor}-error`}
+          role='alert'
+          className='text-sm text-destructive'
+        >
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

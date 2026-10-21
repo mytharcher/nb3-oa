@@ -6,6 +6,8 @@ const zhCN: NotificationResource = {
     logs: '通知日志',
   },
   logs: {
+    retry: '重试',
+    limitNotice: '仅显示最新 {{count}} 条通知，统计仅涵盖这些记录。',
     deliveryOperations: '投递操作',
     recipeDescription: '跟踪各渠道的交接和服务提供方的每次尝试。',
     redacted: '消息正文、接收者和租约令牌已隐去。',
@@ -42,6 +44,8 @@ const zhCN: NotificationResource = {
     },
   },
   test: {
+    fieldRequired: '请填写{{name}}。',
+    emailInvalid: '请为{{name}}填写有效邮箱地址。',
     title: '发送测试通知',
     description:
       '选择通知方式后发送。消息会投递给指定收件人，并记录在下方日志中。',
@@ -61,7 +65,7 @@ const zhCN: NotificationResource = {
     sending: '正在发送…',
     send: '发送',
     defaultTitle: 'NocoBase 通知测试',
-    defaultBody: '这是一条来自 Hub 的测试通知。',
+    defaultBody: '这是一条来自 NocoOA 的测试通知。',
     accepted: '测试通知 {{id}} 已受理。',
   },
   status: {
@@ -77,6 +81,9 @@ const zhCN: NotificationResource = {
     accepted: '已受理',
   },
   errors: {
+    forbidden: '您已无权查看这些记录，请联系管理员。',
+    notFound: '记录不可用，请返回工作台。',
+    providerFailed: '发送失败，请检查通知渠道配置或联系管理员。',
     requestFailed: '通知请求失败。',
     inAppRecipientNotFound: '站内信接收用户不存在。',
   },

@@ -368,7 +368,7 @@ function Report({ dataset }: { dataset: Dataset }) {
           actions={
             <>
               {hasFilters ? (
-                <Button variant='outline' onClick={clearFilters}>
+                <Button variant='ghost' onClick={clearFilters}>
                   {t('reports.clearFilters')}
                 </Button>
               ) : null}
@@ -600,6 +600,9 @@ function Report({ dataset }: { dataset: Dataset }) {
                         key={column}
                         className={
                           column.endsWith('Cents') ||
+                          column === 'paidBasisPoints' ||
+                          (dataset === 'headcount-balances' &&
+                            typeof row[column] === 'number') ||
                           (dataset === 'leave-monthly' &&
                             column !== 'leaveType')
                             ? 'text-right tabular-nums'
@@ -686,8 +689,11 @@ function Report({ dataset }: { dataset: Dataset }) {
                             dateLocale.code,
                             { style: 'percent', maximumFractionDigits: 2 },
                           )
+                        ) : typeof row[column] === 'number' ? (
+                          new Intl.NumberFormat(
+                            dateLocale.code ?? 'en-US',
+                          ).format(row[column])
                         ) : typeof row[column] === 'string' ||
-                          typeof row[column] === 'number' ||
                           typeof row[column] === 'boolean' ? (
                           String(row[column])
                         ) : (
@@ -714,7 +720,7 @@ function Report({ dataset }: { dataset: Dataset }) {
               </EmptyHeader>
               {hasFilters ? (
                 <EmptyContent>
-                  <Button variant='outline' onClick={clearFilters}>
+                  <Button variant='ghost' onClick={clearFilters}>
                     {t('reports.clearFilters')}
                   </Button>
                 </EmptyContent>

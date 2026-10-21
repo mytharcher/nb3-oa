@@ -369,6 +369,7 @@ export function BalancePage({ administration }: { administration: boolean }) {
   return (
     <PageContainer>
       <PageHeader
+        actions={canUpdate ? add : undefined}
         title={t(
           administration ? 'leaveBalances.adminTitle' : 'leaveBalances.title',
         )}
@@ -381,7 +382,6 @@ export function BalancePage({ administration }: { administration: boolean }) {
       <ApplicationToolbar
         actions={
           <>
-            {canUpdate ? add : null}
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -453,9 +453,9 @@ export function BalancePage({ administration }: { administration: boolean }) {
                 </SelectContent>
               </Select>
             </div>
-            {searchParams.size > 0 ? (
+            {searchParams.has('employeeId') || searchParams.has('leaveType') ? (
               <Button
-                variant='outline'
+                variant='ghost'
                 onClick={() =>
                   updateParams((params) => {
                     params.delete('employeeId');

@@ -46,7 +46,7 @@ export function probationViewChildren(
 export const probationRequestRoutes = defineAppRoutes([
   {
     name: 'oa-probation-requests',
-    parent: 'oa-organization',
+    parent: 'oa-hr',
     path: '/probationRequests',
     auth: 'required',
     authz: {

@@ -1,13 +1,13 @@
+import { ApplicationTableEmpty } from '#components/application-table-empty';
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { ApplicationSearch } from '#components/application-search';
 import { useLocation, useParams } from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
-import { RefreshCw } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { RecordDetailDrawer } from '#components/record-detail-drawer';
 import { ApplicationToolbar } from '#components/application-toolbar';
 import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
 import { DataTableServer } from '#components/data-table';
-import { Button } from '#components/ui/button';
 import { Badge } from '#components/ui/badge';
 import { useUrlSearch } from '#hooks/use-url-search';
 import { useAnnouncementResource } from './resource.js';
@@ -105,16 +105,11 @@ export default function Receipts() {
       </p>
       <ApplicationToolbar
         actions={
-          <Button
-            variant='outline'
-            size='icon'
-            aria-label={t('announcements.refresh')}
-            title={t('announcements.refresh')}
-            disabled={r.loading || detail.loading}
+          <ApplicationRefreshButton
+            label={t('announcements.refresh')}
+            loading={r.loading || detail.loading}
             onClick={refresh}
-          >
-            <RefreshCw />
-          </Button>
+          />
         }
       >
         <ApplicationSearch
@@ -159,7 +154,11 @@ export default function Receipts() {
                 )
               }
               pageSizeOptions={[20]}
-              emptyMessage={t('announcements.noRecipients')}
+              emptyMessage={
+                <ApplicationTableEmpty
+                  title={t('announcements.noRecipients')}
+                />
+              }
             />
           </>
         ) : r.loading ? (

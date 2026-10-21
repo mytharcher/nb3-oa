@@ -165,7 +165,7 @@ export function PermissionEditor({
 }: PermissionEditorProps): ReactElement {
   const words = { ...DEFAULT_LABELS, ...labels };
   return (
-    <div className='@container space-y-4'>
+    <div className='@container flex flex-col gap-4'>
       {sections.map((section) => (
         <Collapsible key={section.id} defaultOpen className='rounded-lg border'>
           <h2>

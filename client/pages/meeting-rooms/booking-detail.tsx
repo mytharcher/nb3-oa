@@ -1,3 +1,4 @@
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { UserName } from '#components/user-name';
 import {
   Link,
@@ -7,7 +8,6 @@ import {
   useParams,
 } from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
-import { RefreshCw } from 'lucide-react';
 import { RecordDetailDrawer } from '#components/record-detail-drawer';
 import { Button } from '#components/ui/button';
 import { Badge } from '#components/ui/badge';
@@ -121,15 +121,11 @@ export default function BookingDetail() {
               {t(`meetingRooms.actions.${action}`)}
             </Button>
           ))}
-          <Button
-            variant='outline'
-            size='icon'
-            aria-label={t('meetingRooms.refresh')}
-            disabled={r.loading || a.loading}
+          <ApplicationRefreshButton
+            label={t('meetingRooms.refresh')}
+            loading={r.loading || a.loading}
             onClick={refresh}
-          >
-            <RefreshCw />
-          </Button>
+          />
         </>
       }
     >

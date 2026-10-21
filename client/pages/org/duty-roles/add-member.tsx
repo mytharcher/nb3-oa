@@ -1,3 +1,4 @@
+import { useDrawerFormGuard } from '#hooks/use-drawer-form-guard';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -7,7 +8,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { useOutletContext } from 'react-router';
 import { z } from 'zod';
 
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { SessionExpiredAlert } from '#components/session-expired-alert';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import {
@@ -37,9 +38,9 @@ export default function AddDutyRoleMemberPage(): ReactElement {
     setSubmitting(value);
   };
   return (
-    <RouteDialog
+    <RouteDrawer
       title={t('org.dutyRoles.members.addTitle', { role: roleTitle })}
-      className='sm:max-w-md'
+      className='sm:max-w-2xl'
       beforeClose={() => !submittingRef.current}
       footer={
         <FormDialogFooter
@@ -50,7 +51,7 @@ export default function AddDutyRoleMemberPage(): ReactElement {
       }
     >
       <AddMemberBody onSubmittingChange={handleSubmittingChange} />
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 
@@ -78,6 +79,11 @@ function AddMemberBody({
     resolver: zodResolver(schema),
     defaultValues: { userId: '' },
   });
+
+  const drawerGuard = useDrawerFormGuard(
+    form.formState.isDirty,
+    form.formState.isSubmitting,
+  );
 
   const onSubmit = form.handleSubmit(async (values) => {
     let member: DutyRoleMember;
@@ -113,6 +119,7 @@ function AddMemberBody({
       }),
     });
     onMembersChanged();
+    drawerGuard.markSaved();
     void close();
   });
 
@@ -120,6 +127,7 @@ function AddMemberBody({
 
   return (
     <form id={FORM_ID} noValidate onSubmit={(event) => void onSubmit(event)}>
+      {drawerGuard.confirmation}
       <FieldGroup>
         {rootError?.type === 'sessionExpired' ? (
           <SessionExpiredAlert />

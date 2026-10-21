@@ -67,6 +67,12 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  /* Business-area accents for icons and chips (office, people, finance, procurement, administration). */
+  --color-area-office: var(--area-office);
+  --color-area-people: var(--area-people);
+  --color-area-finance: var(--area-finance);
+  --color-area-procurement: var(--area-procurement);
+  --color-area-administration: var(--area-administration);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -102,6 +108,39 @@
   samp {
     @apply font-mono;
   }
+}
+
+/* Cards lift off the tinted page with a hairline shadow under the primitive's ring. Kept in a layer so an explicit
+   `shadow-*` utility on a card still wins, and outside the generated primitive so CLI updates keep it. */
+@layer base {
+  [data-slot='card'] {
+    --tw-shadow: var(--shadow-xs);
+  }
+
+  /* Figures in tables line up by digit. */
+  [data-slot='table-cell'] {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* A request entry's icon takes its business area's accent, so the catalog scans by domain. */
+[data-slot='request-action-card'][data-area] > svg {
+  color: var(--area-color);
+}
+[data-slot='request-action-card'][data-area='office'] {
+  --area-color: var(--area-office);
+}
+[data-slot='request-action-card'][data-area='people'] {
+  --area-color: var(--area-people);
+}
+[data-slot='request-action-card'][data-area='finance'] {
+  --area-color: var(--area-finance);
+}
+[data-slot='request-action-card'][data-area='procurement'] {
+  --area-color: var(--area-procurement);
+}
+[data-slot='request-action-card'][data-area='administration'] {
+  --area-color: var(--area-administration);
 }
 
 /* Named shadows normally compile to literal values. Arbitrary-value utilities

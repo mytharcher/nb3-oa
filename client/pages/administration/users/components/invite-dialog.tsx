@@ -1,3 +1,11 @@
+import { useFormDiscardGuard } from '#hooks/use-form-discard-guard';
+import {
+  FormDrawerContent,
+  FormDrawerHeader,
+  FormDrawerBody,
+  FormDrawerFooter,
+} from '#components/form-drawer';
+import { IconAction } from '../../components/icon-action.js';
 import { useToaster } from '@nocobase/app-client';
 import { Spinner } from '#components/ui/spinner';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -20,14 +28,8 @@ import {
 import { PermissionSelection } from './permission-selection.js';
 import { Badge } from '#components/ui/badge';
 import { Button } from '#components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '#components/ui/dialog';
+import { Dialog, DialogDescription, DialogTitle } from '#components/ui/dialog';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import { Input } from '#components/ui/input';
 import { Label } from '#components/ui/label';
 import { Textarea } from '#components/ui/textarea';
@@ -58,6 +60,7 @@ export function InviteDialog({
   );
   const [problem, setProblem] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState(false);
   const [results, setResults] = useState<readonly UserInvitationResult[]>();
 
   const submit = async (event: FormEvent): Promise<void> => {
@@ -75,6 +78,7 @@ export function InviteDialog({
     setProblem(next);
     if (next) return;
     setBusy(true);
+    setFailure(false);
     try {
       const chosen = selectedRoleScopeValues(roleScopes, roles);
       setResults(
@@ -83,82 +87,106 @@ export function InviteDialog({
           ...(Object.keys(chosen).length ? { roleScopes: chosen } : {}),
         }),
       );
+    } catch {
+      setFailure(true);
     } finally {
       setBusy(false);
     }
   };
 
+  const [initialRoles] = useState(() => JSON.stringify(roles));
+  const guard = useFormDiscardGuard(
+    !results && (!!text || JSON.stringify(roles) !== initialRoles),
+    busy,
+  );
+  const close = () => {
+    void guard.requestClose(onClose);
+  };
+
   return (
     <Dialog
       open
-      onOpenChange={(open) => (!open && !busy ? onClose() : undefined)}
+      onOpenChange={(open) => {
+        if (!open) close();
+      }}
     >
-      <DialogContent className='sm:max-w-2xl'>
-        <DialogHeader>
+      <FormDrawerContent>
+        <FormDrawerHeader>
           <DialogTitle>{t('invite.title')}</DialogTitle>
           <DialogDescription>{t('invite.description')}</DialogDescription>
-        </DialogHeader>
+        </FormDrawerHeader>
         {results ? (
           <>
-            <InviteResults results={results} />
-            <DialogFooter>
-              <Button onClick={onClose}>{t('invite.done')}</Button>
-            </DialogFooter>
+            <FormDrawerBody>
+              <InviteResults results={results} />
+            </FormDrawerBody>
+            <FormDrawerFooter>
+              <Button onClick={close}>{t('invite.done')}</Button>
+            </FormDrawerFooter>
           </>
         ) : (
           <form
             noValidate
-            className='space-y-4'
+            className='flex flex-col gap-4'
             onSubmit={(event) => void submit(event)}
           >
-            <div className='space-y-2'>
-              <Label htmlFor='user-invite-emails'>{t('invite.emails')}</Label>
-              <Textarea
-                id='user-invite-emails'
-                rows={4}
-                autoFocus
-                value={text}
-                placeholder={'alice@example.com\nbob@example.com'}
-                aria-invalid={problem ? true : undefined}
-                onChange={(event) => setText(event.target.value)}
-              />
-              <p
-                className={
-                  problem
-                    ? 'text-sm text-destructive'
-                    : 'text-sm text-muted-foreground'
-                }
-              >
-                {problem ?? t('invite.emailsHint')}
-              </p>
-            </div>
-            {roleScopes.map((scope) => (
-              <div key={scope.key} className='space-y-2'>
-                <Label>{`${t('invite.roles')} · ${scope.label}`}</Label>
-                <div className='flex max-h-64 flex-col overflow-hidden rounded-lg border'>
-                  <PermissionSelection
-                    disabled={busy}
-                    scope={scope}
-                    selected={roleValues(roles[scope.key] ?? '')}
-                    onChange={(value) =>
-                      setRoles((current) => ({
-                        ...current,
-                        [scope.key]:
-                          scope.selection === 'single'
-                            ? (value[0] ?? '')
-                            : value,
-                      }))
-                    }
-                  />
-                </div>
+            <FormDrawerBody>
+              {failure ? (
+                <Alert variant='destructive'>
+                  <AlertDescription>
+                    {t('errors.operationFailed')}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              <div className='flex flex-col gap-2'>
+                <Label htmlFor='user-invite-emails'>{t('invite.emails')}</Label>
+                <Textarea
+                  id='user-invite-emails'
+                  rows={4}
+                  autoFocus
+                  value={text}
+                  placeholder={'alice@example.com\nbob@example.com'}
+                  aria-invalid={problem ? true : undefined}
+                  onChange={(event) => setText(event.target.value)}
+                />
+                <p
+                  className={
+                    problem
+                      ? 'text-sm text-destructive'
+                      : 'text-sm text-muted-foreground'
+                  }
+                >
+                  {problem ?? t('invite.emailsHint')}
+                </p>
               </div>
-            ))}
-            <DialogFooter>
+              {roleScopes.map((scope) => (
+                <div key={scope.key} className='flex flex-col gap-2'>
+                  <Label>{`${t('invite.roles')} · ${scope.label}`}</Label>
+                  <div className='flex max-h-64 flex-col overflow-hidden rounded-lg border'>
+                    <PermissionSelection
+                      disabled={busy}
+                      scope={scope}
+                      selected={roleValues(roles[scope.key] ?? '')}
+                      onChange={(value) =>
+                        setRoles((current) => ({
+                          ...current,
+                          [scope.key]:
+                            scope.selection === 'single'
+                              ? (value[0] ?? '')
+                              : value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </FormDrawerBody>
+            <FormDrawerFooter>
               <Button
                 type='button'
                 variant='outline'
                 disabled={busy}
-                onClick={onClose}
+                onClick={close}
               >
                 {t('form.cancel')}
               </Button>
@@ -174,10 +202,11 @@ export function InviteDialog({
                 ) : null}
                 {t('invite.send')}
               </Button>
-            </DialogFooter>
+            </FormDrawerFooter>
           </form>
         )}
-      </DialogContent>
+      </FormDrawerContent>
+      {guard.confirmation}
     </Dialog>
   );
 }
@@ -194,9 +223,9 @@ export function InviteResults({
 }): ReactElement {
   const { t } = useTranslation(NS);
   return (
-    <ul className='space-y-3'>
+    <ul className='flex flex-col gap-3'>
       {results.map((result) => (
-        <li key={result.email} className='space-y-2'>
+        <li key={result.email} className='flex flex-col gap-2'>
           <div className='flex items-center justify-between gap-3'>
             <span className='min-w-0 truncate text-sm'>{result.email}</span>
             <Badge
@@ -244,15 +273,17 @@ function CopyLink({ url }: { readonly url: string }): ReactElement {
         aria-label={t('invite.link')}
         className='font-mono text-xs'
       />
-      <Button
-        type='button'
-        variant='outline'
-        size='icon'
-        aria-label={copied ? t('invite.copied') : t('invite.copy')}
-        onClick={() => void copy()}
-      >
-        {copied ? <Check /> : <Copy />}
-      </Button>
+      <IconAction label={copied ? t('invite.copied') : t('invite.copy')}>
+        <Button
+          type='button'
+          variant='outline'
+          size='icon'
+          aria-label={copied ? t('invite.copied') : t('invite.copy')}
+          onClick={() => void copy()}
+        >
+          {copied ? <Check /> : <Copy />}
+        </Button>
+      </IconAction>
     </div>
   );
 }

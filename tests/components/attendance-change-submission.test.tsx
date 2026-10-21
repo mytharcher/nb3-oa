@@ -129,6 +129,11 @@ beforeEach(() => {
   );
 });
 afterEach(cleanup);
+it('shows the selected missing punch with a localized calendar date', async () => {
+  show();
+  expect(await screen.findByRole('combobox')).toHaveTextContent('Oct 13, 2026');
+  expect(screen.getByRole('combobox')).not.toHaveTextContent('2026-10-13');
+});
 it('requires a proof statement or evidence only when submitting, and focuses the proof field', async () => {
   show();
   await waitFor(() =>

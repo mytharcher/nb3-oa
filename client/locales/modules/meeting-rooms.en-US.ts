@@ -1,5 +1,6 @@
 export default {
   meetingRooms: {
+    backToList: 'Back to list',
     finder: {
       title: 'Find a time',
       description:
@@ -43,7 +44,7 @@ export default {
     savedRoom: 'Saved meeting room “{{name}}”',
     savedBooking: 'Saved {{count}} booking(s) for “{{name}}”',
     actionSuccess: '{{action}}: “{{name}}”',
-    confirmAction: 'Confirm {{action}}',
+    confirmAction: '{{action}} booking "{{name}}"?',
     confirmDescription:
       'This affects {{count}} booking(s) for “{{name}}”. Booking history is retained.',
     timeZoneDescription:

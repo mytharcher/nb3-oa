@@ -11,7 +11,7 @@ import { format, parseISO } from 'date-fns';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import { DatePicker } from '#components/date-picker';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { UserPicker } from '#components/user-picker';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { Alert, AlertDescription } from '#components/ui/alert';
@@ -432,7 +432,8 @@ export default function DelegationFormDialog() {
     !!options.data?.timeZone;
   return (
     <>
-      <RouteDialog
+      <RouteDrawer
+        className='sm:max-w-2xl'
         title={t(
           delegationId
             ? 'approvals.delegations.edit'
@@ -465,7 +466,11 @@ export default function DelegationFormDialog() {
                 }
               >
                 {saving ? <Spinner data-icon='inline-start' /> : null}
-                {t('approvals.save')}
+                {t(
+                  delegationId
+                    ? 'approvals.save'
+                    : 'approvals.delegations.create',
+                )}
               </Button>
             </>
           ) : (
@@ -515,7 +520,7 @@ export default function DelegationFormDialog() {
             }}
           />
         ) : null}
-      </RouteDialog>
+      </RouteDrawer>
       <AlertDialog
         open={discard}
         onOpenChange={(open) => {

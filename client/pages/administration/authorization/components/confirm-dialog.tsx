@@ -1,3 +1,5 @@
+import { Alert, AlertDescription } from '#components/ui/alert';
+import { Spinner } from '#components/ui/spinner';
 import { useRef, type ReactElement, type ReactNode } from 'react';
 
 import { useAuthorizationTranslation } from '../i18n.js';
@@ -23,6 +25,8 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   busy = false,
+  error,
+  variant = 'destructive',
   children,
   onConfirm,
   onCancel,
@@ -33,6 +37,8 @@ export function ConfirmDialog({
   confirmLabel: string;
   cancelLabel?: string;
   busy?: boolean;
+  error?: ReactNode;
+  variant?: 'default' | 'destructive';
   /** The body: what is about to happen, and to what. */
   children: ReactNode;
   onConfirm: () => void;
@@ -52,15 +58,24 @@ export function ConfirmDialog({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{children}</AlertDialogDescription>
         </AlertDialogHeader>
+        {error ? (
+          <Alert variant='destructive'>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
         <AlertDialogFooter>
           <AlertDialogCancel ref={cancelRef} disabled={busy}>
             {cancelLabel ?? t('common.cancel')}
           </AlertDialogCancel>
           <AlertDialogAction
             disabled={busy}
-            variant='destructive'
-            onClick={onConfirm}
+            variant={variant}
+            onClick={(event) => {
+              event.preventDefault();
+              onConfirm();
+            }}
           >
+            {busy ? <Spinner data-icon='inline-start' /> : null}
             {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

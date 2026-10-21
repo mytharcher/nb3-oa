@@ -1,3 +1,4 @@
+import { Badge } from '#components/ui/badge';
 import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { statusTone } from './status-tone.js';
 import { ApplicationRefreshButton } from '#components/application-refresh-button';
@@ -14,7 +15,7 @@ import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { ApplicationToolbar } from '#components/application-toolbar';
 import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
-import { DataTableServer } from '#components/data-table';
+import { DataTableServer, DataTableColumnHeader } from '#components/data-table';
 import { StatusBadge } from '#components/status-badge';
 import { TruncatedText } from '#components/truncated-text';
 import { Button } from '#components/ui/button';
@@ -80,8 +81,11 @@ export default function Certificates() {
     {
       id: 'type',
       header: t('certificates.type'),
-      cell: ({ row }) =>
-        t(`certificates.types.${row.original.certificateType}`),
+      cell: ({ row }) => (
+        <Badge variant='outline'>
+          {t(`certificates.types.${row.original.certificateType}`)}
+        </Badge>
+      ),
     },
     {
       id: 'purpose',
@@ -95,7 +99,13 @@ export default function Certificates() {
     },
     {
       id: 'createdAt',
-      header: t('certificates.createdAt'),
+      accessorKey: 'createdAt',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t('certificates.createdAt')}
+        />
+      ),
       cell: ({ row }) =>
         new Date(row.original.createdAt).toLocaleString(i18n.language),
     },
@@ -180,22 +190,21 @@ export default function Certificates() {
               {t('certificates.clear')}
             </Button>
           ) : null}
-          <Button
-            variant='outline'
-            onClick={() =>
-              search.updateParams((p) =>
-                p.set('order', order === 'asc' ? 'desc' : 'asc'),
-              )
-            }
-          >
-            {t(`certificates.${order === 'asc' ? 'oldest' : 'newest'}`)}
-          </Button>
         </>
       </ApplicationToolbar>
-      {r.error ? <CertificateError error={r.error} retry={r.reload} /> : null}
+      {r.error ? (
+        <CertificateError error={r.error} retry={r.reload} isList />
+      ) : null}
       {r.loading && !r.data ? <ApplicationTableSkeleton /> : null}
       {r.data ? (
         <DataTableServer
+          sorting={[{ id: 'createdAt', desc: order === 'desc' }]}
+          onSortingChange={(sorting) =>
+            search.updateParams((p) => {
+              p.set('order', sorting[0]?.desc === false ? 'asc' : 'desc');
+              p.delete('page');
+            })
+          }
           columns={columns}
           rows={r.data.data.items}
           total={r.data.data.total}

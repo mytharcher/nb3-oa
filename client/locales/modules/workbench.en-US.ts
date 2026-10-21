@@ -1,5 +1,28 @@
 export default {
   workbench: {
+    refresh: 'Refresh',
+    greeting: {
+      morning: 'Good morning, {{name}}',
+      afternoon: 'Good afternoon, {{name}}',
+      evening: 'Good evening, {{name}}',
+    },
+    summaryPending_one: '{{count}} item to handle',
+    summaryPending_other: '{{count}} items to handle',
+    summaryOverdue_one: '{{count}}{{suffix}} overdue',
+    summaryOverdue_other: '{{count}}{{suffix}} overdue',
+    overdue: 'Overdue',
+    overdueBadge: 'Overdue',
+    dueToday: 'Due today',
+    revisionBanner_one:
+      '{{count}} of your requests was returned or needs attention.',
+    revisionBanner_other:
+      '{{count}} of your requests were returned or need attention.',
+    reviewRevisions: 'Review',
+    viewDraftsCount_one: 'Drafts ({{count}})',
+    viewDraftsCount_other: 'Drafts ({{count}})',
+    allClear: 'You are all caught up',
+    allClearDescription:
+      'Nothing is waiting for you. Start a request below when you need one.',
     submitted: 'Submitted',
     viewSubmitted: 'View all submitted requests',
     viewDrafts: 'View all drafts',
@@ -51,7 +74,7 @@ export default {
     drafts: 'Drafts',
     inProgress: 'In progress',
     attention: 'Needs my attention',
-    attentionDescription: 'Pending work and requests that need revision.',
+    attentionDescription: 'Items waiting for you, earliest deadline first.',
     mine: 'My requests',
     mineDescription: 'Recent requests submitted by you or on your behalf.',
     newRequest: 'New request',

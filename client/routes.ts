@@ -73,7 +73,9 @@ import { outingsViewChildren } from './route-modules/outings.js';
 import { generalRequestViewChildren } from './route-modules/general-requests.js';
 import { cancellationViewChildren } from './route-modules/leave-cancellations.js';
 import {
-  UsersRound,
+  Building2,
+  CircleUserRound,
+  IdCard,
   LayoutDashboard,
   ScrollText,
   SlidersHorizontal,
@@ -115,13 +117,53 @@ const appRoutes: AppClientRouteContribution = defineAppRoutes([
     children: [
       ...[
         ...nonApprovalViewChildren('home'),
+        {
+          name: 'home-meeting-booking',
+          path: 'booking/:bookingId',
+          authz: {
+            resource: { type: 'composite', id: 'oa.meetingBookings' },
+            action: 'view',
+          },
+          componentLoader: () =>
+            import('./pages/meeting-rooms/booking-detail.js'),
+          children: [
+            {
+              name: 'home-meeting-booking-edit',
+              path: 'edit',
+              authz: {
+                resource: { type: 'composite', id: 'oa.meetingBookings' },
+                action: 'edit',
+              },
+              componentLoader: () =>
+                import('./pages/meeting-rooms/booking-form.js'),
+            },
+            {
+              name: 'home-meeting-booking-action',
+              path: 'action/:action',
+              authz: {
+                resource: { type: 'composite', id: 'oa.meetingBookings' },
+                action: 'view',
+              },
+              componentLoader: () =>
+                import('./pages/meeting-rooms/booking-action.js'),
+            },
+          ],
+        },
         ...vehicleViewChildren('home'),
         ...recruitmentViewChildren('home'),
         ...sealViewChildren('home'),
         ...transferViewChildren('home'),
         ...certificateViewChildren('home'),
       ].map((route) => {
-        if (!route.componentLoader) return route;
+        if (
+          !route.componentLoader ||
+          [
+            'home-meeting-booking',
+            'home-announcement',
+            'home-work-item',
+          ].includes(route.name)
+        )
+          return route;
         return {
           ...route,
           componentLoader: centerEntry(route.componentLoader),
@@ -267,6 +309,16 @@ const appRoutes: AppClientRouteContribution = defineAppRoutes([
 // Pathless groups preserve existing URLs and each page's independent authorization.
 const managementRoutes: AppClientRouteContribution = defineAppRoutes([
   {
+    // Self-service pages every employee uses; kept apart from the domains administrators run.
+    name: 'oa-personal',
+    navigation: {
+      title: 'oa.navigation.personal',
+      icon: CircleUserRound,
+      order: 42,
+    },
+    children: [],
+  },
+  {
     name: 'oa-office',
     navigation: {
       title: 'oa.navigation.office',
@@ -302,9 +354,15 @@ const managementRoutes: AppClientRouteContribution = defineAppRoutes([
     name: 'oa-organization',
     navigation: {
       title: 'oa.navigation.organization',
-      icon: UsersRound,
+      icon: Building2,
       order: 50,
     },
+    children: [],
+  },
+  {
+    // HR processes and attendance, separate from the organization structure they act on.
+    name: 'oa-hr',
+    navigation: { title: 'oa.navigation.hr', icon: IdCard, order: 55 },
     children: [],
   },
   {

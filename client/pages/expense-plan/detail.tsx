@@ -1,3 +1,4 @@
+import { approvalStatusTone } from '../approvals/status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
 import { ExpenseFacts } from './facts.js';
 import { createRequestId } from '../approvals/request-id.js';
@@ -215,13 +216,7 @@ export default function ExpensePlanDetailPage() {
       headerStatus={
         record ? (
           <StatusBadge
-            tone={
-              record.status === 'approved'
-                ? 'success'
-                : ['rejected', 'terminated'].includes(record.status)
-                  ? 'warning'
-                  : 'neutral'
-            }
+            tone={approvalStatusTone(record.status, 'oa.expensePlan')}
           >
             {t(
               ['head', 'finance', 'executive', 'gm'].includes(record.status)
@@ -307,7 +302,7 @@ export default function ExpensePlanDetailPage() {
                     {action.allowed
                       ? t(`approvals.${action.name}`)
                       : action.blockers
-                          .map((v) => t(v.message, { defaultValue: v.message }))
+                          .map(() => t('approvals.unavailable'))
                           .join(' · ') || t('approvals.unavailable')}
                   </TooltipContent>
                 </Tooltip>

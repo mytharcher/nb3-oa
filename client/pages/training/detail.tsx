@@ -1,3 +1,4 @@
+import { approvalStatusTone } from '../approvals/status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
 import { TrainingFacts } from './facts.js';
 import { createRequestId } from '../approvals/request-id.js';
@@ -128,7 +129,7 @@ export default function TrainingDetailPage() {
       parent.reload();
       toaster.show({
         type: 'success',
-        title: t('approvals.completed', {
+        title: t('training.actionForm.completed', {
           name,
           action: t(`approvals.${action}`),
         }),
@@ -158,7 +159,10 @@ export default function TrainingDetailPage() {
       parent.reload();
       toaster.show({
         type: 'success',
-        title: t('approvals.completed', { name, action: t('approvals.read') }),
+        title: t('training.actionForm.completed', {
+          name,
+          action: t('approvals.read'),
+        }),
       });
     } catch (error) {
       setWriteError(error);
@@ -214,15 +218,7 @@ export default function TrainingDetailPage() {
     <RecordDetailDrawer
       headerStatus={
         record ? (
-          <StatusBadge
-            tone={
-              record.status === 'approved'
-                ? 'success'
-                : ['rejected', 'terminated'].includes(record.status)
-                  ? 'warning'
-                  : 'neutral'
-            }
-          >
+          <StatusBadge tone={approvalStatusTone(record.status, 'oa.training')}>
             {t(
               ['manager', 'head', 'finance', 'executive', 'gm'].includes(
                 record.status,
@@ -342,7 +338,7 @@ export default function TrainingDetailPage() {
       }
       beforeClose={() => !pending}
     >
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         {resource.error ? (
           <ErrorState error={resource.error} retry={resource.reload} />
         ) : null}
@@ -394,7 +390,7 @@ export default function TrainingDetailPage() {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>
-                {t('approvals.actionTitle', {
+                {t('training.actionForm.title', {
                   action: t(`approvals.${confirm ?? 'submit'}`),
                   name,
                 })}

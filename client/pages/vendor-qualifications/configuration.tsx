@@ -1,3 +1,5 @@
+import { useDrawerFormGuard } from '#hooks/use-drawer-form-guard';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import { validCommittee } from './configuration-model.js';
 import { createRequestId } from '../approvals/request-id.js';
 import { finalRefusal } from './errors.js';
@@ -48,7 +50,11 @@ export default function ConfigurationPage() {
     <PageContainer>
       <PageHeader title={t('vendorQualifications.configuration.title')} />
       {!allowed && !grant.isPending ? (
-        <p>{t('vendorQualifications.errors.forbidden')}</p>
+        <Alert variant='destructive'>
+          <AlertDescription>
+            {t('vendorQualifications.errors.forbidden')}
+          </AlertDescription>
+        </Alert>
       ) : resource.error ? (
         <ErrorState error={resource.error} retry={resource.reload} />
       ) : !data ? (
@@ -113,6 +119,11 @@ export function Structure({
     [error, setError] = useState<unknown>(),
     [invalid, setInvalid] = useState(false),
     [blocked, setBlocked] = useState(false);
+  const [baseline] = useState(() => JSON.stringify(structure));
+  const drawerGuard = useDrawerFormGuard(
+    !!reason || JSON.stringify(structure) !== baseline,
+    busy,
+  );
   const lockRef = useRef(false);
   const [seatKeys, setSeatKeys] = useState(() =>
     structure.seats.map(() => createRequestId()),
@@ -142,6 +153,7 @@ export function Structure({
           version: structure.version,
         }),
       });
+      drawerGuard.markSaved();
       if (onSaved) onSaved();
       else reload();
     } catch (cause) {
@@ -199,6 +211,7 @@ export function Structure({
         }}
         className='flex flex-col gap-4'
       >
+        {drawerGuard.confirmation}
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor='committee-version'>
@@ -514,6 +527,10 @@ export function PersonSetting({
     [error, setError] = useState<unknown>(),
     [invalid, setInvalid] = useState(false),
     [blocked, setBlocked] = useState(false);
+  const drawerGuard = useDrawerFormGuard(
+    person !== (personId ?? '') || !!reason,
+    busy,
+  );
   const lockRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
@@ -550,6 +567,7 @@ export function PersonSetting({
           name: t(`vendorQualifications.sources.${source}`),
         }),
       });
+      drawerGuard.markSaved();
       if (onSaved) onSaved();
       else reload();
     } catch (cause) {
@@ -578,6 +596,7 @@ export function PersonSetting({
         void save();
       }}
     >
+      {drawerGuard.confirmation}
       <Field>
         <FieldLabel htmlFor={`config-person-${name}`}>
           {t(`vendorQualifications.sources.${source}`)}

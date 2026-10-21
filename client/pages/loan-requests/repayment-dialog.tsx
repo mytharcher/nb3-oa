@@ -1,7 +1,8 @@
+import { Spinner } from '#components/ui/spinner';
 import { useRef, useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
-import { useApiClient } from '@nocobase/app-client';
+import { useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -44,6 +45,7 @@ export default function RepaymentDialog() {
   const resolveRef = useRef<((v: boolean) => void) | null>(null);
   return (
     <RouteDrawer
+      className='sm:max-w-2xl'
       title={t('loanRequests.recordCash')}
       beforeClose={() => {
         if (busy) return false;
@@ -114,6 +116,7 @@ function Footer({ busy, disabled }: { busy: boolean; disabled: boolean }) {
         {t('approvals.cancel')}
       </Button>
       <Button type='submit' form='loan-cash-form' disabled={busy || disabled}>
+        {busy ? <Spinner data-icon='inline-start' /> : null}
         {t('loanRequests.recordCash')}
       </Button>
     </>
@@ -128,6 +131,7 @@ function RepaymentForm({
 }) {
   const { t } = useTranslation(),
     api = useApiClient(),
+    toast = useToaster(),
     { close } = useRouteOverlay(),
     parent = useOutletContext<DetailContext>();
   const permission = useCan({
@@ -180,6 +184,12 @@ function RepaymentForm({
         method: 'POST',
         path: `loanRequests/${parent.detail.record.id}/repayments`,
         json: { ...input, requestKey: attemptRef.current.key },
+      });
+      toast.show({
+        type: 'success',
+        title: t('loanRequests.cashRecorded', {
+          name: parent.detail.record.number ?? t('approvals.draft'),
+        }),
       });
       setCommitted(true);
       onDirty(false);

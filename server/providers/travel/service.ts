@@ -1421,6 +1421,40 @@ export function createTravelService(d: TravelDependencies) {
     }
   }
   return {
+    /** Optional identities always obey explicit source record and field scopes, including for owners. */
+    async names(
+      requested: readonly string[],
+      policy: RepositoryPolicy | undefined,
+    ) {
+      const ids = [...new Set(requested)];
+      const read = policy?.read;
+      if (
+        !ids.length ||
+        !read ||
+        (read !== true &&
+          (!Array.isArray(read.fields) ||
+            !read.fields.includes('id') ||
+            !read.fields.includes('number')))
+      )
+        return new Map<string, string>();
+      const rows = await d.db
+        .repository<TravelRecord>('travelRequests')
+        .withPolicy(policy)
+        .findMany({
+          select: (s) => s.fields('id', 'number'),
+          filter: (f) => f.or(ids.map((id) => f.string('id').eq(id))),
+        });
+      return new Map(
+        rows.flatMap((row) =>
+          typeof row.id === 'string' &&
+          ids.includes(row.id) &&
+          typeof row.number === 'string' &&
+          row.number.trim()
+            ? [[row.id, row.number] as const]
+            : [],
+        ),
+      );
+    },
     initialize: refresh,
     async options(
       actorId: string,

@@ -1,3 +1,4 @@
+import { TruncatedText } from '#components/truncated-text';
 import { UserName } from '#components/user-name';
 import { ResponsiveTable as Table } from '#components/responsive-table';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -51,7 +52,7 @@ export function InvitationsPanel({
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' });
 
   return (
-    <section className='space-y-3'>
+    <section className='flex flex-col gap-3'>
       <h2 className='text-base font-medium'>{t('invitations.title')}</h2>
       {invitations.length === 0 ? (
         <p className='text-sm text-muted-foreground'>
@@ -72,8 +73,8 @@ export function InvitationsPanel({
             <TableBody>
               {invitations.map((invitation) => (
                 <TableRow key={invitation.id}>
-                  <TableCell className='max-w-64 truncate'>
-                    {invitation.email}
+                  <TableCell className='max-w-64'>
+                    <TruncatedText text={invitation.email} />
                   </TableCell>
                   <TableCell>
                     <UserName name={invitation.invitedBy.name} />

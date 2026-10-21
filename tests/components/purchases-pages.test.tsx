@@ -218,6 +218,7 @@ it('sends the run id to the finite manual-copy recipient endpoint without substi
       />
     </TestI18nProvider>,
   );
+  await userEvent.setup().type(screen.getByRole('combobox'), 'Recipient');
   await waitFor(() =>
     expect(api.request).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -753,7 +754,7 @@ it('locks an uncertain generic action and replays its exact command', async () =
     await screen.findByLabelText(/Reason/),
     'Same immutable note',
   );
-  await user.click(screen.getByRole('combobox'));
+  await user.type(screen.getByRole('combobox'), 'Recipient');
   await user.click(await screen.findByRole('option', { name: 'Recipient' }));
   await user.click(screen.getByRole('button', { name: 'Copy', exact: true }));
   await screen.findByText(purchases.purchases.unknownPricing);
@@ -879,4 +880,17 @@ it('uses accessible discard confirmation and blocks navigation while an action i
     }),
   );
   expect(guard()()).toBe(true);
+});
+
+it('cancels a clean purchase form back to the original filtered work list without writing', async () => {
+  serve();
+  const router = open('/mine/newPurchase?view=mine&search=original');
+  const user = userEvent.setup();
+  await screen.findByLabelText(/Purpose/);
+  await user.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
+  await waitFor(() => expect(router.state.location.pathname).toBe('/mine'));
+  expect(router.state.location.search).toBe('?view=mine&search=original');
+  expect(
+    api.request.mock.calls.filter(([request]) => request.method),
+  ).toHaveLength(0);
 });

@@ -300,7 +300,10 @@ function Body({
             {(['purpose', 'destination'] as const).map((name) => (
               <Field key={name} data-invalid={!!form.formState.errors[name]}>
                 <FieldLabel htmlFor={`vehicle-${name}`}>
-                  {t(`vehicles.fields.${name}`)}
+                  {t(`vehicles.fields.${name}`)}{' '}
+                  <span aria-hidden='true' className='text-destructive'>
+                    *
+                  </span>
                 </FieldLabel>
                 <Textarea
                   id={`vehicle-${name}`}
@@ -326,7 +329,10 @@ function Body({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={!!fieldState.error}>
                     <FieldLabel htmlFor={`vehicle-${name}`}>
-                      {t(`vehicles.fields.${name}`)}
+                      {t(`vehicles.fields.${name}`)}{' '}
+                      <span aria-hidden='true' className='text-destructive'>
+                        *
+                      </span>
                     </FieldLabel>
                     <DateTimePicker
                       id={`vehicle-${name}`}
@@ -344,7 +350,10 @@ function Body({
             ))}
             <Field data-invalid={!!form.formState.errors.passengers}>
               <FieldLabel htmlFor='vehicle-passengers'>
-                {t('vehicles.fields.passengers')}
+                {t('vehicles.fields.passengers')}{' '}
+                <span aria-hidden='true' className='text-destructive'>
+                  *
+                </span>
               </FieldLabel>
               <Input
                 id='vehicle-passengers'

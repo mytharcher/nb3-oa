@@ -1,6 +1,8 @@
+import { CompactEmpty } from './compact-empty.js';
+import { SourceReference } from './source-reference.js';
 import { useLocale, useTranslation } from '@nocobase/i18n/client';
 import type { ColumnDef } from '@tanstack/react-table';
-import { type ReactElement, useMemo } from 'react';
+import { type ReactElement, useCallback, useMemo } from 'react';
 import { Outlet, useOutletContext } from 'react-router';
 
 import { DataTable, DataTableColumnHeader } from '#components/data-table';
@@ -29,6 +31,11 @@ export default function EmployeeCompensationTab(): ReactElement {
     context.employee.id,
     'compensation',
   );
+  const changed = context.onSourceChanged;
+  const sourceChanged = useCallback(() => {
+    changed?.();
+    retry();
+  }, [changed, retry]);
   const date = useDateText();
   const amount = useMemo(
     () =>
@@ -76,10 +83,9 @@ export default function EmployeeCompensationTab(): ReactElement {
         accessorKey: 'sourceApplication',
         enableSorting: false,
         header: t('employees.fields.sourceApplication'),
-        cell: ({ row }) =>
-          row.original.sourceApplication ?? (
-            <span className='text-muted-foreground'>—</span>
-          ),
+        cell: ({ row }) => (
+          <SourceReference source={row.original.sourceApplication} />
+        ),
       },
       {
         accessorKey: 'note',
@@ -112,7 +118,9 @@ export default function EmployeeCompensationTab(): ReactElement {
             pagination={false}
             showSelectedCount={false}
             initialSorting={[{ id: 'effectiveFrom', desc: true }]}
-            emptyMessage={t('employees.compensation.empty')}
+            emptyMessage={
+              <CompactEmpty title={t('employees.compensation.empty')} />
+            }
           />
         </CardContent>
       </Card>
@@ -121,7 +129,13 @@ export default function EmployeeCompensationTab(): ReactElement {
   return (
     <>
       {content}
-      <Outlet context={context} />
+      <Outlet
+        context={{
+          ...context,
+          reload: sourceChanged,
+          onSourceChanged: sourceChanged,
+        }}
+      />
     </>
   );
 }

@@ -132,7 +132,7 @@ export function ContractList({ ledger }: { ledger: boolean }) {
         ),
         cell: ({ row }) => (
           <Link
-            className='font-medium text-primary underline-offset-4 hover:underline'
+            className='font-medium underline-offset-4 hover:underline'
             to={{
               pathname: `${ledger ? 'contractLedger' : 'contract'}/${row.original.id}`,
               search: location.search,

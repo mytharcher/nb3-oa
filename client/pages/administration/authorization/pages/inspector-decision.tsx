@@ -68,8 +68,8 @@ export function Decision({
     ),
   );
   return (
-    <div className='space-y-6'>
-      <section className='space-y-2 rounded-lg bg-muted/40 p-4'>
+    <div className='flex flex-col gap-6'>
+      <section className='flex flex-col gap-2 rounded-lg bg-muted/40 p-4'>
         <h3 className='text-sm font-medium'>{t('inspector.decision')}</h3>
         <Badge
           className={
@@ -82,7 +82,7 @@ export function Decision({
         </Badge>
         <p className='text-sm'>{t(`inspector.summary.${status}`)}</p>
       </section>
-      <section className='space-y-3'>
+      <section className='flex flex-col gap-3'>
         <h3 className='text-sm font-medium'>{t('inspector.reasons')}</h3>
         {reasons.length ? (
           reasons.map((reason, index) => (
@@ -102,7 +102,7 @@ export function Decision({
         )}
       </section>
       {composite && checks.length > 0 && (
-        <section className='space-y-3'>
+        <section className='flex flex-col gap-3'>
           <h3 className='text-sm font-medium'>{t('inspector.dataAccess')}</h3>
           <p className='text-sm text-muted-foreground'>
             {t('inspector.subjectHint')}
@@ -122,7 +122,7 @@ export function Decision({
             return (
               <section
                 key={JSON.stringify([check.resource, check.action])}
-                className='space-y-3 rounded-lg border p-4'
+                className='flex flex-col gap-3 rounded-lg border p-4'
               >
                 <h4 className='font-medium'>
                   {scope?.label ?? resource?.label ?? t('inspector.dataAccess')}{' '}
@@ -218,7 +218,7 @@ function Reason({
           })
         : undefined);
   return (
-    <div className='space-y-1 text-sm'>
+    <div className='flex flex-col gap-1 text-sm'>
       <p>
         <span>
           {t(`inspector.reasonCodes.${value.code}`, {

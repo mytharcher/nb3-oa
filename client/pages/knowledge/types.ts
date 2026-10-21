@@ -72,6 +72,7 @@ export interface Options {
 export interface Context {
   reload: () => void;
 }
-export const selectWidth = 'w-auto min-w-40 max-w-[calc(100vw-2rem)]';
+export const selectWidth =
+  'w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal';
 export const MAX_BYTES = 20 * 1024 * 1024;
 export const ACCEPT = '.pdf,.docx,.xlsx,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp';

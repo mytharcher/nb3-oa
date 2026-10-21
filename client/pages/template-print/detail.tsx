@@ -277,7 +277,7 @@ export default function DetailPage() {
         </>
       }
     >
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         {r.error ? <ErrorState error={r.error} retry={r.reload} /> : null}
         {!r.data && r.loading ? <Loading /> : null}
         {cmd.error ? <ErrorState error={cmd.error} retry={r.reload} /> : null}

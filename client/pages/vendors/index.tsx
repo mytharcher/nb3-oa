@@ -1,9 +1,10 @@
+import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { useEffect } from 'react';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Link, Outlet, useLocation } from 'react-router';
-import { Plus, RefreshCw, MoreHorizontal, Eye, Pencil } from 'lucide-react';
+import { Plus, MoreHorizontal, Eye, Pencil } from 'lucide-react';
 import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { ApplicationToolbar } from '#components/application-toolbar';
@@ -12,6 +13,7 @@ import { ApplicationTableSkeleton } from '#components/application-table-skeleton
 import { DataTableServer, DataTableColumnHeader } from '#components/data-table';
 import { StatusBadge } from '#components/status-badge';
 import { Button } from '#components/ui/button';
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -45,8 +47,8 @@ export default function Vendors() {
       searchParams.get('sort') ?? '',
     )
       ? searchParams.get('sort')!
-      : 'name',
-    direction = searchParams.get('direction') === 'desc' ? 'desc' : 'asc';
+      : 'updatedAt',
+    direction = searchParams.get('direction') === 'asc' ? 'asc' : 'desc';
   const r = useVendorResource<VendorPage>('vendors', {
     page: String(page),
     pageSize: String(pageSize),
@@ -165,15 +167,11 @@ export default function Vendors() {
         actions={
           <>
             {create}
-            <Button
-              variant='outline'
-              size='icon'
-              aria-label={t('vendors.refresh')}
-              disabled={r.loading}
+            <ApplicationRefreshButton
+              label={t('vendors.refresh')}
+              loading={r.loading}
               onClick={r.reload}
-            >
-              <RefreshCw className={r.loading ? 'animate-spin' : undefined} />
-            </Button>
+            />
           </>
         }
       >
@@ -217,18 +215,25 @@ export default function Vendors() {
           }
           pageSizeOptions={[10, 20, 50, 100]}
           emptyMessage={
-            <div className='flex flex-col gap-2'>
-              <p>
-                {t(
-                  `vendors.empty.${search ? 'filtered' : canManage ? 'accounts' : 'readonly'}Title`,
-                )}
-              </p>
-              <p className='text-muted-foreground'>
-                {t(
-                  `vendors.empty.${search ? 'filtered' : canManage ? 'accounts' : 'readonly'}Description`,
-                )}
-              </p>
-            </div>
+            <ApplicationTableEmpty
+              title={t(
+                `vendors.empty.${search ? 'filtered' : canManage ? 'accounts' : 'readonly'}Title`,
+              )}
+              description={t(
+                `vendors.empty.${search ? 'filtered' : canManage ? 'accounts' : 'readonly'}Description`,
+              )}
+              clearFilters={
+                search
+                  ? {
+                      label: t('vendors.clear'),
+                      onClick: () =>
+                        clear((params) => {
+                          params.delete('page');
+                        }),
+                    }
+                  : undefined
+              }
+            />
           }
         />
       )}

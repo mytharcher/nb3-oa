@@ -3,7 +3,7 @@ import { ApprovalProgress } from '#components/approval-progress';
 import { useEffect, useMemo, useReducer } from 'react';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
-import { ApiClientError } from '@nocobase/app-client';
+import { ApiClientError, useToaster } from '@nocobase/app-client';
 import { offeredActions } from '@nocobase/app-plugin-approval/client';
 import {
   Link,
@@ -13,7 +13,7 @@ import {
   useParams,
   useNavigate,
 } from 'react-router';
-import { RefreshCw } from 'lucide-react';
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
 
 import { RecordDetailDrawer } from '#components/record-detail-drawer';
 import { Button } from '#components/ui/button';
@@ -51,6 +51,7 @@ export default function ProbationDetailPage() {
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const toaster = useToaster();
   const parent = useOutletContext<SourceContext>();
   const { session } = useAuthentication();
   const resource = useResource<ProbationDetail>(
@@ -69,6 +70,10 @@ export default function ProbationDetailPage() {
       resource.error instanceof ApiClientError &&
       resource.error.status === 404
     ) {
+      toaster.show({
+        type: 'error',
+        title: t('probationRequests.errors.notFound'),
+      });
       parent?.reload();
       void Promise.resolve(
         navigate(
@@ -77,7 +82,7 @@ export default function ProbationDetailPage() {
         ),
       ).then(() => parent?.focusList?.());
     }
-  }, [resource.error, parent, navigate, location.search]);
+  }, [resource.error, parent, navigate, location.search, toaster, t]);
   const context = useMemo<DetailContext | undefined>(
     () =>
       data
@@ -188,28 +193,15 @@ export default function ProbationDetailPage() {
           </TooltipContent>
         </Tooltip>
       ))}
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant='outline'
-              size='icon'
-              aria-label={t('probationRequests.refresh')}
-              disabled={resource.loading}
-              onClick={() => {
-                reloadDetail();
-                refreshBank();
-                grades.reload();
-              }}
-            />
-          }
-        >
-          <RefreshCw
-            className={resource.loading ? 'animate-spin' : undefined}
-          />
-        </TooltipTrigger>
-        <TooltipContent>{t('probationRequests.refresh')}</TooltipContent>
-      </Tooltip>
+      <ApplicationRefreshButton
+        label={t('probationRequests.refresh')}
+        loading={resource.loading}
+        onClick={() => {
+          reloadDetail();
+          refreshBank();
+          grades.reload();
+        }}
+      />
     </div>
   );
   async function navigateAction(action: string, target: string) {
@@ -233,7 +225,7 @@ export default function ProbationDetailPage() {
       description={t('probationRequests.description')}
       footer={actions}
     >
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         {resource.error ? (
           <ErrorState error={resource.error} retry={resource.reload} />
         ) : null}

@@ -100,7 +100,7 @@ function TallyBar({ tally }: { readonly tally: ApprovalTally }): ReactElement {
   const answered = tally.counts.reduce((sum, each) => sum + each.count, 0);
   const total = Math.max(tally.total, answered, 1);
   return (
-    <div className='space-y-1.5'>
+    <div className='flex flex-col gap-1.5'>
       <div
         role='img'
         aria-label={t('approvalUi.progress.tally.answered', {
@@ -197,7 +197,7 @@ export function ApprovalProgress({
   const ui = useApprovalUi();
   if (!steps.length)
     return (
-      <div className={cn('space-y-3', className)}>
+      <div className={cn('flex flex-col gap-3', className)}>
         {notice}
         <p className='text-sm text-muted-foreground'>
           {t('approvalUi.progress.empty', {
@@ -207,7 +207,7 @@ export function ApprovalProgress({
       </div>
     );
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn('flex flex-col gap-4', className)}>
       {notice}
       <ol>
         {steps.map((step, index) => (
@@ -235,7 +235,7 @@ export function ApprovalProgress({
             >
               {STEP_ICONS[step.state]}
             </span>
-            <div className='min-w-0 flex-1 space-y-2'>
+            <div className='min-w-0 flex-1 flex flex-col gap-2'>
               <div className='flex flex-wrap items-baseline gap-x-2 gap-y-0.5'>
                 <span
                   className={cn(
@@ -273,7 +273,7 @@ export function ApprovalProgress({
               ) : null}
               {step.tally ? <TallyBar tally={step.tally} /> : null}
               {step.tasks.length ? (
-                <ul className='space-y-1.5'>
+                <ul className='flex flex-col gap-1.5'>
                   {step.tasks.map((task) => (
                     <TaskLine key={task.key} task={task} />
                   ))}

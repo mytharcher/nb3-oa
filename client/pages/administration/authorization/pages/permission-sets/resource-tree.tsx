@@ -36,7 +36,7 @@ export function ResourceTypeList({
     ),
   };
   return (
-    <nav aria-label={label} className='space-y-1 p-2'>
+    <nav aria-label={label} className='flex flex-col gap-1 p-2'>
       {entries.map((item, index) => (
         <Fragment key={item.value}>
           {item.section !== entries[index - 1]?.section && (

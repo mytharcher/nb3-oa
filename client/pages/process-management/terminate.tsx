@@ -12,6 +12,7 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from '#components/ui/alert-dialog';
+import { Spinner } from '#components/ui/spinner';
 import { Button } from '#components/ui/button';
 import { Textarea } from '#components/ui/textarea';
 import { Label } from '#components/ui/label';
@@ -215,6 +216,11 @@ export function TerminateProcess() {
             )}
           </form>
           <AlertDialogFooter>
+            {error && version === undefined && !busy ? (
+              <Button variant='outline' onClick={() => void prepare()}>
+                {t('processManagement.retry')}
+              </Button>
+            ) : null}
             <AlertDialogCancel disabled={busy}>
               {t('processManagement.cancel')}
             </AlertDialogCancel>
@@ -224,9 +230,8 @@ export function TerminateProcess() {
               form={`${id}-form`}
               disabled={busy || version === undefined}
             >
-              {busy
-                ? t('processManagement.loading')
-                : t('processManagement.terminate')}
+              {busy ? <Spinner data-icon='inline-start' /> : null}
+              {t('processManagement.terminate')}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

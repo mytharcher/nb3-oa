@@ -11,7 +11,7 @@ const policy = (action: string) => ({
 const transferRoutes: AppClientRouteDefinition[] = [
   {
     name: 'oa-transfer',
-    parent: 'oa-organization',
+    parent: 'oa-hr',
     path: '/personnel-changes',
     auth: 'required',
     authz: policy('view'),

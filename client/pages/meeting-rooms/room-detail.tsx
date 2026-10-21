@@ -1,3 +1,4 @@
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { useState } from 'react';
 import { format, addDays } from 'date-fns';
 import {
@@ -8,7 +9,7 @@ import {
   useParams,
 } from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
-import { RefreshCw, Pencil, Plus } from 'lucide-react';
+import { Pencil, Plus } from 'lucide-react';
 import { RecordDetailDrawer } from '#components/record-detail-drawer';
 
 import { DatePicker } from '#components/date-picker';
@@ -92,15 +93,11 @@ export default function RoomDetail() {
               {t('meetingRooms.actions.edit')}
             </Button>
           ) : null}
-          <Button
-            variant='outline'
-            size='icon'
-            aria-label={t('meetingRooms.refresh')}
-            disabled={r.loading || a.loading || busy.loading}
+          <ApplicationRefreshButton
+            label={t('meetingRooms.refresh')}
+            loading={r.loading || a.loading || busy.loading}
             onClick={refresh}
-          >
-            <RefreshCw />
-          </Button>
+          />
         </>
       }
       closeTo={link('..')}

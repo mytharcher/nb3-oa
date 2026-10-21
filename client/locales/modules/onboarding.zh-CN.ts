@@ -1,5 +1,22 @@
 export default {
   onboarding: {
+    noPeople: '没有匹配的员工',
+    loadLatest: '读取最新记录',
+    actionChanged: '此操作已不可用。已保留输入，请关闭表单并查看最新记录。',
+
+    confirmAction: '确认',
+    noMatches: '没有符合筛选条件的入职记录',
+
+    directoryCap: '仅显示前 100 条结果，请缩小搜索范围。',
+    organizationLabel: '{{department}} / {{position}} / {{grade}}',
+    historicalPersonUnavailable: '历史人员资料不可用',
+    allocationLabel:
+      '{{department}} / {{position}} / {{grade}} / {{year}} · 剩余 {{count}} 人',
+    namedAction: '{{action}}“{{name}}”？',
+    completedAction: '已为“{{name}}”完成{{action}}',
+    createAction: '创建',
+    created: '已为“{{name}}”创建入职',
+
     businessErrors: {
       ONBOARDING_SOURCE_INVALID:
         '入职来源或员工资料已不符合条件，请刷新并核对来源、人员身份及必填资料。',
@@ -24,7 +41,7 @@ export default {
       claim: '认领任务',
       release: '释放任务',
       transfer: '转办任务',
-      reassignMentor: '重新指定部门负责人',
+      reassignMentor: '重新指定导师',
       complete: '完成任务',
       forceComplete: '强制完成任务',
       queued: '超期提醒已入队',
@@ -97,7 +114,7 @@ export default {
     },
     actions: {
       claim: '认领',
-      reassignMentor: '重新指定部门负责人',
+      reassignMentor: '重新指定导师',
       transfer: '转办',
       release: '释放',
       complete: '完成办理',
@@ -117,12 +134,12 @@ export default {
       password: '初始密码',
       code: '员工编号',
       hireDate: '入职日期',
-      careerStartDate: '参加工作日期（选填）',
+      careerStartDate: '参加工作日期',
       probationEndDate: '试用期结束日期',
       baseSalary: '基本工资',
       reason: '创建原因',
       requisitionId: '招聘单',
-      managerId: '直属上级（选填）',
+      managerId: '直属上级',
       accountId: '创建账号',
       deviceReference: '设备编号',
       workstationRequirement: '工位需求',

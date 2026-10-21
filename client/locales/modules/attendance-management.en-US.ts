@@ -1,5 +1,9 @@
 export default {
   attendanceManagement: {
+    savedSchedule: 'Saved schedule for "{{department}}" on {{date}}',
+    savedShift: 'Saved shift "{{name}}"',
+
+    editAction: 'Edit',
     errors: {
       NOT_FOUND: 'This shift no longer exists.',
       ACCESS_DENIED: 'You do not have access to this attendance configuration.',

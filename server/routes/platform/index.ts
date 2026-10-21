@@ -53,6 +53,7 @@ import {
   CalendarImportResultSchema,
   CreateDictionaryEntryInput,
   CreateRuleVersionInput,
+  CreateRuleVersionsInput,
   DictionaryEntriesQuery,
   DictionaryEntryParams,
   DictionaryEntrySchema,
@@ -479,6 +480,69 @@ export const platformApiRoutes: AppApiRouteContribution<Application> =
           data: versions.map((version) => ruleVersionView(version, names)),
           meta: { total: versions.length },
         });
+      },
+    );
+    approvalRules.post(
+      '/versions',
+      describeRoute({
+        tags: ['ApprovalRules'],
+        summary: 'Add versions of several approval rules at once',
+        operationId: 'createApprovalRuleVersions',
+        description:
+          'One version per key, all sharing `effectiveFrom` and `note`, in one transaction: either every version is ' +
+          'added or none is. Orderings between the keys are checked against the combined result. Needs the update ' +
+          "permission of every key's settings. Audited per key.",
+        responses: {
+          '201': listResponse(RuleVersionSchema, totalMeta),
+          ...apiErrorResponses,
+          '400': apiErrorResponse(
+            400,
+            'A value is invalid or breaks an ordering; `metadata.key` names the key.',
+          ),
+          '404': apiErrorResponse(
+            404,
+            'A key is not defined (`RULE_UNKNOWN`).',
+          ),
+          '409': apiErrorResponse(
+            409,
+            'A key repeats or already has a version at that instant (`RULE_VERSION_EXISTS`).',
+          ),
+        },
+      }),
+      apiValidator('json', CreateRuleVersionsInput),
+      async (context) => {
+        const input = context.req.valid('json');
+        const authz = context.get('authz');
+        for (const id of new Set(
+          input.changes.map((change) => ruleSettingOf(change.key)),
+        ))
+          await authz.require({
+            resource: { type: 'settings', id },
+            action: 'update',
+          });
+        const actorId = actorOf(context);
+        const effectiveFrom = input.effectiveFrom
+          ? new Date(input.effectiveFrom)
+          : undefined;
+        const versions = await rules.setMany(
+          input.changes.map((change) => ({
+            key: change.key,
+            value: change.value,
+            ...(effectiveFrom ? { effectiveFrom } : {}),
+            note: input.note ?? null,
+            actorId,
+          })),
+        );
+        const names = await actorNames(
+          versions.map((version) => version.updatedBy),
+        );
+        return context.json(
+          {
+            data: versions.map((version) => ruleVersionView(version, names)),
+            meta: { total: versions.length },
+          },
+          201,
+        );
       },
     );
     approvalRules.post(

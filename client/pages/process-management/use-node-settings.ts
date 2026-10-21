@@ -40,6 +40,8 @@ export function useNodeSettings(kind: string, definitionAvailable: boolean) {
     canManageVendor ? 'vendorQualifications/configuration' : null,
   );
   return {
+    /** Whether the read permission is still being resolved, so "cannot read" is not final yet. */
+    rulesPending: read.isPending,
     canReadRules,
     canUpdateRules,
     canManageVendor,

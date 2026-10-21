@@ -1,5 +1,6 @@
 export default {
   paymentRequests: {
+    relatedUnavailable: 'Related record unavailable',
     businessErrors: {
       PAYMENT_REQUEST_INVALID_INPUT:
         'Complete the reason, payee, positive amount, invoice number and invoice evidence.',

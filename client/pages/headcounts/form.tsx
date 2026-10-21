@@ -4,7 +4,7 @@ import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useAuthorizationRevision } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { DepartmentPicker } from '#components/department-picker';
 import { Button } from '#components/ui/button';
@@ -83,7 +83,7 @@ function Form() {
   }, [latest.error, parentReload]);
   const [formReady, setFormReady] = useState(false);
   return (
-    <RouteDialog
+    <RouteDrawer
       title={t(
         mode === 'create'
           ? 'headcounts.create'
@@ -91,7 +91,7 @@ function Form() {
             ? 'headcounts.reconcile'
             : 'headcounts.adjust',
       )}
-      className={mode === 'adjust' ? 'sm:max-w-md' : 'sm:max-w-2xl'}
+      className={mode === 'adjust' ? 'sm:max-w-2xl' : 'sm:max-w-2xl'}
       beforeClose={guard.beforeClose}
       footer={
         <Footer
@@ -139,7 +139,7 @@ function Form() {
         />
       )}
       {dirty ? <Discard guard={guard} /> : null}
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 function Footer({

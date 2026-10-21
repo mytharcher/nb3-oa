@@ -3,7 +3,7 @@ export default {
     create: 'Create probation draft',
     edit: 'Edit self-evaluation',
     save: 'Save draft',
-    saved: 'Saved probation draft “{{name}}”',
+    saved: 'Saved probation draft "{{name}}"',
     draftName: '{{name}} — Draft',
     employee: 'Employee',
     selfEvaluation: 'Self-evaluation',

@@ -17,7 +17,7 @@ import base from '../../../client/locales/en-US.js';
 import copy from '../../../client/locales/modules/probation.en-US.js';
 import Detail from '../../../client/pages/probation-requests/detail.js';
 import { calendarDateLabel } from '../../../client/pages/probation-requests/types.js';
-const { resource, grades, offers, parent } = vi.hoisted(() => ({
+const { resource, grades, offers, parent, showToast } = vi.hoisted(() => ({
   resource: {
     data: {
       record: {
@@ -72,6 +72,11 @@ const { resource, grades, offers, parent } = vi.hoisted(() => ({
     { key: 'cc', name: 'cc', target: { runId: 'native-run' } },
   ],
   parent: { reload: vi.fn(), focusList: vi.fn() },
+  showToast: vi.fn(),
+}));
+vi.mock('@nocobase/app-client', async (original) => ({
+  ...(await original<typeof import('@nocobase/app-client')>()),
+  useToaster: () => ({ show: showToast }),
 }));
 vi.mock('../../../client/pages/approvals/use-resource.js', () => ({
   useResource: (path: string) =>
@@ -222,6 +227,12 @@ it('returns a missing record to its source tab with search retained and refreshe
   );
   expect(router.state.location.search).toBe('?search=assessment');
   expect(parent.reload).toHaveBeenCalled();
+  expect(showToast).toHaveBeenCalledWith(
+    expect.objectContaining({
+      type: 'error',
+      title: copy.probationRequests.errors.notFound,
+    }),
+  );
 });
 it('formats a company calendar date without shifting it to the browser timezone', () => {
   expect(calendarDateLabel('2026-11-01', 'en-US')).toBe('Nov 1, 2026');

@@ -1,3 +1,4 @@
+import { CompactEmpty } from '../employees/detail/compact-empty.js';
 import { Copy } from 'lucide-react';
 import { useToaster } from '@nocobase/app-client';
 import { Fragment, useEffect, useMemo } from 'react';
@@ -17,6 +18,11 @@ import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { DataTableServer, DataTableColumnHeader } from '#components/data-table';
 import { TruncatedText } from '#components/truncated-text';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '#components/ui/tooltip';
 import { Button } from '#components/ui/button';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import { useResource } from './resource.js';
@@ -93,7 +99,7 @@ export default function HeadcountDetail() {
       }
       toaster.show({ type: 'success', title: t('headcounts.idCopied') });
     } catch {
-      toaster.show({ type: 'error', title: t('home.prompt.copyFailed') });
+      toaster.show({ type: 'error', title: t('headcounts.copyFailed') });
     }
   }
   const name = r.data ? accountName(r.data.data) : t('headcounts.view');
@@ -181,8 +187,6 @@ export default function HeadcountDetail() {
   ];
   const fields = [
     'year',
-    'id',
-    'version',
     'limit',
     'used',
     'pending',
@@ -251,41 +255,52 @@ export default function HeadcountDetail() {
                     {t(`headcounts.fields.${key}`)}
                   </dt>
                   <dd className='min-w-0 break-words whitespace-pre-wrap'>
-                    {key === 'id' ? (
-                      <span className='inline-flex max-w-full items-center gap-2'>
-                        <span className='min-w-0 break-all'>
-                          {r.data!.data.id}
-                        </span>
-                        <Button
-                          type='button'
-                          variant='ghost'
-                          size='icon-sm'
-                          aria-label={t('home.prompt.copy')}
-                          onClick={() => void copyId(r.data!.data.id)}
-                        >
-                          <Copy />
-                        </Button>
-                      </span>
-                    ) : key === 'updatedAt' ? (
-                      new Intl.DateTimeFormat(i18n.language, {
-                        dateStyle: 'medium',
-                        timeStyle: 'short',
-                      }).format(new Date(r.data!.data[key]))
-                    ) : key === 'year' ? (
-                      String(r.data!.data.year)
-                    ) : key === 'available' && !r.data!.data.initialized ? (
-                      t('headcounts.uninitialized')
-                    ) : typeof r.data!.data[key] === 'number' ? (
-                      new Intl.NumberFormat(i18n.language).format(
-                        Number(r.data!.data[key]),
-                      )
-                    ) : (
-                      r.data!.data[key] || '—'
-                    )}
+                    {key === 'updatedAt'
+                      ? new Intl.DateTimeFormat(i18n.language, {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        }).format(new Date(r.data!.data[key]))
+                      : key === 'year'
+                        ? String(r.data!.data.year)
+                        : key === 'available' && !r.data!.data.initialized
+                          ? t('headcounts.uninitialized')
+                          : typeof r.data!.data[key] === 'number'
+                            ? new Intl.NumberFormat(i18n.language).format(
+                                Number(r.data!.data[key]),
+                              )
+                            : r.data!.data[key] || '—'}
                   </dd>
                 </Fragment>
               ))}
             </dl>
+            <details className='text-sm'>
+              <summary className='cursor-pointer text-muted-foreground'>
+                {t('headcounts.technicalDetails')}
+              </summary>
+              <dl className='mt-3 grid gap-3 sm:grid-cols-[8rem_1fr]'>
+                <dt>{t('headcounts.fields.id')}</dt>
+                <dd className='flex items-center gap-2 break-all'>
+                  {r.data.data.id}
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant='ghost'
+                          size='icon-sm'
+                          aria-label={t('headcounts.copyId')}
+                          onClick={() => void copyId(r.data!.data.id)}
+                        />
+                      }
+                    >
+                      <Copy />
+                    </TooltipTrigger>
+                    <TooltipContent>{t('headcounts.copyId')}</TooltipContent>
+                  </Tooltip>
+                </dd>
+                <dt>{t('headcounts.fields.version')}</dt>
+                <dd>{r.data.data.version}</dd>
+              </dl>
+            </details>
           </>
         ) : null}
         {r.data && !r.data.data.initialized ? (
@@ -332,7 +347,7 @@ export default function HeadcountDetail() {
                 return n;
               })
             }
-            emptyMessage={t('headcounts.noJournal')}
+            emptyMessage={<CompactEmpty title={t('headcounts.noJournal')} />}
           />
         ) : null}
         <Outlet context={context} />

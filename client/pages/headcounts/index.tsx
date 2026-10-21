@@ -13,6 +13,7 @@ import { DepartmentPicker } from '#components/department-picker';
 import { TruncatedText } from '#components/truncated-text';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
+import { useUrlSearch } from '#hooks/use-url-search';
 import { Badge } from '#components/ui/badge';
 import {
   DropdownMenu,
@@ -33,6 +34,7 @@ export default function HeadcountsPage() {
   const { t, i18n } = useTranslation(),
     location = useLocation(),
     [params, setParams] = useSearchParams();
+  const yearSearch = useUrlSearch({ param: 'year', resetParams: ['page'] });
   const grant = useCan({ resource, action: 'manage' }),
     manage = grant.can && !grant.isPending && !grant.error;
   const page = Math.max(1, Math.floor(Number(params.get('page')) || 1)),
@@ -92,7 +94,7 @@ export default function HeadcountsPage() {
       header: t('headcounts.account'),
       cell: ({ row }) => (
         <Link
-          className='underline'
+          className='font-medium hover:underline'
           to={{ pathname: row.original.id, search: location.search }}
         >
           <TruncatedText text={accountName(row.original)} />
@@ -232,8 +234,7 @@ export default function HeadcountsPage() {
           className='w-full sm:w-40'
           aria-label={t('headcounts.fields.year')}
           placeholder={t('headcounts.fields.year')}
-          value={year}
-          onChange={(e) => change({ year: e.target.value, page: '1' })}
+          {...yearSearch.inputProps}
         />
         {filtered ? (
           <Button
@@ -254,7 +255,7 @@ export default function HeadcountsPage() {
         <ApplicationTableSkeleton columns={10} />
       ) : r.data ? (
         <DataTableServer
-          columns={columns}
+          columns={columns.filter((column) => column.id !== 'actions')}
           rows={r.data.data}
           total={r.data.meta.total}
           getRowId={(a) => a.id}

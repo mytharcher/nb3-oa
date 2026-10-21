@@ -28,7 +28,7 @@ export function KnowledgeDiscard({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {t('knowledge.discard')} — {name}
+            {t('knowledge.discardNamed', { name })}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {t('knowledge.discardDescription')}

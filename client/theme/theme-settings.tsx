@@ -53,7 +53,7 @@ export function ThemeSettings(): ReactElement {
           </PopoverTitle>
         </div>
 
-        <fieldset className='space-y-2'>
+        <fieldset className='flex flex-col gap-2'>
           <legend className='text-xs font-medium text-muted-foreground'>
             {t('appearance.mode', { defaultValue: 'Color mode' })}
           </legend>
@@ -89,7 +89,7 @@ export function ThemeSettings(): ReactElement {
           </RadioGroup>
         </fieldset>
 
-        <fieldset className='space-y-2'>
+        <fieldset className='flex flex-col gap-2'>
           <legend className='text-xs font-medium text-muted-foreground'>
             {t('appearance.preset', { defaultValue: 'Theme' })}
           </legend>

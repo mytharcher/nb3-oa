@@ -118,11 +118,11 @@ describe('finance assignment views', () => {
   it('reports required fields and focuses the first invalid input', async () => {
     show('/financeAssignments/new');
     const user = userEvent.setup();
-    await screen.findByRole('button', { name: 'Save' });
+    await screen.findByRole('button', { name: 'Create' });
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled(),
+      expect(screen.getByRole('button', { name: 'Create' })).toBeEnabled(),
     );
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(screen.getByRole('button', { name: 'Create' }));
     expect(await screen.findAllByText('This field is required.')).toHaveLength(
       3,
     );
@@ -165,14 +165,14 @@ describe('finance assignment views', () => {
     });
     show('/financeAssignments/edit/f1');
     const user = userEvent.setup();
-    await screen.findByLabelText('Reason');
-    await user.type(screen.getByLabelText('Reason'), 'Reviewed change');
+    await screen.findByLabelText(/^Reason/);
+    await user.type(screen.getByLabelText(/^Reason/), 'Reviewed change');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await user.click(
       await screen.findByRole('button', { name: 'Load latest assignment' }),
     );
     await screen.findByText(/Latest: Latest Alice/);
-    expect(screen.getByLabelText('Reason')).toHaveValue('Reviewed change');
+    expect(screen.getByLabelText(/^Reason/)).toHaveValue('Reviewed change');
     await user.click(
       screen.getByRole('button', { name: 'Use this version with my changes' }),
     );
@@ -219,18 +219,18 @@ describe('finance assignment views', () => {
     });
     show('/financeAssignments/new');
     const user = userEvent.setup();
-    const dept = await screen.findByLabelText('Department', {
+    const dept = await screen.findByLabelText(/^Department/, {
       selector: '#finance-form-department',
     });
     await user.click(dept);
     await user.type(dept, 'Finance HQ');
     await user.click(await screen.findByRole('option', { name: /Finance HQ/ }));
-    const accountant = screen.getByLabelText('Accountant');
+    const accountant = screen.getByLabelText(/^Accountant/);
     await user.click(accountant);
     await user.type(accountant, 'Alice');
     await user.click(await screen.findByRole('option', { name: 'Alice' }));
-    await user.type(screen.getByLabelText('Reason'), 'Configure');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.type(screen.getByLabelText(/^Reason/), 'Configure');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
     await screen.findByText(/The creation result is uncertain/);
     await user.clear(dept);
     await user.type(dept, 'Other department');
@@ -240,7 +240,13 @@ describe('finance assignment views', () => {
     await user.click(
       screen.getByRole('button', { name: 'Check department assignment' }),
     );
-    await screen.findByRole('link', { name: 'Open existing assignment' });
+    const existing = await screen.findByRole('button', {
+      name: 'Open existing assignment',
+    });
+    expect(existing).toHaveAttribute(
+      'href',
+      `/financeAssignments/${assignment.id}`,
+    );
     expect(api.request).toHaveBeenCalledWith(
       expect.objectContaining({
         path: 'financeAssignments',
@@ -251,4 +257,33 @@ describe('finance assignment views', () => {
       api.request.mock.calls.filter(([r]) => r.method === 'POST'),
     ).toHaveLength(1);
   });
+});
+
+it('retries a failed assignment save with preserved inputs and reports the saved accountant', async () => {
+  let writes = 0;
+  api.request.mockImplementation((request: Request) => {
+    if (request.method) {
+      writes++;
+      return writes === 1
+        ? Promise.reject(new Error('Temporary failure'))
+        : Promise.resolve({ data: assignment });
+    }
+    return reads(request);
+  });
+  show('/financeAssignments/edit/f1');
+  const user = userEvent.setup();
+  await user.type(await screen.findByLabelText(/^Reason/), 'Retry this change');
+  await user.click(screen.getByRole('button', { name: 'Save' }));
+  await screen.findByText(
+    'The assignment could not be saved. Retry after checking the input.',
+  );
+  expect(screen.getByLabelText(/^Reason/)).toHaveValue('Retry this change');
+  await user.click(screen.getByRole('button', { name: 'Retry' }));
+  await waitFor(() => expect(writes).toBe(2));
+  expect(toaster.show).toHaveBeenCalledWith({
+    type: 'success',
+    title: 'Saved accountant assignment for "Alice"',
+  });
+  const attempts = api.request.mock.calls.filter(([request]) => request.method);
+  expect(attempts[0][0].json).toEqual(attempts[1][0].json);
 });

@@ -24,7 +24,7 @@ export default {
       description:
         'Default data scope expands the baseline record scope for users with the relevant action permission. It does not grant action or field permissions; sharing and restriction rules also apply.',
     },
-    search: 'Search rules',
+    search: 'Search by resource name or key',
     create: 'Set default access',
     recordAccessHeader: 'Default record access',
     allowedActions: 'Allowed actions',
@@ -43,7 +43,7 @@ export default {
     accessDescription: 'Set the record scope independently for each action.',
     deleteRule: 'Delete rule',
     save: 'Save default access',
-    confirmDeleteTitle: 'Remove this default configuration?',
+    confirmDeleteTitle: 'Remove defaults for "{{resource}}"?',
     confirmDeleteBody:
       'Delete the default access rule for “{{resource}}”. Remaining permission sets and rules determine access.',
   },

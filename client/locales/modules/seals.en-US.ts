@@ -1,5 +1,14 @@
 export default {
   seals: {
+    registrationSource: 'Registration for request {{number}}',
+    relatedUnavailable: 'Related record unavailable',
+    copiesRange: 'Enter a whole number from 1 to {{max}}.',
+    actionSaved: '{{action}} completed for seal request "{{name}}"',
+    requestSaved: 'Saved seal request "{{name}}"',
+
+    noLongerEditable:
+      'This request can no longer be edited. Close it and refresh the list.',
+
     businessErrors: {
       REVIEWER_REQUIRED:
         'The actual assigned reviewer must retain the required active duty role.',

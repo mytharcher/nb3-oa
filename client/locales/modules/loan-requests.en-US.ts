@@ -1,5 +1,17 @@
 export default {
   loanRequests: {
+    relatedUnavailable: 'Related record unavailable',
+    rowActions: 'Actions for {{name}}',
+    description: 'Manage loan requests, payments and repayments.',
+
+    saved: 'Saved loan request "{{name}}"',
+    submitted: 'Submitted loan request "{{name}}"',
+    cashRecorded: 'Recorded cash repayment for "{{name}}"',
+    repaymentConfirmed: 'Confirmed repayment "{{receipt}}"',
+    repaymentCancelled: 'Cancelled repayment "{{receipt}}"',
+    confirmRepaymentTitle: 'Confirm repayment "{{receipt}}"?',
+    cancelRepaymentTitle: 'Cancel repayment "{{receipt}}"?',
+
     businessErrors: {
       LOAN_REQUEST_DEPARTMENT_REQUIRED:
         'The applicant needs an active primary department. Ask HR to update the employee record.',
@@ -15,7 +27,7 @@ export default {
 
     loadLatest: 'Load latest facts',
     latestFacts:
-      'Version {{version}} · {{amount}} CNY · due {{date}} · purpose: {{reason}}',
+      'Version {{version}} · {{amount}} yuan · due {{date}} · purpose: {{reason}}',
     adoptVersion: 'Keep my input and use this version',
     noLongerEditable: 'This request can no longer be edited.',
     invalidDate: 'Choose a current or future company calendar date.',
@@ -58,9 +70,9 @@ export default {
     confirmReason: 'Borrower confirmed cash repayment',
     cancelReason: 'Cashier cancelled pending cash receipt',
     confirmCashWarning:
-      'Confirm receipt {{receipt}} for {{amount}} CNY. This reduces your debt and cannot be undone.',
+      'Confirm receipt {{receipt}} for {{amount}} yuan. This reduces your debt and cannot be undone.',
     cancelCashWarning:
-      'Cancel receipt {{receipt}} for {{amount}} CNY. Your outstanding debt remains unchanged.',
+      'Cancel receipt {{receipt}} for {{amount}} yuan. Your outstanding debt remains unchanged.',
     cashRestricted: 'Only a cashier can record repayments on a paid loan.',
     repaymentStates: {
       pending: 'Pending confirmation',
@@ -68,10 +80,10 @@ export default {
       cancelled: 'Cancelled',
     },
     department: 'Department',
-    yuan: 'CNY',
-    inflight: 'Reserved against the loan limit: {{amount}} CNY',
+    yuan: 'yuan',
+    inflight: 'Reserved against the loan limit: {{amount}} yuan',
     quotaFact:
-      'Submission facts: debt {{debt}}, other applications {{inflight}}, total including this request {{total}} CNY.',
+      'Submission facts: debt {{debt}}, other applications {{inflight}}, total including this request {{total}} yuan.',
     principal: 'Original principal',
     repaid: 'Repaid',
     outstanding: 'Outstanding debt',
@@ -94,8 +106,7 @@ export default {
     view: 'Work list',
     filteredEmpty: 'No matching loan requests',
     empty: 'No loan requests',
-    emptyHint:
-      'Approved requests become debt only after the cashier completes payment.',
+    emptyHint: 'Create a loan request to fund approved business needs.',
     clear: 'Clear filters',
     states: {
       draft: 'Draft',
@@ -149,7 +160,7 @@ export default {
     title: 'Loan requests',
     new: 'New loan request',
     reason: 'Loan purpose',
-    amount: 'Amount',
+    amount: 'Loan amount (yuan)',
     dueDate: 'Repayment date',
     travel: 'Linked travel request',
     status: 'Status',

@@ -1,3 +1,4 @@
+import { useDrawerFormGuard } from '#hooks/use-drawer-form-guard';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -7,7 +8,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
 
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { SessionExpiredAlert } from '#components/session-expired-alert';
 import { Alert, AlertAction, AlertDescription } from '#components/ui/alert';
 import { Button } from '#components/ui/button';
@@ -94,6 +95,11 @@ function CatalogForm({
     },
   });
 
+  const drawerGuard = useDrawerFormGuard(
+    form.formState.isDirty,
+    form.formState.isSubmitting,
+  );
+
   const onSubmit = form.handleSubmit(async (values) => {
     const json: Record<string, unknown> = {
       code: values.code,
@@ -142,6 +148,7 @@ function CatalogForm({
         ? t(`org.${kind}.saved`, { name: saved.title })
         : t(`org.${kind}.created`, { name: saved.title }),
     });
+    drawerGuard.markSaved();
     onSubmitted(saved);
   });
 
@@ -149,6 +156,7 @@ function CatalogForm({
 
   return (
     <form id={formId} noValidate onSubmit={(event) => void onSubmit(event)}>
+      {drawerGuard.confirmation}
       <FieldGroup>
         {rootError?.type === 'sessionExpired' ? (
           <SessionExpiredAlert />
@@ -245,10 +253,10 @@ export function CatalogCreateDialog({
   };
   const formId = `org-${kind}-new-form`;
   return (
-    <RouteDialog
+    <RouteDrawer
       title={t(`org.${kind}.create`)}
       description={t(`org.${kind}.formDescription`)}
-      className='sm:max-w-md'
+      className='sm:max-w-2xl'
       beforeClose={() => !submittingRef.current}
       footer={
         <FormDialogFooter
@@ -263,7 +271,7 @@ export function CatalogCreateDialog({
         formId={formId}
         onSubmittingChange={handleSubmittingChange}
       />
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 
@@ -413,15 +421,15 @@ function CatalogEdit({
   }
 
   return (
-    <RouteDialog
+    <RouteDrawer
       title={t(`org.${kind}.editTitle`)}
       description={t(`org.${kind}.formDescription`)}
-      className='sm:max-w-md'
+      className='sm:max-w-2xl'
       beforeClose={() => !submittingRef.current}
       footer={footer}
     >
       {body}
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 

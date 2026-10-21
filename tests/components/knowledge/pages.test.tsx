@@ -268,15 +268,15 @@ it('retains uploaded bytes and the command key after publish fails, then retries
   );
   const router = mount();
   await userEvent.type(
-    await screen.findByRole('textbox', { name: 'Title *' }),
+    await screen.findByRole('textbox', { name: /^Title/ }),
     'New guide',
   );
   await userEvent.click(
-    screen.getByRole('combobox', { name: 'Content type *' }),
+    screen.getByRole('combobox', { name: /^Content type/ }),
   );
   await userEvent.click(await screen.findByRole('option', { name: 'File' }));
   await userEvent.upload(
-    screen.getByLabelText('Source file *'),
+    screen.getByLabelText(/^Source file/),
     new File(['hello'], 'manual.txt', { type: 'text/plain' }),
   );
   await userEvent.click(screen.getByRole('button', { name: 'Upload file' }));
@@ -319,7 +319,7 @@ it('clears pending draft on same actor permission revision and ignores a late su
     },
   );
   const router = mount('/knowledge/doc-1/edit');
-  const title = await screen.findByRole('textbox', { name: 'Title *' });
+  const title = await screen.findByRole('textbox', { name: /^Title/ });
   await userEvent.clear(title);
   await userEvent.type(title, 'Private unsaved title');
   await userEvent.click(
@@ -388,10 +388,10 @@ it('blocks publishing the old file when a replacement is selected but not upload
     path === 'knowledge/formOptions' ? { data: options } : { data: fileDetail },
   );
   mount('/knowledge/doc-1/edit');
-  await screen.findByRole('textbox', { name: 'Title *' });
+  await screen.findByRole('textbox', { name: /^Title/ });
   expect(screen.getByRole('button', { name: 'Publish version' })).toBeEnabled();
   await userEvent.upload(
-    screen.getByLabelText('Source file *'),
+    screen.getByLabelText(/^Source file/),
     new File(['replacement'], 'replacement.txt', { type: 'text/plain' }),
   );
   expect(
@@ -412,7 +412,7 @@ it('clears a draft and disables further submission when a write returns permissi
   );
   mount();
   await userEvent.type(
-    await screen.findByRole('textbox', { name: 'Title *' }),
+    await screen.findByRole('textbox', { name: /^Title/ }),
     'Private draft',
   );
   await userEvent.type(
@@ -490,15 +490,15 @@ it('clears upload and folder drafts when their current writes are denied', async
   );
   const router = mount();
   await userEvent.type(
-    await screen.findByRole('textbox', { name: 'Title *' }),
+    await screen.findByRole('textbox', { name: /^Title/ }),
     'Private upload draft',
   );
   await userEvent.click(
-    screen.getByRole('combobox', { name: 'Content type *' }),
+    screen.getByRole('combobox', { name: /^Content type/ }),
   );
   await userEvent.click(await screen.findByRole('option', { name: 'File' }));
   await userEvent.upload(
-    screen.getByLabelText('Source file *'),
+    screen.getByLabelText(/^Source file/),
     new File(['hello'], 'secret.txt', { type: 'text/plain' }),
   );
   await userEvent.click(screen.getByRole('button', { name: 'Upload file' }));
@@ -514,7 +514,7 @@ it('clears upload and folder drafts when their current writes are denied', async
   await act(async () => {
     await router.navigate('/knowledge/folders/one/edit');
   });
-  const title = await screen.findByRole('textbox', { name: 'Title *' });
+  const title = await screen.findByRole('textbox', { name: /^Title/ });
   await userEvent.clear(title);
   await userEvent.type(title, 'Private folder draft');
   await userEvent.click(screen.getByRole('button', { name: 'Save folder' }));
@@ -559,13 +559,13 @@ it('maps server folder field errors to the real first control and names dirty co
   ).toHaveAttribute('aria-invalid', 'true');
   expect(screen.queryByText('unsafe raw detail')).not.toBeInTheDocument();
   await userEvent.type(
-    screen.getByRole('textbox', { name: 'Title *' }),
+    screen.getByRole('textbox', { name: /^Title/ }),
     ' revised',
   );
   await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(
     await screen.findByRole('heading', {
-      name: 'Discard draft — Policy manuals',
+      name: 'Discard changes to "Policy manuals"?',
     }),
   ).toBeInTheDocument();
 });
@@ -597,13 +597,13 @@ it('focuses file and audience controls for whitelisted server errors without sho
     },
   );
   mount('/knowledge/doc-1/edit');
-  await screen.findByRole('textbox', { name: 'Title *' });
+  await screen.findByRole('textbox', { name: /^Title/ });
   await userEvent.click(
     screen.getByRole('button', { name: 'Publish version' }),
   );
   await screen.findByText('Check this field and try again.');
-  expect(screen.getByLabelText('Source file *')).toHaveFocus();
-  expect(screen.getByLabelText('Source file *')).toHaveAttribute(
+  expect(screen.getByLabelText(/^Source file/)).toHaveFocus();
+  expect(screen.getByLabelText(/^Source file/)).toHaveAttribute(
     'aria-invalid',
     'true',
   );

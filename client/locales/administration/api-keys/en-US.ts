@@ -4,6 +4,10 @@ const enUS = {
   'common.close': 'Close',
   nav: { apiKeys: 'API keys' },
   page: {
+    search: 'Search by key name',
+    retry: 'Retry',
+    clear: 'Clear filters',
+    noResults: 'No keys match your search.',
     loading: 'Loading',
     title: 'API keys',
     description:
@@ -24,7 +28,7 @@ const enUS = {
       expires: 'Expires',
       actions: 'Actions',
     },
-    actions: { revoke: 'Revoke key' },
+    actions: { revoke: 'Revoke', menu: 'Actions for "{{name}}"' },
   },
   form: {
     title: 'Create API key',
@@ -41,7 +45,7 @@ const enUS = {
       '365': 'In 1 year',
     },
     cancel: 'Cancel',
-    create: 'Create key',
+    create: 'Create',
   },
   reveal: {
     title: 'Copy your key now',
@@ -52,13 +56,18 @@ const enUS = {
     done: 'Done',
   },
   revoke: {
+    success: 'Revoked key "{{name}}"',
     title: 'Revoke key "{{name}}"?',
     description:
       'Requests using “{{name}}” will fail immediately. This cannot be undone.',
     cancel: 'Cancel',
-    confirm: 'Revoke key',
+    confirm: 'Revoke',
   },
   errors: {
+    forbidden: 'You can no longer view keys. Contact an administrator.',
+    notFound: 'API key management is unavailable. Return to the workbench.',
+    nameRequired: 'Enter a key name.',
+    copyFailed: 'Could not copy the key. Select it and copy manually.',
     loadFailed: 'Could not load your API keys.',
     createFailed: 'Could not create the API key.',
     revokeFailed: 'Could not revoke the API key.',

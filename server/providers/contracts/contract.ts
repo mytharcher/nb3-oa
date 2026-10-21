@@ -70,6 +70,12 @@ export interface ContractPaymentProof {
   forced: boolean;
 }
 export interface ContractLedgerService {
+  /** Optional display identities, scoped and restricted to id/number fields. */
+  names(
+    ids: readonly string[],
+    policy: RepositoryPolicy | undefined,
+    connection: DatabaseConnection,
+  ): Promise<Map<string, string>>;
   /** Ordinary ledger scope plus required fields; returns an explicit DTO without text or banking. */
   listForPayment(
     actorId: string,

@@ -1,3 +1,5 @@
+import { AuthorizationFormError } from '../../authorization/components/validation-error.js';
+import { useToaster } from '@nocobase/app-client';
 import { ResponsiveTable as Table } from '#components/responsive-table';
 import { selectionLabel } from '#pages/administration/authorization/management';
 import { humanize } from '#pages/administration/authorization/management';
@@ -80,6 +82,7 @@ export function RestrictionRulesPanel({
     [authz],
   );
   const t = useAuthorizationTranslation();
+  const toaster = useToaster();
   const [rules, setRules] = useState<readonly RestrictionRule[]>([]);
   const subjectNames = useSubjectNames(
     'restrictionRules',
@@ -170,9 +173,15 @@ export function RestrictionRulesPanel({
         draft.subjects.length === 0 ||
         draft.subjects.some((item) => !item.id)
       )
-        throw new TypeError(t('errors.completeRule'));
+        throw new AuthorizationFormError('errors.completeRule');
       if (originalKey) await authz.updateRestrictionRule(originalKey, draft);
       else await authz.createRestrictionRule(draft);
+      toaster.show({
+        type: 'success',
+        title: t('feedback.saved', {
+          name: titleText(draft?.title, t, humanize(originalKey ?? '')),
+        }),
+      });
       close();
       await load();
     } catch (cause) {
@@ -186,6 +195,13 @@ export function RestrictionRulesPanel({
     setBusy(true);
     try {
       await authz.deleteRestrictionRule(originalKey);
+      toaster.show({
+        type: 'success',
+        title: t('feedback.deleted', {
+          name: titleText(draft?.title, t, humanize(originalKey ?? '')),
+        }),
+      });
+      setConfirmDelete(false);
       close();
       await load();
     } catch (cause) {
@@ -200,23 +216,37 @@ export function RestrictionRulesPanel({
       {error ? <ErrorBox value={error} /> : null}
       <ManagementToolbar
         filters={
-          subsections.length > 1 ? (
-            <SelectField
-              aria-label={t('editors.resourceGroup')}
-              value={sectionKey}
-              onValueChange={(value) => {
-                setSectionKey(value);
-                setPage(1);
-              }}
-              options={[
-                { value: '', label: t('common.all') },
-                ...subsections.map((item) => ({
-                  value: item.value,
-                  label: item.label,
-                })),
-              ]}
-            />
-          ) : undefined
+          <>
+            {subsections.length > 1 ? (
+              <SelectField
+                aria-label={t('editors.resourceGroup')}
+                value={sectionKey}
+                onValueChange={(value) => {
+                  setSectionKey(value);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: t('common.all') },
+                  ...subsections.map((item) => ({
+                    value: item.value,
+                    label: item.label,
+                  })),
+                ]}
+              />
+            ) : undefined}
+            {search || sectionKey ? (
+              <Button
+                variant='ghost'
+                onClick={() => {
+                  setSearch('');
+                  setSectionKey('');
+                  setPage(1);
+                }}
+              >
+                {t('common.clearFilters')}
+              </Button>
+            ) : null}
+          </>
         }
         search={search}
         searchLabel={t('restrictionRules.search')}
@@ -234,14 +264,7 @@ export function RestrictionRulesPanel({
         </p>
       ) : null}
       <ManagementTable>
-        <Table className='min-w-[64rem] table-fixed'>
-          <colgroup>
-            <col className='w-[25%]' />
-            <col className='w-[12%]' />
-            <col className='w-[21%]' />
-            <col />
-            <col className='w-20' />
-          </colgroup>
+        <Table className='min-w-[64rem] table-auto'>
           <TableHeader className='bg-muted/30 uppercase'>
             <TableRow>
               <TableHead className='px-5 py-3 font-medium'>
@@ -265,7 +288,7 @@ export function RestrictionRulesPanel({
                 <TableCell className='px-5 py-4 align-top whitespace-normal break-words'>
                   <button
                     type='button'
-                    className='text-left font-medium text-primary hover:underline'
+                    className='text-left font-medium underline-offset-4 hover:underline'
                     onClick={() => edit(rule)}
                   >
                     {titleText(rule.title, t, humanize(rule.key))}
@@ -293,7 +316,7 @@ export function RestrictionRulesPanel({
                   </div>
                 </TableCell>
                 <TableCell className='px-5 py-4 align-top whitespace-normal break-words'>
-                  <div className='space-y-2 text-sm'>
+                  <div className='flex flex-col gap-2 text-sm'>
                     {[...new Set(rule.actions.map((item) => item.action))].map(
                       (action) => {
                         const entries = rule.actions.filter(
@@ -317,7 +340,9 @@ export function RestrictionRulesPanel({
                             )}
                             <div
                               className={
-                                grouped ? 'ml-1 space-y-1 border-l pl-3' : ''
+                                grouped
+                                  ? 'ml-1 flex flex-col gap-1 border-l pl-3'
+                                  : ''
                               }
                             >
                               {entries.map((item) => {
@@ -400,10 +425,13 @@ export function RestrictionRulesPanel({
       <ConfirmDialog
         confirmLabel={t('restrictionRules.deleteRule')}
         open={confirmDelete}
-        title={t('restrictionRules.confirmDeleteTitle')}
+        busy={busy}
+        error={error}
+        title={t('restrictionRules.confirmDeleteTitle', {
+          title: titleText(draft?.title, t, humanize(originalKey ?? '')),
+        })}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => {
-          setConfirmDelete(false);
           void remove();
         }}
       >
@@ -444,9 +472,9 @@ export function RestrictionRulesPanel({
           >
             {error ? <ErrorBox value={error} /> : null}
             <>
-              <section className='space-y-5'>
+              <section className='flex flex-col gap-5'>
                 <div>
-                  <h3 className='text-base font-semibold'>
+                  <h3 className='text-base font-medium'>
                     {t('restrictionRules.ruleHeading')}
                   </h3>
                   <p className='mt-1 text-sm text-muted-foreground'>
@@ -508,9 +536,9 @@ export function RestrictionRulesPanel({
               </section>
             </>
             <>
-              <section className='space-y-5'>
+              <section className='flex flex-col gap-5'>
                 <div>
-                  <h3 className='text-base font-semibold'>
+                  <h3 className='text-base font-medium'>
                     {t('restrictionRules.assignmentsHeading')}
                   </h3>
                   <p className='mt-1 text-sm text-muted-foreground'>
@@ -526,9 +554,9 @@ export function RestrictionRulesPanel({
               </section>
             </>
             <>
-              <section className='space-y-5'>
+              <section className='flex flex-col gap-5'>
                 <div>
-                  <h3 className='text-base font-semibold'>
+                  <h3 className='text-base font-medium'>
                     {t('restrictionRules.accessHeading')}
                   </h3>
                   <p className='mt-1 text-sm text-muted-foreground'>

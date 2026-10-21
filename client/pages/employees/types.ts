@@ -131,6 +131,10 @@ export interface EmployeesOutletContext {
 /** What the employee page passes to its tabs, and each tab on to the overlays over it. */
 export interface EmployeePageOutletContext {
   readonly employee: Employee;
+  /** Source records open over the current tab and refresh the archive after changes. */
+  readonly basePath?: string;
+  readonly reload?: () => void;
+  readonly onSourceChanged?: () => void;
   /** Shows the returned archive at once and refreshes the list behind (guideline R2). */
   readonly onSaved: (employee: Employee) => void;
   readonly onNotFound: () => void;

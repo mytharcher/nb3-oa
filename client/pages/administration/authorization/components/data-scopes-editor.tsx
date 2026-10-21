@@ -48,7 +48,11 @@ export function DataScopesEditor({
             {multiple && (
               <h3 className='mb-2 text-sm font-medium'>{actionLabel}</h3>
             )}
-            <div className={multiple ? 'ml-2 space-y-2 border-l pl-3' : ''}>
+            <div
+              className={
+                multiple ? 'ml-2 flex flex-col gap-2 border-l pl-3' : ''
+              }
+            >
               {targets.map((target) => {
                 const current = value.find(
                   (item) =>

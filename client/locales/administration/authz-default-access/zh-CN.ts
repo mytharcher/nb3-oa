@@ -23,7 +23,7 @@ export default {
       description:
         '为已有操作权限的用户提供基础记录范围，不授予操作或字段权限。实际访问范围还受共享规则和限制规则影响。',
     },
-    search: '搜索规则',
+    search: '按资源名称或标识搜索',
     create: '设置默认数据范围',
     recordAccessHeader: '默认记录访问',
     allowedActions: '允许的操作',
@@ -39,7 +39,7 @@ export default {
     accessDescription: '为每个操作分别设置记录范围。',
     deleteRule: '删除规则',
     save: '保存默认数据范围',
-    confirmDeleteTitle: '确定移除该默认配置吗？',
+    confirmDeleteTitle: '移除“{{resource}}”的默认配置？',
     confirmDeleteBody:
       '移除“{{resource}}”的默认配置。实际访问范围由剩余权限集和规则决定。',
   },

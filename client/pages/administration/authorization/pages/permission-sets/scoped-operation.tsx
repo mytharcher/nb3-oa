@@ -62,7 +62,7 @@ export function ScopedOperation({
       <Dialog.Portal container={container}>
         <Dialog.Popup className='absolute inset-y-0 right-0 z-30 flex w-full max-w-md flex-col overflow-hidden border-l bg-popover shadow-xl'>
           <header className='flex items-center justify-between border-b p-3'>
-            <Dialog.Title className='text-sm font-semibold'>
+            <Dialog.Title className='text-sm font-medium'>
               {item.label} · {action.label}
             </Dialog.Title>
             <Dialog.Close
@@ -72,8 +72,8 @@ export function ScopedOperation({
               <X className='size-4' />
             </Dialog.Close>
           </header>
-          <div className='min-h-0 flex-1 space-y-4 overflow-auto p-4'>
-            <fieldset className='space-y-3'>
+          <div className='min-h-0 flex-1 flex flex-col gap-4 overflow-auto p-4'>
+            <fieldset className='flex flex-col gap-3'>
               <legend className='sr-only'>
                 {item.label} · {action.label}
               </legend>
@@ -142,7 +142,10 @@ export function ScopedOperation({
                     },
                   });
                 return (
-                  <section key={field.key} className='space-y-2 text-sm'>
+                  <section
+                    key={field.key}
+                    className='flex flex-col gap-2 text-sm'
+                  >
                     {
                       <label className='flex cursor-pointer items-center gap-2'>
                         <input
@@ -165,7 +168,7 @@ export function ScopedOperation({
                       </p>
                     )}
                     {enabled && (
-                      <div className='space-y-2 pl-6'>
+                      <div className='flex flex-col gap-2 pl-6'>
                         <Select
                           disabled={disabled}
                           value={selected}

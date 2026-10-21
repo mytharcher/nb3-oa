@@ -162,7 +162,8 @@ function FormBody({
   const { t } = useTranslation(),
     { close } = useRouteOverlay(),
     parent = useOutletContext<Context>(),
-    toaster = useToaster();
+    toaster = useToaster(),
+    { session } = useAuthentication();
   const r = useCertificateResource<{ data: Detail }>(
     certificateId
       ? `certificateRequests/${encodeURIComponent(certificateId)}`
@@ -190,8 +191,18 @@ function FormBody({
         toaster.show({
           type: 'success',
           title: submitted
-            ? t('approvals.submitted', { name: t('certificates.new') })
-            : t('certificates.saved'),
+            ? t('certificates.submittedRecord', {
+                name:
+                  r.data?.data.record.applicant.name ??
+                  session?.user.name ??
+                  t('approvals.unknownPerson'),
+              })
+            : t('certificates.savedRecord', {
+                name:
+                  r.data?.data.record.applicant.name ??
+                  session?.user.name ??
+                  t('approvals.unknownPerson'),
+              }),
         });
         void close();
       }}
@@ -326,58 +337,64 @@ function Fields({
         <CertificateError error={cmd.error ?? submitError} />
       ) : null}
       <FieldGroup inert={submission.submitUnknown || undefined}>
-        {(['certificateType', 'deliveryMethod'] as const).map((name) => (
-          <Controller
-            key={name}
-            control={form.control}
-            name={name}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={name}>
-                  {t(
-                    `certificates.${name === 'certificateType' ? 'type' : 'delivery'}`,
-                  )}{' '}
-                  *
-                </FieldLabel>
-                <Select
-                  value={field.value}
-                  onValueChange={field.onChange}
-                  disabled={cmd.busy || form.formState.isSubmitting}
-                >
-                  <SelectTrigger
-                    id={name}
-                    ref={field.ref}
-                    aria-describedby={
-                      fieldState.invalid ? `${name}-error` : undefined
-                    }
-                    onBlur={field.onBlur}
-                    aria-invalid={fieldState.invalid}
+        <div className='grid gap-4 sm:grid-cols-2'>
+          {(['certificateType', 'deliveryMethod'] as const).map((name) => (
+            <Controller
+              key={name}
+              control={form.control}
+              name={name}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={name}>
+                    {t(
+                      `certificates.${name === 'certificateType' ? 'type' : 'delivery'}`,
+                    )}{' '}
+                    *
+                  </FieldLabel>
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={cmd.busy || form.formState.isSubmitting}
                   >
-                    <SelectValue>
-                      {t(
-                        `certificates.${name === 'certificateType' ? 'types' : 'deliveries'}.${field.value}`,
-                      )}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className={selectWidth}>
-                    <SelectGroup>
-                      {(name === 'certificateType' ? TYPES : DELIVERY).map(
-                        (value) => (
-                          <SelectItem key={value} value={value}>
-                            {t(
-                              `certificates.${name === 'certificateType' ? 'types' : 'deliveries'}.${value}`,
-                            )}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <FieldError id={`${name}-error`} errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
-        ))}
+                    <SelectTrigger
+                      id={name}
+                      ref={field.ref}
+                      aria-describedby={
+                        fieldState.invalid ? `${name}-error` : undefined
+                      }
+                      onBlur={field.onBlur}
+                      aria-invalid={fieldState.invalid}
+                      className='w-full'
+                    >
+                      <SelectValue>
+                        {t(
+                          `certificates.${name === 'certificateType' ? 'types' : 'deliveries'}.${field.value}`,
+                        )}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className={selectWidth}>
+                      <SelectGroup>
+                        {(name === 'certificateType' ? TYPES : DELIVERY).map(
+                          (value) => (
+                            <SelectItem key={value} value={value}>
+                              {t(
+                                `certificates.${name === 'certificateType' ? 'types' : 'deliveries'}.${value}`,
+                              )}
+                            </SelectItem>
+                          ),
+                        )}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldError
+                    id={`${name}-error`}
+                    errors={[fieldState.error]}
+                  />
+                </Field>
+              )}
+            />
+          ))}
+        </div>
         <Field>
           <FieldLabel htmlFor='purpose'>
             {t('certificates.purpose')} *

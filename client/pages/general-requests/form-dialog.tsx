@@ -68,17 +68,13 @@ export default function GeneralFormDialog() {
     resource: { type: 'composite', id: 'oa.general' },
     action: 'submit',
   }).can;
-  const delegate = useCan({
-    resource: { type: 'composite', id: 'oa.general' },
-    action: 'delegate',
-  }).can;
   const pick = useCan({
     resource: { type: 'user', id: '*' },
     action: 'read',
   }).can;
   const allowed = requestId
     ? resource.data?.view.available.some((a) => a.name === 'edit' && a.allowed)
-    : submit || delegate;
+    : submit;
   useEffect(() => {
     if (
       resource.error instanceof ApiClientError &&
@@ -220,10 +216,6 @@ function GeneralForm({
   const { close } = useRouteOverlay();
   const { session } = useAuthentication();
   const parent = useOutletContext<SourceContext & Partial<DetailContext>>();
-  const delegate = useCan({
-    resource: { type: 'composite', id: 'oa.general' },
-    action: 'delegate',
-  }).can;
   const [error, setError] = useState<unknown>();
   const [uncertain, setUncertain] = useState(false);
   const uncertainRef = useRef(false);
@@ -245,7 +237,6 @@ function GeneralForm({
     () =>
       z
         .object({
-          applicantId: z.string(),
           title: z
             .string()
             .trim()
@@ -268,8 +259,7 @@ function GeneralForm({
         .refine(
           (value) =>
             !value.extraApproverIds.includes(
-              draft?.applicantId ??
-                (value.applicantId || session?.user.id || ''),
+              draft?.applicantId ?? session?.user.id ?? '',
             ),
           {
             message: t('general.approversInvalid'),
@@ -283,7 +273,6 @@ function GeneralForm({
     mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: {
-      applicantId: '',
       title: detail?.record.title ?? '',
       body: detail?.record.body ?? '',
       extraApproverIds: detail?.record.extraApproverIds ?? [''],
@@ -301,7 +290,7 @@ function GeneralForm({
     if (uncertainRef.current) throw new Error('Uncertain creation result');
     if (!allowed || !canPick || !(await form.trigger()))
       throw new Error('Invalid general draft');
-    const { applicantId, ...input } = form.getValues();
+    const input = form.getValues();
     try {
       const response = await api.request<{
         data: { record: GeneralRequestRecord };
@@ -311,9 +300,6 @@ function GeneralForm({
         json: {
           ...input,
           attachments: [],
-          ...(delegate && applicantId && applicantId !== session?.user.id
-            ? { applicantId }
-            : {}),
         },
       });
       draftRef.current = response.data.record;
@@ -344,9 +330,9 @@ function GeneralForm({
     onBusy(true);
     setError(undefined);
     try {
-      const { applicantId, ...input } = values;
+      const input = values;
       const savedRecord = await submission.save(
-        { input, attachments, applicantId },
+        { input, attachments },
         draftRef.current,
         async (existing) => {
           let result: GeneralRequestRecord;
@@ -455,33 +441,12 @@ function GeneralForm({
         }
       >
         <FieldGroup inert={submission.submitUnknown || undefined}>
-          {delegate && canPick && !detail ? (
-            <Controller
-              name='applicantId'
-              control={form.control}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel htmlFor='general-applicant'>
-                    {t('approvals.applicant')}
-                  </FieldLabel>
-                  <UserPicker
-                    id='general-applicant'
-                    value={field.value}
-                    onChange={field.onChange}
-                    disabled={
-                      busy ||
-                      uncertain ||
-                      !allowed ||
-                      !!submission.current.current
-                    }
-                  />
-                </Field>
-              )}
-            />
-          ) : null}
           <Field data-invalid={!!form.formState.errors.title}>
             <FieldLabel htmlFor='general-title'>
-              {t('general.title')} *
+              {t('general.title')}{' '}
+              <span aria-hidden='true' className='text-destructive'>
+                *
+              </span>
             </FieldLabel>
             <Input
               id='general-title'
@@ -493,7 +458,10 @@ function GeneralForm({
           </Field>
           <Field data-invalid={!!form.formState.errors.body}>
             <FieldLabel htmlFor='general-body'>
-              {t('general.body')} *
+              {t('general.body')}{' '}
+              <span aria-hidden='true' className='text-destructive'>
+                *
+              </span>
             </FieldLabel>
             <Textarea
               id='general-body'
@@ -515,7 +483,10 @@ function GeneralForm({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor={`general-approver-${index}`}>
-                      {t('general.approver', { number: index + 1 })} *
+                      {t('general.approver', { number: index + 1 })}{' '}
+                      <span aria-hidden='true' className='text-destructive'>
+                        *
+                      </span>
                     </FieldLabel>
                     <div className='flex items-center gap-2'>
                       <UserPicker

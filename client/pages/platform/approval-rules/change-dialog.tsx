@@ -1,3 +1,4 @@
+import { useDrawerFormGuard } from '#hooks/use-drawer-form-guard';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useApiClient, useToaster } from '@nocobase/app-client';
 import { useLocale, useTranslation } from '@nocobase/i18n/client';
@@ -13,7 +14,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
 
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { SessionExpiredAlert } from '#components/session-expired-alert';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import {
@@ -51,6 +52,7 @@ import {
   ruleKeyId,
   type RulesOutletContext,
 } from './rule-format.js';
+import { ruleInputOf, ruleInputSchema, ruleValueOf } from './rule-value.js';
 
 const FORM_ID = 'platform-rule-change';
 
@@ -105,15 +107,15 @@ function ChangeDialog({ ruleKey }: { readonly ruleKey: string }): ReactElement {
   }
 
   return (
-    <RouteDialog
+    <RouteDrawer
       title={t('platform.rules.changeTitle', { name })}
       description={t('platform.rules.changeDescription')}
-      className='sm:max-w-md'
+      className='sm:max-w-2xl'
       beforeClose={() => !submittingRef.current}
       footer={footer}
     >
       {body}
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 
@@ -157,49 +159,12 @@ export function RuleChangeForm({
   const api = useApiClient();
   const toaster = useToaster();
   const submittingRef = useRef(false);
-  const ratio = rule.type === 'ratio';
   const name = t(`platform.rules.keys.${ruleKeyId(rule.key)}.label`);
-  const current =
-    typeof (rule.current?.value ?? rule.defaultValue) === 'number'
-      ? ((rule.current?.value ?? rule.defaultValue) as number)
-      : undefined;
 
   const schema = useMemo(() => {
-    const min = rule.min ?? (rule.type === 'workingHours' ? 1 : 0);
-    const max = rule.max;
     return z
       .object({
-        value: z
-          .string()
-          .trim()
-          .min(1, t('platform.rules.errors.valueRequired'))
-          .refine(
-            (value) => !Number.isNaN(Number(value)),
-            t('platform.rules.errors.notANumber'),
-          )
-          .refine(
-            (value) => {
-              const number = ratio ? Number(value) / 100 : Number(value);
-              return number >= min && (max === undefined || number <= max);
-            },
-            ratio
-              ? t('platform.rules.errors.percentRange', {
-                  min: min * 100,
-                  max: (max ?? 1) * 100,
-                })
-              : t('platform.rules.errors.minimum', { min }),
-          )
-          .refine(
-            (value) =>
-              !['count', 'rank', 'integer'].includes(rule.type) ||
-              Number.isInteger(Number(value)),
-            t('platform.rules.errors.integer'),
-          )
-          .refine(
-            (value) =>
-              rule.type !== 'days' || Number.isInteger(Number(value) * 2),
-            t('platform.rules.errors.halfDays'),
-          ),
+        value: ruleInputSchema(rule, t),
         mode: z.enum(['now', 'date']),
         date: z.date().optional(),
         note: z
@@ -211,15 +176,12 @@ export function RuleChangeForm({
         path: ['date'],
         message: t('platform.rules.effective.dateRequired'),
       });
-  }, [ratio, rule, t]);
+  }, [rule, t]);
 
   const form = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
-      value:
-        current === undefined
-          ? ''
-          : String(ratio ? Math.round(current * 10000) / 100 : current),
+      value: ruleInputOf(rule),
       mode: 'now' as EffectiveMode,
       date: undefined as Date | undefined,
       note: '',
@@ -227,11 +189,16 @@ export function RuleChangeForm({
   });
   const mode = useWatch({ control: form.control, name: 'mode' });
 
+  const drawerGuard = useDrawerFormGuard(
+    form.formState.isDirty,
+    form.formState.isSubmitting,
+  );
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     await form.handleSubmit(async (values) => {
       if (disabled || submittingRef.current) return;
       submittingRef.current = true;
-      const value = ratio ? Number(values.value) / 100 : Number(values.value);
+      const value = ruleValueOf(rule, values.value);
       onSubmittingChange(true);
       try {
         await api.request({
@@ -283,6 +250,7 @@ export function RuleChangeForm({
         type: 'success',
         title: t('platform.rules.changed', { name }),
       });
+      drawerGuard.markSaved();
       onSaved();
     })(event);
   };
@@ -291,6 +259,7 @@ export function RuleChangeForm({
 
   return (
     <form id={formId} noValidate onSubmit={(event) => void submit(event)}>
+      {drawerGuard.confirmation}
       <fieldset
         disabled={disabled || form.formState.isSubmitting}
         className='min-w-0'

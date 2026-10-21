@@ -1,3 +1,11 @@
+import { ApplicationTableEmpty } from '#components/application-table-empty';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '#components/ui/sheet';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 
@@ -147,7 +155,7 @@ export function EmptyTableRow({
         className='px-5 py-12 text-center text-sm text-muted-foreground'
         colSpan={colSpan}
       >
-        {children}
+        <ApplicationTableEmpty title={children} />
       </TableCell>
     </TableRow>
   );
@@ -168,39 +176,28 @@ export function SidePanel({
   wide?: boolean;
   scrollable?: boolean;
 }): ReactElement {
-  const t = useAuthorizationTranslation();
   return (
-    <div
-      className='fixed inset-0 z-50 flex justify-end bg-black/30'
-      role='presentation'
-      onMouseDown={onClose}
+    <Sheet
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
     >
-      <section
-        className={`flex h-full w-full flex-col overflow-hidden border-l bg-popover shadow-2xl ${wide ? 'max-w-5xl' : 'max-w-2xl'}`}
-        role='dialog'
-        aria-modal='true'
-        aria-label={title}
-        onMouseDown={(event) => event.stopPropagation()}
+      <SheetContent
+        className={`w-full gap-0 ${wide ? 'data-[side=right]:sm:max-w-4xl' : 'data-[side=right]:sm:max-w-2xl'}`}
       >
-        <header className='z-10 flex shrink-0 items-start justify-between border-b bg-popover px-6 py-5'>
-          <div>
-            <h2 className='text-lg font-semibold'>{title}</h2>
-            {description ? (
-              <p className='mt-1 text-sm text-muted-foreground'>
-                {description}
-              </p>
-            ) : null}
-          </div>
-          <Button size='sm' variant='ghost' onClick={onClose}>
-            {t('common.close')}
-          </Button>
-        </header>
+        <SheetHeader className='shrink-0 border-b p-6 pr-12'>
+          <SheetTitle>{title}</SheetTitle>
+          {description ? (
+            <SheetDescription>{description}</SheetDescription>
+          ) : null}
+        </SheetHeader>
         <div
           className={`min-h-0 flex-1 ${scrollable ? 'overflow-y-auto p-6' : 'overflow-hidden'}`}
         >
           {children}
         </div>
-      </section>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

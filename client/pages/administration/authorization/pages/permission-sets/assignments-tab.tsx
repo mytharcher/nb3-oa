@@ -1,3 +1,11 @@
+import { MoreHorizontal, ArrowUpDown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '#components/ui/dropdown-menu';
 import { ResponsiveTable as Table } from '#components/responsive-table';
 import { Checkbox } from '#components/ui/checkbox';
 import { SelectField } from '../../components/select-field.js';
@@ -28,6 +36,7 @@ import {
 } from '../../components/management-ui.js';
 import { pageSlice } from '../../components/pagination.js';
 import { useAuthorizationTranslation } from '../../i18n.js';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import { Button } from '#components/ui/button';
 import {
   TableBody,
@@ -44,6 +53,7 @@ export function Assignments({
   assignableTypes,
   canRevoke,
   busy,
+  error,
   onAssign,
   onRevoke,
 }: {
@@ -55,11 +65,13 @@ export function Assignments({
   assignableTypes?: readonly SubjectTypeOption[];
   canRevoke: boolean;
   busy: boolean;
+  error?: string;
   onAssign: (subjects: readonly AuthorizationSubject[]) => Promise<void>;
   onRevoke: (ids: readonly string[]) => Promise<void>;
 }): ReactElement {
   const t = useAuthorizationTranslation();
   const [search, setSearch] = useState('');
+  const [descending, setDescending] = useState(false);
   const [kind, setKind] = useState('all');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<readonly string[]>([]);
@@ -84,6 +96,11 @@ export function Assignments({
       (kind === 'all' || kind === itemKind) && (!query || label.includes(query))
     );
   });
+  visible.sort(
+    (a, b) =>
+      subjectLabel(a.subject).localeCompare(subjectLabel(b.subject)) *
+      (descending ? -1 : 1),
+  );
   const paged = pageSlice(visible, page);
   // Narrowing a filter can leave the current page past the end of the list.
   function changeSearch(value: string): void {
@@ -100,7 +117,7 @@ export function Assignments({
     );
   }
   return (
-    <div className='space-y-4'>
+    <div className='flex flex-col gap-4'>
       <FilterBar>
         <SearchField
           className='sm:max-w-72'
@@ -181,8 +198,18 @@ export function Assignments({
                   }
                 />
               </TableHead>
-              <TableHead className='px-5 py-3 font-medium'>
-                {t('permissionSets.assignments.assignedTo')}
+              <TableHead
+                className='px-5 py-3 font-medium'
+                aria-sort={descending ? 'descending' : 'ascending'}
+              >
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  onClick={() => setDescending((value) => !value)}
+                >
+                  {t('permissionSets.assignments.assignedTo')}
+                  <ArrowUpDown />
+                </Button>
               </TableHead>
               <TableHead className='px-5 py-3 font-medium'>
                 {t('permissionSets.assignments.subjectType')}
@@ -210,19 +237,41 @@ export function Assignments({
                     ?.label ?? item.subject.type}
                 </TableCell>
                 <TableCell className='px-5 py-4 text-right'>
-                  <Button
-                    size='sm'
-                    variant='ghost'
-                    disabled={!canRevoke}
-                    onClick={() =>
-                      setPendingRevoke({
-                        ids: [item.id],
-                        label: subjectLabel(item.subject),
-                      })
-                    }
-                  >
-                    {t('permissionSets.assignments.revoke')}
-                  </Button>
+                  {canRevoke ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant='ghost'
+                            size='icon-sm'
+                            aria-label={t('common.actionsFor', {
+                              name: subjectLabel(item.subject),
+                            })}
+                          />
+                        }
+                      >
+                        <MoreHorizontal />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align='end'
+                        className='w-auto min-w-40'
+                      >
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant='destructive'
+                          disabled={busy}
+                          onClick={() =>
+                            setPendingRevoke({
+                              ids: [item.id],
+                              label: subjectLabel(item.subject),
+                            })
+                          }
+                        >
+                          {t('permissionSets.assignments.revoke')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null}
                 </TableCell>
               </TableRow>
             ))}
@@ -244,20 +293,26 @@ export function Assignments({
       </ManagementTable>
       <ConfirmDialog
         busy={busy}
+        error={error}
         confirmLabel={t('permissionSets.assignments.confirmRevoke')}
         open={pendingRevoke !== undefined}
         title={t(
           (pendingRevoke?.ids.length ?? 0) > 1
             ? 'permissionSets.assignments.confirmRevokeTitleMany'
             : 'permissionSets.assignments.confirmRevokeTitleOne',
+          { name: pendingRevoke?.label ?? '' },
         )}
         onCancel={() => setPendingRevoke(undefined)}
         onConfirm={() => {
           const ids = pendingRevoke?.ids ?? [];
-          setPendingRevoke(undefined);
-          void onRevoke(ids).then(() =>
-            setSelected((items) => items.filter((id) => !ids.includes(id))),
-          );
+          void onRevoke(ids)
+            .then(() => {
+              setPendingRevoke(undefined);
+              setSelected((items) => items.filter((id) => !ids.includes(id)));
+            })
+            .catch(() => {
+              /* The workspace renders the request error; retain the selection. */
+            });
         }}
       >
         {t('permissionSets.assignments.confirmRevokeBody', {
@@ -269,9 +324,16 @@ export function Assignments({
           assignments={assignments}
           types={assignableTypes ?? subjectTypes}
           busy={busy}
-          onClose={() => setAddOpen(false)}
+          error={error}
+          onClose={() => {
+            if (!busy) setAddOpen(false);
+          }}
           onAdd={(subjects) =>
-            void onAssign(subjects).then(() => setAddOpen(false))
+            void onAssign(subjects)
+              .then(() => setAddOpen(false))
+              .catch(() => {
+                /* Keep the picker and its selections after a failed write. */
+              })
           }
         />
       ) : null}
@@ -283,12 +345,14 @@ function AssignmentPicker({
   types,
   assignments,
   busy,
+  error,
   onClose,
   onAdd,
 }: {
   types: readonly SubjectTypeOption[];
   assignments: readonly PermissionSetAssignment[];
   busy: boolean;
+  error?: string;
   onClose: () => void;
   onAdd: (subjects: readonly AuthorizationSubject[]) => void;
 }): ReactElement {
@@ -300,7 +364,12 @@ function AssignmentPicker({
       description={t('permissionSets.assignments.pickerDescription')}
       onClose={onClose}
     >
-      <fieldset disabled={busy} className='min-w-0 space-y-5'>
+      {error ? (
+        <Alert variant='destructive'>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      <fieldset disabled={busy} className='min-w-0 flex flex-col gap-5'>
         <SubjectsEditor
           settings='permissionSets'
           types={types}
@@ -309,7 +378,7 @@ function AssignmentPicker({
           onChange={setSubjects}
         />
         <div className='sticky bottom-0 flex justify-end gap-2 border-t bg-popover py-4'>
-          <Button variant='outline' onClick={onClose}>
+          <Button variant='outline' disabled={busy} onClick={onClose}>
             {t('common.cancel')}
           </Button>
           <Button

@@ -1,3 +1,11 @@
+import { FormDrawerContent, FormDrawerHeader } from '#components/form-drawer';
+import { Dialog, DialogTitle } from '#components/ui/dialog';
+import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
+import { ApplicationTableEmpty } from '#components/application-table-empty';
+import { IconAction } from '../../../components/icon-action.js';
+import { AuthorizationFormError } from '../../components/validation-error.js';
+import { useToaster } from '@nocobase/app-client';
+import { TruncatedText } from '#components/truncated-text';
 import { titleText } from '../../i18n.js';
 import { useSettingsActions } from '../../components/use-settings-actions.js';
 import {
@@ -39,6 +47,7 @@ export function PermissionSetsPanel({
 }: {
   options: AuthorizationOptions;
 }): ReactElement {
+  const toaster = useToaster();
   const navigate = useNavigate();
   const location = useLocation();
   const base = useResolvedPath('.').pathname;
@@ -53,7 +62,9 @@ export function PermissionSetsPanel({
   const [draft, setDraft] = useState<Draft | undefined>(() =>
     isNew ? empty() : undefined,
   );
-  const [baseline, setBaseline] = useState('');
+  const [baseline, setBaseline] = useState(() =>
+    isNew ? JSON.stringify(empty()) : '',
+  );
   const [revision, setRevision] = useState(0);
   const [assignments, setAssignments] = useState<
     readonly PermissionSetAssignment[]
@@ -72,6 +83,7 @@ export function PermissionSetsPanel({
   const error = errorCause === undefined ? undefined : message(t, errorCause);
   const [pending, setPending] = useState<string>();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [dismissedEditorPath, setDismissedEditorPath] = useState('');
   const current = sets.find((item) => item.key === permissionSetKey);
   const allowed = useSettingsActions('authorization.permission-sets');
   const protection = permissionSetCapabilities(current);
@@ -142,9 +154,23 @@ export function PermissionSetsPanel({
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
   function go(path: string): void {
-    if (busy || path === location.pathname) return;
+    if (busy) return;
+    if (path === location.pathname) {
+      setDismissedEditorPath('');
+      return;
+    }
     if (dirty) setPending(path);
-    else void navigate(path);
+    else
+      void navigate({
+        pathname: path,
+        search: location.search,
+        hash: location.hash,
+      });
+  }
+  function closeEditor(): void {
+    if (busy) return;
+    if (dirty) setPending(location.pathname);
+    else setDismissedEditorPath(location.pathname);
   }
   function discard(): void {
     const next = isNew ? empty() : current ? fromSet(current, t) : undefined;
@@ -175,7 +201,7 @@ export function PermissionSetsPanel({
         ) ||
         hasEmptyCustomFilter(inputDraft)
       )
-        throw new TypeError(t('errors.completePermissions'));
+        throw new AuthorizationFormError('errors.completePermissions');
       const saved = draft.originalKey
         ? await authz.updatePermissionSet(draft.originalKey, input)
         : await authz.createPermissionSet(input);
@@ -185,11 +211,21 @@ export function PermissionSetsPanel({
           ? items.map((item) => (item.key === saved.key ? saved : item))
           : [...items, saved],
       );
+      toaster.show({
+        type: 'success',
+        title: t('feedback.saved', { name: title(saved) }),
+      });
       const next = fromSet(saved, t);
       setDraft(next);
       setBaseline(JSON.stringify(next));
       setRevision((value) => value + 1);
-      if (isNew) void navigate(setPath(saved.key), { replace: true });
+      const savedPath = isNew ? setPath(saved.key) : location.pathname;
+      setDismissedEditorPath(savedPath);
+      if (isNew)
+        void navigate(
+          { pathname: savedPath, search: location.search, hash: location.hash },
+          { replace: true },
+        );
     } catch (cause) {
       setErrorCause(cause);
     } finally {
@@ -201,6 +237,11 @@ export function PermissionSetsPanel({
     setBusy(true);
     try {
       await authz.deletePermissionSet(current.key);
+      toaster.show({
+        type: 'success',
+        title: t('feedback.deleted', { name: title(current) }),
+      });
+      setConfirmDelete(false);
       authz.invalidate();
       setSets((items) => items.filter((item) => item.key !== current.key));
       setDraft(undefined);
@@ -223,8 +264,13 @@ export function PermissionSetsPanel({
         subjects.map((subject) => authz.assign(current.key, { subject })),
       );
       setAssignments(await authz.listAssignments(current.key));
+      toaster.show({
+        type: 'success',
+        title: t('feedback.assigned', { name: title(current) }),
+      });
     } catch (cause) {
       setErrorCause(cause);
+      throw cause;
     } finally {
       setBusy(false);
     }
@@ -236,20 +282,27 @@ export function PermissionSetsPanel({
     try {
       await Promise.all(ids.map((id) => authz.revoke(current.key, id)));
       setAssignments((items) => items.filter((item) => !ids.includes(item.id)));
+      toaster.show({
+        type: 'success',
+        title: t('feedback.revoked', { name: title(current) }),
+      });
     } catch (cause) {
       setErrorCause(cause);
+      throw cause;
     } finally {
       setBusy(false);
     }
   }
   const content = !draft ? (
-    <p className='p-6 text-sm text-muted-foreground'>
-      {loaded ? t('permissionWorkspace.unavailableSet') : t('common.loading')}
-    </p>
+    loaded ? (
+      <ApplicationTableEmpty title={t('permissionWorkspace.unavailableSet')} />
+    ) : (
+      <ApplicationTableSkeleton columns={3} />
+    )
   ) : assignmentsTab ? (
     <div className='min-h-0 flex-1 overflow-auto p-4'>
       {assignmentsLoading ? (
-        <p>{t('common.loading')}</p>
+        <ApplicationTableSkeleton columns={4} />
       ) : (
         <Assignments
           key={permissionSetKey}
@@ -261,6 +314,7 @@ export function PermissionSetsPanel({
           canAssign={capabilities.canAssign}
           canRevoke={capabilities.canRevoke}
           busy={busy}
+          error={error}
           onAssign={assign}
           onRevoke={revoke}
         />
@@ -271,21 +325,43 @@ export function PermissionSetsPanel({
       {t('permissionSets.detail.unrestrictedBody')}
     </p>
   ) : (
-    <PermissionSetEditor
-      key={`${permissionSetKey ?? 'new'}:${revision}`}
-      dirty={dirty}
-      showDetails={editingDetails}
-      readOnly={isNew ? !allowed.create : !capabilities.canUpdate}
-      options={options}
-      draft={draft}
-      busy={busy}
-      onChange={setDraft}
-      onSave={(event) => {
-        event.preventDefault();
-        return save();
-      }}
-      onClose={() => setPending(location.pathname)}
-    />
+    <>
+      <div className='p-4'>
+        <Button variant='outline' onClick={() => setDismissedEditorPath('')}>
+          {isNew ? t('permissionSets.list.create') : t('common.edit')}
+        </Button>
+      </div>
+      <Dialog
+        open={dismissedEditorPath !== location.pathname}
+        onOpenChange={(open) => {
+          if (!open) closeEditor();
+        }}
+      >
+        <FormDrawerContent className='sm:max-w-4xl'>
+          <FormDrawerHeader>
+            <DialogTitle>
+              {current ? title(current) : t('permissionSets.editor.newTitle')}
+            </DialogTitle>
+          </FormDrawerHeader>
+          <PermissionSetEditor
+            key={`${permissionSetKey ?? 'new'}:${revision}`}
+            dirty={dirty}
+            error={error}
+            showDetails={editingDetails}
+            readOnly={isNew ? !allowed.create : !capabilities.canUpdate}
+            options={options}
+            draft={draft}
+            busy={busy}
+            onChange={setDraft}
+            onSave={(event) => {
+              event.preventDefault();
+              return save();
+            }}
+            onClose={closeEditor}
+          />
+        </FormDrawerContent>
+      </Dialog>
+    </>
   );
   return (
     <div className='flex min-w-0 flex-col gap-3 sm:h-[calc(100dvh-15rem)] sm:min-h-96 sm:flex-row sm:overflow-hidden'>
@@ -305,38 +381,47 @@ export function PermissionSetsPanel({
           <div
             className={`flex shrink-0 items-center gap-1 ${collapsed ? 'sm:flex-col' : ''}`}
           >
-            <Button
-              size='icon'
-              variant='ghost'
-              aria-label={t('permissionSets.list.create')}
-              title={t('permissionSets.list.create')}
-              disabled={busy || !allowed.create}
-              onClick={() => go(`${base}/new`)}
-            >
-              <Plus className='size-4' />
-            </Button>
-            <Button
-              size='icon'
-              variant='ghost'
-              aria-label={t(
+            <IconAction label={t('permissionSets.list.create')}>
+              <Button
+                size='icon'
+                variant='ghost'
+                aria-label={t('permissionSets.list.create')}
+                disabled={busy || !allowed.create}
+                onClick={() => go(`${base}/new`)}
+              >
+                <Plus className='size-4' />
+              </Button>
+            </IconAction>
+            <IconAction
+              label={t(
                 collapsed
                   ? 'permissionWorkspace.expandSets'
                   : 'permissionWorkspace.collapseSets',
               )}
-              aria-expanded={!collapsed}
-              onClick={() => setCollapsed(!collapsed)}
             >
-              {collapsed ? (
-                <PanelLeftOpen className='size-4' />
-              ) : (
-                <PanelLeftClose className='size-4' />
-              )}
-            </Button>
+              <Button
+                size='icon'
+                variant='ghost'
+                aria-label={t(
+                  collapsed
+                    ? 'permissionWorkspace.expandSets'
+                    : 'permissionWorkspace.collapseSets',
+                )}
+                aria-expanded={!collapsed}
+                onClick={() => setCollapsed(!collapsed)}
+              >
+                {collapsed ? (
+                  <PanelLeftOpen className='size-4' />
+                ) : (
+                  <PanelLeftClose className='size-4' />
+                )}
+              </Button>
+            </IconAction>
           </div>
         </div>
         {!collapsed ? (
           <nav
-            className='max-h-48 min-h-0 flex-1 space-y-1 overflow-y-auto p-2 sm:max-h-none'
+            className='max-h-48 min-h-0 flex-1 flex flex-col gap-1 overflow-y-auto p-2 sm:max-h-none'
             aria-label={t('permissionSets.page.title')}
           >
             {sets
@@ -354,12 +439,12 @@ export function PermissionSetsPanel({
                   aria-current={
                     item.key === permissionSetKey ? 'page' : undefined
                   }
-                  className='block min-h-[44px] w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted aria-[current=page]:bg-primary/10 aria-[current=page]:font-medium aria-[current=page]:text-primary'
+                  className='block min-h-11 w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted aria-[current=page]:bg-primary/10 aria-[current=page]:font-medium aria-[current=page]:text-primary'
                   onClick={() => go(setPath(item.key, section))}
                 >
-                  <span className='block truncate'>{title(item)}</span>
-                  <span className='block truncate text-xs text-muted-foreground'>
-                    {item.key}
+                  <TruncatedText text={title(item)} />
+                  <span className='block text-xs text-muted-foreground'>
+                    <TruncatedText text={item.key} />
                   </span>
                 </button>
               ))}
@@ -368,7 +453,7 @@ export function PermissionSetsPanel({
       </aside>
       <section className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground'>
         <header className='flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3'>
-          <h2 className='truncate text-lg font-semibold'>
+          <h2 className='truncate text-base font-medium'>
             {(current ? title(current) : draft?.title) ||
               (isNew
                 ? t('permissionSets.editor.newTitle')
@@ -397,7 +482,7 @@ export function PermissionSetsPanel({
               <button
                 key={tab}
                 type='button'
-                className={`min-h-[44px] shrink-0 border-b-2 py-3 text-sm ${tab === section ? 'border-primary font-medium text-primary' : 'border-transparent text-muted-foreground'}`}
+                className={`min-h-11 shrink-0 border-b-2 py-3 text-sm ${tab === section ? 'border-primary font-medium text-primary' : 'border-transparent text-muted-foreground'}`}
                 aria-current={tab === section ? 'page' : undefined}
                 onClick={() => go(setPath(current.key, tab))}
               >
@@ -432,7 +517,13 @@ export function PermissionSetsPanel({
           const path = pending;
           setPending(undefined);
           discard();
-          if (path) void navigate(path);
+          if (path === location.pathname) setDismissedEditorPath(path);
+          else if (path)
+            void navigate({
+              pathname: path,
+              search: location.search,
+              hash: location.hash,
+            });
         }}
       >
         {t('permissionWorkspace.discardBody')}
@@ -440,13 +531,13 @@ export function PermissionSetsPanel({
       <ConfirmDialog
         open={confirmDelete}
         busy={busy}
+        error={error}
         title={t('permissionSets.detail.confirmDeleteTitle', {
           title: current ? title(current) : '',
         })}
         confirmLabel={t('permissionSets.detail.confirmDelete')}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => {
-          setConfirmDelete(false);
           void remove();
         }}
       >

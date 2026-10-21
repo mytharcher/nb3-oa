@@ -13,7 +13,7 @@ import {
 } from '#components/ui/alert-dialog';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useOutletContext, useParams } from 'react-router';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
@@ -59,11 +59,11 @@ export default function FormDialog({ upload = false }: { upload?: boolean }) {
     label: upload ? 'upload' : templateId ? 'save' : 'create',
   });
   return (
-    <RouteDialog
+    <RouteDrawer
       title={t(
         `templatePrintUI.${upload ? 'uploadTitle' : templateId ? 'editTitle' : 'new'}`,
       )}
-      className='sm:max-w-md'
+      className='sm:max-w-2xl'
       beforeClose={() => !workingRef.current}
       footer={<FormFooter {...state} />}
     >
@@ -74,7 +74,7 @@ export default function FormDialog({ upload = false }: { upload?: boolean }) {
         workingRef={workingRef}
         onState={setState}
       />
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 function Form({
@@ -394,7 +394,10 @@ function Form({
         <FieldGroup>
           <Field data-invalid={!!validation.name}>
             <FieldLabel htmlFor='print-template-name'>
-              {t('templatePrintUI.name')} *
+              {t('templatePrintUI.name')}{' '}
+              <span aria-hidden='true' className='text-destructive'>
+                *
+              </span>
             </FieldLabel>
             <Input
               id='print-template-name'
@@ -425,7 +428,10 @@ function Form({
           {!templateId ? (
             <Field>
               <FieldLabel htmlFor='print-template-source'>
-                {t('templatePrintUI.source')} *
+                {t('templatePrintUI.source')}{' '}
+                <span aria-hidden='true' className='text-destructive'>
+                  *
+                </span>
               </FieldLabel>
               <Select
                 items={Object.fromEntries(
@@ -461,7 +467,10 @@ function Form({
         <FieldGroup>
           <Field data-invalid={!!validation.file}>
             <FieldLabel htmlFor='print-template-file'>
-              {t('templatePrintUI.file')} *
+              {t('templatePrintUI.file')}{' '}
+              <span aria-hidden='true' className='text-destructive'>
+                *
+              </span>
             </FieldLabel>
             <Input
               id='print-template-file'

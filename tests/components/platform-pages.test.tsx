@@ -5,7 +5,7 @@ import {
   TestI18nProvider,
   createTestI18nRuntime,
 } from '@nocobase/i18n/testing';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactElement, ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -459,6 +459,222 @@ describe('work calendar page', () => {
     expect(api.request).not.toHaveBeenCalledWith(
       expect.objectContaining({ method: 'POST' }),
     );
+  });
+
+  it('counts only existing dates absent from the replacement using a fresh complete annual read', async () => {
+    let reads = 0;
+    serve({
+      'GET approvalRules': () => calendarRules,
+      'GET calendarDays': () => {
+        reads += 1;
+        // The displayed list is stale by the time import is submitted.
+        const dates =
+          reads === 1 ? [] : ['2026-10-01', '2026-10-02', '2026-10-03'];
+        return {
+          data: dates.map((date) => ({ date, kind: 'holiday', note: null })),
+          meta: { total: dates.length },
+        };
+      },
+    });
+    renderRoutes(routes, '/calendar/import?year=2026');
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(
+      within(dialog).getByLabelText(/Days/),
+      '2026-10-01,休',
+    );
+    await userEvent.click(within(dialog).getByRole('switch'));
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: copy.calendar.import.submit }),
+    );
+    const confirmation = await screen.findByRole('alertdialog');
+    expect(
+      within(confirmation).getByText(/2 existing special days in 2026/),
+    ).toBeInTheDocument();
+    expect(reads).toBe(2);
+    expect(api.request).not.toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('does not offer destructive replacement when the annual read is incomplete', async () => {
+    serve({
+      'GET approvalRules': () => calendarRules,
+      'GET calendarDays': () => ({ data: [], meta: { total: 3 } }),
+    });
+    renderRoutes(routes, '/calendar/import?year=2026');
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(
+      within(dialog).getByLabelText(/Days/),
+      '2026-10-01,休',
+    );
+    await userEvent.click(within(dialog).getByRole('switch'));
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: copy.calendar.import.submit }),
+    );
+    expect(
+      await screen.findByText(copy.calendar.import.previewFailed),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(api.request).not.toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(within(dialog).getByLabelText(/Days/)).toHaveValue('2026-10-01,休');
+  });
+
+  it('discards an outstanding replacement preview after navigating to another year', async () => {
+    let reads = 0;
+    let finishNextPreview: ((value: unknown) => void) | undefined;
+    let finishPreview: ((value: unknown) => void) | undefined;
+    serve({
+      'GET approvalRules': () => calendarRules,
+      'GET calendarDays': () => {
+        reads += 1;
+        if (reads === 2)
+          return new Promise((resolve) => {
+            finishPreview = resolve;
+          });
+        if (reads === 4)
+          return new Promise((resolve) => {
+            finishNextPreview = resolve;
+          });
+        return { data: [], meta: { total: 0 } };
+      },
+    });
+    const router = renderRoutes(routes, '/calendar/import?year=2026');
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(
+      within(dialog).getByLabelText(/Days/),
+      '2026-10-01,休',
+    );
+    await userEvent.click(within(dialog).getByRole('switch'));
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: copy.calendar.import.submit }),
+    );
+    expect(within(dialog).getByLabelText(/Days/)).toBeDisabled();
+    expect(within(dialog).getByRole('switch')).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await act(() => router.navigate('/calendar/import?year=2027'));
+    const nextDialog = screen.getByRole('dialog');
+    expect(screen.getByLabelText(/Days/)).toHaveValue('');
+    await userEvent.type(
+      within(nextDialog).getByLabelText(/Days/),
+      '2027-10-01,休',
+    );
+    await userEvent.click(within(nextDialog).getByRole('switch'));
+    await userEvent.click(
+      within(nextDialog).getByRole('button', {
+        name: copy.calendar.import.submit,
+      }),
+    );
+    await act(async () => {
+      finishPreview?.({ data: [], meta: { total: 0 } });
+    });
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(
+      within(nextDialog).getByRole('button', { name: enUS.actions.cancel }),
+    ).toBeDisabled();
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(
+      'Import special days of 2027',
+    );
+    expect(api.request).not.toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'POST' }),
+    );
+    await act(async () => {
+      finishNextPreview?.({ data: [], meta: { total: 0 } });
+    });
+    expect(await screen.findByRole('alertdialog')).toHaveAccessibleName(
+      'Replace the special days of 2027?',
+    );
+  });
+
+  it('keeps replacement input and shows no removal count when the authorized annual read is denied', async () => {
+    let reads = 0;
+    serve({
+      'GET approvalRules': () => calendarRules,
+      'GET calendarDays': () => {
+        reads += 1;
+        if (reads > 1) throw apiError(403);
+        return { data: [], meta: { total: 0 } };
+      },
+    });
+    renderRoutes(routes, '/calendar/import?year=2026');
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(
+      within(dialog).getByLabelText(/Days/),
+      '2026-10-01,休',
+    );
+    await userEvent.click(within(dialog).getByRole('switch'));
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: copy.calendar.import.submit }),
+    );
+    expect(await screen.findByText(copy.common.forbidden)).toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Days/)).toHaveValue('2026-10-01,休');
+    expect(api.request).not.toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('requires confirmation before replacing the year and keeps the confirmation open on failure', async () => {
+    serve({
+      'GET approvalRules': () => calendarRules,
+      'GET calendarDays': () => ({ data: [], meta: { total: 0 } }),
+      'POST calendarDays/import': () => {
+        throw new Error('private backend detail');
+      },
+    });
+    renderRoutes(routes, '/calendar/import?year=2026');
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(
+      within(dialog).getByLabelText(/Days/),
+      '2026-10-01,休',
+    );
+    await userEvent.click(within(dialog).getByRole('switch'));
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: copy.calendar.import.submit }),
+    );
+    const confirmation = await screen.findByRole('alertdialog');
+    expect(api.request).not.toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'POST' }),
+    );
+    await userEvent.click(
+      within(confirmation).getByRole('button', {
+        name: copy.calendar.import.submit,
+      }),
+    );
+    await within(confirmation).findByText(copy.common.saveFailed);
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(
+      screen.queryByText('private backend detail'),
+    ).not.toBeInTheDocument();
+    expect(api.request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: 'calendarDays/import',
+        json: expect.objectContaining({ replace: true }),
+      }),
+    );
+  });
+
+  it('guards calendar import cancellation and preserves pasted input when editing continues', async () => {
+    serve({
+      'GET approvalRules': () => calendarRules,
+      'GET calendarDays': () => ({ data: [], meta: { total: 0 } }),
+    });
+    const router = renderRoutes(routes, '/calendar/import?year=2026#days');
+    const dialog = await screen.findByRole('dialog');
+    const text = within(dialog).getByLabelText(/Days/);
+    await userEvent.type(text, '2026-10-01,休,National Day');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Close', exact: true }));
+    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Continue editing' }));
+    expect(text).toHaveValue('2026-10-01,休,National Day');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel', exact: true }));
+    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Discard changes' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/calendar'));
+    expect(router.state.location.search).toBe('?year=2026');
+    expect(router.state.location.hash).toBe('#days');
+    expect(api.request.mock.calls.some(([request]) => request.method === 'POST')).toBe(false);
   });
 
   it('imports pasted days and reports invalid lines first', async () => {

@@ -1,3 +1,5 @@
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
+import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { Link, Outlet, useLocation } from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
@@ -25,13 +27,11 @@ export default function KnowledgeFolders() {
           <ApplicationToolbar
             actions={
               <>
-                <Button
-                  variant='outline'
-                  disabled={r.loading}
+                <ApplicationRefreshButton
+                  label={t('knowledge.refresh')}
+                  loading={r.loading}
                   onClick={r.reload}
-                >
-                  {t('knowledge.refresh')}
-                </Button>
+                />
                 {manage.can && !manage.isPending && !manage.error ? (
                   <Button
                     nativeButton={false}
@@ -53,7 +53,25 @@ export default function KnowledgeFolders() {
             <DataTable
               data={r.data.data}
               columns={[
-                { accessorKey: 'title', header: t('knowledge.titleField') },
+                {
+                  accessorKey: 'title',
+                  header: t('knowledge.titleField'),
+                  cell: ({ row }) =>
+                    manage.can && !manage.isPending && !manage.error ? (
+                      <Link
+                        className='font-medium hover:underline'
+                        to={{
+                          pathname: `${row.original.id}/edit`,
+                          search: location.search,
+                          hash: location.hash,
+                        }}
+                      >
+                        {row.original.title}
+                      </Link>
+                    ) : (
+                      row.original.title
+                    ),
+                },
                 {
                   id: 'parent',
                   header: t('knowledge.parent'),
@@ -64,28 +82,10 @@ export default function KnowledgeFolders() {
                         )?.title ?? t('knowledge.restrictedOption'))
                       : t('knowledge.root'),
                 },
-                {
-                  id: 'edit',
-                  header: t('knowledge.edit'),
-                  cell: ({ row }: { row: { original: Folder } }) =>
-                    manage.can &&
-                    !manage.isPending &&
-                    !manage.error &&
-                    !r.loading &&
-                    !r.error ? (
-                      <Link
-                        className='underline'
-                        to={{
-                          pathname: `${row.original.id}/edit`,
-                          search: location.search,
-                        }}
-                      >
-                        {t('knowledge.edit')}
-                      </Link>
-                    ) : null,
-                },
               ]}
-              emptyMessage={t('knowledge.noFolders')}
+              emptyMessage={
+                <ApplicationTableEmpty title={t('knowledge.noFolders')} />
+              }
             />
           ) : null}
         </PageContainer>

@@ -294,7 +294,9 @@ describe('approval delegation pages', () => {
     const principal = await screen.findByLabelText(
       new RegExp(copy.delegations.principal, 'u'),
     );
-    await userEvent.click(screen.getByRole('button', { name: copy.save }));
+    await userEvent.click(
+      screen.getByRole('button', { name: copy.delegations.create }),
+    );
     expect(principal).toHaveFocus();
     expect(
       api.request.mock.calls.some(

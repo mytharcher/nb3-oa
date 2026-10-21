@@ -11,7 +11,12 @@ import {
   act,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createMemoryRouter, Outlet, RouterProvider } from 'react-router';
+import {
+  createMemoryRouter,
+  Outlet,
+  RouterProvider,
+  MemoryRouter,
+} from 'react-router';
 import { beforeEach, expect, it, vi } from 'vitest';
 import enUS from '../../../client/locales/en-US.js';
 import locale from '../../../client/locales/modules/meeting-rooms.en-US.js';
@@ -310,6 +315,11 @@ it('room management validates a reason before creating and focuses the first inv
   await user.click(screen.getByRole('button', { name: 'Save', exact: true }));
   await waitFor(() => expect(screen.getByLabelText(/Room name/)).toHaveFocus());
   await user.type(screen.getByLabelText(/Room name/), 'Workshop');
+  const capacity = screen.getByRole('spinbutton');
+  await user.clear(capacity);
+  expect(capacity).toHaveValue(null);
+  await user.type(capacity, '8');
+  expect(capacity).toHaveValue(8);
   await user.type(
     screen.getByLabelText(/Reason/),
     'Real administrative change',
@@ -321,7 +331,7 @@ it('room management validates a reason before creating and focuses the first inv
   ).toMatchObject({
     name: 'Workshop',
     reason: 'Real administrative change',
-    capacity: 1,
+    capacity: 8,
   });
 });
 
@@ -462,16 +472,18 @@ it.each([403, 404, 500])(
   (status) => {
     render(
       <TestI18nProvider runtime={runtime}>
-        <MeetingError
-          error={
-            new ApiClientError('Error', {
-              status,
-              method: 'GET',
-              url: 'meetingRooms',
-            })
-          }
-          retry={vi.fn()}
-        />
+        <MemoryRouter>
+          <MeetingError
+            error={
+              new ApiClientError('Error', {
+                status,
+                method: 'GET',
+                url: 'meetingRooms',
+              })
+            }
+            retry={vi.fn()}
+          />
+        </MemoryRouter>
       </TestI18nProvider>,
     );
     const retry = screen.queryByRole('button', { name: 'Retry' });
@@ -522,4 +534,30 @@ it('never offers a reservation for a conflicting room or a failed availability r
   expect(
     screen.queryByRole('button', { name: 'Book a meeting room' }),
   ).not.toBeInTheDocument();
+});
+
+it('keeps capacity and time blank while editing and debounces availability searches', async () => {
+  serve();
+  const { router } = show('/list?tab=availability&meetingDate=2035-01-02');
+  await screen.findByText('Boardroom');
+  const capacity = screen.getByRole('spinbutton');
+  fireEvent.change(capacity, { target: { value: '' } });
+  expect(capacity).toHaveValue(null);
+  await waitFor(() =>
+    expect(router.state.location.search).toContain('meetingCapacity='),
+  );
+  expect(capacity).toHaveValue(null);
+  fireEvent.change(capacity, { target: { value: '8' } });
+  expect(capacity).toHaveValue(8);
+  expect(router.state.location.search).not.toContain('meetingCapacity=8');
+  await waitFor(() =>
+    expect(router.state.location.search).toContain('meetingCapacity=8'),
+  );
+  const start = screen.getByLabelText(locale.meetingRooms.finder.start);
+  fireEvent.change(start, { target: { value: '' } });
+  expect(start).toHaveValue('');
+  await waitFor(() =>
+    expect(router.state.location.search).toContain('meetingStart='),
+  );
+  expect(start).toHaveValue('');
 });

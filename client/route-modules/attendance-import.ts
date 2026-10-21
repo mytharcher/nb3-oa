@@ -3,7 +3,7 @@ import { FileSpreadsheet } from 'lucide-react';
 export default defineAppRoutes([
   {
     name: 'attendance-import',
-    parent: 'oa-configuration',
+    parent: 'oa-hr',
     path: '/attendance-import',
     auth: 'required',
     authz: {
@@ -13,7 +13,7 @@ export default defineAppRoutes([
     navigation: {
       title: 'attendanceImport.title',
       icon: FileSpreadsheet,
-      order: 89,
+      order: 141,
     },
     breadcrumb: { title: 'attendanceImport.title' },
     componentLoader: () => import('../pages/attendance-import/index.js'),

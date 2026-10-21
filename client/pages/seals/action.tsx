@@ -1,3 +1,4 @@
+import { Spinner } from '#components/ui/spinner';
 import { UserNameText } from '#components/user-name';
 import { useRef, useState } from 'react';
 import { useParams, useOutletContext } from 'react-router';
@@ -12,7 +13,7 @@ import { UserPicker } from '#components/user-picker';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
 import { Textarea } from '#components/ui/textarea';
-import { Field, FieldLabel } from '#components/ui/field';
+import { Field, FieldLabel, FieldError } from '#components/ui/field';
 import {
   Select,
   SelectTrigger,
@@ -139,6 +140,7 @@ function Overlay() {
           <AlertDialogFooter>
             <AlertDialogCancel>{t('seals.cancel')}</AlertDialogCancel>
             <AlertDialogAction
+              variant='destructive'
               onClick={() => {
                 dirtyRef.current = false;
                 resolveRef.current?.(true);
@@ -155,6 +157,7 @@ function Overlay() {
   );
 }
 function Footer({ busy, ready }: { busy: boolean; ready: boolean }) {
+  const { operation } = useParams();
   const { t } = useTranslation(),
     { close } = useRouteOverlay();
   return (
@@ -163,7 +166,8 @@ function Footer({ busy, ready }: { busy: boolean; ready: boolean }) {
         {t('seals.cancel')}
       </Button>
       <Button form='seal-action' type='submit' disabled={busy || !ready}>
-        {t('seals.confirm')}
+        {busy ? <Spinner data-icon='inline-start' /> : null}
+        {t(`seals.actions.${operation ?? 'actualReturn'}`)}
       </Button>
     </>
   );
@@ -274,25 +278,52 @@ function Body({
   const canonicalBorrowedAt = Number.isFinite(borrowedInstant)
     ? new Date(borrowedInstant).toISOString()
     : null;
-  function valid() {
-    return (
-      (!reasonNeeded || !!reason.trim()) &&
-      (operation !== 'return' ||
-        (Array.isArray(selectedAction?.options?.targets) &&
-          selectedAction.options.targets.includes(returnTarget))) &&
-      (operation !== 'addSigner' || modes.includes(mode)) &&
-      (!recipientNeeded || !!recipient) &&
-      (!physical ||
-        (!!sealId &&
-          (!returning || !!canonicalBorrowedAt) &&
-          (checkout
-            ? !!borrowedAt
-            : !!sealedAt &&
-              actualCopies >= 1 &&
-              actualCopies <= detail.record.copies &&
-              ((!returning && operation !== 'actualReturn') || !!returnedAt))))
-    );
+  function validation() {
+    const errors: Record<string, string> = {};
+    const required = t('seals.required');
+    if (reasonNeeded && !reason.trim()) errors.reason = required;
+    if (
+      operation === 'return' &&
+      (!Array.isArray(selectedAction?.options?.targets) ||
+        !selectedAction.options.targets.includes(returnTarget))
+    )
+      errors.target = required;
+    if (operation === 'addSigner' && !modes.includes(mode))
+      errors.mode = required;
+    if (recipientNeeded && !recipient) errors.recipient = required;
+    if (physical) {
+      if (!sealId) errors.instance = required;
+      if (returning && !canonicalBorrowedAt)
+        errors.borrowedAt = t('seals.invalidInput');
+      if (checkout) {
+        if (!Number.isFinite(Date.parse(borrowedAt)))
+          errors.borrowedAt = required;
+      } else {
+        if (!Number.isFinite(Date.parse(sealedAt))) errors.sealedAt = required;
+        if (
+          !Number.isSafeInteger(actualCopies) ||
+          actualCopies < 1 ||
+          actualCopies > detail.record.copies
+        )
+          errors.actual = t('seals.copiesRange', { max: detail.record.copies });
+        if (
+          (returning || operation === 'actualReturn') &&
+          !Number.isFinite(Date.parse(returnedAt))
+        )
+          errors.returnedAt = required;
+      }
+    }
+    return errors;
   }
+  function valid() {
+    return Object.keys(validation()).length === 0;
+  }
+  const fieldErrors = invalid ? validation() : {};
+  function focusInvalid() {
+    const first = Object.keys(validation())[0];
+    document.getElementById(`seal-${first}`)?.focus();
+  }
+
   async function execute() {
     if (blocked || !valid()) {
       setInvalid(true);
@@ -366,7 +397,13 @@ function Body({
     if (result) {
       onDirty(false);
       parent?.reload();
-      toast.show({ type: 'success', title: t('seals.saved') });
+      toast.show({
+        type: 'success',
+        title: t('seals.actionSaved', {
+          action: t(`seals.actions.${operation}`),
+          name: detail.record.number ?? t('seals.draft'),
+        }),
+      });
       await close();
     }
   }
@@ -383,23 +420,21 @@ function Body({
     <>
       <form
         id='seal-action'
+        noValidate
         onChangeCapture={() => onDirty(true)}
         className='flex flex-col gap-4'
         onSubmit={(e) => {
           e.preventDefault();
           if (!valid()) {
             setInvalid(true);
+            focusInvalid();
             return;
           }
           if (destructive) setConfirm(true);
           else void execute();
         }}
       >
-        {invalid ? (
-          <p role='alert' className='text-destructive'>
-            {t('seals.invalidInput')}
-          </p>
-        ) : null}
+        {invalid ? <FieldError>{t('seals.invalidInput')}</FieldError> : null}
         {cmd.error ? <SealError error={cmd.error} /> : null}
         <p>
           <UserNameText
@@ -429,10 +464,16 @@ function Body({
                   onValueChange={(v) => setSealId(v ?? '')}
                   disabled={cmd.busy || seals.loading || !!seals.error}
                 >
-                  <SelectTrigger id='seal-instance'>
+                  <SelectTrigger
+                    id='seal-instance'
+                    aria-invalid={!!fieldErrors.instance}
+                    aria-describedby={
+                      fieldErrors.instance ? 'seal-instance-error' : undefined
+                    }
+                  >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                     <SelectGroup>
                       {seals.data?.data
                         .filter(
@@ -447,6 +488,9 @@ function Body({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+                <FieldError id='seal-instance-error'>
+                  {fieldErrors.instance}
+                </FieldError>
               </Field>
             ) : null}
             {!checkout ? (
@@ -459,10 +503,17 @@ function Body({
                   type='number'
                   min={1}
                   max={detail.record.copies}
-                  value={actualCopies}
+                  aria-invalid={!!fieldErrors.actual}
+                  aria-describedby={
+                    fieldErrors.actual ? 'seal-actual-error' : undefined
+                  }
+                  value={Number.isFinite(actualCopies) ? actualCopies : ''}
                   disabled={cmd.busy}
-                  onChange={(e) => setActualCopies(Number(e.target.value))}
+                  onChange={(e) => setActualCopies(e.target.valueAsNumber)}
                 />
+                <FieldError id='seal-actual-error'>
+                  {fieldErrors.actual}
+                </FieldError>
               </Field>
             ) : null}
             {(checkout
@@ -477,6 +528,7 @@ function Body({
                 </FieldLabel>
                 <DateTimePicker
                   id={`seal-${name}`}
+                  invalid={!!fieldErrors[name]}
                   value={
                     name === 'sealedAt'
                       ? sealedAt
@@ -495,14 +547,21 @@ function Body({
                   timeLabel={t(`seals.${name}`)}
                   disabled={cmd.busy}
                 />
+                <FieldError id={`seal-${name}-error`}>
+                  {fieldErrors[name]}
+                </FieldError>
               </Field>
             ))}
           </>
         ) : null}
         {recipientNeeded ? (
           <Field>
-            <FieldLabel>{t('seals.recipient')} *</FieldLabel>
+            <FieldLabel htmlFor='seal-recipient'>
+              {t('seals.recipient')} *
+            </FieldLabel>
             <UserPicker
+              id='seal-recipient'
+              invalid={!!fieldErrors.recipient}
               value={recipient}
               onChange={setRecipient}
               knownUsers={[
@@ -513,6 +572,7 @@ function Body({
                 ),
               ]}
             />
+            <FieldError>{fieldErrors.recipient}</FieldError>
           </Field>
         ) : null}
         {operation === 'return' &&
@@ -525,10 +585,13 @@ function Body({
               value={returnTarget}
               onValueChange={(v) => setReturnTarget(v ?? '')}
             >
-              <SelectTrigger id='seal-target'>
+              <SelectTrigger
+                id='seal-target'
+                aria-invalid={!!fieldErrors.target}
+              >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                 <SelectGroup>
                   {selectedAction.options.targets
                     .filter((v): v is string => typeof v === 'string')
@@ -540,16 +603,17 @@ function Body({
                 </SelectGroup>
               </SelectContent>
             </Select>
+            <FieldError>{fieldErrors.target}</FieldError>
           </Field>
         ) : null}
         {operation === 'addSigner' ? (
           <Field>
             <FieldLabel htmlFor='seal-mode'>{t('seals.mode')}</FieldLabel>
             <Select value={mode} onValueChange={(v) => setMode(v ?? 'before')}>
-              <SelectTrigger id='seal-mode'>
+              <SelectTrigger id='seal-mode' aria-invalid={!!fieldErrors.mode}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                 <SelectGroup>
                   {modes.map((m) => (
                     <SelectItem key={m} value={m}>
@@ -559,6 +623,7 @@ function Body({
                 </SelectGroup>
               </SelectContent>
             </Select>
+            <FieldError>{fieldErrors.mode}</FieldError>
           </Field>
         ) : null}
         <Field>
@@ -570,10 +635,15 @@ function Body({
             id='seal-reason'
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            required={reasonNeeded}
+            aria-required={reasonNeeded}
+            aria-invalid={!!fieldErrors.reason}
+            aria-describedby={
+              fieldErrors.reason ? 'seal-reason-error' : undefined
+            }
             maxLength={2000}
             disabled={cmd.busy}
           />
+          <FieldError id='seal-reason-error'>{fieldErrors.reason}</FieldError>
         </Field>
       </form>
       <AlertDialog open={confirm} onOpenChange={setConfirm}>

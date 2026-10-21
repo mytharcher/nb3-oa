@@ -353,7 +353,13 @@ function TravelCancellationForm({
           const field = violation;
           if (['sourceId', 'reason'].includes(field))
             form.setError(field as 'sourceId', {
-              message: t('travelCancellation.invalid'),
+              message: t('travelCancellation.fieldInvalid', {
+                field: t(
+                  field === 'sourceId'
+                    ? 'travelCancellation.source'
+                    : 'approvals.reason',
+                ),
+              }),
             });
         }
       }
@@ -424,6 +430,14 @@ function TravelCancellationForm({
                   {t('travelCancellation.source')} *
                 </FieldLabel>
                 <Select
+                  items={(options.data ?? [])
+                    .filter((r) => r.approvalGrantedAt && !r.cancelledAt)
+                    .map((r) => ({
+                      value: r.id,
+                      label: r.number
+                        ? `${r.number} · ${r.destination}`
+                        : r.destination,
+                    }))}
                   value={field.value || null}
                   onValueChange={(value) => field.onChange(value ?? '')}
                   disabled={busy || uncertain || !allowed}
@@ -436,12 +450,14 @@ function TravelCancellationForm({
                       placeholder={t('travelCancellation.chooseSource')}
                     />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                     {(options.data ?? [])
                       .filter((r) => r.approvalGrantedAt && !r.cancelledAt)
                       .map((r) => (
                         <SelectItem key={r.id} value={r.id}>
-                          {r.number ?? r.destination} · {r.destination}
+                          {r.number
+                            ? `${r.number} · ${r.destination}`
+                            : r.destination}
                         </SelectItem>
                       ))}
                   </SelectContent>

@@ -1,5 +1,12 @@
 export default {
   financeAssignments: {
+    create: 'Create',
+
+    saved: 'Saved accountant assignment for "{{name}}"',
+    saveFailed:
+      'The assignment could not be saved. Retry after checking the input.',
+    disableTitle: 'Disable assignment for "{{name}}"?',
+
     loadLatest: 'Load latest assignment',
     latestSummary:
       'Latest: {{name}} / {{status}}. Your form values are unchanged.',

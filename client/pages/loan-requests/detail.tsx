@@ -1,3 +1,4 @@
+import { approvalStatusTone } from '../approvals/status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
 import { LoanFinancialSections } from './repayments.js';
 import { LoanFacts } from './facts.js';
@@ -217,15 +218,7 @@ export default function LoanRequestDetailPage() {
     <RecordDetailDrawer
       headerStatus={
         record ? (
-          <StatusBadge
-            tone={
-              record.status === 'paid'
-                ? 'success'
-                : ['rejected', 'terminated'].includes(record.status)
-                  ? 'warning'
-                  : 'neutral'
-            }
-          >
+          <StatusBadge tone={approvalStatusTone(record.status, 'oa.loan')}>
             {t(
               [
                 'manager',
@@ -333,7 +326,7 @@ export default function LoanRequestDetailPage() {
                         ? t(`loanRequests.operationLabels.${action.name}`)
                         : t(`approvals.${action.name}`)
                       : action.blockers
-                          .map((v) => t(v.message, { defaultValue: v.message }))
+                          .map(() => t('approvals.unavailable'))
                           .join(' · ') || t('approvals.unavailable')}
                   </TooltipContent>
                 </Tooltip>

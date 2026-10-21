@@ -1,3 +1,4 @@
+import { formatCents } from '#lib/money';
 /** Amount inputs remain decimal text until they can be represented exactly as safe cents. */
 export function parseCents(value: string): number | null {
   const match = /^(0|[1-9]\d*)(?:\.(\d{1,2}))?$/.exec(value.trim());
@@ -24,14 +25,5 @@ export function sumCents(values: readonly number[]): number | null {
 export function moneyLabel(cents: number, locale: string): string {
   if (!Number.isSafeInteger(cents) || cents < 0)
     throw new Error('Invalid cents');
-  // Format the whole integer independently; dividing a near-limit cent value into
-  // a floating-point decimal can round away a real cent.
-  const integer = new Intl.NumberFormat(locale, {
-    maximumFractionDigits: 0,
-  }).format(BigInt(cents) / 100n);
-  const decimal =
-    new Intl.NumberFormat(locale)
-      .formatToParts(1.1)
-      .find((part) => part.type === 'decimal')?.value ?? '.';
-  return `${integer}${decimal}${String(BigInt(cents) % 100n).padStart(2, '0')}`;
+  return formatCents(cents, locale);
 }

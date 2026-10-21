@@ -139,7 +139,7 @@ describe('supplies form and independent ledger', () => {
     serve();
     const router = open('/approvals/mine/editSupply/s1?q=Alice'),
       dialog = await screen.findByRole('dialog');
-    const quantity = await within(dialog).findByLabelText('Quantity');
+    const quantity = await within(dialog).findByLabelText(/^Quantity/);
     await userEvent.clear(quantity);
     await userEvent.type(quantity, '4');
     await waitFor(() =>
@@ -183,7 +183,7 @@ describe('supplies form and independent ledger', () => {
     );
     open('/approvals/mine/editSupply/s1');
     const dialog = await screen.findByRole('dialog');
-    const name = await within(dialog).findByLabelText('Name');
+    const name = await within(dialog).findByLabelText(/^Name/);
     await waitFor(() =>
       expect(
         within(dialog).getByRole('button', { name: 'Save draft', exact: true }),
@@ -206,8 +206,8 @@ describe('supplies form and independent ledger', () => {
     });
     open('/approvals/mine/newSupply');
     const dialog = await screen.findByRole('dialog');
-    await within(dialog).findByLabelText('Purpose');
-    await userEvent.type(within(dialog).getByLabelText('Purpose'), 'New desk');
+    await within(dialog).findByLabelText(/^Purpose/);
+    await userEvent.type(within(dialog).getByLabelText(/^Purpose/), 'New desk');
     await userEvent.click(
       within(dialog).getByRole('combobox', { name: 'Item' }),
     );

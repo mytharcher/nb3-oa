@@ -27,7 +27,7 @@ function Meter({
 }): ReactElement {
   const percent = total ? Math.round((count / total) * 100) : 0;
   return (
-    <div className='min-w-0 flex-1 space-y-1'>
+    <div className='min-w-0 flex-1 flex flex-col gap-1'>
       <div className='flex items-baseline justify-between gap-2 text-xs'>
         <span className='text-muted-foreground'>{label}</span>
         <span className='font-medium tabular-nums'>
@@ -85,7 +85,7 @@ export function ApprovalReceipts({
       </p>
     );
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn('flex flex-col gap-4', className)}>
       <div className='flex flex-col gap-3 sm:flex-row'>
         <Meter
           label={t('approvalUi.receipts.read', { defaultValue: 'Read' })}

@@ -4,7 +4,7 @@ import { AlertCircleIcon } from 'lucide-react';
 import { type ReactElement, useEffect, useRef, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { SessionExpiredAlert } from '#components/session-expired-alert';
 import { Alert, AlertAction, AlertDescription } from '#components/ui/alert';
 import { Button } from '#components/ui/button';
@@ -130,14 +130,15 @@ function EditDepartment({
   }
 
   return (
-    <RouteDialog
+    <RouteDrawer
+      className='sm:max-w-2xl'
       title={t('org.departments.editTitle')}
       description={t('org.departments.formDescription')}
       beforeClose={() => !submittingRef.current}
       footer={footer}
     >
       {body}
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 

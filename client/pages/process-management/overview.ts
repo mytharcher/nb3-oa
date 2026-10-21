@@ -1,6 +1,6 @@
 /** Definition diagrams explain forward business progress, not every lifecycle operation.
  * Audited against all registered process owners. New fulfillment actions must opt in;
- * auxiliary actions remain in Process rules and actual execution history. */
+ * auxiliary actions appear only in actual execution history. */
 const progressActions = new Set([
   'submit',
   'approved',

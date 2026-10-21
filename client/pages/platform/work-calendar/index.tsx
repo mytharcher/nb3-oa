@@ -2,6 +2,7 @@ import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import type { ReactElement } from 'react';
 
+import { Alert, AlertDescription } from '#components/ui/alert';
 import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import {
@@ -50,6 +51,12 @@ export default function WorkCalendarPage(): ReactElement {
         title={t('platform.calendar.loadFailedTitle')}
         onRetry={rules.reload}
       />
+    );
+  } else if (ready && (!workHours || !timeZone)) {
+    settings = (
+      <Alert variant='destructive'>
+        <AlertDescription>{t('platform.rules.notFound')}</AlertDescription>
+      </Alert>
     );
   } else if (!ready || !workHours || !timeZone) {
     settings = (

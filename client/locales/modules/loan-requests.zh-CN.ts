@@ -1,5 +1,17 @@
 export default {
   loanRequests: {
+    relatedUnavailable: '关联记录不可用',
+    rowActions: '“{{name}}”的操作',
+    description: '管理借款申请、付款及还款。',
+
+    saved: '已保存借款申请“{{name}}”',
+    submitted: '已提交借款申请“{{name}}”',
+    cashRecorded: '已登记“{{name}}”的现金还款',
+    repaymentConfirmed: '已确认还款“{{receipt}}”',
+    repaymentCancelled: '已取消还款“{{receipt}}”',
+    confirmRepaymentTitle: '确认还款“{{receipt}}”？',
+    cancelRepaymentTitle: '取消还款“{{receipt}}”？',
+
     businessErrors: {
       LOAN_REQUEST_DEPARTMENT_REQUIRED:
         '申请人没有有效主部门，请联系人力资源完善员工档案。',
@@ -83,7 +95,7 @@ export default {
     view: '工作列表',
     filteredEmpty: '没有符合筛选条件的借款申请',
     empty: '暂无借款申请',
-    emptyHint: '审批通过后，出纳完成付款才生成借款债务。',
+    emptyHint: '新建借款申请，为已批准的业务需要申请资金。',
     clear: '清除筛选',
     states: {
       draft: '草稿',
@@ -136,7 +148,7 @@ export default {
     title: '借款申请',
     new: '新建借款申请',
     reason: '借款事由',
-    amount: '借款金额',
+    amount: '借款金额（元）',
     dueDate: '计划还款日期',
     travel: '关联出差申请',
     status: '状态',

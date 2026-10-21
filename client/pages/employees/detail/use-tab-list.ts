@@ -1,5 +1,5 @@
 import { useApiClient } from '@nocobase/app-client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 /** Loads one of the employee's sub-lists (`compensation`, `history`), keeping the previous rows while reloading. */
 export function useTabList<T>(
@@ -38,9 +38,10 @@ export function useTabList<T>(
     return () => controller.abort();
   }, [api, employeeId, list, reloadCount]);
   const loading = result?.key !== requestKey;
+  const retry = useCallback(() => setReloadCount((count) => count + 1), []);
   return {
     rows: result?.rows,
     error: loading ? undefined : result?.error,
-    retry: () => setReloadCount((count) => count + 1),
+    retry,
   };
 }

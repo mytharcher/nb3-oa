@@ -1,12 +1,20 @@
-import { StatusBadge as ApplicationStatusBadge } from '#components/status-badge';
+import { useFormDiscardGuard } from '#hooks/use-form-discard-guard';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '#components/ui/dialog';
+  FormDrawerContent,
+  FormDrawerHeader,
+  FormDrawerBody,
+  FormDrawerFooter,
+} from '#components/form-drawer';
+import { IconAction } from '../../components/icon-action.js';
+import { LoadFailure } from '../../components/load-failure.js';
+import { responseStatus } from '../../components/response-status.js';
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
+import { ApplicationTableEmpty } from '#components/application-table-empty';
+import { Alert, AlertDescription } from '#components/ui/alert';
+import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
+import { TruncatedText } from '#components/truncated-text';
+import { StatusBadge as ApplicationStatusBadge } from '#components/status-badge';
+import { Dialog, DialogTitle, DialogDescription } from '#components/ui/dialog';
 import { Input } from '#components/ui/input';
 import { Textarea } from '#components/ui/textarea';
 import {
@@ -17,7 +25,7 @@ import {
   SelectItem,
 } from '#components/ui/select';
 import { Button } from '#components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { ChevronRight, ArrowUpDown } from 'lucide-react';
 import { ApplicationToolbar } from '#components/application-toolbar';
 import { ResponsiveTable as Table } from '#components/responsive-table';
 import { PageContainer } from '../components/page-container.js';
@@ -46,7 +54,7 @@ export default function NotificationLogsPage(): ReactElement {
   const [logs, setLogs] = useState<readonly NotificationLogDetails[]>([]);
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<unknown>();
   const [testOpen, setTestOpen] = useState(false);
   const [testTargets, setTestTargets] =
     useState<readonly NotificationTestTarget[]>();
@@ -67,15 +75,13 @@ export default function NotificationLogsPage(): ReactElement {
           if (active) setLogs(nextLogs);
         },
         (cause: unknown) => {
-          if (active)
-            setError(
-              errorMessage(
-                cause,
-                t('errors.requestFailed', {
-                  defaultValue: 'Notification request failed.',
-                }),
-              ),
-            );
+          if (!active) return;
+          setError(cause);
+          if ([401, 403, 404].includes(responseStatus(cause) ?? 0)) {
+            setLogs([]);
+            setTestTargets([]);
+            setTestOpen(false);
+          }
         },
       )
       .finally(() => {
@@ -112,7 +118,7 @@ export default function NotificationLogsPage(): ReactElement {
     return () => {
       active = false;
     };
-  }, [t]);
+  }, [t, revision]);
 
   const totals = useMemo(
     () => ({
@@ -128,6 +134,13 @@ export default function NotificationLogsPage(): ReactElement {
     <PageContainer>
       <PageHeader
         title={t('logs.title', { defaultValue: 'Notification logs' })}
+        actions={
+          <ApplicationRefreshButton
+            label={t('logs.refresh')}
+            loading={loading}
+            onClick={refresh}
+          />
+        }
         description={t('logs.description', {
           defaultValue:
             'Trace notification delivery and every provider attempt. Message bodies, recipients, and lease tokens are redacted.',
@@ -136,17 +149,6 @@ export default function NotificationLogsPage(): ReactElement {
       <ApplicationToolbar
         actions={
           <>
-            <Button
-              variant='outline'
-              size='icon'
-              aria-label={t('logs.refresh', { defaultValue: 'Refresh' })}
-              title={t('logs.refresh', { defaultValue: 'Refresh' })}
-              disabled={loading}
-              onClick={refresh}
-              type='button'
-            >
-              <RefreshCw className={loading ? 'animate-spin' : undefined} />
-            </Button>
             <Button onClick={() => setTestOpen(true)} type='button'>
               {t('logs.sendTest', {
                 defaultValue: 'Send test notification',
@@ -156,7 +158,7 @@ export default function NotificationLogsPage(): ReactElement {
         }
       />
 
-      <div className='space-y-5'>
+      <div className='flex flex-col gap-5'>
         <div className='grid max-w-md grid-cols-2 gap-3'>
           <Metric
             label={t('logs.deliveriesShown', {
@@ -172,38 +174,38 @@ export default function NotificationLogsPage(): ReactElement {
         </div>
 
         {error ? (
-          <div className='rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive'>
-            <p className='font-medium'>
-              {t('logs.unavailable', { defaultValue: 'Logs unavailable' })}
-            </p>
-            <p className='mt-1'>{error}</p>
-          </div>
+          <LoadFailure
+            error={error}
+            message={t(
+              responseStatus(error) === 403
+                ? 'errors.forbidden'
+                : responseStatus(error) === 404
+                  ? 'errors.notFound'
+                  : 'errors.requestFailed',
+            )}
+            retryLabel={t('logs.retry')}
+            onRetry={refresh}
+          />
         ) : null}
 
+        {logs.length >= 100 ? (
+          <p className='text-sm text-muted-foreground'>
+            {t('logs.limitNotice', { count: 100 })}
+          </p>
+        ) : null}
         <section className='overflow-hidden rounded-xl border bg-card shadow-sm'>
           <div className='border-b bg-muted/20 px-5 py-4'>
-            <h2 className='font-semibold'>
+            <h2 className='text-base font-medium'>
               {t('logs.recent', { defaultValue: 'Recent notifications' })}
             </h2>
           </div>
-          {loading ? (
-            <div className='p-12 text-center text-sm text-muted-foreground'>
-              {t('logs.loading', {
-                defaultValue: 'Loading delivery history…',
-              })}
-            </div>
-          ) : logs.length === 0 ? (
-            <div className='p-12 text-center'>
-              <p className='font-medium'>
-                {t('logs.emptyTitle', { defaultValue: 'No deliveries yet' })}
-              </p>
-              <p className='mt-1 text-sm text-muted-foreground'>
-                {t('logs.emptyDescription', {
-                  defaultValue:
-                    'Delivery records will appear here after notifications are sent.',
-                })}
-              </p>
-            </div>
+          {loading && logs.length === 0 ? (
+            <ApplicationTableSkeleton columns={5} />
+          ) : error && logs.length === 0 ? null : logs.length === 0 ? (
+            <ApplicationTableEmpty
+              title={t('logs.emptyTitle')}
+              description={t('logs.emptyDescription')}
+            />
           ) : (
             <NotificationLogsTable logs={logs} targets={testTargets} />
           )}
@@ -236,11 +238,40 @@ function TestNotificationDialog({
   const [selected, setSelected] = useState<NotificationTestTarget>();
   const [values, setValues] = useState<Readonly<Record<string, string>>>({});
   const [sending, setSending] = useState(false);
+  const [checked, setChecked] = useState(false);
+  const fieldProblems = Object.fromEntries(
+    (selected?.fields ?? []).flatMap<readonly [string, string]>((field) => {
+      const value = values[field.name]?.trim() ?? '';
+      const problem =
+        field.required && !value
+          ? t('test.fieldRequired', { name: field.label })
+          : value &&
+              field.type === 'email' &&
+              !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+            ? t('test.emailInvalid', { name: field.label })
+            : undefined;
+      return problem ? [[field.name, problem]] : [];
+    }),
+  );
   const [error, setError] = useState<string>();
   const [success, setSuccess] = useState<string>();
 
+  const guard = useFormDiscardGuard(
+    !success && Object.values(values).some(Boolean),
+    sending,
+  );
+  const close = () => {
+    void guard.requestClose(onClose);
+  };
+
   const send = (): void => {
     if (!selected) return;
+    setChecked(true);
+    const first = selected.fields.find((field) => fieldProblems[field.name]);
+    if (first) {
+      document.getElementById(`notification-test-${first.name}`)?.focus();
+      return;
+    }
     setSending(true);
     setError(undefined);
     setSuccess(undefined);
@@ -276,14 +307,11 @@ function TestNotificationDialog({
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !sending) onClose();
+        if (!open) close();
       }}
     >
-      <DialogContent
-        showCloseButton={!sending}
-        className='flex flex-col overflow-hidden sm:max-w-xl'
-      >
-        <DialogHeader>
+      <FormDrawerContent showCloseButton={!sending}>
+        <FormDrawerHeader>
           <DialogTitle>
             {t('test.title', { defaultValue: 'Send test notification' })}
           </DialogTitle>
@@ -293,12 +321,12 @@ function TestNotificationDialog({
                 'Select a Channel, then click Send. The message is sent to the recipient you provide and recorded below.',
             })}
           </DialogDescription>
-        </DialogHeader>
-        <div className='flex min-h-0 flex-col gap-4 overflow-y-auto'>
+        </FormDrawerHeader>
+        <FormDrawerBody>
           {targetsError ? (
-            <div className='rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive'>
-              {targetsError}
-            </div>
+            <Alert variant='destructive'>
+              <AlertDescription>{targetsError}</AlertDescription>
+            </Alert>
           ) : targets === undefined ? (
             <span className='rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground'>
               {t('test.loadingProviders', {
@@ -328,6 +356,7 @@ function TestNotificationDialog({
                     (item) => providerKey(item) === value,
                   );
                   setSelected(target);
+                  setChecked(false);
                   setValues(
                     Object.fromEntries(
                       (target?.fields ?? []).map((field) => [
@@ -370,9 +399,21 @@ function TestNotificationDialog({
               key={field.name}
             >
               {field.label}
+              {field.required ? (
+                <span aria-hidden='true' className='text-destructive'>
+                  *
+                </span>
+              ) : null}
               {field.type === 'textarea' ? (
                 <Textarea
+                  id={`notification-test-${field.name}`}
                   aria-label={field.label}
+                  aria-invalid={checked && Boolean(fieldProblems[field.name])}
+                  aria-describedby={
+                    checked && fieldProblems[field.name]
+                      ? `notification-test-${field.name}-error`
+                      : undefined
+                  }
                   disabled={sending}
                   maxLength={field.maxLength}
                   onChange={(event) =>
@@ -382,12 +423,19 @@ function TestNotificationDialog({
                     }))
                   }
                   placeholder={field.placeholder}
-                  required={field.required}
+                  aria-required={field.required}
                   value={values[field.name] ?? ''}
                 />
               ) : (
                 <Input
+                  id={`notification-test-${field.name}`}
                   aria-label={field.label}
+                  aria-invalid={checked && Boolean(fieldProblems[field.name])}
+                  aria-describedby={
+                    checked && fieldProblems[field.name]
+                      ? `notification-test-${field.name}-error`
+                      : undefined
+                  }
                   disabled={sending}
                   maxLength={field.maxLength}
                   onChange={(event) =>
@@ -397,51 +445,51 @@ function TestNotificationDialog({
                     }))
                   }
                   placeholder={field.placeholder}
-                  required={field.required}
+                  aria-required={field.required}
                   type={field.type}
                   value={values[field.name] ?? ''}
                 />
               )}
+              {checked && fieldProblems[field.name] ? (
+                <span
+                  id={`notification-test-${field.name}-error`}
+                  role='alert'
+                  className='text-sm text-destructive'
+                >
+                  {fieldProblems[field.name]}
+                </span>
+              ) : null}
             </label>
           ))}
 
           {error ? (
-            <div className='rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive'>
-              {error}
-            </div>
+            <Alert variant='destructive'>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           ) : null}
           {success ? (
             <div className='rounded-lg border border-(--status-success)/30 bg-(--status-success-background) p-3 text-sm text-(--status-success)'>
               {success}
             </div>
           ) : null}
-        </div>
-        <DialogFooter>
+        </FormDrawerBody>
+        <FormDrawerFooter>
           <Button
             variant='outline'
             disabled={sending}
-            onClick={onClose}
+            onClick={close}
             type='button'
           >
             {t('test.cancel', { defaultValue: 'Cancel' })}
           </Button>
-          <Button
-            disabled={
-              sending ||
-              !selected ||
-              selected.fields.some(
-                (field) => field.required && !values[field.name]?.trim(),
-              )
-            }
-            onClick={send}
-            type='button'
-          >
+          <Button disabled={sending || !selected} onClick={send} type='button'>
             {sending
               ? t('test.sending', { defaultValue: 'Sending…' })
               : t('test.send', { defaultValue: 'Send' })}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </FormDrawerFooter>
+      </FormDrawerContent>
+      {guard.confirmation}
     </Dialog>
   );
 }
@@ -479,6 +527,22 @@ function NotificationLogsTable({
   readonly targets?: readonly NotificationTestTarget[];
 }): ReactElement {
   const { t } = useTranslation('@nocobase/app-plugin-notification');
+  const [sort, setSort] = useState<'createdAt' | 'deliveries'>('createdAt');
+  const [descending, setDescending] = useState(true);
+  const sorted = [...logs].sort(
+    (a, b) =>
+      (sort === 'createdAt'
+        ? Date.parse(a.log.createdAt) - Date.parse(b.log.createdAt)
+        : a.deliveries.length - b.deliveries.length) * (descending ? -1 : 1),
+  );
+  const sortBy = (field: 'createdAt' | 'deliveries') => {
+    if (sort === field) setDescending((value) => !value);
+    else {
+      setSort(field);
+      setDescending(true);
+    }
+  };
+
   return (
     <div className='min-w-0'>
       <Table className='w-full min-w-[860px] text-sm'>
@@ -501,16 +565,48 @@ function NotificationLogsTable({
             <th className='px-4 py-3 font-medium'>
               {t('logs.columns.status', { defaultValue: 'Status' })}
             </th>
-            <th className='px-4 py-3 text-right font-medium'>
-              {t('logs.columns.deliveries', { defaultValue: 'Deliveries' })}
+            <th
+              className='px-4 py-3 text-right font-medium'
+              aria-sort={
+                sort === 'deliveries'
+                  ? descending
+                    ? 'descending'
+                    : 'ascending'
+                  : 'none'
+              }
+            >
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={() => sortBy('deliveries')}
+              >
+                {t('logs.columns.deliveries')}
+                <ArrowUpDown />
+              </Button>
             </th>
-            <th className='px-4 py-3 font-medium'>
-              {t('logs.columns.created', { defaultValue: 'Created' })}
+            <th
+              className='px-4 py-3 font-medium'
+              aria-sort={
+                sort === 'createdAt'
+                  ? descending
+                    ? 'descending'
+                    : 'ascending'
+                  : 'none'
+              }
+            >
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={() => sortBy('createdAt')}
+              >
+                {t('logs.columns.created')}
+                <ArrowUpDown />
+              </Button>
             </th>
           </tr>
         </thead>
         <tbody>
-          {logs.map((details) => (
+          {sorted.map((details) => (
             <NotificationTableRow
               key={details.log.id}
               details={details}
@@ -536,29 +632,32 @@ function NotificationTableRow({
     <Fragment>
       <tr className='border-b' aria-expanded={open}>
         <td className='px-4 py-3'>
-          <button
-            className='grid size-8 place-items-center rounded-md hover:bg-muted'
-            aria-label={
-              open
-                ? t('logs.collapse', {
-                    defaultValue: 'Collapse notification',
-                  })
-                : t('logs.expand', { defaultValue: 'Expand notification' })
-            }
-            aria-expanded={open}
-            onClick={() => setOpen((value) => !value)}
-            type='button'
-          >
-            <span className={`transition-transform ${open ? 'rotate-90' : ''}`}>
-              ›
-            </span>
-          </button>
+          <IconAction label={t(open ? 'logs.collapse' : 'logs.expand')}>
+            <Button
+              variant='ghost'
+              size='icon-sm'
+              aria-label={
+                open
+                  ? t('logs.collapse', {
+                      defaultValue: 'Collapse notification',
+                    })
+                  : t('logs.expand', { defaultValue: 'Expand notification' })
+              }
+              aria-expanded={open}
+              onClick={() => setOpen((value) => !value)}
+              type='button'
+            >
+              <ChevronRight
+                className={`transition-transform ${open ? 'rotate-90' : ''}`}
+              />
+            </Button>
+          </IconAction>
         </td>
         <td className='px-4 py-3'>
           <div className='font-medium'>{details.log.sourceType}</div>
           {details.log.sourceReferenceId ? (
-            <div className='mt-0.5 max-w-48 truncate text-xs text-muted-foreground'>
-              {details.log.sourceReferenceId}
+            <div className='mt-0.5 max-w-48 text-xs text-muted-foreground'>
+              <TruncatedText text={details.log.sourceReferenceId} />
             </div>
           ) : null}
         </td>
@@ -715,8 +814,10 @@ function AttemptList({
                 </span>
               ) : null}
               {attempt.error ? (
-                <span className='mt-1 block truncate text-destructive'>
-                  {providerErrorMessage(t, attempt.error)}
+                <span className='mt-1 block text-destructive'>
+                  <TruncatedText
+                    text={providerErrorMessage(t, attempt.error)}
+                  />
                 </span>
               ) : null}
             </span>
@@ -777,20 +878,17 @@ function formatTime(value: string, language: string): string {
   }).format(new Date(value));
 }
 
-function errorMessage(value: unknown, fallback: string): string {
-  return value instanceof Error ? value.message : fallback;
+function errorMessage(_value: unknown, fallback: string): string {
+  return fallback;
 }
 
 function providerErrorMessage(
   t: Translate,
   error: { readonly message: string; readonly code?: string },
 ): string {
-  if (
-    error.code === 'IN_APP_NOTIFICATION_RECIPIENT_NOT_FOUND' ||
-    error.message === 'In-app notification recipient does not exist.'
-  )
+  if (error.code === 'IN_APP_NOTIFICATION_RECIPIENT_NOT_FOUND')
     return t('errors.inAppRecipientNotFound', {
       defaultValue: 'In-app notification recipient does not exist.',
     });
-  return error.message;
+  return t('errors.providerFailed');
 }

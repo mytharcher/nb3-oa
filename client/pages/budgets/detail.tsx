@@ -23,7 +23,7 @@ import {
   TooltipContent,
 } from '#components/ui/tooltip';
 import { useUrlSearch } from '#hooks/use-url-search';
-import { TruncatedText } from '../platform/shared/truncated-text.js';
+import { TruncatedText } from '#components/truncated-text';
 import { useBalanceResource } from './resource.js';
 import { BudgetEmpty, BudgetError, BudgetSkeleton } from './states.js';
 import {
@@ -95,7 +95,11 @@ export default function BudgetDetail() {
     ...numeric.map((key) => ({
       accessorKey: key,
       header: ({ column }: { column: Column<Ledger, unknown> }) => (
-        <DataTableColumnHeader column={column} title={t(`budgets.${key}`)} />
+        <DataTableColumnHeader
+          column={column}
+          title={t(`budgets.${key}`)}
+          className='justify-end'
+        />
       ),
       cell: ({ row }: { row: { original: Ledger } }) => (
         <div className='text-right tabular-nums'>
@@ -150,6 +154,7 @@ export default function BudgetDetail() {
         <>
           {b && canUpdate ? (
             <Button
+              nativeButton={false}
               disabled={r.loading}
               render={
                 <Link to={{ pathname: 'adjust', search: location.search }} />

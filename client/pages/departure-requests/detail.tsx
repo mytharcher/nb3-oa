@@ -14,7 +14,7 @@ import {
   useParams,
   useNavigate,
 } from 'react-router';
-import { RefreshCw } from 'lucide-react';
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
 
 import { RecordDetailDrawer } from '#components/record-detail-drawer';
 import { Button } from '#components/ui/button';
@@ -162,26 +162,13 @@ export default function DepartureDetailPage() {
           </TooltipContent>
         </Tooltip>
       ))}
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant='outline'
-              size='icon'
-              aria-label={t('departureRequests.refresh')}
-              disabled={resource.loading}
-              onClick={() => {
-                reloadDetail();
-              }}
-            />
-          }
-        >
-          <RefreshCw
-            className={resource.loading ? 'animate-spin' : undefined}
-          />
-        </TooltipTrigger>
-        <TooltipContent>{t('departureRequests.refresh')}</TooltipContent>
-      </Tooltip>
+      <ApplicationRefreshButton
+        label={t('departureRequests.refresh')}
+        loading={resource.loading}
+        onClick={() => {
+          reloadDetail();
+        }}
+      />
     </div>
   );
   async function navigateAction(action: string, target: string) {
@@ -213,7 +200,7 @@ export default function DepartureDetailPage() {
       description={t('departureRequests.description')}
       footer={actions}
     >
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         {resource.error ? (
           <ErrorState error={resource.error} retry={resource.reload} />
         ) : null}

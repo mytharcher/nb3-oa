@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Link, useLocation, useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { DepartmentPicker } from '#components/department-picker';
 import { Button } from '#components/ui/button';
@@ -79,7 +79,8 @@ export default function BudgetFormDialog() {
     !options.error;
   return (
     <>
-      <RouteDialog
+      <RouteDrawer
+        className='sm:max-w-2xl'
         title={t(`budgets.${budgetId ? 'adjustTitle' : 'new'}`)}
         description={t(
           budgetId ? 'budgets.adjustDescription' : 'budgets.newDescription',
@@ -118,7 +119,7 @@ export default function BudgetFormDialog() {
             }}
           />
         )}
-      </RouteDialog>
+      </RouteDrawer>
       <AlertDialog
         open={discard}
         onOpenChange={(v) => {
@@ -156,6 +157,7 @@ export default function BudgetFormDialog() {
   );
 }
 function Footer({ busy, disabled }: { busy: boolean; disabled: boolean }) {
+  const { budgetId } = useParams();
   const { close } = useRouteOverlay(),
     { t } = useTranslation();
   return (
@@ -165,7 +167,7 @@ function Footer({ busy, disabled }: { busy: boolean; disabled: boolean }) {
       </Button>
       <Button type='submit' form='budget-form' disabled={busy || disabled}>
         {busy ? <Spinner data-icon='inline-start' /> : null}
-        {t('budgets.save')}
+        {t(budgetId ? 'budgets.save' : 'budgets.create')}
       </Button>
     </>
   );
@@ -317,6 +319,7 @@ function BudgetForm({
           <BudgetError error={error} retry={() => void submit()} />
           {conflictAccount ? (
             <Button
+              nativeButton={false}
               variant='outline'
               render={
                 <Link

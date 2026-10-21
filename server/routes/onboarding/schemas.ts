@@ -200,6 +200,11 @@ export const ListQuery = z
     page: z.coerce.number().int().positive().default(1),
     pageSize: z.coerce.number().int().positive().max(100).default(20),
     status: z.enum(['handling', 'completed', 'cancelled']).optional(),
+    q: z.string().trim().max(100).optional(),
+    desc: z
+      .enum(['true', 'false'])
+      .transform((v) => v !== 'false')
+      .optional(),
   })
   .strict();
 export const Meta = z

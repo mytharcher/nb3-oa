@@ -1,3 +1,4 @@
+import { useDrawerFormGuard } from '#hooks/use-drawer-form-guard';
 import { useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -5,7 +6,7 @@ import { z } from 'zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useParams, useOutletContext } from 'react-router';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import {
   Field,
@@ -54,7 +55,8 @@ export default function GarageForm() {
       setBusy(v);
     };
   return (
-    <RouteDialog
+    <RouteDrawer
+      className='sm:max-w-2xl'
       title={t(vehicleId ? 'vehicles.editVehicle' : 'vehicles.newVehicle')}
       beforeClose={() => !workingRef.current}
       footer={<Footer busy={busy} ready={!!ready} />}
@@ -81,7 +83,7 @@ export default function GarageForm() {
           <AlertDescription>{t('vehicles.errors.forbidden')}</AlertDescription>
         </Alert>
       )}
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 function Footer({ busy, ready }: { busy: boolean; ready: boolean }) {
@@ -159,6 +161,10 @@ function Body({
       },
     }),
     pending = form.formState.isSubmitting;
+  const drawerGuard = useDrawerFormGuard(
+    form.formState.isDirty,
+    form.formState.isSubmitting,
+  );
   const submit = form.handleSubmit(
     async (values) => {
       busy(true);
@@ -171,7 +177,11 @@ function Body({
         form.reset(values);
         saved();
         busy(false);
-        toaster.show({ type: 'success', title: t('vehicles.saved') });
+        toaster.show({
+          type: 'success',
+          title: t('vehicles.saved', { name: values.name }),
+        });
+        drawerGuard.markSaved();
         await close();
       } catch (error) {
         form.setError('root', {
@@ -190,6 +200,7 @@ function Body({
   );
   return (
     <form id='vehicle-garage-form' noValidate onSubmit={(e) => void submit(e)}>
+      {drawerGuard.confirmation}
       <FieldGroup>
         <FormError error={form.formState.errors.root} />
         {(
@@ -197,7 +208,10 @@ function Body({
         ).map((name) => (
           <Field key={name} data-invalid={!!form.formState.errors[name]}>
             <FieldLabel htmlFor={`garage-${name}`}>
-              {t(`vehicles.fields.${name}`)}
+              {t(`vehicles.fields.${name}`)}{' '}
+              <span aria-hidden='true' className='text-destructive'>
+                *
+              </span>
             </FieldLabel>
             {name === 'reason' ? (
               <Textarea
@@ -237,7 +251,7 @@ function Body({
                 <SelectTrigger id='garage-status'>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                   <SelectGroup>
                     {['active', 'inactive', 'maintenance'].map((v) => (
                       <SelectItem key={v} value={v}>

@@ -1,5 +1,6 @@
 export default {
   vehicles: {
+    backToList: '返回列表',
     businessErrors: {
       VEHICLE_INVALID_INTERVAL: '请填写有效的用车起止时间和正数乘车人数。',
       VEHICLE_NO_AVAILABLE_CAPACITY:
@@ -38,8 +39,8 @@ export default {
     no: '否',
     unknown: '人员名称不可用',
     noDriver: '无需司机',
-    saved: '已保存',
-    operationSaved: '操作已完成',
+    saved: '已保存“{{name}}”',
+    operationSaved: '已完成“{{name}}”的{{action}}',
     noReservation: '提交仅校验容量，不会预留车辆',
     content: '用车信息',
     arrangement: '安排',
@@ -52,7 +53,7 @@ export default {
     discardDescription: '离开后未保存的表单输入将丢失。',
     keepEditing: '继续编辑',
     discard: '放弃修改',
-    destructiveTitle: '确认执行此操作？',
+    destructiveTitle: '{{action}}用车申请“{{name}}”？',
     destructiveDescription: '操作会保留历史记录，请确认理由和目标无误。',
     fields: {
       number: '编号',

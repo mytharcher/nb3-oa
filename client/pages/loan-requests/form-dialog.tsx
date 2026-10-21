@@ -1,3 +1,4 @@
+import { formatCents } from '#lib/money';
 import {
   useRequestFormSubmission,
   preventComposingSubmit,
@@ -7,9 +8,14 @@ import {
   RequestSubmissionFeedback,
 } from '#components/request-form-submission';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useOutletContext, useParams, useSearchParams } from 'react-router';
+import {
+  useOutletContext,
+  useParams,
+  useSearchParams,
+  useLocation,
+} from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
-import { ApiClientError, useApiClient } from '@nocobase/app-client';
+import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -63,7 +69,11 @@ export interface LoanOptions {
   rules: Record<string, unknown>;
 }
 export default function LoanFormDialog() {
-  const { requestId } = useParams();
+  const { requestId: inheritedRequestId } = useParams();
+  const location = useLocation();
+  const requestId = location.pathname.replace(/\/$/, '').endsWith('/newLoan')
+    ? undefined
+    : inheritedRequestId;
   const { t } = useTranslation();
   const resource = useResource<LoanRequestDetail>(
     requestId ? `loanRequests/${requestId}` : null,
@@ -197,8 +207,9 @@ function LoanForm({
   onBusy: (v: boolean) => void;
   onDirty: (v: boolean) => void;
 }) {
-  const { t } = useTranslation(),
+  const { t, i18n } = useTranslation(),
     api = useApiClient(),
+    toast = useToaster(),
     parent = useOutletContext<SourceContext>(),
     { close } = useRouteOverlay();
   const [params] = useSearchParams();
@@ -324,7 +335,16 @@ function LoanForm({
           return data.record;
         },
       );
-      await submission.finish(savedRecord);
+      const finishedRecord = await submission.finish(savedRecord);
+      toast.show({
+        type: 'success',
+        title: t(
+          submission.intent.current === 'submit'
+            ? 'loanRequests.submitted'
+            : 'loanRequests.saved',
+          { name: finishedRecord.number ?? t('approvals.draft') },
+        ),
+      });
 
       setCommitted(true);
       onDirty(false);
@@ -380,7 +400,7 @@ function LoanForm({
         <ErrorState
           error={error}
           retry={() => {
-            setError(undefined);
+            void form.handleSubmit(submit)();
           }}
         />
       ) : null}
@@ -402,7 +422,7 @@ function LoanForm({
               <p className='text-sm whitespace-pre-wrap break-words'>
                 {t('loanRequests.latestFacts', {
                   version: latest.record.lifecycleVersion,
-                  amount: amountText(latest.record.amountCents),
+                  amount: formatCents(latest.record.amountCents, i18n.language),
                   date: latest.record.dueDate,
                   reason: latest.record.reason,
                 })}
@@ -443,45 +463,48 @@ function LoanForm({
           />
           <FieldError errors={[form.formState.errors.reason]} />
         </Field>
-        <Field data-invalid={!!form.formState.errors.amount}>
-          <FieldLabel htmlFor='loan-amount'>
-            {t('loanRequests.amount')} *
-          </FieldLabel>
-          <Input
-            id='loan-amount'
-            inputMode='decimal'
-            {...form.register('amount')}
-            aria-invalid={!!form.formState.errors.amount}
-            disabled={!allowed || busy || committed}
+        <div className='grid gap-4 sm:grid-cols-2'>
+          <Field data-invalid={!!form.formState.errors.amount}>
+            <FieldLabel htmlFor='loan-amount'>
+              {t('loanRequests.amount')} *
+            </FieldLabel>
+            <Input
+              id='loan-amount'
+              inputMode='decimal'
+              {...form.register('amount')}
+              aria-invalid={!!form.formState.errors.amount}
+              disabled={!allowed || busy || committed}
+            />
+            <FieldDescription>{t('loanRequests.amountHint')}</FieldDescription>
+            <FieldError errors={[form.formState.errors.amount]} />
+          </Field>
+          <Controller
+            name='dueDate'
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor='loan-due'>
+                  {t('loanRequests.dueDate')} *
+                </FieldLabel>
+                <DatePicker
+                  id='loan-due'
+                  className='w-full'
+                  value={field.value ? parseISO(field.value) : undefined}
+                  onChange={(date) =>
+                    field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
+                  }
+                  onBlur={field.onBlur}
+                  invalid={fieldState.invalid}
+                  disabled={!allowed || busy || committed}
+                />
+                <FieldDescription>
+                  {t('loanRequests.companyDate', { zone: options.timeZone })}
+                </FieldDescription>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
           />
-          <FieldDescription>{t('loanRequests.amountHint')}</FieldDescription>
-          <FieldError errors={[form.formState.errors.amount]} />
-        </Field>
-        <Controller
-          name='dueDate'
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor='loan-due'>
-                {t('loanRequests.dueDate')} *
-              </FieldLabel>
-              <DatePicker
-                id='loan-due'
-                value={field.value ? parseISO(field.value) : undefined}
-                onChange={(date) =>
-                  field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
-                }
-                onBlur={field.onBlur}
-                invalid={fieldState.invalid}
-                disabled={!allowed || busy || committed}
-              />
-              <FieldDescription>
-                {t('loanRequests.companyDate', { zone: options.timeZone })}
-              </FieldDescription>
-              <FieldError errors={[fieldState.error]} />
-            </Field>
-          )}
-        />
+        </div>
         <Controller
           name='travelId'
           control={form.control}
@@ -501,14 +524,15 @@ function LoanForm({
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                   <SelectGroup>
                     <SelectItem value='none'>
                       {t('loanRequests.noTravel')}
                     </SelectItem>
                     {options.travelSources.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
-                        {s.number ?? s.id} · {amountText(s.amountCents)}
+                        {s.number ?? s.id} ·{' '}
+                        {formatCents(s.amountCents, i18n.language)}
                       </SelectItem>
                     ))}
                   </SelectGroup>

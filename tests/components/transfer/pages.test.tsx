@@ -248,12 +248,14 @@ it('restricts executive editing to current options and avoids employee directory
   serve();
   show('/review/request-1/reviewEdit');
   await screen.findByText('Changes restart approval and close existing tasks.');
-  expect(screen.getByLabelText('Target salary (CNY)')).toHaveValue('1100.00');
+  expect(screen.getByLabelText(/^Target salary \(CNY\)(?: \*)?$/)).toHaveValue(
+    '1100.00',
+  );
   expect(screen.queryByLabelText('Target department')).not.toBeInTheDocument();
   expect(
     api.request.mock.calls.some(([request]) => request.path === 'employees'),
   ).toBe(false);
-  const input = screen.getByLabelText('Target salary (CNY)');
+  const input = screen.getByLabelText(/^Target salary \(CNY\)(?: \*)?$/);
   await userEvent.clear(input);
   await userEvent.type(input, '1200.00');
   await userEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -293,7 +295,9 @@ it('unmounts private unsaved form values on a same-actor authorization revision'
       : undefined,
   );
   const router = show('/review/request-1/reviewEdit');
-  const salary = await screen.findByLabelText('Target salary (CNY)');
+  const salary = await screen.findByLabelText(
+    /^Target salary \(CNY\)(?: \*)?$/,
+  );
   await userEvent.clear(salary);
   await userEvent.type(salary, '9876.00');
   pending = true;
@@ -301,7 +305,7 @@ it('unmounts private unsaved form values on a same-actor authorization revision'
   await act(() => router.navigate('/review/request-1/reviewEdit?revision=1'));
   expect(screen.queryByDisplayValue('9876.00')).not.toBeInTheDocument();
   expect(
-    screen.queryByLabelText('Target salary (CNY)'),
+    screen.queryByLabelText(/^Target salary \(CNY\)(?: \*)?$/),
   ).not.toBeInTheDocument();
 });
 
@@ -380,12 +384,13 @@ it('identifies the employee and confirms destructive withdrawal before posting',
     false,
   );
   const confirm = screen.getByRole('alertdialog');
-  expect(confirm).toHaveTextContent(/Employee.*request-1/);
+  expect(confirm).toHaveTextContent('Withdraw for "Employee"?');
+  expect(confirm).not.toHaveTextContent('request-1');
   expect(
     within(confirm).getByText('Employee', { exact: true }),
   ).toBeInTheDocument();
   await userEvent.click(
-    within(confirm).getByRole('button', { name: 'Confirm action' }),
+    within(confirm).getByRole('button', { name: 'Withdraw', exact: true }),
   );
   await waitFor(() =>
     expect(api.request).toHaveBeenCalledWith(
@@ -439,7 +444,7 @@ it('aborts private edits on authorization revision and ignores late completion',
   });
   serve((request) => (request.method ? old : undefined));
   const router = show('/review/request-1/reviewEdit');
-  const input = await screen.findByLabelText('Target salary (CNY)');
+  const input = await screen.findByLabelText(/^Target salary \(CNY\)(?: \*)?$/);
   await userEvent.clear(input);
   await userEvent.type(input, '1200.00');
   await userEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -533,7 +538,7 @@ it('maps safe server field violations to the correct private input and focuses i
       : undefined,
   );
   show('/review/request-1/reviewEdit');
-  const input = await screen.findByLabelText('Target salary (CNY)');
+  const input = await screen.findByLabelText(/^Target salary \(CNY\)(?: \*)?$/);
   await userEvent.clear(input);
   await userEvent.type(input, '1200.00');
   await userEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -549,7 +554,7 @@ it('preserves center source query after reviewer save and refreshes the host', a
   const router = show(
     '/approvals/pending/transfer/request-1/reviewEdit?q=needle&page=3#source',
   );
-  const input = await screen.findByLabelText('Target salary (CNY)');
+  const input = await screen.findByLabelText(/^Target salary \(CNY\)(?: \*)?$/);
   await waitFor(() => expect(input).toHaveValue('1100.00'));
   await userEvent.clear(input);
   await userEvent.type(input, '1200.00');
@@ -600,7 +605,7 @@ it('saves the draft and submits with the strict owner reason, version and durabl
     return undefined;
   });
   show('/review/request-1/edit', draft);
-  await screen.findByLabelText('Target salary (CNY)');
+  await screen.findByLabelText(/^Target salary \(CNY\)(?: \*)?$/);
   await waitFor(() =>
     expect(
       screen.getByRole('button', { name: 'Submit', exact: true }),
@@ -648,7 +653,7 @@ it('offers current-year rebind for the actual server failure code in the fixed d
   );
   expect(action.closest('[data-slot="route-overlay-footer"]')).not.toBeNull();
   expect(
-    screen.getByRole('dialog', { name: 'Personnel changes' }),
+    screen.getByRole('dialog', { name: 'Personnel change for "Employee"' }),
   ).toBeInTheDocument();
 });
 

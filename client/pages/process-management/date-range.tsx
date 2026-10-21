@@ -30,7 +30,7 @@ export function ProcessDateRange({
   to?: string;
   onChange: (from?: string, to?: string) => void;
 }) {
-  const { t } = useTranslation(),
+  const { t, i18n } = useTranslation(),
     mobile = useIsMobile(),
     locale = useDatePickerLocale();
   const [open, setOpen] = useState(false);
@@ -49,7 +49,7 @@ export function ProcessDateRange({
       <PopoverTrigger render={<Button variant='outline' />}>
         <CalendarDays />
         {from
-          ? `${from}${to ? ` – ${to}` : ''}`
+          ? `${new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' }).format(parseISO(from))}${to ? ` – ${new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' }).format(parseISO(to))}` : ''}`
           : t('processManagement.dateRange')}
       </PopoverTrigger>
       <PopoverContent

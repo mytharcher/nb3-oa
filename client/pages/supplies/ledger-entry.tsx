@@ -2,6 +2,9 @@ import { UserName } from '#components/user-name';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useParams } from 'react-router';
 import { RouteDrawer } from '#components/route-drawer';
+import { Alert, AlertDescription } from '#components/ui/alert';
+import { Button } from '#components/ui/button';
+import { useRouteOverlay } from '#components/use-route-overlay';
 import { StatusBadge } from '#components/status-badge';
 import { FieldsSkeleton } from '../platform/shared/states.js';
 import { useResource } from '../approvals/use-resource.js';
@@ -26,11 +29,7 @@ export default function SupplyLedgerEntryPage() {
       {resource.loading && !resource.data ? (
         <FieldsSkeleton fields={8} />
       ) : null}
-      {resource.data && !record ? (
-        <p className='text-sm text-muted-foreground'>
-          {t('supplies.entryMissing')}
-        </p>
-      ) : null}
+      {resource.data && !record ? <MissingEntry /> : null}
       {record ? (
         <div className='flex flex-col gap-6'>
           <StatusBadge
@@ -38,7 +37,7 @@ export default function SupplyLedgerEntryPage() {
           >
             {t(`supplies.states.${record.outcome}`)}
           </StatusBadge>
-          <dl className='grid gap-4 text-sm'>
+          <dl className='grid grid-cols-1 gap-4 text-sm sm:grid-cols-[8rem_1fr] [&>div]:contents'>
             {[
               [
                 t('supplies.item'),
@@ -48,13 +47,17 @@ export default function SupplyLedgerEntryPage() {
               ],
               [
                 t('supplies.requestedQuantity'),
-                String(record.requestedQuantity),
+                new Intl.NumberFormat(i18n.language).format(
+                  record.requestedQuantity,
+                ),
               ],
               [
                 t('supplies.actualQuantity'),
                 record.actualQuantity === null
                   ? t('supplies.unconfirmed')
-                  : String(record.actualQuantity),
+                  : new Intl.NumberFormat(i18n.language).format(
+                      record.actualQuantity,
+                    ),
               ],
               [
                 t('supplies.recipient'),
@@ -78,7 +81,14 @@ export default function SupplyLedgerEntryPage() {
             ].map(([label, value]) => (
               <div key={label}>
                 <dt className='text-muted-foreground'>{label}</dt>
-                <dd className='whitespace-pre-wrap break-words'>
+                <dd
+                  className={
+                    label === t('supplies.requestedQuantity') ||
+                    label === t('supplies.actualQuantity')
+                      ? 'whitespace-pre-wrap break-words text-right tabular-nums'
+                      : 'whitespace-pre-wrap break-words'
+                  }
+                >
                   {value || '—'}
                 </dd>
               </div>
@@ -92,5 +102,23 @@ export default function SupplyLedgerEntryPage() {
         </div>
       ) : null}
     </RouteDrawer>
+  );
+}
+
+function MissingEntry() {
+  const { t } = useTranslation();
+  const { close } = useRouteOverlay();
+  return (
+    <Alert variant='destructive'>
+      <AlertDescription>{t('supplies.entryMissing')}</AlertDescription>
+      <Button
+        variant='outline'
+        onClick={() => {
+          void close();
+        }}
+      >
+        {t('approvals.cancel')}
+      </Button>
+    </Alert>
   );
 }

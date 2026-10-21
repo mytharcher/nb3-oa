@@ -14,6 +14,7 @@ export interface Person {
 }
 export interface Booking {
   id: string;
+  roomName?: string | null;
   seriesId: string | null;
   roomId: string;
   organizerUserId: string;

@@ -1,3 +1,5 @@
+import { X } from 'lucide-react';
+import { Badge } from '#components/ui/badge';
 import { useEffect, useRef, useState } from 'react';
 import {
   useParams,
@@ -164,7 +166,8 @@ function Fields({
     );
   const form = useForm({
     resolver: zodResolver(schema),
-    mode: 'onBlur',
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
     defaultValues: {
       title: row?.title ?? '',
       body: row?.body ?? '',
@@ -324,7 +327,10 @@ function Fields({
           {(['title', 'body'] as const).map((name) => (
             <Field key={name} data-invalid={!!form.formState.errors[name]}>
               <FieldLabel htmlFor={`announcement-${name}`}>
-                {t(`announcements.fields.${name}`)} *
+                {t(`announcements.fields.${name}`)}{' '}
+                <span aria-hidden='true' className='text-destructive'>
+                  *
+                </span>
               </FieldLabel>
               {name === 'title' ? (
                 <Input
@@ -400,22 +406,29 @@ function Fields({
               }}
             />
             {values.departmentIds?.map((id) => (
-              <Button
-                key={id}
-                type='button'
-                variant='outline'
-                disabled={busy}
-                onClick={() =>
-                  form.setValue(
-                    'departmentIds',
-                    values.departmentIds!.filter((v) => v !== id),
-                    { shouldDirty: true },
-                  )
-                }
-              >
-                {departmentNames[id] ?? t('announcements.selectedDepartment')} ·{' '}
-                {t('announcements.remove')}
-              </Button>
+              <Badge key={id} variant='outline' className='gap-2'>
+                {departmentNames[id] ?? t('announcements.selectedDepartment')}
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='icon-xs'
+                  disabled={busy}
+                  aria-label={t('announcements.removeDepartment', {
+                    name:
+                      departmentNames[id] ??
+                      t('announcements.selectedDepartment'),
+                  })}
+                  onClick={() =>
+                    form.setValue(
+                      'departmentIds',
+                      values.departmentIds!.filter((value) => value !== id),
+                      { shouldDirty: true },
+                    )
+                  }
+                >
+                  <X />
+                </Button>
+              </Badge>
             ))}
           </Field>
           <Field>
@@ -486,7 +499,10 @@ function Fields({
               render={({ field, fieldState }) => (
                 <Field>
                   <FieldLabel htmlFor={`announcement-${name}`}>
-                    {t(`announcements.fields.${name}`)} *
+                    {t(`announcements.fields.${name}`)}{' '}
+                    <span aria-hidden='true' className='text-destructive'>
+                      *
+                    </span>
                   </FieldLabel>
                   <DateTimePicker
                     id={`announcement-${name}`}

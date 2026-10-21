@@ -42,7 +42,7 @@ import { Blank, ErrorState, Loading, Refresh } from './ui.js';
 
 export default function SubjectDetail() {
   const { type = '', id = '' } = useParams();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const api = useApiClient();
   const client = useAuthorizationClient();
   const location = useLocation();
@@ -189,7 +189,7 @@ export default function SubjectDetail() {
       description={t('access.roleHelp')}
       footer={<Refresh busy={snapshot.busy || members.busy} reload={reload} />}
     >
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         <nav ref={focusTargetRef} tabIndex={-1} className='flex gap-2'>
           <Button
             variant={tab === 'permissions' ? 'secondary' : 'ghost'}
@@ -365,11 +365,23 @@ export default function SubjectDetail() {
                                               row.action
                                             ] ?? []
                                           )
-                                            .map(
-                                              (scope) =>
-                                                `${scope.label}：${scope.options.find((option) => option.value === row.scopes[scope.key])?.label ?? t('access.special')}`,
+                                            .map((scope) =>
+                                              t('access.labelValue', {
+                                                label: scope.label,
+                                                value:
+                                                  scope.options.find(
+                                                    (option) =>
+                                                      option.value ===
+                                                      row.scopes[scope.key],
+                                                  )?.label ??
+                                                  t('access.special'),
+                                              }),
                                             )
-                                            .join('；') || t('access.noScope')}
+                                            .join(
+                                              i18n.language.startsWith('zh')
+                                                ? '；'
+                                                : '; ',
+                                            ) || t('access.noScope')}
                                     </span>
                                   </div>
                                 ))}
@@ -411,6 +423,7 @@ export default function SubjectDetail() {
           confirmLabel={t('access.remove')}
           cancelLabel={t('access.cancel')}
           busy={busy}
+          error={error ? <ErrorState error={error} /> : undefined}
           onCancel={() => setRemoving(undefined)}
           onConfirm={() => {
             if (!removing) return;

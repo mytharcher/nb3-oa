@@ -56,7 +56,9 @@ function Line({ line }: { readonly line: ApprovalTimelineLine }): ReactElement {
         </dl>
       ) : null}
       {line.comment ? (
-        <p className='mt-0.5 text-xs text-muted-foreground'>“{line.comment}”</p>
+        <p className='mt-0.5 whitespace-pre-wrap break-words text-xs text-muted-foreground'>
+          {line.comment}
+        </p>
       ) : null}
       {children.length ? (
         <div className='mt-1 text-xs text-muted-foreground'>
@@ -73,7 +75,10 @@ function Line({ line }: { readonly line: ApprovalTimelineLine }): ReactElement {
           </button>
           <ul
             data-print-expanded
-            className={cn('mt-1 space-y-0.5 border-l pl-3', !open && 'hidden')}
+            className={cn(
+              'mt-1 flex flex-col gap-0.5 border-l pl-3',
+              !open && 'hidden',
+            )}
           >
             {children.map((child) => (
               <li key={child.key}>{child.label}</li>
@@ -125,7 +130,7 @@ function SystemGroup({
         <ol
           data-print-expanded
           className={cn(
-            'mt-1 space-y-1 border-l pl-3 text-xs',
+            'mt-1 flex flex-col gap-1 border-l pl-3 text-xs',
             !open && 'hidden',
           )}
         >
@@ -211,7 +216,7 @@ export function ApprovalTimeline({
       </p>
     );
   return (
-    <ol className={cn('space-y-3', className)}>
+    <ol className={cn('flex flex-col gap-3', className)}>
       {entriesOf(sorted, foldMuted).map((entry) =>
         entry.kind === 'system' ? (
           <SystemGroup

@@ -7,7 +7,6 @@ import {
 import { useTranslation } from '@nocobase/i18n/client';
 import { useNavigationGuard, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
-import { RouteDialog } from '#components/route-dialog';
 import { Button } from '#components/ui/button';
 import { Spinner } from '#components/ui/spinner';
 import {
@@ -17,10 +16,9 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogCancel,
   AlertDialogAction,
 } from '#components/ui/alert-dialog';
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { statusOf } from '../platform/shared/errors.js';
 import { useAnnouncementResource, isDenied } from './resource.js';
 import { useAnnouncementCommand } from './command.js';
@@ -46,7 +44,6 @@ export default function AnnouncementAction() {
       valid ? `announcements/${encodeURIComponent(announcementId!)}` : null,
     ),
     command = useAnnouncementCommand(),
-    [confirm, setConfirm] = useState(false),
     finishedRef = useRef(false);
   const row = r.data?.data,
     allowed =
@@ -105,103 +102,71 @@ export default function AnnouncementAction() {
     }
   }
   return (
-    <RouteDialog
-      title={t(`announcements.actions.${valid ? action : 'confirm'}`)}
-      className='sm:max-w-md'
-      closeTo={closeTo}
-      beforeClose={() => finishedRef.current || !command.busy}
-      footer={
-        <>
+    <AlertDialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !command.busy) void navigate(closeTo, { replace: true });
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {t('announcements.confirmTitle', {
+              action: t(`announcements.actions.${valid ? action : 'confirm'}`),
+              name: row?.title ?? t('announcements.title'),
+            })}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {t(`announcements.consequence.${valid ? action : 'confirm'}`)}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {r.error ? (
+          <Failure error={r.error} retry={r.reload} />
+        ) : r.loading ? (
+          <Loading />
+        ) : !allowed && !command.busy ? (
+          <p>{t('announcements.unavailable')}</p>
+        ) : null}
+        {command.error ? (
+          <>
+            <Failure error={command.error} />
+            {!isDenied(command.error) ? (
+              <Button
+                variant='outline'
+                disabled={command.busy}
+                onClick={() => {
+                  command.clearError();
+                  r.reload();
+                }}
+              >
+                {t('announcements.loadLatest')}
+              </Button>
+            ) : null}
+          </>
+        ) : null}
+        <AlertDialogFooter>
           <Button
             variant='outline'
             disabled={command.busy}
-            onClick={() => void navigate(closeTo, { replace: true })}
+            onClick={() => {
+              void navigate(closeTo, { replace: true });
+            }}
           >
             {t('announcements.cancel')}
           </Button>
-          {allowed ? (
-            <Button
-              disabled={command.busy}
-              variant={action === 'revoke' ? 'destructive' : 'default'}
-              onClick={() => {
-                if (action === 'publish' || action === 'revoke')
-                  setConfirm(true);
-                else void perform();
-              }}
-            >
-              {command.busy ? <Spinner /> : null}
-              {t(`announcements.actions.${action}`)}
-            </Button>
-          ) : null}
-        </>
-      }
-    >
-      {r.error ? (
-        <Failure error={r.error} retry={r.reload} />
-      ) : r.loading ? (
-        <Loading />
-      ) : row ? (
-        <>
-          <p className='font-medium break-words'>{row.title}</p>
-          <p className='mt-3 text-muted-foreground'>
-            {t(`announcements.consequence.${valid ? action : 'confirm'}`)}
-          </p>
-          {!allowed && !command.busy ? (
-            <p className='mt-3'>{t('announcements.unavailable')}</p>
-          ) : null}
-        </>
-      ) : (
-        <p>{t('announcements.unavailable')}</p>
-      )}
-      {command.error ? (
-        <>
-          <Failure error={command.error} />
-          {!isDenied(command.error) ? (
-            <Button
-              variant='outline'
-              disabled={command.busy}
-              onClick={() => {
-                command.clearError();
-                r.reload();
-              }}
-            >
-              {t('announcements.loadLatest')}
-            </Button>
-          ) : null}
-        </>
-      ) : null}
-      <AlertDialog
-        open={confirm}
-        onOpenChange={(v) => {
-          if (!command.busy) setConfirm(v);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t(`announcements.actions.${action}`)} — {row?.title}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(`announcements.consequence.${action}`)}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={command.busy}>
-              {t('announcements.cancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={command.busy}
-              variant={action === 'revoke' ? 'destructive' : 'default'}
-              onClick={(event) => {
-                event.preventDefault();
-                void perform().then(() => setConfirm(false));
-              }}
-            >
-              {t(`announcements.actions.${action}`)}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </RouteDialog>
+          <AlertDialogAction
+            variant={action === 'revoke' ? 'destructive' : 'default'}
+            disabled={command.busy || !allowed}
+            onClick={(event) => {
+              event.preventDefault();
+              void perform();
+            }}
+          >
+            {command.busy ? <Spinner /> : null}
+            {t(`announcements.actions.${valid ? action : 'confirm'}`)}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

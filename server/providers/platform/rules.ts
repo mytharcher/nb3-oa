@@ -68,6 +68,14 @@ export interface RuleService {
     input: SetRuleInput,
     connection?: DatabaseConnection,
   ): Promise<RuleVersion>;
+  /**
+   * Adds one version for each of several keys, all or none. Orderings between them are checked against the result
+   * as a whole, so related keys can move together past each other's old values. Keys must be distinct.
+   */
+  setMany(
+    inputs: readonly SetRuleInput[],
+    connection?: DatabaseConnection,
+  ): Promise<RuleVersion[]>;
   /** Withdraws a version that has not taken effect yet; audited in the same transaction. */
   cancel(
     key: string,
@@ -239,103 +247,134 @@ export function createRuleService(
     versions: (keys, connection) => load(keys, connection),
 
     async set(input, connection) {
-      const definition = requireDefinition(input.key);
-      const parsed = ruleValueSchema(definition).safeParse(input.value);
-      if (!parsed.success)
-        throw new PlatformError(
-          'RULE_INVALID_VALUE',
-          parsed.error.issues[0]?.message ?? 'The value is invalid.',
-          { field: 'value' },
-        );
-      const current = now();
-      let effectiveFrom = input.effectiveFrom ?? current;
-      if (effectiveFrom.getTime() < current.getTime() - SKEW_MS)
-        throw new PlatformError(
-          'RULE_EFFECTIVE_IN_PAST',
-          'A rule version cannot take effect in the past.',
-          { field: 'effectiveFrom' },
-        );
-      if (
-        !definition.allowFuture &&
-        effectiveFrom.getTime() > current.getTime() + SKEW_MS
-      )
-        throw new PlatformError(
-          'RULE_FUTURE_NOT_ALLOWED',
-          `"${input.key}" takes effect immediately and cannot be scheduled.`,
-          { field: 'effectiveFrom' },
-        );
-      if (effectiveFrom.getTime() < current.getTime()) effectiveFrom = current;
+      const [version] = await this.setMany([input], connection);
+      return version;
+    },
 
-      return inTransaction(connection, async (transaction) => {
-        const related = new Set([input.key]);
-        for (const pair of RULE_ORDERINGS)
-          if (pair.includes(input.key)) pair.forEach((key) => related.add(key));
-        const byKey = group(await load([...related], transaction));
-        const own = byKey.get(input.key) ?? [];
-        if (
-          own.some(
-            (version) =>
-              version.effectiveFrom.getTime() === effectiveFrom.getTime(),
-          )
-        )
+    async setMany(inputs, connection) {
+      const current = now();
+      const seen = new Set<string>();
+      const checked = inputs.map((input) => {
+        const definition = requireDefinition(input.key);
+        const metadata = { key: input.key };
+        if (seen.has(input.key))
           throw new PlatformError(
             'RULE_VERSION_EXISTS',
-            `"${input.key}" already has a version taking effect at that instant.`,
-            { field: 'effectiveFrom' },
+            `"${input.key}" appears more than once.`,
+            { field: 'key', metadata },
           );
-        const previous = versionAt(own, effectiveFrom.getTime());
-        const created = toVersion({
-          id: '',
-          key: input.key,
-          value: parsed.data,
-          effectiveFrom,
-          updatedBy: input.actorId,
-          note: input.note ?? null,
-          createdAt: current,
-        });
-        byKey.set(
-          input.key,
-          [...own, created].sort(
-            (a, b) => a.effectiveFrom.getTime() - b.effectiveFrom.getTime(),
-          ),
-        );
-        assertOrdering(byKey, input.key, effectiveFrom.getTime());
+        seen.add(input.key);
+        const parsed = ruleValueSchema(definition).safeParse(input.value);
+        if (!parsed.success)
+          throw new PlatformError(
+            'RULE_INVALID_VALUE',
+            parsed.error.issues[0]?.message ?? 'The value is invalid.',
+            { field: 'value', metadata },
+          );
+        let effectiveFrom = input.effectiveFrom ?? current;
+        if (effectiveFrom.getTime() < current.getTime() - SKEW_MS)
+          throw new PlatformError(
+            'RULE_EFFECTIVE_IN_PAST',
+            'A rule version cannot take effect in the past.',
+            { field: 'effectiveFrom', metadata },
+          );
+        if (
+          !definition.allowFuture &&
+          effectiveFrom.getTime() > current.getTime() + SKEW_MS
+        )
+          throw new PlatformError(
+            'RULE_FUTURE_NOT_ALLOWED',
+            `"${input.key}" takes effect immediately and cannot be scheduled.`,
+            { field: 'effectiveFrom', metadata },
+          );
+        if (effectiveFrom.getTime() < current.getTime())
+          effectiveFrom = current;
+        return { input, value: parsed.data, effectiveFrom };
+      });
+      if (!checked.length) return [];
 
-        const result = await transaction.repository('approvalRules').createOne({
-          values: {
+      return inTransaction(connection, async (transaction) => {
+        const related = new Set(seen);
+        for (const pair of RULE_ORDERINGS)
+          if (pair.some((key) => seen.has(key)))
+            pair.forEach((key) => related.add(key));
+        const byKey = group(await load([...related], transaction));
+        const previous = new Map<string, RuleVersion | undefined>();
+        for (const { input, value, effectiveFrom } of checked) {
+          const own = byKey.get(input.key) ?? [];
+          if (
+            own.some(
+              (version) =>
+                version.effectiveFrom.getTime() === effectiveFrom.getTime(),
+            )
+          )
+            throw new PlatformError(
+              'RULE_VERSION_EXISTS',
+              `"${input.key}" already has a version taking effect at that instant.`,
+              { field: 'effectiveFrom', metadata: { key: input.key } },
+            );
+          previous.set(input.key, versionAt(own, effectiveFrom.getTime()));
+          const created = toVersion({
+            id: '',
             key: input.key,
-            // Validated against the key's schema above: a number, a string or a plain object.
-            value: parsed.data as
-              number | string | Readonly<Record<string, unknown>>,
+            value,
             effectiveFrom,
             updatedBy: input.actorId,
             note: input.note ?? null,
             createdAt: current,
-          },
-        });
-        const version = toVersion(result.record as unknown as RuleRow);
-        await audit.record(
-          {
-            actorId: input.actorId,
-            action: 'rule.set',
-            targetType: 'approvalRules',
-            targetId: input.key,
-            before: previous
-              ? {
-                  value: previous.value,
-                  effectiveFrom: previous.effectiveFrom.toISOString(),
-                }
-              : null,
-            after: {
-              value: version.value,
-              effectiveFrom: version.effectiveFrom.toISOString(),
+          });
+          byKey.set(
+            input.key,
+            [...own, created].sort(
+              (a, b) => a.effectiveFrom.getTime() - b.effectiveFrom.getTime(),
+            ),
+          );
+        }
+        for (const { input, effectiveFrom } of checked)
+          assertOrdering(byKey, input.key, effectiveFrom.getTime());
+
+        const versions: RuleVersion[] = [];
+        for (const { input, value, effectiveFrom } of checked) {
+          const result = await transaction
+            .repository('approvalRules')
+            .createOne({
+              values: {
+                key: input.key,
+                // Validated against the key's schema above: a number, a string or a plain object.
+                value: value as
+                  number | string | Readonly<Record<string, unknown>>,
+                effectiveFrom,
+                updatedBy: input.actorId,
+                note: input.note ?? null,
+                createdAt: current,
+              },
+            });
+          const version = toVersion(result.record as unknown as RuleRow);
+          const before = previous.get(input.key);
+          await audit.record(
+            {
+              actorId: input.actorId,
+              action: 'rule.set',
+              targetType: 'approvalRules',
+              targetId: input.key,
+              before: before
+                ? {
+                    value: before.value,
+                    effectiveFrom: before.effectiveFrom.toISOString(),
+                  }
+                : null,
+              after: {
+                value: version.value,
+                effectiveFrom: version.effectiveFrom.toISOString(),
+              },
+              reason: version.note,
             },
-            reason: version.note,
-          },
-          transaction,
-        );
-        notify(transaction, input.key);
-        return version;
+            transaction,
+          );
+          notify(transaction, input.key);
+          versions.push(version);
+        }
+        return versions;
       });
     },
 

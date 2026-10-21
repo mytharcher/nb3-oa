@@ -33,12 +33,12 @@ export function PageHeader({
         : null}
       <div className='min-w-0'>
         {!drawerForm && (
-          <h1 className='font-heading text-3xl font-semibold tracking-[-0.035em]'>
+          <h1 className='font-heading text-2xl font-semibold tracking-tight'>
             {title}
           </h1>
         )}
         {description ? (
-          <p className='mt-2 max-w-2xl text-sm leading-6 text-muted-foreground'>
+          <p className='mt-1 max-w-2xl text-sm leading-6 text-muted-foreground'>
             {description}
           </p>
         ) : null}

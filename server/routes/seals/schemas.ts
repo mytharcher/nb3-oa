@@ -105,6 +105,8 @@ export const Request = z.object({
 });
 export const Ledger = z.object({
   id: Id,
+  requestNumber: z.string().nullable().optional(),
+  sealName: z.string().nullable().optional(),
   requestId: Id,
   sealId: Id,
   applicantId: Id,
@@ -152,6 +154,11 @@ export const ActionResult = z.object({
   outcome: z.string().optional(),
 });
 export const Detail = z.object({
+  relatedNames: z.object({
+    contractName: z.string().nullable(),
+    sealName: z.string().nullable(),
+    registrationSourceNumber: z.string().nullable(),
+  }),
   record: Request,
   tasks: z.array(
     z.object({
@@ -204,6 +211,10 @@ export const BrowserCapabilities = z.object({
 });
 
 export const LedgerQuery = z.strictObject({
+  sort: z
+    .enum(['registeredAt', 'borrowedAt', 'sealedAt'])
+    .default('registeredAt'),
+  direction: z.enum(['asc', 'desc']).default('desc'),
   page: z.coerce.number().int().positive().max(100000).default(1),
   pageSize: z.coerce
     .number()
@@ -222,4 +233,13 @@ export const LedgerDetail = z.object({
   }),
   receipt: Receipt.nullable(),
   printable: z.boolean(),
+});
+
+export const RequestQuery = z.strictObject({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().trim().max(200).default(''),
+  status: z.string().max(64).default(''),
+  sort: z.enum(['createdAt', 'copies']).default('createdAt'),
+  direction: z.enum(['asc', 'desc']).default('desc'),
 });

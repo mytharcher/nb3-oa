@@ -21,7 +21,6 @@ export default {
     latest: '已读取最新版本，保留了你的输入。请与最新来源选项比较后再次保存。',
     leaveReady: '请再次点击原目的地离开；继续编辑会取消这次确认。',
     applicantId: '申请人',
-    peopleDenied: '无权搜索人员。代理申请需管理员授予用户读取权限。',
     reason: '付款事由',
     sourceMode: '前置批准来源',
     contract: '合同',

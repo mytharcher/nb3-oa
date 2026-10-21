@@ -1,4 +1,3 @@
-import { UserNameText } from '#components/user-name';
 import {
   useRequestFormSubmission,
   preventComposingSubmit,
@@ -11,7 +10,6 @@ import { useDiscardGuard } from './use-discard-guard.js';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
-import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
@@ -127,7 +125,6 @@ function PurchaseForm({
     toaster = useToaster(),
     navigate = useNavigate(),
     location = useLocation(),
-    { session } = useAuthentication(),
     options = useResource<PurchaseOptions>('purchaseRequests/options'),
     initialRecord = detail?.record;
   const [replacement, setReplacement] = useState<PurchaseDetail>();
@@ -396,20 +393,36 @@ function PurchaseForm({
         title={t(record ? 'purchases.edit' : 'purchases.new')}
         description={t('purchases.formDescription')}
         actions={
-          <RequestFormButtons
-            revision={record?.status === 'revision'}
-            resource='oa.purchase'
-            form='purchase-form'
-            busy={busy}
-            disabled={
-              !currentAllowed ||
-              unknown ||
-              checking ||
-              !options.data ||
-              !!options.error ||
-              options.loading
-            }
-          />
+          <>
+            <Button
+              type='button'
+              variant='outline'
+              disabled={busy || unknown || checking}
+              onClick={() => {
+                void navigate({
+                  pathname: '..',
+                  search: location.search,
+                  hash: location.hash,
+                });
+              }}
+            >
+              {t('approvals.cancel')}
+            </Button>
+            <RequestFormButtons
+              revision={record?.status === 'revision'}
+              resource='oa.purchase'
+              form='purchase-form'
+              busy={busy}
+              disabled={
+                !currentAllowed ||
+                unknown ||
+                checking ||
+                !options.data ||
+                !!options.error ||
+                options.loading
+              }
+            />
+          </>
         }
       />
       {!currentAllowed ? (
@@ -461,19 +474,6 @@ function PurchaseForm({
       >
         <FieldGroup inert={submission.submitUnknown || undefined}>
           <p className='text-sm text-muted-foreground'>
-            <UserNameText
-              text={t('purchases.applicantHint', {
-                name:
-                  detail?.users.find((u) => u.id === record?.applicantId)
-                    ?.name ?? session?.user.name,
-              })}
-              name={
-                detail?.users.find((u) => u.id === record?.applicantId)?.name ??
-                session?.user.name
-              }
-            />
-          </p>
-          <p className='text-sm text-muted-foreground'>
             {t('purchases.primaryDepartment', {
               department:
                 options.data?.department?.title ??
@@ -503,169 +503,174 @@ function PurchaseForm({
             />
             <FieldError errors={[form.formState.errors.purpose]} />
           </Field>
-          <Controller
-            name='subject'
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field>
-                <FieldLabel htmlFor='purchase-subject'>
-                  {t('purchases.subject')} *
-                </FieldLabel>
-                <Select
-                  value={field.value || null}
-                  onValueChange={(v) => field.onChange(v ?? '')}
-                  disabled={
-                    !currentAllowed ||
-                    unknown ||
-                    checking ||
-                    !options.data ||
-                    !!options.error ||
-                    options.loading
-                  }
-                >
-                  <SelectTrigger
-                    id='purchase-subject'
-                    ref={field.ref}
-                    aria-invalid={fieldState.invalid}
-                    className='w-full'
+          <div className='grid gap-4 sm:grid-cols-2'>
+            <Controller
+              name='subject'
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field>
+                  <FieldLabel htmlFor='purchase-subject'>
+                    {t('purchases.subject')} *
+                  </FieldLabel>
+                  <Select
+                    value={field.value || null}
+                    onValueChange={(v) => field.onChange(v ?? '')}
+                    disabled={
+                      !currentAllowed ||
+                      unknown ||
+                      checking ||
+                      !options.data ||
+                      !!options.error ||
+                      options.loading
+                    }
                   >
-                    <SelectValue>
-                      {subjectLabel(
-                        options.data?.subjects.find(
-                          (s) => s.code === field.value,
-                        ),
-                        field.value,
-                        i18n.language,
-                      ) || t('purchases.selectSubject')}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
-                    <SelectGroup>
-                      {options.data?.subjects.map((s) => (
-                        <SelectItem
-                          key={s.code}
-                          value={s.code}
-                          disabled={!s.active}
-                        >
-                          <span className='whitespace-normal break-words'>
-                            {subjectLabel(s, s.code, i18n.language)}
-                            {!s.active ? ` (${t('purchases.disabled')})` : ''}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
-          <Field>
-            <FieldLabel htmlFor='purchase-amount'>
-              {t('purchases.estimated')} *
-            </FieldLabel>
-            <Input
-              id='purchase-amount'
-              inputMode='decimal'
-              disabled={
-                !currentAllowed ||
-                unknown ||
-                checking ||
-                !options.data ||
-                !!options.error ||
-                options.loading
-              }
-              {...form.register('amount')}
+                    <SelectTrigger
+                      id='purchase-subject'
+                      ref={field.ref}
+                      aria-invalid={fieldState.invalid}
+                      className='w-full'
+                    >
+                      <SelectValue>
+                        {subjectLabel(
+                          options.data?.subjects.find(
+                            (s) => s.code === field.value,
+                          ),
+                          field.value,
+                          i18n.language,
+                        ) || t('purchases.selectSubject')}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
+                      <SelectGroup>
+                        {options.data?.subjects.map((s) => (
+                          <SelectItem
+                            key={s.code}
+                            value={s.code}
+                            disabled={!s.active}
+                          >
+                            <span className='whitespace-normal break-words'>
+                              {subjectLabel(s, s.code, i18n.language)}
+                              {!s.active ? ` (${t('purchases.disabled')})` : ''}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
             />
-            <FieldDescription>{t('purchases.amountHint')}</FieldDescription>
-            <FieldError errors={[form.formState.errors.amount]} />
-          </Field>
-          <Controller
-            name='expectedDate'
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field>
-                <FieldLabel htmlFor='purchase-date'>
-                  {t('purchases.expectedDate')} *
-                </FieldLabel>
-                <DatePicker
-                  id='purchase-date'
-                  value={field.value ? parseISO(field.value) : undefined}
-                  onChange={(v) =>
-                    field.onChange(v ? format(v, 'yyyy-MM-dd') : '')
-                  }
-                  disabled={
-                    !currentAllowed ||
-                    unknown ||
-                    checking ||
-                    !options.data ||
-                    !!options.error ||
-                    options.loading
-                  }
-                />
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
-          <Controller
-            name='suggestedVendorId'
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field>
-                <FieldLabel htmlFor='purchase-vendor'>
-                  {t('purchases.suggestedVendor')}
-                </FieldLabel>
-                <Select
-                  value={field.value || 'none'}
-                  onValueChange={(v) =>
-                    field.onChange(v === 'none' ? '' : (v ?? ''))
-                  }
-                  disabled={
-                    !currentAllowed ||
-                    unknown ||
-                    checking ||
-                    !options.data ||
-                    !!options.error ||
-                    options.loading
-                  }
-                >
-                  <SelectTrigger
-                    id='purchase-vendor'
-                    ref={field.ref}
+            <Field>
+              <FieldLabel htmlFor='purchase-amount'>
+                {t('purchases.estimated')} *
+              </FieldLabel>
+              <Input
+                id='purchase-amount'
+                inputMode='decimal'
+                disabled={
+                  !currentAllowed ||
+                  unknown ||
+                  checking ||
+                  !options.data ||
+                  !!options.error ||
+                  options.loading
+                }
+                {...form.register('amount')}
+              />
+              <FieldDescription>{t('purchases.amountHint')}</FieldDescription>
+              <FieldError errors={[form.formState.errors.amount]} />
+            </Field>
+          </div>
+          <div className='grid gap-4 sm:grid-cols-2'>
+            <Controller
+              name='expectedDate'
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field>
+                  <FieldLabel htmlFor='purchase-date'>
+                    {t('purchases.expectedDate')} *
+                  </FieldLabel>
+                  <DatePicker
+                    id='purchase-date'
                     className='w-full'
+                    value={field.value ? parseISO(field.value) : undefined}
+                    onChange={(v) =>
+                      field.onChange(v ? format(v, 'yyyy-MM-dd') : '')
+                    }
+                    disabled={
+                      !currentAllowed ||
+                      unknown ||
+                      checking ||
+                      !options.data ||
+                      !!options.error ||
+                      options.loading
+                    }
+                  />
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+            <Controller
+              name='suggestedVendorId'
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field>
+                  <FieldLabel htmlFor='purchase-vendor'>
+                    {t('purchases.suggestedVendor')}
+                  </FieldLabel>
+                  <Select
+                    value={field.value || 'none'}
+                    onValueChange={(v) =>
+                      field.onChange(v === 'none' ? '' : (v ?? ''))
+                    }
+                    disabled={
+                      !currentAllowed ||
+                      unknown ||
+                      checking ||
+                      !options.data ||
+                      !!options.error ||
+                      options.loading
+                    }
                   >
-                    <SelectValue>
-                      {field.value
-                        ? (options.data?.vendors.find(
-                            (v) => v.id === field.value,
-                          )?.name ?? t('purchases.vendorUnavailable'))
-                        : t('purchases.noSuggestedVendor')}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
-                    <SelectGroup>
-                      <SelectItem value='none'>
-                        {t('purchases.noSuggestedVendor')}
-                      </SelectItem>
-                      {options.data?.vendors.map((v) => (
-                        <SelectItem
-                          key={v.id}
-                          value={v.id}
-                          disabled={!v.active}
-                        >
-                          <span className='whitespace-normal break-words'>
-                            {v.name} · {v.category}
-                            {!v.active ? ` (${t('purchases.disabled')})` : ''}
-                          </span>
+                    <SelectTrigger
+                      id='purchase-vendor'
+                      ref={field.ref}
+                      className='w-full'
+                    >
+                      <SelectValue>
+                        {field.value
+                          ? (options.data?.vendors.find(
+                              (v) => v.id === field.value,
+                            )?.name ?? t('purchases.vendorUnavailable'))
+                          : t('purchases.noSuggestedVendor')}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
+                      <SelectGroup>
+                        <SelectItem value='none'>
+                          {t('purchases.noSuggestedVendor')}
                         </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
+                        {options.data?.vendors.map((v) => (
+                          <SelectItem
+                            key={v.id}
+                            value={v.id}
+                            disabled={!v.active}
+                          >
+                            <span className='whitespace-normal break-words'>
+                              {v.name} · {v.category}
+                              {!v.active ? ` (${t('purchases.disabled')})` : ''}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+          </div>
           <section className='flex flex-col gap-4'>
             <h2 className='text-base font-medium'>{t('purchases.items')}</h2>
             {items.fields.map((item, index) => (

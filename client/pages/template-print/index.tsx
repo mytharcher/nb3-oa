@@ -61,7 +61,7 @@ export default function Templates() {
   const context = useMemo(() => ({ reload: r.reload }), [r.reload]);
   const link = (path: string) => ({ pathname: path, search: location.search });
   const newButton = (
-    <Button render={<Link to={link('new')} />}>
+    <Button nativeButton={false} render={<Link to={link('new')} />}>
       <Plus />
       {t('templatePrintUI.new')}
     </Button>
@@ -221,7 +221,7 @@ export default function Templates() {
           </SelectContent>
         </Select>
         {source ? (
-          <Button variant='outline' onClick={clear}>
+          <Button variant='ghost' onClick={clear}>
             {t('templatePrintUI.clear')}
           </Button>
         ) : null}

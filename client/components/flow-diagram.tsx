@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -7,9 +8,14 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BaseEdge,
-  EdgeText,
+  Controls,
+  ControlButton,
+  MiniMap,
+  Panel,
+  type MiniMapNodeProps,
   Handle,
   MarkerType,
   Position,
@@ -21,11 +27,14 @@ import {
 } from '@xyflow/react';
 import { useTranslation } from '@nocobase/i18n/client';
 import { cn } from 'cn';
+import { Expand, Shrink, X } from 'lucide-react';
+import { Button } from '#components/ui/button';
 import '@xyflow/react/dist/style.css';
 
 import {
   layoutFlowDiagram,
   flowLabelLines,
+  revealRoute,
   type FlowDiagramDirection,
   type FlowDiagramEdge,
   type FlowDiagramGraph,
@@ -42,9 +51,50 @@ type DiagramNode = Node<{
 type DiagramEdge = Edge<{
   points: readonly FlowDiagramPoint[];
   labelPosition?: FlowDiagramPoint;
+  labelAnchor?: 'end' | 'middle';
+  title?: string;
 }>;
 
+function DiagramMiniMapNode(props: MiniMapNodeProps): ReactElement {
+  return (
+    <rect
+      x={props.x}
+      y={props.y}
+      width={props.width}
+      height={props.height}
+      rx={props.className.includes('minimap-pill') ? props.height / 2 : 8}
+      fill={props.color}
+      stroke={props.strokeColor}
+      strokeWidth={props.strokeWidth}
+      onClick={
+        props.onClick ? (event) => props.onClick?.(event, props.id) : undefined
+      }
+    />
+  );
+}
+
 function DiagramState({ data }: NodeProps<DiagramNode>): ReactElement {
+  const inPosition = data.direction === 'RIGHT' ? Position.Left : Position.Top;
+  const outPosition =
+    data.direction === 'RIGHT' ? Position.Right : Position.Bottom;
+  if (data.item.bare)
+    return (
+      <div className={cn('h-full w-full', data.item.className)}>
+        <Handle
+          id='in'
+          type='target'
+          position={inPosition}
+          className='invisible'
+        />
+        {data.content}
+        <Handle
+          id='out'
+          type='source'
+          position={outPosition}
+          className='invisible'
+        />
+      </div>
+    );
   return (
     <div
       data-execution-state={
@@ -111,6 +161,60 @@ function routePath(points: readonly FlowDiagramPoint[]): string {
   return `${path} L ${last.x} ${last.y}`;
 }
 
+/** Measure the actual SVG bounds so multiline labels have equal chip padding. */
+function TransitionLabel({
+  x,
+  y,
+  label,
+  anchor = 'middle',
+}: {
+  x: number;
+  y: number;
+  label: ReactNode;
+  anchor?: 'end' | 'middle';
+}) {
+  const ref = useRef<SVGTextElement>(null);
+  const [bounds, setBounds] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  useLayoutEffect(() => {
+    const box = ref.current?.getBBox();
+    if (box)
+      setBounds({ x: box.x, y: box.y, width: box.width, height: box.height });
+  }, [label, anchor]);
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <rect
+        x={bounds.x - 6}
+        y={bounds.y - 3}
+        width={bounds.width + 12}
+        height={bounds.height + 6}
+        rx={6}
+        fill='var(--muted)'
+      />
+      <text
+        ref={ref}
+        textAnchor={anchor}
+        dominantBaseline='central'
+        fill='var(--muted-foreground)'
+        fontSize='var(--text-xs)'
+      >
+        {typeof label === 'string'
+          ? flowLabelLines(label).map((line, index, lines) => (
+              <tspan
+                // Label lines have no state; duplicate text needs a position key.
+                // eslint-disable-next-line @eslint-react/no-array-index-key
+                key={`${index}:${line}`}
+                x={0}
+                y={(index - (lines.length - 1) / 2) * 16}
+              >
+                {line}
+              </tspan>
+            ))
+          : label}
+      </text>
+    </g>
+  );
+}
+
 function DiagramConnection(props: EdgeProps<DiagramEdge>): ReactElement {
   const points = props.data?.points ?? [];
   const path = routePath(points);
@@ -123,30 +227,23 @@ function DiagramConnection(props: EdgeProps<DiagramEdge>): ReactElement {
         markerEnd={props.markerEnd}
         style={props.style}
       />
+      {props.data?.title ? (
+        // A wide transparent stroke so the hover text is easy to reach.
+        <path d={path} fill='none' stroke='transparent' strokeWidth={12}>
+          <title>{props.data.title}</title>
+        </path>
+      ) : null}
       {label && props.label ? (
-        <EdgeText
-          x={label.x}
-          y={label.y}
-          label={
-            typeof props.label === 'string'
-              ? flowLabelLines(props.label).map((line, index, lines) => (
-                  <tspan
-                    // Label lines have no state; duplicate text needs a position key.
-                    // eslint-disable-next-line @eslint-react/no-array-index-key
-                    key={`${index}:${line}`}
-                    x={0}
-                    dy={index ? 18 : -(lines.length - 1) * 9}
-                  >
-                    {line}
-                  </tspan>
-                ))
-              : props.label
-          }
-          labelStyle={{ fill: 'var(--foreground)', fontSize: 'var(--text-sm)' }}
-          labelBgStyle={{ fill: 'var(--card)' }}
-          labelBgPadding={[6, 4]}
-          labelBgBorderRadius={4}
-        />
+        <g
+          style={{ opacity: props.style?.opacity, transition: 'opacity 150ms' }}
+        >
+          <TransitionLabel
+            x={label.x}
+            y={label.y}
+            label={props.label}
+            anchor={props.data?.labelAnchor}
+          />
+        </g>
       ) : null}
     </>
   );
@@ -159,14 +256,21 @@ export interface FlowDiagramProps extends FlowDiagramGraph {
   readonly direction?: FlowDiagramDirection;
   /** OA extension: reduce layer spacing while retaining room for multiline conditions. */
   readonly compact?: boolean;
+  readonly controls?: boolean;
   /** Expand vertically to show the entire graph at the available width. */
   readonly autoHeight?: boolean;
-  /** Limit the initial scale of an auto-height diagram; manual zoom remains available. */
+  /** Limit automatic fitting to this scale; manual zoom remains available. */
   readonly initialZoomLimit?: number;
   readonly className?: string;
   readonly style?: CSSProperties;
   readonly ariaLabel: string;
-  readonly renderNode?: (node: FlowDiagramNode) => ReactNode;
+  /** OA extension: transitions left out of the layout. Hovering or focusing a node draws
+   * the ones touching it in lanes beside the graph and dims unrelated states. */
+  readonly revealEdges?: readonly FlowDiagramEdge[];
+  readonly renderNode?: (
+    node: FlowDiagramNode,
+    state: { active: boolean },
+  ) => ReactNode;
   readonly onNodeClick?: (node: FlowDiagramNode) => void;
   readonly onEdgeClick?: (edge: FlowDiagramEdge) => void;
   readonly onLayoutError?: (error: unknown) => void;
@@ -178,17 +282,28 @@ export function FlowDiagram({
   edges,
   direction = 'RIGHT',
   compact = false,
+  controls = false,
   autoHeight = false,
   initialZoomLimit = 1,
   className,
   style,
   ariaLabel,
+  revealEdges,
   renderNode,
   onNodeClick,
   onEdgeClick,
   onLayoutError,
 }: FlowDiagramProps): ReactElement {
   const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    if (!expanded) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpanded(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [expanded]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   useEffect(() => {
@@ -244,6 +359,33 @@ export function FlowDiagram({
       onLayoutError?.(result.error);
   }, [result, structure, onLayoutError]);
   const layout = result?.key === structure ? result.layout : undefined;
+  const [hovered, setHovered] = useState<string>();
+  const [focused, setFocused] = useState<string>();
+  const active = revealEdges ? (hovered ?? focused) : undefined;
+  const revealed = useMemo(
+    () =>
+      active
+        ? (revealEdges ?? []).filter(
+            (edge) => edge.source === active || edge.target === active,
+          )
+        : [],
+    [active, revealEdges],
+  );
+  // The active state and every state one transition away stay at full strength.
+  const related = useMemo(
+    () =>
+      active
+        ? new Set(
+            [...edges, ...revealed]
+              .filter(
+                (edge) => edge.source === active || edge.target === active,
+              )
+              .flatMap((edge) => [edge.source, edge.target])
+              .concat(active),
+          )
+        : undefined,
+    [active, edges, revealed],
+  );
   const placedNodes = useMemo<DiagramNode[]>(
     () =>
       (layout?.nodes ?? []).map((placed) => {
@@ -254,7 +396,14 @@ export function FlowDiagram({
           focusable: !item.decorative,
           selectable: !item.decorative,
           position: { x: placed.x, y: placed.y },
-          style: { width: placed.width, height: placed.height },
+          // Raised so content the active node draws outside its box stays on top.
+          zIndex: item.id === active ? 1 : 0,
+          style: {
+            width: placed.width,
+            height: placed.height,
+            opacity: related && !related.has(item.id) ? 0.35 : undefined,
+            transition: 'opacity 150ms',
+          },
           // ELK owns fixed geometry. Recreated controlled nodes must not clear
           // React Flow's measurements and briefly remove every connected edge.
           width: placed.width,
@@ -285,11 +434,13 @@ export function FlowDiagram({
           data: {
             item,
             direction,
-            content: renderNode ? renderNode(item) : item.label,
+            content: renderNode
+              ? renderNode(item, { active: item.id === active })
+              : item.label,
           },
         };
       }),
-    [layout, nodes, direction, renderNode],
+    [layout, nodes, direction, renderNode, active, related],
   );
   const placedEdges = useMemo<DiagramEdge[]>(
     () =>
@@ -299,7 +450,9 @@ export function FlowDiagram({
           ? 'color-mix(in srgb, var(--primary) 80%, var(--foreground))'
           : item.highlighted
             ? 'var(--primary)'
-            : 'color-mix(in srgb, var(--muted-foreground) 65%, transparent)';
+            : item.faint
+              ? 'color-mix(in srgb, var(--muted-foreground) 25%, transparent)'
+              : 'color-mix(in srgb, var(--muted-foreground) 45%, transparent)';
         return {
           ...item,
           type: 'diagram',
@@ -307,18 +460,62 @@ export function FlowDiagram({
           selectable: !item.decorative,
           sourceHandle: 'out',
           targetHandle: 'in',
-          ariaLabel: item.label ?? `${item.source} → ${item.target}`,
+          ariaLabel:
+            item.label ?? item.title ?? `${item.source} → ${item.target}`,
           markerEnd: { type: MarkerType.ArrowClosed, color },
           style: {
             stroke: color,
-            strokeWidth: item.visited || item.highlighted ? 2.5 : 1.5,
+            strokeWidth:
+              item.visited || item.highlighted ? 2.5 : item.faint ? 1 : 1.5,
             strokeDasharray: item.dashed ? '5 4' : undefined,
+            opacity:
+              active && item.source !== active && item.target !== active
+                ? 0.25
+                : undefined,
+            transition: 'opacity 150ms',
           },
-          data: { points: placed.points, labelPosition: placed.labelPosition },
+          data: {
+            points: placed.points,
+            labelPosition: placed.labelPosition,
+            title: item.title,
+          },
         };
       }),
-    [layout, edges],
+    [layout, edges, active],
   );
+  const revealedEdges = useMemo<DiagramEdge[]>(() => {
+    if (!layout) return [];
+    const placed = new Map(layout.nodes.map((node) => [node.id, node]));
+    const routes = revealed.flatMap((item) => {
+      const source = placed.get(item.source),
+        target = placed.get(item.target);
+      return source && target ? [{ item, source, target }] : [];
+    });
+    // Shorter spans take the inner lanes, so nested routes never cross.
+    const span = ({ source, target }: (typeof routes)[number]) =>
+      Math.abs(
+        direction === 'DOWN' ? source.y - target.y : source.x - target.x,
+      );
+    routes.sort((a, b) => span(a) - span(b));
+    const color = 'var(--primary)';
+    return routes.map(({ item, source, target }, lane) => {
+      const route = revealRoute(layout.nodes, source, target, direction, lane);
+      return {
+        ...item,
+        id: `reveal:${item.id}`,
+        type: 'diagram',
+        focusable: false,
+        selectable: false,
+        sourceHandle: 'out',
+        targetHandle: 'in',
+        ariaLabel:
+          item.label ?? item.title ?? `${item.source} → ${item.target}`,
+        markerEnd: { type: MarkerType.ArrowClosed, color },
+        style: { stroke: color, strokeWidth: 1.5, strokeDasharray: '5 4' },
+        data: { ...route, title: item.title },
+      };
+    });
+  }, [layout, revealed, direction]);
   const zoom =
     layout && width
       ? Math.max(
@@ -327,9 +524,15 @@ export function FlowDiagram({
         )
       : 1;
   const height = layout ? Math.max(240, layout.height * zoom + 48) : 240;
-  return (
+  const canvas = (
     <div
       ref={containerRef}
+      onFocus={(event) => {
+        const target = event.target as HTMLElement;
+        if (target.classList.contains('react-flow__node'))
+          setFocused(target.dataset.id);
+      }}
+      onBlur={() => setFocused(undefined)}
       onKeyDown={(event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         const target = event.target as HTMLElement | SVGElement;
@@ -352,6 +555,8 @@ export function FlowDiagram({
       className={cn(
         'relative h-96 w-full rounded-lg border border-border bg-muted/20 text-foreground',
         className,
+        expanded &&
+          'fixed inset-0 z-[100] h-dvh! w-screen rounded-none bg-background',
       )}
       style={{ ...(autoHeight ? { height } : {}), ...style }}
     >
@@ -372,12 +577,17 @@ export function FlowDiagram({
       ) : (
         <ReactFlow<DiagramNode, DiagramEdge>
           key={autoHeight ? `${structure}:${width}:${zoom}` : structure}
+          proOptions={controls ? { hideAttribution: true } : undefined}
           nodes={placedNodes}
-          edges={placedEdges}
+          edges={
+            revealedEdges.length
+              ? [...placedEdges, ...revealedEdges]
+              : placedEdges
+          }
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView={!autoHeight}
-          fitViewOptions={{ padding: 0.08 }}
+          fitViewOptions={{ padding: 0.08, maxZoom: initialZoomLimit }}
           defaultViewport={
             autoHeight
               ? {
@@ -389,16 +599,23 @@ export function FlowDiagram({
           }
           minZoom={0.1}
           maxZoom={2}
+          zoomOnScroll={false}
+          preventScrolling={false}
           nodesDraggable={false}
           nodesConnectable={false}
           edgesReconnectable={false}
           deleteKeyCode={null}
           onNodeClick={(_, node) => onNodeClick?.(node.data.item)}
+          onNodeMouseEnter={(_, node) => setHovered(node.id)}
+          onNodeMouseLeave={() => setHovered(undefined)}
           onEdgeClick={(_, edge) => {
             const item = edges.find((candidate) => candidate.id === edge.id);
             if (item) onEdgeClick?.(item);
           }}
           ariaLabelConfig={{
+            'controls.zoomIn.ariaLabel': t('flowDiagram.zoomIn'),
+            'controls.zoomOut.ariaLabel': t('flowDiagram.zoomOut'),
+            'controls.fitView.ariaLabel': t('flowDiagram.fitView'),
             'node.a11yDescription.keyboardDisabled': t('flowDiagram.nodeHelp', {
               defaultValue: 'Press Enter or Space to select a state.',
             }),
@@ -409,8 +626,74 @@ export function FlowDiagram({
               defaultValue: 'Press Enter or Space to select a transition.',
             }),
           }}
-        />
+        >
+          {controls && (
+            <>
+              <Controls
+                fitViewOptions={{ padding: 0.08, maxZoom: initialZoomLimit }}
+                showInteractive={false}
+                aria-label={t('flowDiagram.controls')}
+              >
+                <ControlButton
+                  type='button'
+                  onClick={() => setExpanded((value) => !value)}
+                  aria-label={t(
+                    expanded
+                      ? 'flowDiagram.exitFullscreen'
+                      : 'flowDiagram.fullscreen',
+                  )}
+                  title={t(
+                    expanded
+                      ? 'flowDiagram.exitFullscreen'
+                      : 'flowDiagram.fullscreen',
+                  )}
+                >
+                  {expanded ? <Shrink /> : <Expand />}
+                </ControlButton>
+              </Controls>
+              {expanded && (
+                <Panel position='top-right'>
+                  <div className='flex items-center gap-3 rounded-lg border bg-card p-2 text-card-foreground shadow-sm'>
+                    <span className='text-xs text-muted-foreground'>
+                      {t('flowDiagram.escapeHint')}
+                    </span>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={() => setExpanded(false)}
+                    >
+                      <X />
+                      {t('flowDiagram.exitFullscreen')}
+                    </Button>
+                  </div>
+                </Panel>
+              )}
+              {expanded && (
+                <MiniMap<DiagramNode>
+                  pannable
+                  zoomable
+                  ariaLabel={t('flowDiagram.minimap')}
+                  style={{ background: 'var(--card)' }}
+                  nodeComponent={DiagramMiniMapNode}
+                  nodeClassName={(node) =>
+                    node.data.item.minimapShape === 'pill' ? 'minimap-pill' : ''
+                  }
+                  nodeColor={(node) =>
+                    `color-mix(in srgb, ${node.data.item.minimapColor ?? 'var(--muted-foreground)'} 18%, var(--card))`
+                  }
+                  nodeStrokeColor={(node) =>
+                    `color-mix(in srgb, ${node.data.item.minimapColor ?? 'var(--muted-foreground)'} 35%, var(--card))`
+                  }
+                  nodeStrokeWidth={2}
+                  maskColor='color-mix(in srgb, var(--muted) 70%, transparent)'
+                  className='max-w-[35%]'
+                />
+              )}
+            </>
+          )}
+        </ReactFlow>
       )}
     </div>
   );
+  return expanded ? createPortal(canvas, document.body) : canvas;
 }

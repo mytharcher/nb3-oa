@@ -9,9 +9,11 @@ import { Button } from '#components/ui/button';
 export function CertificateError({
   error,
   retry,
+  isList = false,
 }: {
   error: unknown;
   retry?: () => void;
+  isList?: boolean;
 }) {
   const businessMessage = useBusinessErrorMessage(error, 'certificates');
   const { t } = useTranslation(),
@@ -26,13 +28,11 @@ export function CertificateError({
         {businessMessage ??
           t(`certificates.${denied ? 'unavailable' : 'failed'}`)}
       </AlertDescription>
-      {denied ? (
+      {denied && !isList ? (
         <Button
           nativeButton={false}
           variant='outline'
-          render={
-            <Link to={{ pathname: '/certificates', search: location.search }} />
-          }
+          render={<Link to={{ pathname: '..', search: location.search }} />}
         >
           {t('certificates.backToList')}
         </Button>

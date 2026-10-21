@@ -1,5 +1,5 @@
 import { createRequestKey } from '#lib/request-key';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useOutletContext } from 'react-router';
 import { useApiClient, ApiClientError, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -95,6 +95,12 @@ function Body({
   onBlocked: (v: boolean) => void;
   guard: ReturnType<typeof useCloseGuard>;
 }) {
+  const departments = useRecruitmentResource<{
+    data: { id: string; title: string }[];
+  }>('departments/options', { includeInactive: 'true' });
+  const positions = useRecruitmentResource<{
+    data: { id: string; title: string }[];
+  }>('positions/options', { includeInactive: 'true' });
   const boundary = useMutationBoundary();
   const { t } = useTranslation(),
     { close } = useRouteOverlay(),
@@ -112,6 +118,12 @@ function Body({
     [busy, setBusy] = useState(false),
     [blocked, setBlocked] = useState(false),
     lockRef = useRef(false);
+  const namesReady =
+    Array.isArray(departments.data?.data) &&
+    departments.data.data.some((item) => item.id === record.departmentId) &&
+    Array.isArray(positions.data?.data) &&
+    positions.data.data.some((item) => item.id === record.positionId);
+  useEffect(() => onBlocked(!namesReady), [namesReady, onBlocked]);
   async function execute() {
     const signal = boundary.getSignal();
     if (lockRef.current || blocked || !body) return;
@@ -129,7 +141,24 @@ function Body({
       guard.saved();
       parent.reload();
       onBusy(false);
-      toaster.show({ type: 'success', title: t('recruitment.saved') });
+      toaster.show({
+        type: 'success',
+        title: t('recruitment.savedRecord', {
+          name: t('recruitment.preciseAllocationName', {
+            year: record.sourceYear,
+            department: Array.isArray(departments.data?.data)
+              ? (departments.data.data.find(
+                  (item) => item.id === record.departmentId,
+                )?.title ?? t('recruitment.identityUnavailable'))
+              : t('recruitment.identityUnavailable'),
+            position: Array.isArray(positions.data?.data)
+              ? (positions.data.data.find(
+                  (item) => item.id === record.positionId,
+                )?.title ?? t('recruitment.identityUnavailable'))
+              : t('recruitment.identityUnavailable'),
+          }),
+        }),
+      });
       await close();
     } catch (cause) {
       if (signal.aborted) return;
@@ -153,6 +182,17 @@ function Body({
   return (
     <>
       {error ? <ErrorState error={error} /> : null}
+      {departments.error || positions.error ? (
+        <ErrorState
+          error={departments.error ?? positions.error}
+          retry={() => {
+            departments.reload();
+            positions.reload();
+          }}
+        />
+      ) : !namesReady ? (
+        <p role='status'>{t('recruitment.catalogRequired')}</p>
+      ) : null}
       <form
         id='requisition-close'
         onSubmit={(e) => {
@@ -197,7 +237,19 @@ function Body({
         open={confirm}
         title={t('recruitment.confirmAction', {
           action: t('recruitment.actions.close'),
-          id: record.id,
+          id: t('recruitment.preciseAllocationName', {
+            year: record.sourceYear,
+            department: Array.isArray(departments.data?.data)
+              ? (departments.data.data.find(
+                  (item) => item.id === record.departmentId,
+                )?.title ?? t('recruitment.identityUnavailable'))
+              : t('recruitment.identityUnavailable'),
+            position: Array.isArray(positions.data?.data)
+              ? (positions.data.data.find(
+                  (item) => item.id === record.positionId,
+                )?.title ?? t('recruitment.identityUnavailable'))
+              : t('recruitment.identityUnavailable'),
+          }),
         })}
         description={t('recruitment.closeConsequence')}
         confirm={t('recruitment.actions.close')}

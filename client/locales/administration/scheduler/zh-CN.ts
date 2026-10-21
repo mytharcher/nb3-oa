@@ -4,6 +4,11 @@ const zhCN: SchedulerResource = {
   authorization: { title: '定时任务', read: '查看' },
   nav: { automation: '自动化', schedules: '定时任务' },
   page: {
+    refresh: '刷新',
+    retry: '重试',
+    clearFilters: '清除筛选',
+    saved: '已更新定时任务“{{name}}”',
+    limitNotice: '仅显示最新 {{count}} 条触发记录。',
     scheduleNames: {
       annualLeave: '年假自动计提',
       assetBorrow: '借用资产归还提醒',
@@ -15,6 +20,7 @@ const zhCN: SchedulerResource = {
       loan: '借款还款提醒',
     },
     title: '定时任务',
+    description: '查看定时任务的执行情况并管理启用状态。',
     filters: {
       searchLabel: '搜索定时任务',
       searchPlaceholder: '搜索名称、目标类型或执行周期…',
@@ -119,6 +125,9 @@ const zhCN: SchedulerResource = {
     unavailable: '—',
   },
   errors: {
+    forbidden: '您已无权查看这些记录，请联系管理员。',
+    notFound: '记录不可用，请返回工作台。',
+    toggleFailed: '定时任务状态修改失败，请重试。',
     loadSchedules: '无法加载定时任务。',
     loadOccurrences: '无法加载触发记录。',
   },

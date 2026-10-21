@@ -86,6 +86,15 @@ const ENDPOINTS: readonly Endpoint[] = [
   },
   {
     method: 'POST',
+    path: '/approvalRules/versions',
+    body: {
+      changes: [{ key: 'overtime.monthlyHead', value: 40 }],
+      note: 'Route test',
+    },
+    needs: [PLATFORM_SETTINGS.rules, 'update'],
+  },
+  {
+    method: 'POST',
     path: '/approvalRules/calendar.workHours/versions',
     body: { value: { start: '09:00', end: '18:00' } },
     needs: [PLATFORM_SETTINGS.calendar, 'update'],
@@ -197,6 +206,77 @@ describe('platform routes', () => {
       await user.fetch('/approvalRules/purchase.quotes/versions'),
     );
     expect(history.data[0]?.updatedByName).toBe('Admin of platform');
+  });
+
+  test('saves several rule versions together, all or none', async ({
+    testApp,
+  }) => {
+    const admin = await signIn(testApp, DEFAULT_ADMIN_CREDENTIALS);
+    const post = (body: unknown) =>
+      admin.fetch('/approvalRules/versions', write('POST', body));
+    const values = async () =>
+      Object.fromEntries(
+        (
+          await json<{
+            data: { key: string; current: { value: unknown } | null }[];
+          }>(await admin.fetch('/approvalRules'))
+        ).data.map((rule) => [rule.key, rule.current?.value]),
+      );
+
+    // Raising the lower key past the upper key's old value only works when both move together.
+    const order = await post({
+      changes: [{ key: 'spend.vp', value: 300_000 }],
+    });
+    expect(order.status).toBe(400);
+    expect(
+      await json<{ error: { reason: string; metadata: unknown } }>(order),
+    ).toMatchObject({
+      error: {
+        reason: 'RULE_ORDER_VIOLATED',
+        metadata: { lower: 'spend.vp', upper: 'spend.gm' },
+      },
+    });
+    const saved = await post({
+      changes: [
+        { key: 'spend.vp', value: 300_000 },
+        { key: 'spend.gm', value: 500_000 },
+      ],
+      note: 'Raise both',
+    });
+    expect(saved.status).toBe(201);
+    expect(
+      (await json<{ data: { key: string; note: string }[] }>(saved)).data,
+    ).toMatchObject([
+      { key: 'spend.vp', note: 'Raise both' },
+      { key: 'spend.gm', note: 'Raise both' },
+    ]);
+    expect(await values()).toMatchObject({
+      'spend.vp': 300_000,
+      'spend.gm': 500_000,
+    });
+
+    // One invalid change rolls back the others and names its key.
+    const invalid = await post({
+      changes: [
+        { key: 'overtime.monthlyHead', value: 50 },
+        { key: 'leave.head', value: 'three' },
+      ],
+    });
+    expect(invalid.status).toBe(400);
+    expect(
+      await json<{ error: { reason: string; metadata: unknown } }>(invalid),
+    ).toMatchObject({
+      error: { reason: 'RULE_INVALID_VALUE', metadata: { key: 'leave.head' } },
+    });
+    expect((await values())['overtime.monthlyHead']).not.toBe(50);
+
+    const repeated = await post({
+      changes: [
+        { key: 'leave.head', value: 2 },
+        { key: 'leave.head', value: 4 },
+      ],
+    });
+    expect(repeated.status).toBe(409);
   });
 
   test('answers domain errors in the standard body', async ({ testApp }) => {

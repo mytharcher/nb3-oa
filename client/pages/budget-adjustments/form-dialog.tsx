@@ -1,3 +1,4 @@
+import { formatCents } from '#lib/money';
 import {
   useRequestFormSubmission,
   preventComposingSubmit,
@@ -10,7 +11,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useOutletContext, useParams } from 'react-router';
@@ -20,7 +20,6 @@ import { useRouteOverlay } from '#components/use-route-overlay';
 import { DepartmentPicker } from '#components/department-picker';
 import { parseAmountCents, amountText } from './money.js';
 import { subjectLabel, type BudgetOptions } from './options.js';
-import { UserPicker } from '#components/user-picker';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
 import { Textarea } from '#components/ui/textarea';
@@ -79,13 +78,9 @@ export default function BudgetAdjustmentFormDialog() {
     resource: { type: 'composite', id: 'oa.budgetAdjustment' },
     action: 'submit',
   }).can;
-  const canDelegate = useCan({
-    resource: { type: 'composite', id: 'oa.budgetAdjustment' },
-    action: 'delegate',
-  }).can;
   const allowed = requestId
     ? resource.data?.view.available.some((a) => a.name === 'edit' && a.allowed)
-    : canSubmit || canDelegate;
+    : canSubmit;
   useEffect(() => {
     if (
       resource.error instanceof ApiClientError &&
@@ -225,16 +220,7 @@ function BudgetAdjustmentForm({
   const api = useApiClient();
   const toaster = useToaster();
   const { close } = useRouteOverlay();
-  const { session } = useAuthentication();
   const parent = useOutletContext<SourceContext & Partial<DetailContext>>();
-  const delegate = useCan({
-    resource: { type: 'composite', id: 'oa.budgetAdjustment' },
-    action: 'delegate',
-  }).can;
-  const pick = useCan({
-    resource: { type: 'user', id: '*' },
-    action: 'read',
-  }).can;
   const options = useResource<BudgetOptions>('budgetAdjustments/options');
   useEffect(
     () => onReady(!!options.data && !options.error && !options.loading),
@@ -252,7 +238,6 @@ function BudgetAdjustmentForm({
     () =>
       z
         .object({
-          applicantId: z.string(),
           departmentId: z.string().min(1, t('approvals.required')),
           year: z
             .number()
@@ -290,7 +275,6 @@ function BudgetAdjustmentForm({
     mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: {
-      applicantId: '',
       departmentId: detail?.record.departmentId ?? '',
       year: detail?.record.year ?? currentYear,
       subject: detail?.record.subject ?? '',
@@ -321,7 +305,7 @@ function BudgetAdjustmentForm({
     runningRef.current = true;
     onBusy(true);
     setError(undefined);
-    const { applicantId, amount, sourceSubject, ...fields } = values;
+    const { amount, sourceSubject, ...fields } = values;
     const input = {
       ...fields,
       sourceSubject:
@@ -337,7 +321,7 @@ function BudgetAdjustmentForm({
     try {
       const draftRequestId = attemptRef.current.requestId;
       const savedRecord = await submission.save(
-        { input, applicantId },
+        { input },
         detail?.record,
         async (current) => {
           const result = await api.request<{
@@ -356,12 +340,6 @@ function BudgetAdjustmentForm({
                 }
               : {
                   ...input,
-                  ...(delegate &&
-                  pick &&
-                  applicantId &&
-                  applicantId !== session?.user.id
-                    ? { applicantId }
-                    : {}),
                 },
           });
           return result.data.record;
@@ -469,64 +447,42 @@ function BudgetAdjustmentForm({
         }
       >
         <FieldGroup inert={submission.submitUnknown || undefined}>
-          {delegate && pick && !detail ? (
+          <div className='grid gap-4 sm:grid-cols-[minmax(0,1fr)_8rem]'>
             <Controller
-              name='applicantId'
+              name='departmentId'
               control={form.control}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel htmlFor='budgetAdjustments-applicant'>
-                    {t('approvals.applicant')}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor='budgetAdjustments-department'>
+                    {t('budgetAdjustments.department')} *
                   </FieldLabel>
-                  <UserPicker
-                    id='budgetAdjustments-applicant'
+                  <DepartmentPicker
+                    id='budgetAdjustments-department'
                     value={field.value}
-                    onChange={field.onChange}
-                    disabled={
-                      busy ||
-                      uncertain ||
-                      !allowed ||
-                      !!submission.current.current
-                    }
+                    onChange={(value) => field.onChange(value)}
+                    onBlur={field.onBlur}
+                    invalid={fieldState.invalid}
+                    disabled={busy || uncertain || !allowed}
                   />
+                  <FieldError errors={[fieldState.error]} />
                 </Field>
               )}
             />
-          ) : null}
-          <Controller
-            name='departmentId'
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor='budgetAdjustments-department'>
-                  {t('budgetAdjustments.department')} *
-                </FieldLabel>
-                <DepartmentPicker
-                  id='budgetAdjustments-department'
-                  value={field.value}
-                  onChange={(value) => field.onChange(value)}
-                  onBlur={field.onBlur}
-                  invalid={fieldState.invalid}
-                  disabled={busy || uncertain || !allowed}
-                />
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
-          <Field data-invalid={!!form.formState.errors.year}>
-            <FieldLabel htmlFor='budgetAdjustments-year'>
-              {t('budgetAdjustments.year')} *
-            </FieldLabel>
-            <Input
-              id='budgetAdjustments-year'
-              type='number'
-              min={1900}
-              max={9999}
-              {...form.register('year', { valueAsNumber: true })}
-              disabled={busy || uncertain || !allowed}
-            />
-            <FieldError errors={[form.formState.errors.year]} />
-          </Field>
+            <Field data-invalid={!!form.formState.errors.year}>
+              <FieldLabel htmlFor='budgetAdjustments-year'>
+                {t('budgetAdjustments.year')} *
+              </FieldLabel>
+              <Input
+                id='budgetAdjustments-year'
+                type='number'
+                min={1900}
+                max={9999}
+                {...form.register('year', { valueAsNumber: true })}
+                disabled={busy || uncertain || !allowed}
+              />
+              <FieldError errors={[form.formState.errors.year]} />
+            </Field>
+          </div>
           <Controller
             name='adjustmentType'
             control={form.control}
@@ -553,7 +509,7 @@ function BudgetAdjustmentForm({
                   <SelectTrigger id='budgetAdjustments-type'>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                     <SelectGroup>
                       {['transfer', 'increase'].map((value) => (
                         <SelectItem key={value} value={value}>
@@ -566,78 +522,89 @@ function BudgetAdjustmentForm({
               </Field>
             )}
           />
-          {(
-            [
-              'subject',
-              ...(adjustmentType === 'transfer' ? ['sourceSubject'] : []),
-            ] as ('subject' | 'sourceSubject')[]
-          ).map((name) => (
-            <Controller
-              key={name}
-              name={name}
-              control={form.control}
-              render={({ field, fieldState }) => {
-                const choices =
-                  options.data?.subjects.filter(
-                    (entry) => entry.active || entry.code === field.value,
-                  ) ?? [];
-                return (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor={`budgetAdjustments-${name}`}>
-                      {t(
-                        name === 'subject'
-                          ? 'budgetAdjustments.targetSubject'
-                          : 'budgetAdjustments.sourceSubject',
-                      )}{' '}
-                      *
-                    </FieldLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={
-                        busy ||
-                        uncertain ||
-                        !allowed ||
-                        !options.data ||
-                        !!options.error
-                      }
-                      items={choices.map((entry) => ({
-                        value: entry.code,
-                        label: subjectLabel(entry, entry.code, i18n.language),
-                      }))}
-                    >
-                      <SelectTrigger id={`budgetAdjustments-${name}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {choices.map((entry) => (
-                            <SelectItem
-                              key={entry.code}
-                              value={entry.code}
-                              disabled={!entry.active}
-                            >
-                              {subjectLabel(entry, entry.code, i18n.language)}
-                              {entry.active
-                                ? ''
-                                : ` (${t('budgetAdjustments.disabled')})`}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    <FieldError errors={[fieldState.error]} />
-                    {choices.find((entry) => entry.code === field.value)
-                      ?.active === false ? (
-                      <FieldDescription>
-                        {t('budgetAdjustments.subjectInactive')}
-                      </FieldDescription>
-                    ) : null}
-                  </Field>
-                );
-              }}
-            />
-          ))}
+          <div
+            className={
+              adjustmentType === 'transfer'
+                ? 'grid gap-4 sm:grid-cols-2'
+                : 'grid gap-4'
+            }
+          >
+            {(
+              [
+                ...(adjustmentType === 'transfer' ? ['sourceSubject'] : []),
+                'subject',
+              ] as ('subject' | 'sourceSubject')[]
+            ).map((name) => (
+              <Controller
+                key={name}
+                name={name}
+                control={form.control}
+                render={({ field, fieldState }) => {
+                  const choices =
+                    options.data?.subjects.filter(
+                      (entry) => entry.active || entry.code === field.value,
+                    ) ?? [];
+                  return (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor={`budgetAdjustments-${name}`}>
+                        {t(
+                          name === 'subject'
+                            ? 'budgetAdjustments.targetSubject'
+                            : 'budgetAdjustments.sourceSubject',
+                        )}{' '}
+                        *
+                      </FieldLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={
+                          busy ||
+                          uncertain ||
+                          !allowed ||
+                          !options.data ||
+                          !!options.error
+                        }
+                        items={choices.map((entry) => ({
+                          value: entry.code,
+                          label: subjectLabel(entry, entry.code, i18n.language),
+                        }))}
+                      >
+                        <SelectTrigger
+                          id={`budgetAdjustments-${name}`}
+                          className='w-full'
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
+                          <SelectGroup>
+                            {choices.map((entry) => (
+                              <SelectItem
+                                key={entry.code}
+                                value={entry.code}
+                                disabled={!entry.active}
+                              >
+                                {subjectLabel(entry, entry.code, i18n.language)}
+                                {entry.active
+                                  ? ''
+                                  : ` (${t('budgetAdjustments.disabled')})`}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FieldError errors={[fieldState.error]} />
+                      {choices.find((entry) => entry.code === field.value)
+                        ?.active === false ? (
+                        <FieldDescription>
+                          {t('budgetAdjustments.subjectInactive')}
+                        </FieldDescription>
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              />
+            ))}
+          </div>
           <Field data-invalid={!!form.formState.errors.amount}>
             <FieldLabel htmlFor='budgetAdjustments-amount'>
               {t('budgetAdjustments.amount')} *
@@ -665,7 +632,7 @@ function BudgetAdjustmentForm({
                     detail.record.heldAccount.subject,
                     i18n.language,
                   ),
-                  amount: amountText(detail.record.heldCents),
+                  amount: formatCents(detail.record.heldCents, i18n.language),
                 })}
               </AlertDescription>
             </Alert>

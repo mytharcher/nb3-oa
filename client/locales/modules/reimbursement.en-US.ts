@@ -2,6 +2,9 @@ import actionCopy from './reimbursement-actions.en-US.js';
 import formCopy from './reimbursement-forms.en-US.js';
 export default {
   reimbursementRequests: {
+    relatedUnavailable: 'Related record unavailable',
+    categoryUnavailable: 'Category unavailable',
+
     businessErrors: {
       REIMBURSEMENT_INVALID_LINE_AMOUNT:
         'Each expense line must have a positive amount within the supported range.',

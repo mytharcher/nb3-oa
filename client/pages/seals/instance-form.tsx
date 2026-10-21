@@ -11,8 +11,9 @@ import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { Button } from '#components/ui/button';
 import { Spinner } from '#components/ui/spinner';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import { Input } from '#components/ui/input';
-import { Field, FieldLabel } from '#components/ui/field';
+import { Field, FieldLabel, FieldError } from '#components/ui/field';
 import {
   Select,
   SelectTrigger,
@@ -135,6 +136,7 @@ function Body({
       active: true,
       reason: '',
     }),
+    [attempted, setAttempted] = useState(false),
     [error, setError] = useState<unknown>(),
     [conflict, setConflict] = useState(false),
     [reloadConfirm, setReloadConfirm] = useState(false),
@@ -162,6 +164,21 @@ function Body({
     () => onState({ ready, busy: cmd.busy }),
     [ready, cmd.busy, onState],
   );
+  function validation() {
+    const errors: Record<string, string> = {};
+    for (const [key, max] of [
+      ['code', 64],
+      ['name', 200],
+      ['reason', 2000],
+    ] as const) {
+      if (!values[key].trim() || values[key].length > max)
+        errors[key] = t('seals.required');
+    }
+    if (!options.data?.data.some((option) => option.code === values.sealType))
+      errors.sealType = t('seals.required');
+    return errors;
+  }
+  const fieldErrors = attempted ? validation() : {};
   const update = (key: keyof typeof values, value: string | boolean) => {
     setValues((v) => ({ ...v, [key]: value }));
     dirtyRef.current = true;
@@ -169,6 +186,18 @@ function Body({
   async function submit(e?: FormEvent, confirmed = false) {
     e?.preventDefault();
     if (!ready || busyRef.current) return;
+    setAttempted(true);
+    const invalid = validation();
+    if (Object.keys(invalid).length) {
+      document
+        .getElementById(
+          Object.keys(invalid)[0] === 'sealType'
+            ? 'seal-instance-type'
+            : `seal-instance-${Object.keys(invalid)[0]}`,
+        )
+        ?.focus();
+      return;
+    }
     if (original?.active && !values.active && !confirmed) {
       setDisableConfirm(true);
       return;
@@ -214,6 +243,7 @@ function Body({
   return (
     <form
       id='seal-instance-form'
+      noValidate
       className='flex flex-col gap-4'
       onSubmit={(e) => void submit(e)}
     >
@@ -232,7 +262,20 @@ function Body({
           }
         />
       ) : null}
-      {!allowed && !grant.isPending ? <p>{t('seals.forbidden')}</p> : null}
+      {!allowed && !grant.isPending ? (
+        <Alert variant='destructive'>
+          <AlertDescription>{t('seals.forbidden')}</AlertDescription>
+          <Button
+            type='button'
+            variant='outline'
+            onClick={() => {
+              void close();
+            }}
+          >
+            {t('seals.backToList')}
+          </Button>
+        </Alert>
+      ) : null}
       {conflict ? (
         <Button
           type='button'
@@ -291,7 +334,20 @@ function Body({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {id && !r.loading && !original ? <p>{t('seals.missing')}</p> : null}
+      {id && !r.loading && !original ? (
+        <Alert variant='destructive'>
+          <AlertDescription>{t('seals.missing')}</AlertDescription>
+          <Button
+            type='button'
+            variant='outline'
+            onClick={() => {
+              void close();
+            }}
+          >
+            {t('seals.backToList')}
+          </Button>
+        </Alert>
+      ) : null}
       {!denied ? (
         <fieldset
           disabled={
@@ -312,11 +368,18 @@ function Body({
               </FieldLabel>
               <Input
                 id={`seal-instance-${key}`}
-                required
+                aria-required
+                aria-invalid={!!fieldErrors[key]}
+                aria-describedby={
+                  fieldErrors[key] ? `seal-instance-${key}-error` : undefined
+                }
                 maxLength={key === 'code' ? 64 : key === 'name' ? 200 : 2000}
                 value={values[key]}
                 onChange={(e) => update(key, e.target.value)}
               />
+              <FieldError id={`seal-instance-${key}-error`}>
+                {fieldErrors[key]}
+              </FieldError>
             </Field>
           ))}
           <Field>
@@ -333,7 +396,13 @@ function Body({
               value={values.sealType}
               onValueChange={(v) => update('sealType', v ?? '')}
             >
-              <SelectTrigger id='seal-instance-type'>
+              <SelectTrigger
+                id='seal-instance-type'
+                aria-invalid={!!fieldErrors.sealType}
+                aria-describedby={
+                  fieldErrors.sealType ? 'seal-instance-type-error' : undefined
+                }
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className={selectWidth}>
@@ -348,6 +417,9 @@ function Body({
                 </SelectGroup>
               </SelectContent>
             </Select>
+            <FieldError id='seal-instance-type-error'>
+              {fieldErrors.sealType}
+            </FieldError>
           </Field>
           <Field>
             <FieldLabel htmlFor='seal-instance-active'>

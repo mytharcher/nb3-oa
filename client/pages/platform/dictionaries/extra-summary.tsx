@@ -15,7 +15,7 @@ export function ExtraSummary({
   readonly fields: readonly DictionaryExtraField[];
   readonly extra: Record<string, unknown> | null;
 }): ReactElement {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const parts = fields.flatMap((field) => {
     const value = extra?.[field.name];
     const name = t(`platform.dictionaries.extra.${field.name}`);
@@ -30,10 +30,10 @@ export function ExtraSummary({
         value:
           field.type === 'enum'
             ? t(
-                `platform.dictionaries.extraOptions.${field.name}.${String(value)}`,
+                `platform.dictionaries.extraOptions.${field.name}.${typeof value === 'string' ? value : JSON.stringify(value)}`,
               )
             : typeof value === 'number'
-              ? String(value)
+              ? new Intl.NumberFormat(i18n.language).format(value)
               : JSON.stringify(value),
       }),
     ];

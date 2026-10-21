@@ -22,7 +22,6 @@ import {
 } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import {
@@ -87,13 +86,9 @@ export default function TravelFormDialog() {
     resource: { type: 'composite', id: 'oa.travel' },
     action: 'submit',
   }).can;
-  const canDelegate = useCan({
-    resource: { type: 'composite', id: 'oa.travel' },
-    action: 'delegate',
-  }).can;
   const allowed = requestId
     ? resource.data?.view.available.some((a) => a.name === 'edit' && a.allowed)
-    : canSubmit || canDelegate;
+    : canSubmit;
   useEffect(() => {
     if (
       resource.error instanceof ApiClientError &&
@@ -114,9 +109,9 @@ export default function TravelFormDialog() {
   };
   useNavigationGuard(() => {
     if (busyRef.current) return false;
-    return (
-      !dirtyRef.current || window.confirm(t('approvals.discardDescription'))
-    );
+    if (!dirtyRef.current) return true;
+    setDiscard(true);
+    return false;
   });
   return (
     <RouteFormPage
@@ -257,20 +252,12 @@ function TravelForm({
       { pathname: '..', search: location.search },
       { relative: 'route', replace: true },
     );
-  const { session } = useAuthentication();
   const parent = useOutletContext<SourceContext & Partial<DetailContext>>();
-  const delegate = useCan({
-    resource: { type: 'composite', id: 'oa.travel' },
-    action: 'delegate',
-  }).can;
   const pick = useCan({
     resource: { type: 'user', id: '*' },
     action: 'read',
   }).can;
-  const [standardApplicant, setStandardApplicant] = useState('');
-  const options = useResource<TravelOptions>(
-    `travelRequests/options${standardApplicant ? `?applicantId=${encodeURIComponent(standardApplicant)}` : ''}`,
-  );
+  const options = useResource<TravelOptions>('travelRequests/options');
   useEffect(
     () => onReady(!!options.data && !options.error && !options.loading),
     [options.data, options.error, options.loading, onReady],
@@ -290,7 +277,6 @@ function TravelForm({
     () =>
       z
         .object({
-          applicantId: z.string(),
           destination: z
             .string()
             .trim()
@@ -354,7 +340,6 @@ function TravelForm({
     mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: {
-      applicantId: '',
       destination: detail?.record.destination ?? '',
       startAt: detail?.record.startAt ?? '',
       endAt: detail?.record.endAt ?? '',
@@ -377,15 +362,10 @@ function TravelForm({
   const manuallyTypedAmountsRef = useRef(new Set<string>());
   const startAt = useWatch({ control: form.control, name: 'startAt' });
   const endAt = useWatch({ control: form.control, name: 'endAt' });
-  const selectedApplicant = useWatch({
-    control: form.control,
-    name: 'applicantId',
-  });
   useEffect(() => {
-    // New requests only: preserve explicitly typed estimates and never apply the actor's grade to a delegated employee.
+    // New requests only: preserve explicitly typed estimates.
     if (
       detail ||
-      (selectedApplicant && options.data?.applicantId !== selectedApplicant) ||
       !options.data?.standard ||
       !startAt ||
       !endAt ||
@@ -419,7 +399,7 @@ function TravelForm({
       if (total <= BigInt(Number.MAX_SAFE_INTEGER))
         form.setValue(field, amountText(Number(total)), { shouldDirty: false });
     }
-  }, [detail, selectedApplicant, options.data, startAt, endAt, form]);
+  }, [detail, options.data, startAt, endAt, form]);
   async function save(values: z.infer<typeof schema>) {
     if (
       !allowed ||
@@ -447,7 +427,7 @@ function TravelForm({
     runningRef.current = true;
     onBusy(true);
     setError(undefined);
-    const { applicantId, transport, lodging, allowance, ...fields } = values;
+    const { transport, lodging, allowance, ...fields } = values;
     const input = {
       ...fields,
       transportCents: parseAmountCents(transport)!,
@@ -464,7 +444,7 @@ function TravelForm({
     try {
       const draftRequestId = attemptRef.current.requestId;
       const savedRecord = await submission.save(
-        { input, applicantId },
+        { input },
         draftRef.current,
         async (current) => {
           const result = await api.request<{
@@ -483,12 +463,6 @@ function TravelForm({
                 }
               : {
                   ...input,
-                  ...(delegate &&
-                  pick &&
-                  applicantId &&
-                  applicantId !== session?.user.id
-                    ? { applicantId }
-                    : {}),
                 },
           });
           draftRef.current = result.data.record;
@@ -537,7 +511,23 @@ function TravelForm({
             ].includes(field)
           )
             form.setError(field as 'destination', {
-              message: t('travel.invalid'),
+              message: t('travel.fieldInvalid', {
+                field: t(
+                  field === 'reason'
+                    ? 'approvals.reason'
+                    : field === 'companionIds'
+                      ? 'travel.companions'
+                      : field === 'attachments'
+                        ? 'travel.attachments'
+                        : field === 'transport'
+                          ? 'travel.transportCents'
+                          : field === 'lodging'
+                            ? 'travel.lodgingCents'
+                            : field === 'allowance'
+                              ? 'travel.allowanceCents'
+                              : `travel.${field}`,
+                ),
+              }),
             });
         }
       }
@@ -573,8 +563,7 @@ function TravelForm({
       !(await form.trigger())
     )
       throw new Error('Draft unavailable');
-    const { applicantId, transport, lodging, allowance, ...fields } =
-      form.getValues();
+    const { transport, lodging, allowance, ...fields } = form.getValues();
     try {
       const response = await api.request<{ data: { record: TravelRecord } }>({
         method: 'POST',
@@ -585,12 +574,6 @@ function TravelForm({
           transportCents: parseAmountCents(transport)!,
           lodgingCents: parseAmountCents(lodging)!,
           allowanceCents: parseAmountCents(allowance)!,
-          ...(delegate &&
-          pick &&
-          applicantId &&
-          applicantId !== session?.user.id
-            ? { applicantId }
-            : {}),
         },
       });
       draftRef.current = response.data.record;
@@ -624,16 +607,7 @@ function TravelForm({
         <ErrorState error={error} retry={reload} />
       ) : null}
       {options.error ? (
-        <>
-          <ErrorState error={options.error} retry={options.reload} />
-          {standardApplicant ? (
-            <Alert variant='destructive'>
-              <AlertDescription>
-                {t('travel.standardTargetUnavailable')}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-        </>
+        <ErrorState error={options.error} retry={options.reload} />
       ) : options.loading ? (
         <FieldsSkeleton fields={1} />
       ) : null}
@@ -651,33 +625,6 @@ function TravelForm({
         }}
       >
         <FieldGroup inert={submission.submitUnknown || undefined}>
-          {delegate && pick && !detail ? (
-            <Controller
-              name='applicantId'
-              control={form.control}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel htmlFor='travel-applicant'>
-                    {t('approvals.applicant')}
-                  </FieldLabel>
-                  <UserPicker
-                    id='travel-applicant'
-                    value={field.value}
-                    onChange={(value) => {
-                      field.onChange(value);
-                      setStandardApplicant(value);
-                    }}
-                    disabled={
-                      busy ||
-                      uncertain ||
-                      !allowed ||
-                      !!submission.current.current
-                    }
-                  />
-                </Field>
-              )}
-            />
-          ) : null}
           {(['destination'] as const).map((name) => (
             <Field key={name} data-invalid={!!form.formState.errors[name]}>
               <FieldLabel htmlFor={`travel-${name}`}>
@@ -741,25 +688,27 @@ function TravelForm({
               />
             ),
           )}
-          {(['transport', 'lodging', 'allowance'] as const).map((name) => (
-            <Field key={name} data-invalid={!!form.formState.errors[name]}>
-              <FieldLabel htmlFor={`travel-${name}`}>
-                {t(`travel.${name}Cents`)} *
-              </FieldLabel>
-              <Input
-                id={`travel-${name}`}
-                inputMode='decimal'
-                {...form.register(name)}
-                onChange={(event) => {
-                  manuallyTypedAmountsRef.current.add(name);
-                  void form.register(name).onChange(event);
-                }}
-                aria-invalid={!!form.formState.errors[name]}
-                disabled={busy || uncertain || !allowed}
-              />
-              <FieldError errors={[form.formState.errors[name]]} />
-            </Field>
-          ))}
+          <div className='grid gap-4 sm:grid-cols-3'>
+            {(['transport', 'lodging', 'allowance'] as const).map((name) => (
+              <Field key={name} data-invalid={!!form.formState.errors[name]}>
+                <FieldLabel htmlFor={`travel-${name}`}>
+                  {t(`travel.${name}Cents`)} *
+                </FieldLabel>
+                <Input
+                  id={`travel-${name}`}
+                  inputMode='decimal'
+                  {...form.register(name)}
+                  onChange={(event) => {
+                    manuallyTypedAmountsRef.current.add(name);
+                    void form.register(name).onChange(event);
+                  }}
+                  aria-invalid={!!form.formState.errors[name]}
+                  disabled={busy || uncertain || !allowed}
+                />
+                <FieldError errors={[form.formState.errors[name]]} />
+              </Field>
+            ))}
+          </div>
           <Controller
             name='companionIds'
             control={form.control}

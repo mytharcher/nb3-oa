@@ -1332,7 +1332,7 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
         pageSize: number;
         q?: string;
         status?: string;
-        orderBy: 'createdAt' | 'statusChangedAt';
+        orderBy: 'createdAt' | 'statusChangedAt' | 'quantity';
         desc: boolean;
       },
       policy: RepositoryPolicy,

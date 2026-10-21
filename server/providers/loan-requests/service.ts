@@ -1,3 +1,4 @@
+import { readLoanLedgerName } from './related-names.js';
 import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
@@ -1165,6 +1166,9 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
     }
   }
   return {
+    /** Resolve only an explicitly authorized source identity, never its mapping or balances. */
+    nameForLedger: (id: string, policy: RepositoryPolicy | undefined) =>
+      readLoanLedgerName(d.db, d.ledger, id, policy),
     initialize: refresh,
     async options(actorId: string) {
       return {

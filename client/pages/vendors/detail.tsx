@@ -61,7 +61,7 @@ export default function VendorDetail() {
           <StatusBadge tone={row.active ? 'success' : 'neutral'}>
             {t(`vendors.statuses.${row.status}`)}
           </StatusBadge>
-          <dl className='grid grid-cols-1 gap-4'>
+          <dl className='grid grid-cols-1 gap-4 sm:grid-cols-[8rem_1fr] [&>div]:contents'>
             {(
               [
                 'code',

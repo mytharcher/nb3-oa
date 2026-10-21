@@ -89,7 +89,7 @@ export default function ApprovalActionDialog() {
   const name = resource.data?.record.number ?? t('approvals.draft');
   return (
     <RouteDrawer
-      title={t('approvals.actionTitle', {
+      title={t('training.actionForm.title', {
         action: t(
           actionName === 'cc' ? 'training.cc' : `approvals.${actionName}`,
         ),
@@ -415,7 +415,7 @@ function ActionForm({
       setConfirm(false);
       toaster.show({
         type: 'success',
-        title: t('approvals.completed', {
+        title: t('training.actionForm.completed', {
           name: detail.record.number ?? t('approvals.draft'),
           action: t(
             actionName === 'cc' ? 'training.cc' : `approvals.${actionName}`,
@@ -561,7 +561,7 @@ function ActionForm({
                     <SelectTrigger id='approval-mode'>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                       <SelectGroup>
                         {modes.map((v) => (
                           <SelectItem key={v} value={v}>
@@ -623,7 +623,7 @@ function ActionForm({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t('approvals.actionTitle', {
+              {t('training.actionForm.title', {
                 action: t(
                   actionName === 'cc'
                     ? 'training.cc'

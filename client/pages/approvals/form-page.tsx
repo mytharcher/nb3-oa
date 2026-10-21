@@ -154,10 +154,6 @@ function LeaveForm({
     resource: { type: 'composite', id: 'oa.leave' },
     action: 'submit',
   }).can;
-  const canDelegate = useCan({
-    resource: { type: 'composite', id: 'oa.leave' },
-    action: 'delegate',
-  }).can;
   const canPick = useCan({
     resource: { type: 'user', id: '*' },
     action: 'read',
@@ -169,7 +165,6 @@ function LeaveForm({
     () =>
       z
         .object({
-          applicantId: z.string(),
           leaveType: z.string().min(1, t('approvals.required')),
           startDate: z.string().min(1, t('approvals.required')),
           endDate: z.string().min(1, t('approvals.required')),
@@ -204,8 +199,10 @@ function LeaveForm({
     mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: {
-      applicantId: record?.applicantId ?? '',
-      leaveType: record?.leaveType ?? '',
+      leaveType:
+        record?.leaveType ??
+        options.leaveTypes.find((type) => type.active)?.code ??
+        '',
       startDate: record?.startDate ?? '',
       endDate: record?.endDate ?? '',
       startHalf: record?.startHalf ?? 'am',
@@ -271,9 +268,7 @@ function LeaveForm({
     enableDelegation: values.enableDelegation ?? false,
   };
   const previewKey = JSON.stringify(previewInput);
-  const proxy = record
-    ? record.applicantId !== session?.user.id
-    : !!values.applicantId && values.applicantId !== session?.user.id;
+  const proxy = !!record && record.applicantId !== session?.user.id;
   useEffect(() => {
     const input = JSON.parse(previewKey) as typeof previewInput;
     if (
@@ -343,7 +338,6 @@ function LeaveForm({
       path: 'leaveRequests',
       json: {
         ...input,
-        applicantId: input.applicantId || undefined,
         handoverUserId: input.handoverUserId || null,
         attachments: [],
       },
@@ -376,7 +370,7 @@ function LeaveForm({
                 transition: 'edit',
                 version: current.lifecycleVersion,
                 requestId: createRequestId(),
-                input: { ...json, applicantId: undefined },
+                input: json,
               },
             });
             result = data.record;
@@ -386,7 +380,7 @@ function LeaveForm({
             }>({
               method: 'POST',
               path: 'leaveRequests',
-              json: { ...json, applicantId: input.applicantId || undefined },
+              json,
             });
             result = data.record;
           }
@@ -475,26 +469,6 @@ function LeaveForm({
         }}
       >
         <FieldGroup inert={submission.submitUnknown || undefined}>
-          {canDelegate && !record && canPick ? (
-            <Controller
-              name='applicantId'
-              control={form.control}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel htmlFor='leave-applicant'>
-                    {t('approvals.applicant')}
-                  </FieldLabel>
-                  <UserPicker
-                    id='leave-applicant'
-                    value={field.value}
-                    onChange={field.onChange}
-                    disabled={busy}
-                    knownUsers={detail?.users}
-                  />
-                </Field>
-              )}
-            />
-          ) : null}
           <Controller
             name='leaveType'
             control={form.control}
@@ -529,63 +503,72 @@ function LeaveForm({
               </Field>
             )}
           />
-          {(['startDate', 'endDate'] as const).map((fieldName) => (
-            <Controller
-              key={fieldName}
-              name={fieldName}
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={`leave-${fieldName}`}>
-                    {t(`approvals.${fieldName}`)} *
-                  </FieldLabel>
-                  <DatePicker
-                    id={`leave-${fieldName}`}
-                    className='w-full'
-                    value={field.value ? parseISO(field.value) : undefined}
-                    onChange={(v) =>
-                      field.onChange(v ? format(v, 'yyyy-MM-dd') : '')
-                    }
-                    disabled={busy || denied}
-                    invalid={fieldState.invalid}
-                  />
-                  <FieldError errors={[fieldState.error]} />
-                </Field>
-              )}
-            />
-          ))}
-          {(['startHalf', 'endHalf'] as const).map((fieldName) => (
-            <Controller
-              key={fieldName}
-              name={fieldName}
-              control={form.control}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel htmlFor={`leave-${fieldName}`}>
-                    {t(`approvals.${fieldName}`)} *
-                  </FieldLabel>
-                  <Select
-                    items={halfItems}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    disabled={busy || denied}
-                  >
-                    <SelectTrigger id={`leave-${fieldName}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className={POPUP}>
-                      <SelectGroup>
-                        {halfItems.map((v) => (
-                          <SelectItem key={v.value} value={v.value}>
-                            {v.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              )}
-            />
+          {(
+            [
+              ['startDate', 'startHalf'],
+              ['endDate', 'endHalf'],
+            ] as const
+          ).map(([dateName, halfName]) => (
+            <div
+              key={dateName}
+              className='grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem]'
+            >
+              <Controller
+                name={dateName}
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={`leave-${dateName}`}>
+                      {t(`approvals.${dateName}`)} *
+                    </FieldLabel>
+                    <DatePicker
+                      id={`leave-${dateName}`}
+                      className='w-full'
+                      value={field.value ? parseISO(field.value) : undefined}
+                      onChange={(v) =>
+                        field.onChange(v ? format(v, 'yyyy-MM-dd') : '')
+                      }
+                      disabled={busy || denied}
+                      invalid={fieldState.invalid}
+                    />
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+              <Controller
+                name={halfName}
+                control={form.control}
+                render={({ field }) => (
+                  <Field>
+                    <FieldLabel htmlFor={`leave-${halfName}`}>
+                      {t(`approvals.${halfName}`)} *
+                    </FieldLabel>
+                    <Select
+                      items={halfItems}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={busy || denied}
+                    >
+                      <SelectTrigger
+                        id={`leave-${halfName}`}
+                        className='w-full'
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className={POPUP}>
+                        <SelectGroup>
+                          {halfItems.map((v) => (
+                            <SelectItem key={v.value} value={v.value}>
+                              {v.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              />
+            </div>
           ))}
           <Field data-invalid={!!form.formState.errors.reason}>
             <FieldLabel htmlFor='leave-reason'>
@@ -615,9 +598,9 @@ function LeaveForm({
                     onChange={field.onChange}
                     disabled={busy || denied}
                     knownUsers={detail?.users}
-                    excludeIds={
-                      values.applicantId ? [values.applicantId] : undefined
-                    }
+                    excludeIds={[
+                      record?.applicantId ?? session?.user.id ?? '',
+                    ].filter(Boolean)}
                   />
                   <FieldError errors={[fieldState.error]} />
                 </Field>

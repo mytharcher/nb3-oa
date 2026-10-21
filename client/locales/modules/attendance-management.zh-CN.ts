@@ -1,5 +1,9 @@
 export default {
   attendanceManagement: {
+    savedSchedule: '已保存“{{department}}”{{date}}的排班',
+    savedShift: '已保存班次“{{name}}”',
+
+    editAction: '编辑',
     errors: {
       NOT_FOUND: '此班次已不存在。',
       ACCESS_DENIED: '无权访问或修改此考勤配置。',

@@ -6,7 +6,14 @@ export const ListQuery = z.strictObject({
   q: z.string().trim().max(200).optional(),
   folderId: z.union([Id, z.literal('root')]).optional(),
   orderBy: z
-    .enum(['updatedAt:asc', 'updatedAt:desc', 'title:asc', 'title:desc'])
+    .enum([
+      'updatedAt:asc',
+      'updatedAt:desc',
+      'title:asc',
+      'title:desc',
+      'version:asc',
+      'version:desc',
+    ])
     .default('updatedAt:desc'),
 });
 export const OptionsQuery = z.strictObject({

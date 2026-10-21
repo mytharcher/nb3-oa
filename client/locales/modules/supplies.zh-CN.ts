@@ -1,5 +1,7 @@
 export default {
   supplies: {
+    namedRowActions: '“{{name}}”的操作',
+
     businessErrors: {
       SUPPLY_REQUIRED_FIELDS: '请添加至少一项领用品并填写用途。',
       SUPPLY_ITEM_UNAVAILABLE:

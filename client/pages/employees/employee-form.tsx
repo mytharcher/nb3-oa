@@ -1,3 +1,4 @@
+import { useDrawerFormGuard } from '#hooks/use-drawer-form-guard';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -214,6 +215,10 @@ export function EmployeeForm({
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
 
+  const drawerGuard = useDrawerFormGuard(
+    !!employee && form.formState.isDirty,
+    form.formState.isSubmitting,
+  );
   const onSubmit = form.handleSubmit(async (values) => {
     const json = {
       code: values.code,
@@ -278,6 +283,7 @@ export function EmployeeForm({
         ? t('employees.create.success', { name: saved.name })
         : t('employees.edit.success', { name: saved.name }),
     });
+    drawerGuard.markSaved();
     onSubmitted(saved);
   });
 
@@ -286,6 +292,7 @@ export function EmployeeForm({
 
   return (
     <form id={formId} noValidate onSubmit={(event) => void onSubmit(event)}>
+      {drawerGuard.confirmation}
       <FieldGroup>
         {rootError?.type === 'sessionExpired' ? (
           <SessionExpiredAlert />

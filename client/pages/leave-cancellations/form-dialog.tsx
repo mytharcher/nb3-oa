@@ -564,7 +564,7 @@ function CancellationForm({
             )}
           />
           {!cancelAll ? (
-            <>
+            <div className='grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem]'>
               <Controller
                 name='endDate'
                 control={form.control}
@@ -574,6 +574,14 @@ function CancellationForm({
                       {t('leaveCancellations.actualEnd')} *
                     </FieldLabel>
                     <DatePicker
+                      disabledDays={
+                        chosen
+                          ? [
+                              { before: parseISO(chosen.startDate) },
+                              { after: parseISO(chosen.endDate) },
+                            ]
+                          : undefined
+                      }
                       id='cancellation-end'
                       className='w-full'
                       value={field.value ? parseISO(field.value) : undefined}
@@ -604,7 +612,7 @@ function CancellationForm({
                         label: t(`approvals.${v}`),
                       }))}
                     >
-                      <SelectTrigger id='cancellation-half'>
+                      <SelectTrigger id='cancellation-half' className='w-full'>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
@@ -620,7 +628,7 @@ function CancellationForm({
                   </Field>
                 )}
               />
-            </>
+            </div>
           ) : null}
           <Field data-invalid={!!form.formState.errors.reason}>
             <FieldLabel htmlFor='leaveCancellations-reason'>

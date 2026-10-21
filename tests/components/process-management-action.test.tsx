@@ -72,7 +72,7 @@ it('execution reassignment uses the shared typed-search control and preserves ma
     screen.queryByRole('button', { name: /Load more/ }),
   ).not.toBeInTheDocument();
   await userEvent.type(
-    screen.getByRole('textbox', { name: 'Opinion or reason *' }),
+    screen.getByRole('textbox', { name: 'Reason *' }),
     'Cover absence',
   );
   await userEvent.type(screen.getByRole('combobox'), 'R');

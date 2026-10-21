@@ -1,3 +1,4 @@
+import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { ApplicationSearch } from '#components/application-search';
 import { useCallback, useMemo, useState } from 'react';
@@ -243,7 +244,7 @@ export default function AttendanceManagementPage() {
                     }
                   >
                     <Pencil />
-                    {t('attendanceManagement.edit')}
+                    {t('attendanceManagement.editAction')}
                   </DropdownMenuItem>
                 ) : null}
               </DropdownMenuGroup>
@@ -295,12 +296,10 @@ export default function AttendanceManagementPage() {
                   <ApplicationToolbar
                     actions={
                       <>
-                        <ApplicationRefreshButton
-                          label={t('attendanceManagement.refresh')}
-                          onClick={reload}
-                          loading={shifts.loading}
-                        />
-                        {canManage ? (
+                        {canManage &&
+                        (!!shifts.data?.data.length ||
+                          !!search ||
+                          enabled !== 'all') ? (
                           <Button
                             nativeButton={false}
                             render={<Link to={link('new')} />}
@@ -309,6 +308,12 @@ export default function AttendanceManagementPage() {
                             {t('attendanceManagement.create')}
                           </Button>
                         ) : null}
+
+                        <ApplicationRefreshButton
+                          label={t('attendanceManagement.refresh')}
+                          onClick={reload}
+                          loading={shifts.loading}
+                        />
                       </>
                     }
                   >
@@ -382,9 +387,36 @@ export default function AttendanceManagementPage() {
                         })
                       }
                       pageSizeOptions={[10, 20, 50, 100]}
-                      emptyMessage={t(
-                        `attendanceManagement.${search || enabled !== 'all' ? 'noMatches' : 'empty'}`,
-                      )}
+                      emptyMessage={
+                        <ApplicationTableEmpty
+                          title={t(
+                            `attendanceManagement.${search || enabled !== 'all' ? 'noMatches' : 'empty'}`,
+                          )}
+                          clearFilters={
+                            search || enabled !== 'all'
+                              ? {
+                                  label: t('attendanceManagement.clearFilters'),
+                                  onClick: () =>
+                                    clear((p) => {
+                                      p.delete('enabled');
+                                      p.delete('page');
+                                    }),
+                                }
+                              : undefined
+                          }
+                          action={
+                            !search && enabled === 'all' && canManage ? (
+                              <Button
+                                nativeButton={false}
+                                render={<Link to={link('new')} />}
+                              >
+                                <Plus data-icon='inline-start' />
+                                {t('attendanceManagement.create')}
+                              </Button>
+                            ) : undefined
+                          }
+                        />
+                      }
                     />
                   ) : null}
                 </>

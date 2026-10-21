@@ -1,5 +1,10 @@
 export default {
   announcements: {
+    removeDepartment: '移除部门“{{name}}”',
+
+    confirmTitle: '{{action}}公告“{{name}}”？',
+    discardNamed: '放弃公告“{{name}}”的修改？',
+
     ownPendingCount: '本人待确认公告 {{count}} 条',
     title: '公告',
     description: '查看有效通知并完成本人确认',

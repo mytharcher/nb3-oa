@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { useLocale, useTranslation } from '@nocobase/i18n/client';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { Button } from '#components/ui/button';
 import { Field, FieldLabel } from '#components/ui/field';
@@ -169,12 +169,12 @@ export default function NodeSettingsDialog() {
       </>
     );
   return (
-    <RouteDialog
+    <RouteDrawer
       title={t('processManagement.nodeSettings.title', {
         name: text.state(node),
       })}
       description={text.name(kind)}
-      className='sm:max-w-md'
+      className='sm:max-w-2xl'
       beforeClose={() => !busyRef.current}
       footer={
         <>
@@ -201,7 +201,7 @@ export default function NodeSettingsDialog() {
       }
     >
       {body}
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 

@@ -21,7 +21,7 @@ export default {
     uncertain:
       'The result is unconfirmed. Keep this input and retry the identical operation; do not issue a changed request.',
     replay: 'Retry identical operation',
-    title: '{{action}} probation request “{{name}}”',
+    title: '{{action}} probation request "{{name}}"',
     unavailable:
       'This action is no longer available. Read the latest probation request.',
     unsupported:
@@ -32,7 +32,7 @@ export default {
     place: 'Approval place',
     returnTarget: 'Return destination',
     confirm: 'Confirm {{action}}',
-    confirmDescription: 'Confirm this operation on “{{name}}”. {{consequence}}',
+    confirmDescription: 'Confirm this operation on "{{name}}". {{consequence}}',
     releaseConsequence:
       'This releases pending approval tasks and cannot be undone here.',
     returnConsequence:
@@ -44,7 +44,7 @@ export default {
     latest: 'Read latest version',
     conflict:
       'The probation request changed. Your input is retained. Read the latest version, review it, then confirm again.',
-    completed: '{{action}} completed for “{{name}}”',
+    completed: '{{action}} completed for "{{name}}"',
     committed:
       'The operation completed. Refresh the probation request before taking another action.',
     before: 'Before',

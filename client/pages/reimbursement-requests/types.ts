@@ -54,6 +54,7 @@ export interface ReimbursementRecord {
   createdAt: string;
 }
 export interface ReimbursementDetail {
+  loanName?: string | null;
   record: ReimbursementRecord;
   users: Person[];
   timeZone: string;

@@ -158,7 +158,7 @@ const copy = {
   progress: '审批进度',
   timeline: '审批历史',
   saved: '已保存请假“{{name}}”',
-  completed: '已完成请假“{{name}}”的{{action}}',
+  completed: '已{{action}}“{{name}}”',
   actionTitle: '{{action}}请假“{{name}}”',
   returnHint: '退回申请人修订，重提后从第一环节开始。',
   confirmDescription: '这将结束当前审批任务，请确认申请内容。',
@@ -206,6 +206,7 @@ const copy = {
     revision: '申请人修订',
   },
   delegations: {
+    create: '创建',
     description: '在指定时段内由代理人代为处理审批。',
     new: '新建委托',
     edit: '编辑委托',

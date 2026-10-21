@@ -1,5 +1,6 @@
 export default {
   vehicles: {
+    backToList: 'Back to list',
     businessErrors: {
       VEHICLE_INVALID_INTERVAL:
         'Enter an ordered trip interval and a positive passenger count.',
@@ -42,8 +43,8 @@ export default {
     no: 'No',
     unknown: 'Name unavailable',
     noDriver: 'No driver required',
-    saved: 'Saved',
-    operationSaved: 'Operation completed',
+    saved: 'Saved "{{name}}"',
+    operationSaved: '{{action}} completed for "{{name}}"',
     noReservation: 'Submitting checks capacity and does not reserve a vehicle',
     content: 'Request information',
     arrangement: 'Arrangement',
@@ -56,7 +57,7 @@ export default {
     discardDescription: 'Your unsaved form changes will be lost.',
     keepEditing: 'Keep editing',
     discard: 'Discard changes',
-    destructiveTitle: 'Confirm this operation?',
+    destructiveTitle: '{{action}} vehicle request "{{name}}"?',
     destructiveDescription:
       'The operation retains its history. Check your reason and target before continuing.',
     fields: {

@@ -3,7 +3,7 @@ import { CalendarClock } from 'lucide-react';
 export default defineAppRoutes([
   {
     name: 'attendance-management',
-    parent: 'oa-configuration',
+    parent: 'oa-hr',
     path: '/attendance-management',
     auth: 'required',
     authz: {
@@ -13,7 +13,7 @@ export default defineAppRoutes([
     navigation: {
       title: 'attendanceManagement.title',
       icon: CalendarClock,
-      order: 88,
+      order: 140,
     },
     breadcrumb: { title: 'attendanceManagement.title' },
     componentLoader: () => import('../pages/attendance-management/index.js'),

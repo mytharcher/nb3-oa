@@ -1,10 +1,12 @@
 import { ApplicationTableEmpty } from '#components/application-table-empty';
+import { ApplicationSearch } from '#components/application-search';
+import { TruncatedText } from '#components/truncated-text';
 import { ApplicationToolbar } from '#components/application-toolbar';
 import { UserName } from '#components/user-name';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import type { ColumnDef } from '@tanstack/react-table';
-import { AlertCircleIcon, SearchIcon } from 'lucide-react';
+import { AlertCircleIcon } from 'lucide-react';
 import {
   type ReactElement,
   useEffect,
@@ -27,11 +29,6 @@ import {
   AlertTitle,
 } from '#components/ui/alert';
 import { Button } from '#components/ui/button';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '#components/ui/input-group';
 import { Skeleton } from '#components/ui/skeleton';
 import { Spinner } from '#components/ui/spinner';
 import { useUrlSearch } from '#hooks/use-url-search';
@@ -181,12 +178,16 @@ export default function DirectoryPage(): ReactElement {
       {
         id: 'department',
         header: t('employees.fields.primaryDepartment'),
-        cell: ({ row }) => plain(row.original.primaryDepartment?.title),
+        cell: ({ row }) => (
+          <TruncatedText text={row.original.primaryDepartment?.title || '—'} />
+        ),
       },
       {
         id: 'position',
         header: t('employees.fields.position'),
-        cell: ({ row }) => plain(row.original.position?.title),
+        cell: ({ row }) => (
+          <TruncatedText text={row.original.position?.title || '—'} />
+        ),
       },
       {
         id: 'manager',
@@ -208,7 +209,9 @@ export default function DirectoryPage(): ReactElement {
       {
         id: 'workLocation',
         header: t('employees.fields.workLocation'),
-        cell: ({ row }) => plain(row.original.workLocation),
+        cell: ({ row }) => (
+          <TruncatedText text={row.original.workLocation || '—'} />
+        ),
       },
     ];
   }, [t]);
@@ -308,20 +311,13 @@ export default function DirectoryPage(): ReactElement {
         description={t('employees.directory.description')}
       />
       <ApplicationToolbar>
-        <InputGroup
-          data-slot='application-search'
+        <ApplicationSearch
+          ref={searchRef}
+          {...inputProps}
           className='w-full sm:max-w-xs'
-        >
-          <InputGroupAddon>
-            <SearchIcon />
-          </InputGroupAddon>
-          <InputGroupInput
-            ref={searchRef}
-            {...inputProps}
-            placeholder={t('employees.directory.searchPlaceholder')}
-            aria-label={t('employees.directory.searchLabel')}
-          />
-        </InputGroup>
+          placeholder={t('employees.directory.searchPlaceholder')}
+          aria-label={t('employees.directory.searchLabel')}
+        />
         <DepartmentPicker
           value={departmentId}
           onChange={(value) =>

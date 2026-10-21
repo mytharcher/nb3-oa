@@ -1,6 +1,9 @@
 export default {
   approvalCenter: {
     batch: {
+      selectAll: '选择所有可批量审批任务（最多20条）',
+      unnamed: '未命名申请',
+      result: '{{name}}：{{status}}',
       loading: '正在核验可批量同意的任务…',
       unknown: '提交结果未知，请刷新并核对每项任务后再决定是否重试。',
       select: '选择',

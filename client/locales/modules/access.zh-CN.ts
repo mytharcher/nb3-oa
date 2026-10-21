@@ -1,5 +1,6 @@
 export default {
   access: {
+    labelValue: '{{label}}：{{value}}',
     clearModuleFilters: '清除筛选',
     noModuleMatches: '当前模块没有匹配的权限',
 

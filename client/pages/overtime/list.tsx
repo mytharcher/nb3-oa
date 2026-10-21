@@ -128,7 +128,7 @@ export default function ApprovalList() {
         enableSorting: false,
         cell: ({ row }) => (
           <Link
-            className='block max-w-64 truncate text-primary underline-offset-4 hover:underline'
+            className='block max-w-64 truncate font-medium underline-offset-4 hover:underline'
             onMouseEnter={(event) => {
               const link = event.currentTarget;
               link.title =

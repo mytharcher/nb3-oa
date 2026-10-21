@@ -1,9 +1,80 @@
 import { ContactRound, IdCard } from 'lucide-react';
+import { departureViewChildren } from './departure.js';
+import { probationViewChildren } from './probation-requests.js';
+import { transferViewChildren } from './transfer.js';
 import {
   defineAppRoutes,
   type AppClientRouteContribution,
   type AppClientRouteDefinition,
 } from '@nocobase/app-client/plugins';
+
+/** Reuse each source module's detail and actions; the employee's tab remains the route parent. */
+function employeeSourceRoutes(tab: string): AppClientRouteDefinition[] {
+  const sources = [
+    {
+      segment: 'Departure',
+      resource: 'oa.departure',
+      routes: departureViewChildren(`${tab}-source`),
+      path: 'departure/:requestId',
+    },
+    {
+      segment: 'Probation',
+      resource: 'oa.probation',
+      routes: probationViewChildren(`${tab}-source`),
+      path: 'probation/:requestId',
+    },
+    {
+      segment: 'Transfer',
+      resource: 'oa.transfer',
+      routes: transferViewChildren(`${tab}-source`),
+      path: 'transfer/:requestId',
+    },
+  ];
+  return [
+    {
+      name: `${tab}-source-onboarding`,
+      path: 'sourceOnboarding/:onboardingId',
+      authz: {
+        resource: { type: 'composite', id: 'oa.onboarding' },
+        action: 'view',
+      },
+      componentLoader: () => import('../pages/onboarding/detail.js'),
+      children: [
+        {
+          name: `${tab}-source-onboarding-cancel`,
+          path: 'cancel',
+          authz: {
+            resource: { type: 'composite', id: 'oa.onboarding' },
+            action: 'cancel',
+          },
+          componentLoader: () => import('../pages/onboarding/action.js'),
+        },
+        {
+          name: `${tab}-source-onboarding-task`,
+          path: 'tasks/:taskId/:action',
+          authz: {
+            resource: { type: 'composite', id: 'oa.onboarding' },
+            action: 'view',
+          },
+          componentLoader: () => import('../pages/onboarding/action.js'),
+        },
+      ],
+    },
+    ...sources.map(({ segment, resource, routes, path }) => {
+      const detail = routes.find((route) => route.path === path);
+      if (!detail)
+        throw new Error(`Missing employee source detail route: ${segment}`);
+      return {
+        ...detail,
+        path: `source${segment}/:requestId`,
+        authz: {
+          resource: { type: 'composite' as const, id: resource },
+          action: 'view',
+        },
+      };
+    }),
+  ];
+}
 
 /**
  * The overlays an employee page's header opens, declared under each of its tabs so they open over the tab being shown
@@ -11,6 +82,7 @@ import {
  */
 function employeeHeaderRoutes(tab: string): AppClientRouteDefinition[] {
   return [
+    ...employeeSourceRoutes(tab),
     {
       // …/:employeeId/<tab>/edit: edit the basic archive (RouteDrawer)
       name: `${tab}-edit`,
@@ -127,7 +199,7 @@ const employeesAppRoutes: AppClientRouteContribution = defineAppRoutes([
   },
   {
     name: 'oa-directory',
-    parent: 'oa-organization',
+    parent: 'oa-personal',
     path: '/directory',
     auth: 'required',
     authz: {
@@ -145,7 +217,7 @@ const employeesAppRoutes: AppClientRouteContribution = defineAppRoutes([
 
 /**
  * Routes of the `employees` OA module. Settings pages append to the groups `client/routes.ts` declares with
- * `parent: 'oa-organization' | 'oa-configuration' | 'oa-system'`; App pages use `defineAppRoutes()`.
+ * `parent: 'oa-organization' | 'oa-hr' | 'oa-configuration' | 'oa-system'`; App pages use `defineAppRoutes()`.
  */
 const employeesRoutes: readonly AppClientRouteContribution[] = [
   employeesSettingsRoutes,

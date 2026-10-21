@@ -413,7 +413,14 @@ function FormBody({
       parent.reload();
       setUncertain(false);
       onBusy(false);
-      toaster.show({ type: 'success', title: t('recruitment.saved') });
+      toaster.show({
+        type: 'success',
+        title: t('recruitment.savedRecord', {
+          name:
+            options.positions.find((v) => v.id === values.positionId)?.name ??
+            t('recruitment.detail'),
+        }),
+      });
       await close();
     } catch (cause) {
       if (signal.aborted) return;

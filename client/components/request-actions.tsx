@@ -41,6 +41,7 @@ function ActionLink({
   return (
     <Button
       data-slot='request-action-card'
+      data-area={requestActionGroups[action.key]}
       variant='outline'
       size='lg'
       className='h-16 w-full min-w-0 justify-start gap-3 px-4 text-left whitespace-normal has-data-[icon=inline-start]:pl-4'
@@ -80,7 +81,7 @@ export function RequestActions({
       t(label).toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
   );
   return (
-    <div className='space-y-4'>
+    <div className='flex flex-col gap-4'>
       <Input
         aria-label={t('workbench.searchRequests')}
         placeholder={t('workbench.searchRequests')}
@@ -105,7 +106,11 @@ export function RequestActions({
           ({ key }) => requestActionGroups[key] === group,
         );
         return rows.length ? (
-          <section key={group} className='space-y-2'>
+          <section
+            key={group}
+            aria-label={t(`workbench.groups.${group}`)}
+            className='flex flex-col gap-2'
+          >
             <h3 className='text-sm font-medium'>
               {t(`workbench.groups.${group}`)}
             </h3>
@@ -216,7 +221,7 @@ function FavoriteActionsForUser({
     }
   };
   return (
-    <div className='space-y-4'>
+    <div className='flex flex-col gap-4'>
       <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-3'>
         {favorites.map((key) => (
           <ActionLink
@@ -252,7 +257,7 @@ function FavoriteActionsForUser({
               }
             />
           </div>
-          <div className='space-y-2'>
+          <div className='flex flex-col gap-2'>
             {saveFailed ? (
               <p role='alert' className='text-sm text-destructive'>
                 {t('workbench.saveFailed')}

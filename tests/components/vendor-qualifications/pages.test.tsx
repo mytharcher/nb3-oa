@@ -258,7 +258,7 @@ it('places one create button inside a real empty state and hides it while permis
     ),
   );
   show(<List />, '/vendorQualifications');
-  await screen.findByText('No supplier requests');
+  await screen.findByText(copy.vendorQualifications.common.empty);
   expect(
     screen.getAllByRole('button', { name: 'New application' }),
   ).toHaveLength(1);
@@ -280,10 +280,17 @@ it('creates the exact public draft with durable key and no private bank fields',
       ),
   );
   const router = show(<Form />, '/source/new?view=pending');
-  await screen.findByRole('combobox', { name: 'Supplier' });
-  fireEvent.change(screen.getByRole('combobox', { name: 'Supplier' }), {
-    target: { value: vendor },
+  await screen.findByRole('combobox', {
+    name: copy.vendorQualifications.fields.vendor,
   });
+  fireEvent.change(
+    screen.getByRole('combobox', {
+      name: copy.vendorQualifications.fields.vendor,
+    }),
+    {
+      target: { value: vendor },
+    },
+  );
   fireEvent.change(screen.getByLabelText('Reason *'), {
     target: { value: 'Our supplier' },
   });
@@ -327,10 +334,17 @@ it('persists unknown creation across remount and retries the same actor/key/body
     },
   );
   let router = show(<Form />, '/source/new');
-  await screen.findByRole('combobox', { name: 'Supplier' });
-  fireEvent.change(screen.getByRole('combobox', { name: 'Supplier' }), {
-    target: { value: vendor },
+  await screen.findByRole('combobox', {
+    name: copy.vendorQualifications.fields.vendor,
   });
+  fireEvent.change(
+    screen.getByRole('combobox', {
+      name: copy.vendorQualifications.fields.vendor,
+    }),
+    {
+      target: { value: vendor },
+    },
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByRole('button', { name: 'Retry original creation' });
   const original = api.request.mock.calls.find(
@@ -340,7 +354,9 @@ it('persists unknown creation across remount and retries the same actor/key/body
   cleanup();
   router = show(<Form />, '/source/new');
   await screen.findByRole('button', { name: 'Retry original creation' });
-  expect(screen.getByLabelText('Supplier name *')).toBeDisabled();
+  expect(
+    screen.getByLabelText(`${copy.vendorQualifications.fields.name} *`),
+  ).toBeDisabled();
   fireEvent.click(
     screen.getByRole('button', { name: 'Retry original creation' }),
   );
@@ -473,10 +489,13 @@ it('preserves exact quote cents and rejects exponent, precision, negative and un
       }),
   );
   show(<Form />, '/source/new');
-  await screen.findByLabelText('Supplier *');
-  fireEvent.change(screen.getByLabelText('Supplier *'), {
-    target: { value: vendor },
-  });
+  await screen.findByLabelText(`${copy.vendorQualifications.fields.vendor} *`);
+  fireEvent.change(
+    screen.getByLabelText(`${copy.vendorQualifications.fields.vendor} *`),
+    {
+      target: { value: vendor },
+    },
+  );
   const amount = screen.getByLabelText('Quote');
   expect(screen.getByText('CNY (yuan), up to 2 decimal places')).toBeVisible();
   for (const value of ['1e3', '-1', '1.001', '90071992547409.92']) {
@@ -760,10 +779,17 @@ it('prepares private banking in a resumed new form and submits complete public f
     },
   );
   const router = show(<Form />, '/source/new');
-  await screen.findByRole('combobox', { name: 'Supplier' });
-  fireEvent.change(screen.getByRole('combobox', { name: 'Supplier' }), {
-    target: { value: vendor },
+  await screen.findByRole('combobox', {
+    name: copy.vendorQualifications.fields.vendor,
   });
+  fireEvent.change(
+    screen.getByRole('combobox', {
+      name: copy.vendorQualifications.fields.vendor,
+    }),
+    {
+      target: { value: vendor },
+    },
+  );
   fireEvent.change(screen.getByLabelText('Reason *'), {
     target: { value: 'Our supplier' },
   });
@@ -812,9 +838,14 @@ it('blocks incomplete qualification submission with field errors but still allow
       }),
   );
   show(<Form />, '/source/new');
-  fireEvent.change(await screen.findByRole('combobox', { name: 'Supplier' }), {
-    target: { value: vendor },
-  });
+  fireEvent.change(
+    await screen.findByRole('combobox', {
+      name: copy.vendorQualifications.fields.vendor,
+    }),
+    {
+      target: { value: vendor },
+    },
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
   expect(screen.getByText('Required')).toBeVisible();
   expect(

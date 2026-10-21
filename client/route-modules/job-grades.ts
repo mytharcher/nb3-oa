@@ -1,5 +1,5 @@
 import { defineAppRoutes } from '@nocobase/app-client/plugins';
-import { Layers } from 'lucide-react';
+import { ListOrdered } from 'lucide-react';
 export default defineAppRoutes([
   {
     name: 'oa-salary-grades',
@@ -10,7 +10,7 @@ export default defineAppRoutes([
       resource: { type: 'page', id: 'oa-salary-grades' },
       action: 'access',
     },
-    navigation: { title: 'jobGrades.title', icon: Layers, order: 85 },
+    navigation: { title: 'jobGrades.title', icon: ListOrdered, order: 85 },
     breadcrumb: { title: 'jobGrades.title' },
     componentLoader: () => import('../pages/job-grades/index.js'),
     children: [

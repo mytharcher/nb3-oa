@@ -147,7 +147,7 @@ const orgSettingsRoutes: AppClientRouteContribution = defineAppRoutes([
 
 /**
  * Routes of the `org` OA module. Settings pages append to the groups `client/routes.ts` declares with
- * `parent: 'oa-organization' | 'oa-configuration' | 'oa-system'`; App pages use `defineAppRoutes()`.
+ * `parent: 'oa-organization' | 'oa-hr' | 'oa-configuration' | 'oa-system'`; App pages use `defineAppRoutes()`.
  */
 const orgRoutes: readonly AppClientRouteContribution[] = [orgSettingsRoutes];
 

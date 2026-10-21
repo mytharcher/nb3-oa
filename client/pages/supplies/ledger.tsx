@@ -26,7 +26,7 @@ import {
 import { useUrlSearch } from '#hooks/use-url-search';
 import { TruncatedText } from '#components/truncated-text';
 import { useBalanceResource } from '../leave-balances/resource.js';
-import { FieldsSkeleton } from '../platform/shared/states.js';
+import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
 import { ErrorState } from './states.js';
 import type { SupplyLedgerEntry } from './types.js';
 export default function SupplyLedgerPage() {
@@ -63,7 +63,16 @@ export default function SupplyLedgerPage() {
           <DataTableColumnHeader column={column} title={t('supplies.number')} />
         ),
         cell: ({ row }) => (
-          <TruncatedText text={row.original.number ?? t('approvals.draft')} />
+          <Link
+            className='font-medium hover:underline'
+            to={{
+              pathname: `entry/${row.original.id}`,
+              search: location.search,
+              hash: location.hash,
+            }}
+          >
+            <TruncatedText text={row.original.number ?? t('approvals.draft')} />
+          </Link>
         ),
       },
       {
@@ -83,6 +92,13 @@ export default function SupplyLedgerPage() {
         ),
       },
       {
+        cell: ({ row }) => (
+          <span className='block text-right tabular-nums'>
+            {new Intl.NumberFormat(i18n.language).format(
+              row.original.requestedQuantity,
+            )}
+          </span>
+        ),
         id: 'requestedQuantity',
         accessorKey: 'requestedQuantity',
         header: ({ column }) => (
@@ -101,8 +117,15 @@ export default function SupplyLedgerPage() {
             title={t('supplies.actualQuantity')}
           />
         ),
-        cell: ({ row }) =>
-          row.original.actualQuantity ?? t('supplies.unconfirmed'),
+        cell: ({ row }) => (
+          <span className='block text-right tabular-nums'>
+            {row.original.actualQuantity === null
+              ? t('supplies.unconfirmed')
+              : new Intl.NumberFormat(i18n.language).format(
+                  row.original.actualQuantity,
+                )}
+          </span>
+        ),
       },
       {
         id: 'recipient',
@@ -152,14 +175,16 @@ export default function SupplyLedgerPage() {
               render={
                 <Button
                   variant='ghost'
-                  size='icon'
-                  aria-label={t('supplies.rowActions')}
+                  size='icon-sm'
+                  aria-label={t('supplies.namedRowActions', {
+                    name: row.original.number ?? t('approvals.draft'),
+                  })}
                 />
               }
             >
               <MoreHorizontal />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align='end'>
+            <DropdownMenuContent align='end' className='w-auto min-w-40'>
               <DropdownMenuGroup>
                 <DropdownMenuItem
                   render={
@@ -179,7 +204,7 @@ export default function SupplyLedgerPage() {
         ),
       },
     ],
-    [t, i18n.language, location.search],
+    [t, i18n.language, location.search, location.hash],
   );
   return (
     <PageContainer>
@@ -194,7 +219,7 @@ export default function SupplyLedgerPage() {
               render={
                 <Button
                   variant='outline'
-                  size='icon'
+                  size='icon-sm'
                   aria-label={t('approvals.refresh')}
                   disabled={resource.loading}
                   onClick={resource.reload}
@@ -213,7 +238,7 @@ export default function SupplyLedgerPage() {
         <ErrorState error={resource.error} retry={resource.reload} />
       ) : null}
       {!resource.data && resource.loading ? (
-        <FieldsSkeleton fields={8} />
+        <ApplicationTableSkeleton columns={8} />
       ) : null}
       {resource.data ? (
         <DataTableServer

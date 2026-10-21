@@ -86,6 +86,15 @@ function Form() {
   return <Create candidates={candidates} />;
 }
 function Create({ candidates }: { candidates: Requisition[] }) {
+  const departments = useOnboardingResource<{
+    data: { id: string; title: string }[];
+  }>('departments/options', { includeInactive: 'true' });
+  const positions = useOnboardingResource<{
+    data: { id: string; title: string }[];
+  }>('positions/options', { includeInactive: 'true' });
+  const grades = useOnboardingResource<{
+    data: { id: string; title: string }[];
+  }>('grades/options', { includeInactive: 'true' });
   const { t } = useTranslation(),
     [values, setValues] = useState<Record<string, string>>({}),
     [id] = useState(() => createRequestKey());
@@ -105,7 +114,8 @@ function Create({ candidates }: { candidates: Requisition[] }) {
     <Command
       printable
       title={t('onboarding.new')}
-      submitLabel={t('onboarding.new')}
+      submitLabel={t('onboarding.createAction')}
+      successMessage={t('onboarding.created', { name: values.name ?? '' })}
       path='onboardings'
       clear={() => setValues({})}
       body={() => {
@@ -177,7 +187,8 @@ function Create({ candidates }: { candidates: Requisition[] }) {
           </p>
           <Field>
             <FieldLabel htmlFor='source'>
-              {t('onboarding.fields.requisitionId')} *
+              {t('onboarding.fields.requisitionId')}{' '}
+              <span aria-hidden='true'>*</span>
             </FieldLabel>
             <OptionSelect
               id='source'
@@ -186,7 +197,23 @@ function Create({ candidates }: { candidates: Requisition[] }) {
               disabled={disabled}
               options={candidates.map((v) => ({
                 value: v.id,
-                label: `${v.id} · ${t('onboarding.remaining', { count: v.remaining })}`,
+                label: t('onboarding.allocationLabel', {
+                  department: Array.isArray(departments.data?.data)
+                    ? (departments.data.data.find(
+                        (r) => r.id === v.departmentId,
+                      )?.title ?? '—')
+                    : '—',
+                  position: Array.isArray(positions.data?.data)
+                    ? (positions.data.data.find((r) => r.id === v.positionId)
+                        ?.title ?? '—')
+                    : '—',
+                  grade: Array.isArray(grades.data?.data)
+                    ? (grades.data.data.find((r) => r.id === v.gradeId)
+                        ?.title ?? '—')
+                    : '—',
+                  year: v.sourceYear ?? '—',
+                  count: v.remaining,
+                }),
               }))}
               onChange={(value) => {
                 changed('source');
@@ -202,7 +229,9 @@ function Create({ candidates }: { candidates: Requisition[] }) {
             <Field key={key}>
               <FieldLabel htmlFor={`create-${key}`}>
                 {t(`onboarding.fields.${key}`)}
-                {key !== 'careerStartDate' ? ' *' : ''}
+                {key !== 'careerStartDate' ? (
+                  <span aria-hidden='true'> *</span>
+                ) : null}
               </FieldLabel>
               {['reason', 'workstationRequirement'].includes(key) ? (
                 <Textarea
@@ -262,7 +291,8 @@ function Create({ candidates }: { candidates: Requisition[] }) {
           ))}
           <Field>
             <FieldLabel htmlFor='create-mentorEmployeeId'>
-              {t('onboarding.fields.mentorEmployeeId')} *
+              {t('onboarding.fields.mentorEmployeeId')}{' '}
+              <span aria-hidden='true'>*</span>
             </FieldLabel>
             <Mentor
               id='create-mentorEmployeeId'

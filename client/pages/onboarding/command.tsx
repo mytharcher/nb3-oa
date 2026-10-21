@@ -32,6 +32,9 @@ export function Command({
   submitLabel,
   destructive = false,
   confirmation,
+  confirmationTitle,
+  successMessage,
+  recover,
   externalBusy = false,
 }: {
   title: string;
@@ -48,6 +51,9 @@ export function Command({
   submitLabel?: string;
   destructive?: boolean;
   confirmation?: string;
+  confirmationTitle?: string;
+  successMessage?: string;
+  recover?: () => Promise<boolean>;
   externalBusy?: boolean;
 }) {
   const { t } = useTranslation(),
@@ -64,11 +70,13 @@ export function Command({
     [done, setDone] = useState(false),
     lockRef = useRef(false),
     requestRef = useRef<unknown>(undefined);
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryUnavailable, setRecoveryUnavailable] = useState(false);
   const [confirmAction, setConfirmAction] = useState(false);
   const [invalidFields, setInvalidFields] = useState<string[]>([]),
     [fieldMessages, setFieldMessages] = useState<Record<string, string>>({});
   const guard = useCloseGuard(busy || externalBusy),
-    disabled = busy || uncertain || blocked || externalBusy;
+    disabled = busy || uncertain || blocked || externalBusy || recovering;
   useEffect(() => {
     if (done && !busy)
       void navigate({
@@ -110,7 +118,10 @@ export function Command({
       if (signal.aborted) return;
       guard.saved();
       parent.reload();
-      toaster.show({ type: 'success', title: t('onboarding.saved') });
+      toaster.show({
+        type: 'success',
+        title: successMessage ?? t('onboarding.saved'),
+      });
       setDone(true);
       setUncertain(false);
     } catch (cause) {
@@ -122,7 +133,7 @@ export function Command({
         cause instanceof ApiClientError &&
         [401, 403, 404, 409, 412].includes(cause.status)
       ) {
-        clear();
+        if ([401, 403].includes(cause.status)) clear();
         requestRef.current = undefined;
         setBlocked(true);
         parent.reload();
@@ -141,21 +152,39 @@ export function Command({
         title={title}
         beforeClose={guard.beforeClose}
         footer={
-          <Button
-            type='submit'
-            form='onboarding-command'
-            disabled={disabled}
-            variant={destructive ? 'destructive' : 'default'}
-          >
-            {busy ? (
-              <>
-                <Spinner />
-                {t('onboarding.loading')}
-              </>
-            ) : (
-              (submitLabel ?? t('onboarding.save'))
-            )}
-          </Button>
+          <>
+            <Button
+              variant='outline'
+              disabled={busy || externalBusy}
+              onClick={() =>
+                void Promise.resolve(guard.beforeClose()).then((allowed) => {
+                  if (allowed)
+                    void navigate({
+                      pathname: '..',
+                      search: location.search,
+                      hash: location.hash,
+                    });
+                })
+              }
+            >
+              {t('actions.cancel')}
+            </Button>
+            <Button
+              type='submit'
+              form='onboarding-command'
+              disabled={disabled}
+              variant={destructive ? 'destructive' : 'default'}
+            >
+              {busy ? (
+                <>
+                  <Spinner />
+                  {t('onboarding.loading')}
+                </>
+              ) : (
+                (submitLabel ?? t('onboarding.save'))
+              )}
+            </Button>
+          </>
         }
       >
         <form
@@ -171,6 +200,42 @@ export function Command({
           }}
         >
           {error ? <Failure module='onboarding' error={error} /> : null}
+          {blocked &&
+          error instanceof ApiClientError &&
+          [409, 412].includes(error.status) &&
+          recover ? (
+            <Button
+              type='button'
+              variant='outline'
+              disabled={recovering}
+              onClick={() => {
+                setRecovering(true);
+                void recover()
+                  .then(
+                    (available) => {
+                      setRecoveryUnavailable(!available);
+                      if (available) {
+                        setBlocked(false);
+                        setError(undefined);
+                        requestRef.current = undefined;
+                      }
+                    },
+                    (cause: unknown) => setError(cause),
+                  )
+                  .finally(() => setRecovering(false));
+              }}
+            >
+              {recovering ? <Spinner /> : null}
+              {t('onboarding.loadLatest')}
+            </Button>
+          ) : null}
+          {recoveryUnavailable ? (
+            <Alert>
+              <AlertDescription>
+                {t('onboarding.actionChanged')}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {children({
             disabled,
             changed: (id) => {
@@ -191,7 +256,11 @@ export function Command({
         {uncertain ? (
           <Alert>
             <AlertDescription>{t('onboarding.unknown')}</AlertDescription>
-            <Button disabled={busy} onClick={() => void save(true)}>
+            <Button
+              variant='outline'
+              disabled={busy}
+              onClick={() => void save(true)}
+            >
               {t('onboarding.retryExact')}
             </Button>
           </Alert>
@@ -200,7 +269,7 @@ export function Command({
       <AlertDialog open={confirmAction} onOpenChange={setConfirmAction}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{title}</AlertDialogTitle>
+            <AlertDialogTitle>{confirmationTitle ?? title}</AlertDialogTitle>
             <AlertDialogDescription>{confirmation}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

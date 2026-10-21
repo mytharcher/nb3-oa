@@ -2,6 +2,7 @@ import type { LocaleResource } from '@nocobase/i18n';
 import type en from './payment-requests.en-US.js';
 const zh: LocaleResource<typeof en> = {
   paymentRequests: {
+    relatedUnavailable: '关联记录不可用',
     businessErrors: {
       PAYMENT_REQUEST_INVALID_INPUT:
         '请补齐付款原因、收款方、正数金额、发票号及发票附件。',

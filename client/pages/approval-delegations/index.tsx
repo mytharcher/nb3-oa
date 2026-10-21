@@ -33,6 +33,7 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '#components/ui/dropdown-menu';
 import {
   Select,
@@ -169,7 +170,7 @@ export default function DelegationsPage() {
         cell: ({ row: { original: row } }) =>
           row.source === 'leave' && row.sourceApplication ? (
             <Link
-              className='font-medium text-primary hover:underline'
+              className='font-medium underline-offset-4 hover:underline'
               to={{
                 pathname: `leave/${encodeURIComponent(row.sourceApplication)}`,
                 search: location.search,
@@ -179,7 +180,7 @@ export default function DelegationsPage() {
             </Link>
           ) : canUpdate ? (
             <Link
-              className='font-medium text-primary hover:underline'
+              className='font-medium underline-offset-4 hover:underline'
               to={{
                 pathname: `edit/${encodeURIComponent(row.id)}`,
                 search: location.search,
@@ -276,7 +277,7 @@ export default function DelegationsPage() {
                 render={
                   <Button
                     variant='ghost'
-                    size='icon'
+                    size='icon-sm'
                     aria-label={t('approvals.actions', {
                       name: row.principal.name,
                     })}
@@ -300,15 +301,19 @@ export default function DelegationsPage() {
                     {t('approvals.edit')}
                   </DropdownMenuItem>
                   {row.active ? (
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setSelected(row);
-                        setError(undefined);
-                      }}
-                    >
-                      <BanIcon />
-                      {t('approvals.delegations.disable')}
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant='destructive'
+                        onClick={() => {
+                          setSelected(row);
+                          setError(undefined);
+                        }}
+                      >
+                        <BanIcon />
+                        {t('approvals.delegations.disable')}
+                      </DropdownMenuItem>
+                    </>
                   ) : null}
                 </DropdownMenuGroup>
               </DropdownMenuContent>
@@ -344,7 +349,7 @@ export default function DelegationsPage() {
                 render={
                   <Button
                     variant='outline'
-                    size='icon'
+                    size='icon-sm'
                     onClick={refresh}
                     aria-label={t('approvals.refresh')}
                     disabled={resource.loading || options.loading}
@@ -420,6 +425,20 @@ export default function DelegationsPage() {
             </SelectContent>
           </Select>
         ))}
+        {search || status !== 'all' || source !== 'all' ? (
+          <Button
+            variant='ghost'
+            onClick={() =>
+              clear((params) => {
+                params.delete('status');
+                params.delete('source');
+                params.delete('page');
+              })
+            }
+          >
+            {t('approvals.clear')}
+          </Button>
+        ) : null}
       </ApplicationToolbar>
       {resource.error ? (
         <ErrorState error={resource.error} retry={resource.reload} />

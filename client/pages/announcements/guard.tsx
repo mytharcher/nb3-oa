@@ -28,7 +28,7 @@ export function AnnouncementDiscard({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {t('announcements.discard')} — {name}
+            {t('announcements.discardNamed', { name })}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {t('announcements.discardDescription')}

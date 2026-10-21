@@ -137,7 +137,7 @@ describe('loan request browser components', () => {
     expect(screen.getByRole('table')).toBeInTheDocument();
     await userEvent
       .setup()
-      .click(screen.getByRole('button', { name: 'Clear filters' }));
+      .click(screen.getAllByRole('button', { name: 'Clear filters' }).at(-1)!);
     await screen.findByText('No loan requests');
     expect(router.state.location.search).toBe('?view=done');
     expect(
@@ -192,7 +192,7 @@ describe('loan request browser components', () => {
     });
     show('/loanRequests/edit/l1');
     const user = userEvent.setup();
-    const input = await screen.findByLabelText('Amount *');
+    const input = await screen.findByLabelText('Loan amount (yuan) *');
     await user.clear(input);
     await user.type(input, '0.10');
     await user.click(screen.getByRole('button', { name: 'Save draft' }));

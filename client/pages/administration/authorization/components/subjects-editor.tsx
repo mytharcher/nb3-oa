@@ -87,7 +87,7 @@ export function SubjectsEditor({
     error?.identity === identity ? errorMessage(t, error.cause) : undefined;
   const groups = [...new Set(value.map((item) => item.type))];
   return (
-    <div className='space-y-3'>
+    <div className='flex flex-col gap-3'>
       <p className='text-xs text-muted-foreground'>{t('subjects.matchAny')}</p>
       {types
         .filter((item) => item.selection?.type === 'fixed')
@@ -203,7 +203,7 @@ export function SubjectsEditor({
         <p className='border-b px-3 py-2 text-sm font-medium'>
           {t('subjects.selected', { count: value.length })}
         </p>
-        <div className='max-h-48 overflow-y-auto p-3 space-y-3'>
+        <div className='max-h-48 overflow-y-auto p-3 flex flex-col gap-3'>
           {groups.map((group) => (
             <div key={group}>
               <h4 className='mb-1 text-xs text-muted-foreground'>

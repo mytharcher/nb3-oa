@@ -20,7 +20,11 @@ export function PageContainer({
   const drawerForm = useContext(DrawerFormContext);
   return (
     <section
-      className={cn('w-full space-y-6', !drawerForm && 'p-6 md:p-8', className)}
+      className={cn(
+        'w-full flex flex-col gap-6',
+        !drawerForm && 'p-4 md:p-6',
+        className,
+      )}
       {...props}
     />
   );

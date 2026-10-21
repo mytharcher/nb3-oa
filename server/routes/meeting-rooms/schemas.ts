@@ -92,6 +92,7 @@ export const Room = z.object({
 const User = z.object({ id: Id, name: z.string() });
 export const Booking = z.object({
   id: Id,
+  roomName: z.string().nullable().optional(),
   seriesId: Id.nullable(),
   roomId: Id,
   organizerEmployeeId: Id,

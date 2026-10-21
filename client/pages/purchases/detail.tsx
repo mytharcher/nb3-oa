@@ -1,3 +1,4 @@
+import { approvalStatusTone } from '../approvals/status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
 import { PurchaseFacts } from './facts.js';
 import { createRequestId } from '../approvals/request-id.js';
@@ -218,20 +219,7 @@ export default function PurchaseDetailPage() {
     <RecordDetailDrawer
       headerStatus={
         record ? (
-          <StatusBadge
-            tone={
-              record.status === 'approved'
-                ? 'success'
-                : [
-                      'rejected',
-                      'terminated',
-                      'exception',
-                      'forcedClosed',
-                    ].includes(record.status)
-                  ? 'warning'
-                  : 'neutral'
-            }
-          >
+          <StatusBadge tone={approvalStatusTone(record.status, 'oa.purchase')}>
             {t(
               ['head', 'purchasing', 'finance', 'executive', 'gm'].includes(
                 record.status,

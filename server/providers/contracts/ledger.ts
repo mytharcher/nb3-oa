@@ -452,6 +452,36 @@ export function createContractLedgerService(
         );
       return monetary(input, 'settle', tx);
     },
+    async names(requested, policy, tx) {
+      const ids = [...new Set(requested)];
+      const read = policy?.read;
+      if (
+        !ids.length ||
+        !read ||
+        (read !== true &&
+          (!Array.isArray(read.fields) ||
+            !read.fields.includes('id') ||
+            !read.fields.includes('number')))
+      )
+        return new Map();
+      const rows = await tx
+        .repository<Row>('contracts')
+        .withPolicy(policy)
+        .findMany({
+          select: (s) => s.fields('id', 'number'),
+          filter: (f) => f.or(ids.map((id) => f.string('id').eq(id))),
+        });
+      return new Map(
+        rows.flatMap((row) =>
+          typeof row.id === 'string' &&
+          ids.includes(row.id) &&
+          typeof row.number === 'string' &&
+          row.number.trim()
+            ? [[row.id, row.number] as const]
+            : [],
+        ),
+      );
+    },
     async listForSeal(_actorId, policy, tx) {
       if (policy.read === false)
         fail('ACCESS_DENIED', 'Contract source permission is required.');

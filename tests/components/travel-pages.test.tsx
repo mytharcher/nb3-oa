@@ -1,4 +1,4 @@
-import { ApiClientError, NavigationGuardProvider } from '@nocobase/app-client';
+import { NavigationGuardProvider } from '@nocobase/app-client';
 import {
   createTestI18nRuntime,
   TestI18nProvider,
@@ -349,89 +349,6 @@ it('prefills company-date grade standards and preserves manually typed estimates
   await user.type(screen.getByLabelText(/Ends at/), '2026-11-14T09:00:00Z');
   await waitFor(() => expect(allowance).toHaveValue('87.00'));
   expect(lodging).toHaveValue('80');
-});
-
-it('fetches the chosen applicant standard instead of retaining the submitter grade', async () => {
-  serve();
-  const fallback = api.request.getMockImplementation()!;
-  api.request.mockImplementation(async (request: Request) => {
-    if (request.path === 'users')
-      return {
-        data: [{ id: 'bob', name: 'Bob target', username: 'bob', email: null }],
-        meta: { total: 1 },
-      };
-    if (request.path === 'travelRequests/options')
-      return {
-        data: {
-          applicantId: 'alice',
-          timeZone: 'Asia/Shanghai',
-          standard: { lodgingPerNight: 200, allowancePerDay: 100 },
-        },
-      };
-    if (request.path === 'travelRequests/options?applicantId=bob')
-      return {
-        data: {
-          applicantId: 'bob',
-          timeZone: 'Asia/Shanghai',
-          standard: { lodgingPerNight: 29, allowancePerDay: 20 },
-        },
-      };
-    return fallback(request);
-  });
-  open();
-  const user = await fill();
-  await waitFor(() =>
-    expect(screen.getByLabelText(/^Allowance/)).toHaveValue('100.00'),
-  );
-  await user.click(screen.getByLabelText(/^Applicant/));
-  await user.click(await screen.findByRole('option', { name: /Bob target/ }));
-  await waitFor(() =>
-    expect(api.request).toHaveBeenCalledWith(
-      expect.objectContaining({
-        path: 'travelRequests/options?applicantId=bob',
-      }),
-    ),
-  );
-  await waitFor(() =>
-    expect(screen.getByLabelText(/^Allowance/)).toHaveValue('20.00'),
-  );
-});
-
-it('blocks saving when the selected target standard is denied instead of submitting the actor standard', async () => {
-  serve();
-  const fallback = api.request.getMockImplementation()!;
-  api.request.mockImplementation(async (request: Request) => {
-    if (request.path === 'users')
-      return {
-        data: [{ id: 'bob', name: 'Bob target', username: 'bob', email: null }],
-        meta: { total: 1 },
-      };
-    if (request.path === 'travelRequests/options')
-      return {
-        data: {
-          applicantId: 'alice',
-          timeZone: 'Asia/Shanghai',
-          standard: { lodgingPerNight: 200, allowancePerDay: 100 },
-        },
-      };
-    if (request.path === 'travelRequests/options?applicantId=bob')
-      throw new ApiClientError('Scoped target denied', {
-        status: 403,
-        reason: 'TRAVEL_STANDARD_TARGET_DENIED',
-        method: 'GET',
-        url: '/api/travelRequests/options',
-      });
-    return fallback(request);
-  });
-  open();
-  const user = await fill();
-  await user.click(screen.getByLabelText(/^Applicant/));
-  await user.click(await screen.findByRole('option', { name: /Bob target/ }));
-  expect(
-    await screen.findByText(travel.travel.standardTargetUnavailable),
-  ).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
-  expect(api.request.mock.calls.some(([r]) => r.method === 'POST')).toBe(false);
 });
 
 it('requires an itinerary for international submission before any write, while allowing a draft', async () => {

@@ -88,6 +88,7 @@ export default function SalaryGradeDetail() {
         }) => (
           <DataTableColumnHeader
             column={column}
+            className='justify-end'
             title={t(
               `jobGrades.${key === 'minimumCents' ? 'minimum' : key === 'maximumCents' ? 'maximum' : 'rank'}`,
             )}
@@ -113,7 +114,7 @@ export default function SalaryGradeDetail() {
       }
       description={t('jobGrades.immutable')}
     >
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         {permission.isPending ? (
           <Loading kind='detail' />
         ) : permission.error ? (

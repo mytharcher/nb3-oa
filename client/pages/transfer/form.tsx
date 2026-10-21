@@ -426,6 +426,9 @@ function TransferFormContent() {
           <Field data-invalid={fieldState.invalid}>
             <FieldLabel htmlFor={`transfer-${field}`}>
               {t(`transfer.fields.${field}`)}
+              {field !== 'targetManagerId' ? (
+                <span aria-hidden='true'> *</span>
+              ) : null}
             </FieldLabel>
             <Select
               value={input.value ?? 'none'}
@@ -439,6 +442,7 @@ function TransferFormContent() {
                 ref={input.ref}
                 onBlur={input.onBlur}
                 aria-invalid={fieldState.invalid}
+                className='w-full'
               >
                 <SelectValue>
                   {items.find((item) => item.id === input.value)?.name ??
@@ -447,7 +451,7 @@ function TransferFormContent() {
                       : t('transfer.select'))}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent className='min-w-(--anchor-width) max-w-(--available-width)'>
+              <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                 <SelectGroup>
                   {field === 'targetManagerId' ? (
                     <SelectItem value='none'>{t('transfer.none')}</SelectItem>
@@ -482,6 +486,14 @@ function TransferFormContent() {
           )}
           actions={
             <>
+              <Button
+                type='button'
+                variant='outline'
+                disabled={busy}
+                onClick={() => void goBack()}
+              >
+                {t('transfer.cancel')}
+              </Button>
               {mode === 'reviewEdit' ? (
                 <Button
                   type='submit'
@@ -510,14 +522,6 @@ function TransferFormContent() {
                   }
                 />
               )}
-              <Button
-                type='button'
-                variant='outline'
-                disabled={busy}
-                onClick={() => void goBack()}
-              >
-                {t('transfer.cancel')}
-              </Button>
             </>
           }
         />
@@ -553,7 +557,7 @@ function TransferFormContent() {
             onSubmit={(event) => {
               void form.handleSubmit(save)(event);
             }}
-            className='space-y-6'
+            className='flex flex-col gap-6'
           >
             {mode === 'reviewEdit' ? (
               <Alert>
@@ -571,6 +575,7 @@ function TransferFormContent() {
                 <Field>
                   <FieldLabel htmlFor='transfer-employee'>
                     {t('transfer.fields.employeeId')}
+                    <span aria-hidden='true'> *</span>
                   </FieldLabel>
                   <Input
                     aria-label={t('transfer.searchEmployees')}
@@ -633,7 +638,7 @@ function TransferFormContent() {
                               )?.name ?? t('transfer.select')}
                             </SelectValue>
                           </SelectTrigger>
-                          <SelectContent className='min-w-(--anchor-width) max-w-(--available-width)'>
+                          <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                             <SelectGroup>
                               {employees.data?.data
                                 .filter(
@@ -686,7 +691,10 @@ function TransferFormContent() {
                 </Field>
               ) : (
                 <Field>
-                  <FieldLabel>{t('transfer.fields.employeeId')}</FieldLabel>
+                  <FieldLabel>
+                    {t('transfer.fields.employeeId')}
+                    <span aria-hidden='true'> *</span>
+                  </FieldLabel>
                   <p>
                     <UserName name={choices.employee?.name} />
                   </p>
@@ -698,7 +706,10 @@ function TransferFormContent() {
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field>
-                      <FieldLabel>{t('transfer.fields.kinds')}</FieldLabel>
+                      <FieldLabel>
+                        {t('transfer.fields.kinds')}
+                        <span aria-hidden='true'> *</span>
+                      </FieldLabel>
                       <div className='flex flex-wrap gap-4'>
                         {['transfer', 'salaryChange', 'promotion'].map(
                           (kind) => (
@@ -729,54 +740,66 @@ function TransferFormContent() {
                   )}
                 />
               ) : null}
-              {picker('targetDepartmentId', choices.departments)}
-              {picker('targetPositionId', choices.positions)}
-              {picker('targetGradeId', choices.grades)}
-              {picker('targetManagerId', choices.managers)}
-              {allowed('effectiveDate') ? (
-                <Controller
-                  name='effectiveDate'
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field>
-                      <FieldLabel htmlFor='transfer-date'>
-                        {t('transfer.fields.effectiveDate')}
-                      </FieldLabel>
-                      <DatePicker
-                        id='transfer-date'
-                        value={field.value ? parseISO(field.value) : undefined}
-                        onChange={(date) =>
-                          field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
-                        }
-                        disabled={busy}
-                        invalid={fieldState.invalid}
-                      />
-                      <FieldError errors={[fieldState.error]} />
-                    </Field>
-                  )}
-                />
-              ) : null}
-              {allowed('targetSalary') &&
-              (mode === 'create' || salaryPermission.can) ? (
-                <Field>
-                  <FieldLabel htmlFor='transfer-salary'>
-                    {t('transfer.fields.targetSalary')}
-                  </FieldLabel>
-                  <Input
-                    id='transfer-salary'
-                    inputMode='decimal'
-                    {...form.register('targetSalary')}
-                    disabled={busy || salary.loading || !!salary.error}
-                    autoComplete='off'
-                    aria-invalid={!!form.formState.errors.targetSalary}
+              <div className='grid gap-4 sm:grid-cols-2'>
+                {picker('targetDepartmentId', choices.departments)}
+                {picker('targetPositionId', choices.positions)}
+                {picker('targetGradeId', choices.grades)}
+                {picker('targetManagerId', choices.managers)}
+              </div>
+              <div className='grid gap-4 sm:grid-cols-2'>
+                {allowed('effectiveDate') ? (
+                  <Controller
+                    name='effectiveDate'
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field>
+                        <FieldLabel htmlFor='transfer-date'>
+                          {t('transfer.fields.effectiveDate')}
+                          <span aria-hidden='true'> *</span>
+                        </FieldLabel>
+                        <DatePicker
+                          id='transfer-date'
+                          className='w-full'
+                          value={
+                            field.value ? parseISO(field.value) : undefined
+                          }
+                          onChange={(date) =>
+                            field.onChange(
+                              date ? format(date, 'yyyy-MM-dd') : '',
+                            )
+                          }
+                          disabled={busy}
+                          invalid={fieldState.invalid}
+                        />
+                        <FieldError errors={[fieldState.error]} />
+                      </Field>
+                    )}
                   />
-                  <FieldError errors={[form.formState.errors.targetSalary]} />
-                </Field>
-              ) : null}
+                ) : null}
+                {allowed('targetSalary') &&
+                (mode === 'create' || salaryPermission.can) ? (
+                  <Field>
+                    <FieldLabel htmlFor='transfer-salary'>
+                      {t('transfer.fields.targetSalary')}
+                      <span aria-hidden='true'> *</span>
+                    </FieldLabel>
+                    <Input
+                      id='transfer-salary'
+                      inputMode='decimal'
+                      {...form.register('targetSalary')}
+                      disabled={busy || salary.loading || !!salary.error}
+                      autoComplete='off'
+                      aria-invalid={!!form.formState.errors.targetSalary}
+                    />
+                    <FieldError errors={[form.formState.errors.targetSalary]} />
+                  </Field>
+                ) : null}
+              </div>
               {allowed('reason') ? (
                 <Field>
                   <FieldLabel htmlFor='transfer-reason'>
                     {t('transfer.fields.reason')}
+                    <span aria-hidden='true'> *</span>
                   </FieldLabel>
                   <Textarea
                     id='transfer-reason'

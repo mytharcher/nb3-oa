@@ -9,7 +9,7 @@ export default {
       description:
         '为指定用户扩大可访问的记录范围。用户仍需具备相应的操作和字段权限。',
     },
-    search: '搜索共享规则',
+    search: '按规则名称、标识或资源搜索',
     create: '新建共享规则',
     ruleHeader: '规则',
     recordsSharedHeader: '共享的记录',
@@ -36,7 +36,7 @@ export default {
     noRecords: '未找到记录。',
     deleteRule: '删除规则',
     save: '保存共享规则',
-    confirmDeleteTitle: '确定删除该共享规则吗？',
+    confirmDeleteTitle: '删除规则“{{title}}”？',
     confirmDeleteBody:
       '删除共享规则“{{title}}”。其他权限集和共享规则提供的访问仍然有效。',
   },

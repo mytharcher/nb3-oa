@@ -1,3 +1,4 @@
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { UserName } from '#components/user-name';
 import { useEffect, useReducer } from 'react';
 import {
@@ -8,7 +9,6 @@ import {
   useParams,
 } from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
-import { RefreshCw } from 'lucide-react';
 import { RecordDetailDrawer } from '#components/record-detail-drawer';
 import { Button } from '#components/ui/button';
 import { StatusBadge } from '#components/status-badge';
@@ -88,16 +88,11 @@ export default function AnnouncementDetail() {
               {t('announcements.receipts')}
             </Button>
           ) : null}
-          <Button
-            variant='outline'
-            size='icon'
-            aria-label={t('announcements.refresh')}
-            title={t('announcements.refresh')}
-            disabled={r.loading || o.loading}
+          <ApplicationRefreshButton
+            label={t('announcements.refresh')}
+            loading={r.loading || o.loading}
             onClick={refresh}
-          >
-            <RefreshCw />
-          </Button>
+          />
         </>
       }
     >

@@ -134,7 +134,7 @@ export default function ApprovalRulesPage(): ReactElement {
             {ruleNodeTargets(row.original.key).map((target) => (
               <Link
                 key={target.kind}
-                className='text-primary underline underline-offset-4'
+                className='font-medium underline-offset-4 hover:underline'
                 to={
                   canUpdate
                     ? target.path

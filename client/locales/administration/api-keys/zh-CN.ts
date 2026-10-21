@@ -4,6 +4,10 @@ const zhCN: ApiKeysResource = {
   'common.close': '关闭',
   nav: { apiKeys: 'API 密钥' },
   page: {
+    search: '按密钥名称搜索',
+    retry: '重试',
+    clear: '清除筛选',
+    noResults: '没有符合搜索条件的密钥。',
     loading: '加载中',
     title: 'API 密钥',
     description: '创建密钥，让脚本和第三方集成以你的身份调用本应用。',
@@ -23,7 +27,7 @@ const zhCN: ApiKeysResource = {
       expires: '过期时间',
       actions: '操作',
     },
-    actions: { revoke: '吊销密钥' },
+    actions: { revoke: '吊销', menu: '“{{name}}”的操作' },
   },
   form: {
     title: '创建 API 密钥',
@@ -39,7 +43,7 @@ const zhCN: ApiKeysResource = {
       '365': '1 年后',
     },
     cancel: '取消',
-    create: '创建密钥',
+    create: '创建',
   },
   reveal: {
     title: '请立即复制密钥',
@@ -49,12 +53,17 @@ const zhCN: ApiKeysResource = {
     done: '完成',
   },
   revoke: {
+    success: '已吊销密钥“{{name}}”',
     title: '吊销密钥“{{name}}”？',
     description: '使用“{{name}}”的请求将立即失败，且无法恢复。',
     cancel: '取消',
-    confirm: '吊销密钥',
+    confirm: '吊销',
   },
   errors: {
+    forbidden: '您已无权查看密钥，请联系管理员。',
+    notFound: '密钥管理不可用，请返回工作台。',
+    nameRequired: '请输入密钥名称。',
+    copyFailed: '复制失败，请选中密钥后手动复制。',
     loadFailed: '无法加载你的 API 密钥。',
     createFailed: '无法创建 API 密钥。',
     revokeFailed: '无法吊销 API 密钥。',

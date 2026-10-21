@@ -94,6 +94,8 @@ const enUS = {
   ...vendorQualificationLocale,
   assets: assetLocale,
   ...system,
+  'shell.buildFreely': 'Your connected workplace.',
+  'shell.reliability': 'People, work and approvals in one place.',
   // Application-owned OA copy overrides the template authentication branding.
   'auth.brandName': 'NocoOA',
   'navigation.brandHome': 'NocoOA home',
@@ -161,6 +163,11 @@ const enUS = {
     signInAgain: 'Sign in again',
   },
   'status.sessionExpired': 'Your session has ended. Sign in again to continue.',
+  formDrawer: {
+    discardTitle: 'Discard unsaved changes?',
+    discardDescription: 'Closing will discard your unsaved changes.',
+    continueEditing: 'Continue editing',
+  },
   overrides: {
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
@@ -183,7 +190,9 @@ const enUS = {
       procurement: 'Procurement & contracts',
       administration: 'Administration & assets',
 
-      organization: 'Organization & HR',
+      personal: 'Personal',
+      organization: 'Organization',
+      hr: 'Human resources',
       configuration: 'Business configuration',
       system: 'System administration',
       inbox: 'Messages',

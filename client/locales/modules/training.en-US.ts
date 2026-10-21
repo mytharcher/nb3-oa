@@ -1,5 +1,10 @@
 export default {
   training: {
+    actionForm: {
+      title: '{{action}} training request "{{name}}"',
+      completed: '{{action}} completed for training request "{{name}}"',
+      saved: 'Saved training request "{{name}}"',
+    },
     businessErrors: {
       TRAINING_INVALID_INPUT:
         'Complete the training name, institution and reason, and enter valid nonnegative costs.',

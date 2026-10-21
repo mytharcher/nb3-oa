@@ -1,3 +1,6 @@
+import { useContext, useEffect, useRef } from 'react';
+import { Link, useLocation, useOutletContext } from 'react-router';
+import { RouteOverlayContext } from '#components/use-route-overlay';
 import { errorKey } from './errors.js';
 import { ApiClientError } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -23,6 +26,23 @@ export function MeetingError({
   retry: () => void;
 }) {
   const { t } = useTranslation();
+  const overlay = useContext(RouteOverlayContext);
+  const location = useLocation();
+  const parent = useOutletContext<{
+    reload?: () => void;
+    onSaved?: () => void;
+  } | null>();
+  const missingRef = useRef<unknown>(null);
+  useEffect(() => {
+    if (
+      error instanceof ApiClientError &&
+      error.status === 404 &&
+      missingRef.current !== error
+    ) {
+      missingRef.current = error;
+      (parent?.onSaved ?? parent?.reload)?.();
+    }
+  }, [error, parent]);
   if (error instanceof ApiClientError && error.status === 401)
     return <SessionExpiredAlert />;
   return (
@@ -30,6 +50,34 @@ export function MeetingError({
       <AlertDescription>
         {t(`meetingRooms.errors.${errorKey(error)}`)}
       </AlertDescription>
+      {error instanceof ApiClientError && [403, 404].includes(error.status) ? (
+        overlay ? (
+          <Button
+            variant='outline'
+            onClick={() => {
+              void overlay.close();
+            }}
+          >
+            {t('meetingRooms.backToList')}
+          </Button>
+        ) : (
+          <Button
+            variant='outline'
+            nativeButton={false}
+            render={
+              <Link
+                to={{
+                  pathname: '/meeting-rooms',
+                  search: location.search,
+                  hash: location.hash,
+                }}
+              />
+            }
+          >
+            {t('meetingRooms.backToList')}
+          </Button>
+        )
+      ) : null}
       {!(
         error instanceof ApiClientError && [403, 404].includes(error.status)
       ) ? (

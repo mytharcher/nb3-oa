@@ -227,24 +227,25 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
         page.getByRole('button', { name: 'Stage table', exact: true }),
       ).toHaveCount(0);
       await expect(
-        page.getByText('Process rules', { exact: true }),
+        page.getByText('Workflow parameters', { exact: true }),
       ).toHaveCount(1);
       await expect(
         page.getByText('State transitions', { exact: true }),
       ).toHaveCount(0);
-      const managerRules = page
-        .getByRole('heading', { name: 'Manager', exact: true })
-        .locator('..');
-      await expect(managerRules).toContainText('People source');
-      await expect(managerRules).toContainText('Return for revision');
-      await managerRules.scrollIntoViewIfNeeded();
+      // Supplies reads no adjustable thresholds, so the panel says so instead of listing transitions.
+      const parameters = page.getByText(
+        'This process has no adjustable parameters.',
+        { exact: true },
+      );
+      await expect(parameters).toBeVisible();
+      await parameters.scrollIntoViewIfNeeded();
       await page.screenshot({
-        path: path.join(directory, 'screenshots/supplies-unified-rules.png'),
+        path: path.join(directory, 'screenshots/supplies-parameters.png'),
         fullPage: true,
       });
-      evidence.screenshots.push('supplies-unified-rules.png');
+      evidence.screenshots.push('supplies-parameters.png');
       evidence.checks.push(
-        'One unified rules section groups people and actions by step; alternate diagram controls are absent',
+        'The parameters panel replaces the per-step rules list; alternate diagram controls are absent',
       );
 
       await page.goto(
@@ -398,11 +399,11 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
       });
       narrow.on('pageerror', (e) => evidence.errors.push(e.message));
       await narrow.goto(`${base}/processManagement/definitions/oa.leave`);
-      await expect(narrow.getByText('流程规则', { exact: true })).toBeVisible({
+      await expect(narrow.getByText('流程参数', { exact: true })).toBeVisible({
         timeout: 60000,
       });
       await narrow
-        .getByText('流程规则', { exact: true })
+        .getByText('流程参数', { exact: true })
         .scrollIntoViewIfNeeded();
       await expect(
         narrow.getByRole('button', { name: '阶段表', exact: true }),
@@ -412,7 +413,7 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
         fullPage: true,
       });
       evidence.screenshots.push('definition-zh-dark-375.png');
-      evidence.checks.push('Chinese, dark, 375px unified process rules');
+      evidence.checks.push('Chinese, dark, 375px workflow parameters');
       expect(
         evidence.errors.filter(
           (e) =>

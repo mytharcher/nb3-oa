@@ -1,5 +1,14 @@
 export default {
   recruitment: {
+    identityUnavailable: '组织名称不可用',
+    catalogRequired: '请先读取部门与职位名称，再关闭此编制。',
+    preciseAllocationName:
+      '{{year}} 年 / {{department}} / {{position}}招聘编制',
+
+    savedRecord: '已保存“{{name}}”的招聘申请',
+
+    allocationName: '{{year}} 年招聘编制',
+
     yearInvalid: '请输入 1900 至 9999 之间的整数年度。',
     businessErrors: {
       RECRUITMENT_INVALID_QUANTITY: '招聘人数须为支持范围内的正整数。',

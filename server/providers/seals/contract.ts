@@ -120,6 +120,7 @@ export interface SealPrintRegistration {
   confirmedBy: { id: string; name: string } | null;
 }
 export interface SealRegistrationAccess {
+  seals?: RepositoryPolicy;
   ledger: RepositoryPolicy;
   receipts: RepositoryPolicy;
   requests: RepositoryPolicy;
@@ -141,6 +142,8 @@ export interface SealAccess {
 }
 export interface SealLedgerDetail {
   record: SealLedger & {
+    requestNumber?: string | null;
+    sealName?: string | null;
     applicant: { id: string; name: string };
     registeredBy: { id: string; name: string };
   };
@@ -149,6 +152,11 @@ export interface SealLedgerDetail {
   printable: boolean;
 }
 export interface SealService {
+  instanceNames(
+    ids: readonly string[],
+    connection: DatabaseConnection,
+    policy: RepositoryPolicy | undefined,
+  ): Promise<Map<string, string>>;
   ledgerDetail(
     id: string,
     actorId: string,
@@ -159,7 +167,12 @@ export interface SealService {
     actorId: string,
     tx: DatabaseConnection,
     access: SealRegistrationAccess,
-    query: { page: number; pageSize: number },
+    query: {
+      page: number;
+      pageSize: number;
+      sort?: 'registeredAt' | 'borrowedAt' | 'sealedAt';
+      direction?: 'asc' | 'desc';
+    },
   ): Promise<{
     data: SealLedgerDetail['record'][];
     meta: { total: number; page: number; pageSize: number };
@@ -267,6 +280,19 @@ export interface SealRequestService {
     mimeType: string;
     size: number;
   }>;
+  files(
+    actorId: string,
+    requestId: string,
+    policy: RepositoryPolicy,
+  ): Promise<
+    {
+      id: string;
+      filename: string;
+      ext: string;
+      mimeType: string;
+      size: number;
+    }[]
+  >;
   content(
     actorId: string,
     requestId: string,

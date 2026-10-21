@@ -1,3 +1,4 @@
+import type { FormOptions } from './types-form.js';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -776,7 +777,7 @@ export function ActionForm({
           {submissionBlocked ? (
             <Alert variant='destructive'>
               <AlertDescription>
-                <ul className='list-disc space-y-1 pl-4'>
+                <ul className='list-disc flex flex-col gap-1 pl-4'>
                   {submissionIssues.map((issue) => (
                     <li key={issue}>{issue}</li>
                   ))}
@@ -830,8 +831,8 @@ export function ActionForm({
             {new Intl.DateTimeFormat(i18n.language, {
               dateStyle: 'medium',
             }).format(parseISO(line.date))}{' '}
-            · {line.category} · {line.invoiceNumber} ·{' '}
-            {moneyLabel(line.amountCents, i18n.language)}
+            · <LineCategory detail={detail} code={line.category} /> ·{' '}
+            {line.invoiceNumber} · {moneyLabel(line.amountCents, i18n.language)}
           </p>
         </div>
       ) : null}
@@ -1006,6 +1007,31 @@ export function ActionForm({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
+  );
+}
+
+function LineCategory({
+  detail,
+  code,
+}: {
+  detail: ReimbursementDetail;
+  code: string;
+}) {
+  const { t, i18n } = useTranslation();
+  const options = useResource<FormOptions>('reimbursementRequests/options', {
+    recordId: detail.record.id,
+    applicantId: detail.record.applicantId,
+  });
+  const label = options.data?.categories?.find(
+    (item) => item.code === code,
+  )?.label;
+  return (
+    <>
+      {label?.[i18n.language] ??
+        label?.['en-US'] ??
+        label?.['zh-CN'] ??
+        t('reimbursementRequests.categoryUnavailable')}
     </>
   );
 }

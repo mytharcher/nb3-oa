@@ -2,7 +2,8 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { type ReactElement, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext } from 'react-router';
 
-import { BackButton } from '#components/back-button';
+import { useFormDiscardGuard } from '#hooks/use-form-discard-guard';
+import { FormActions } from '#components/form-actions';
 import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { RouteFormPage } from '#components/route-form-page';
@@ -14,7 +15,7 @@ import type { EmployeesOutletContext } from './types.js';
 
 const FORM_ID = 'employee-create-form';
 
-/** Route `/employees/new`: twelve fields and two pickers, so a covering page rather than a dialog (T3.1). */
+/** Create an employee over the existing list using the shared form drawer. */
 export default function NewEmployeePage(): ReactElement {
   const { t: drawerTitle } = useTranslation();
   const { t } = useTranslation();
@@ -23,8 +24,9 @@ export default function NewEmployeePage(): ReactElement {
   const { reload } = useOutletContext<EmployeesOutletContext>();
   const [submitting, setSubmitting] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const guard = useFormDiscardGuard(dirty, submitting);
 
-  // A page has no beforeClose: ask before a reload or closing the tab while there are unsaved changes (T3.9).
+  // Browser reload still needs its native unsaved-change warning.
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent): void => {
@@ -36,11 +38,10 @@ export default function NewEmployeePage(): ReactElement {
 
   return (
     <RouteFormPage
-      presentation='page'
       title={drawerTitle('employees.create.title')}
+      beforeClose={guard.beforeClose}
     >
       <PageContainer>
-        <BackButton />
         <PageHeader
           title={t('employees.create.title')}
           description={t('employees.create.description')}
@@ -57,20 +58,23 @@ export default function NewEmployeePage(): ReactElement {
                 {
                   pathname: `../${encodeURIComponent(employee.id)}`,
                   search: location.search,
+                  hash: location.hash,
                 },
                 { replace: true },
               );
             }}
           />
-          <div className='flex flex-wrap justify-end gap-2'>
+          <FormActions>
             <Button
               variant='outline'
               disabled={submitting}
               onClick={() => {
-                void navigate(
-                  { pathname: '..', search: location.search },
-                  { replace: true },
-                );
+                void guard.requestClose(() => {
+                  void navigate(
+                    { pathname: '..', search: location.search },
+                    { replace: true },
+                  );
+                });
               }}
             >
               {t('actions.cancel')}
@@ -79,8 +83,9 @@ export default function NewEmployeePage(): ReactElement {
               {submitting ? <Spinner data-icon='inline-start' /> : null}
               {submitting ? t('actions.saving') : t('employees.create.submit')}
             </Button>
-          </div>
+          </FormActions>
         </div>
+        {guard.confirmation}
       </PageContainer>
     </RouteFormPage>
   );

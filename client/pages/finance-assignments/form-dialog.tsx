@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ApiClientError, useApiClient } from '@nocobase/app-client';
+import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { Link, useOutletContext, useParams } from 'react-router';
-import { RouteDialog } from '#components/route-dialog';
+import { Link, useOutletContext, useParams, useLocation } from 'react-router';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { DepartmentPicker } from '#components/department-picker';
 import { Button } from '#components/ui/button';
+import { FieldError } from '#components/ui/field';
 import { Label } from '#components/ui/label';
 import { Textarea } from '#components/ui/textarea';
 import { Spinner } from '#components/ui/spinner';
@@ -74,7 +75,8 @@ export default function FormDialog() {
       !options.error;
   return (
     <>
-      <RouteDialog
+      <RouteDrawer
+        className='sm:max-w-2xl'
         title={t(`financeAssignments.${assignmentId ? 'edit' : 'new'}`)}
         description={t('financeAssignments.formDescription')}
         beforeClose={() => {
@@ -113,7 +115,7 @@ export default function FormDialog() {
             }}
           />
         )}
-      </RouteDialog>
+      </RouteDrawer>
       <AlertDialog
         open={discard}
         onOpenChange={(v) => {
@@ -153,6 +155,7 @@ export default function FormDialog() {
   );
 }
 function Footer({ disabled, busy }: { disabled: boolean; busy: boolean }) {
+  const { assignmentId } = useParams();
   const { close } = useRouteOverlay(),
     { t } = useTranslation();
   return (
@@ -166,7 +169,11 @@ function Footer({ disabled, busy }: { disabled: boolean; busy: boolean }) {
         disabled={disabled || busy}
       >
         {busy ? <Spinner data-icon='inline-start' /> : null}
-        {t('financeAssignments.save')}
+        {t(
+          assignmentId
+            ? 'financeAssignments.save'
+            : 'financeAssignments.create',
+        )}
       </Button>
     </>
   );
@@ -183,9 +190,11 @@ function Form({
   onBusy: (v: boolean) => void;
 }) {
   const api = useApiClient(),
+    toast = useToaster(),
     { t } = useTranslation(),
     { close } = useRouteOverlay(),
-    context = useOutletContext<Context>();
+    context = useOutletContext<Context>(),
+    location = useLocation();
   const [departmentId, setDepartmentId] = useState(row?.departmentId ?? ''),
     [person, setPerson] = useState<Person | null>(
       accountants.find((p) => p.id === row?.accountantId) ??
@@ -230,6 +239,10 @@ function Form({
         json: row
           ? { accountantId: person!.id, active, version, reason }
           : { departmentId, accountantId: person!.id, reason },
+      });
+      toast.show({
+        type: 'success',
+        title: t('financeAssignments.saved', { name: person!.name }),
       });
       onDirty(false);
       context?.onSaved();
@@ -284,7 +297,18 @@ function Form({
       >
         <fieldset disabled={busy} className='flex flex-col gap-4'>
           {error ? (
-            <FinanceError error={error} retry={() => setError(undefined)} />
+            <FinanceError
+              error={error}
+              context='save'
+              retry={
+                uncertain ||
+                (error instanceof ApiClientError && error.status === 409)
+                  ? undefined
+                  : () => {
+                      void save();
+                    }
+              }
+            />
           ) : null}
           {error instanceof ApiClientError && error.status === 409 && row ? (
             <div className='flex flex-col gap-2'>
@@ -355,9 +379,18 @@ function Form({
               </Button>
               {existing ? (
                 <Button
+                  nativeButton={false}
                   type='button'
                   variant='outline'
-                  render={<Link to={`/financeAssignments/${existing.id}`} />}
+                  render={
+                    <Link
+                      to={{
+                        pathname: `/financeAssignments/${existing.id}`,
+                        search: location.search,
+                        hash: location.hash,
+                      }}
+                    />
+                  }
                 >
                   {t('financeAssignments.viewExisting')}
                 </Button>
@@ -366,7 +399,10 @@ function Form({
           ) : null}
           <div className='flex flex-col gap-2'>
             <Label htmlFor='finance-form-department'>
-              {t('financeAssignments.department')}
+              {t('financeAssignments.department')}{' '}
+              <span aria-hidden='true' className='text-destructive'>
+                *
+              </span>
             </Label>
             {row ? (
               <p className='text-sm break-words'>{row.department.title}</p>
@@ -383,23 +419,36 @@ function Form({
                 value={departmentId}
                 invalid={invalid.includes('department')}
                 disabled={permission.isPending}
-                onChange={(v) => setDepartmentId(v)}
+                onChange={(v) => {
+                  setDepartmentId(v);
+                  if (v)
+                    setInvalid((old) =>
+                      old.filter((key) => key !== 'department'),
+                    );
+                }}
               />
             )}
             {invalid.includes('department') ? (
-              <p role='alert' className='text-sm text-destructive'>
-                {t('financeAssignments.required')}
-              </p>
+              <FieldError>{t('financeAssignments.required')}</FieldError>
             ) : null}
           </div>
           <div className='flex flex-col gap-2'>
             <Label htmlFor='finance-accountant'>
-              {t('financeAssignments.accountant')}
+              {t('financeAssignments.accountant')}{' '}
+              <span aria-hidden='true' className='text-destructive'>
+                *
+              </span>
             </Label>
             <Combobox
               items={accountants}
               value={person}
-              onValueChange={setPerson}
+              onValueChange={(value) => {
+                setPerson(value);
+                if (value)
+                  setInvalid((old) =>
+                    old.filter((key) => key !== 'accountant'),
+                  );
+              }}
               itemToStringLabel={(v) => v.name}
               isItemEqualToValue={(a, b) => a.id === b.id}
             >
@@ -423,22 +472,22 @@ function Form({
               </ComboboxContent>
             </Combobox>
             {invalid.includes('accountant') ? (
-              <p role='alert' className='text-sm text-destructive'>
-                {t('financeAssignments.required')}
-              </p>
+              <FieldError>{t('financeAssignments.required')}</FieldError>
             ) : null}
           </div>
           {row ? (
             <div className='flex flex-col gap-2'>
-              <Label>{t('financeAssignments.status')}</Label>
+              <Label htmlFor='finance-status'>
+                {t('financeAssignments.status')}
+              </Label>
               <Select
                 value={active ? 'active' : 'inactive'}
                 onValueChange={(v) => setActive(v === 'active')}
               >
-                <SelectTrigger>
+                <SelectTrigger id='finance-status'>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                   <SelectGroup>
                     <SelectItem value='active'>
                       {t('financeAssignments.active')}
@@ -453,19 +502,24 @@ function Form({
           ) : null}
           <div className='flex flex-col gap-2'>
             <Label htmlFor='finance-reason'>
-              {t('financeAssignments.reason')}
+              {t('financeAssignments.reason')}{' '}
+              <span aria-hidden='true' className='text-destructive'>
+                *
+              </span>
             </Label>
             <Textarea
               id='finance-reason'
               aria-invalid={invalid.includes('reason')}
               maxLength={4000}
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => {
+                setReason(e.target.value);
+                if (e.target.value.trim())
+                  setInvalid((old) => old.filter((key) => key !== 'reason'));
+              }}
             />
             {invalid.includes('reason') ? (
-              <p role='alert' className='text-sm text-destructive'>
-                {t('financeAssignments.required')}
-              </p>
+              <FieldError>{t('financeAssignments.required')}</FieldError>
             ) : null}
           </div>
         </fieldset>
@@ -474,7 +528,9 @@ function Form({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t('financeAssignments.disable')}
+              {t('financeAssignments.disableTitle', {
+                name: row?.department.title,
+              })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t('financeAssignments.disableDescription')}

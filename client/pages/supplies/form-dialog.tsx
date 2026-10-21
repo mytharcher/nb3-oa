@@ -545,7 +545,10 @@ function SupplyForm({
       <FieldGroup inert={submission.submitUnknown || undefined}>
         <Field data-invalid={!!form.formState.errors.purpose}>
           <FieldLabel htmlFor='supply-purpose'>
-            {t('supplies.purpose')}
+            {t('supplies.purpose')}{' '}
+            <span aria-hidden='true' className='text-destructive'>
+              *
+            </span>
           </FieldLabel>
           <Textarea
             id='supply-purpose'
@@ -593,7 +596,10 @@ function SupplyForm({
                   render={({ field, fieldState }) => (
                     <Field data-invalid={!!fieldState.error}>
                       <FieldLabel htmlFor={`supply-item-${index}`}>
-                        {t('supplies.item')}
+                        {t('supplies.item')}{' '}
+                        <span aria-hidden='true' className='text-destructive'>
+                          *
+                        </span>
                       </FieldLabel>
                       <Select
                         value={field.value}
@@ -632,7 +638,10 @@ function SupplyForm({
                   }
                 >
                   <FieldLabel htmlFor={`supply-quantity-${index}`}>
-                    {t('supplies.quantity')}
+                    {t('supplies.quantity')}{' '}
+                    <span aria-hidden='true' className='text-destructive'>
+                      *
+                    </span>
                   </FieldLabel>
                   <Input
                     id={`supply-quantity-${index}`}
@@ -663,7 +672,10 @@ function SupplyForm({
                       }
                     >
                       <FieldLabel htmlFor={`supply-print-${index}-${key}`}>
-                        {t(`supplies.print.${key}`)}
+                        {t(`supplies.print.${key}`)}{' '}
+                        <span aria-hidden='true' className='text-destructive'>
+                          *
+                        </span>
                       </FieldLabel>
                       <Input
                         id={`supply-print-${index}-${key}`}

@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '#components/ui/button';
 import {
@@ -9,10 +10,12 @@ import {
 /** Refresh is a secondary, named action with a consistent pending state. */
 export function ApplicationRefreshButton({
   label,
+  ref,
   loading = false,
   onClick,
 }: {
   readonly label: string;
+  readonly ref?: Ref<HTMLButtonElement>;
   readonly loading?: boolean;
   readonly onClick: () => void;
 }) {
@@ -21,6 +24,7 @@ export function ApplicationRefreshButton({
       <TooltipTrigger
         render={
           <Button
+            ref={ref}
             type='button'
             variant='outline'
             size='icon'

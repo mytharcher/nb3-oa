@@ -1,3 +1,4 @@
+import { Badge } from '#components/ui/badge';
 import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { statusTone } from './status-tone.js';
 import { ApplicationSearch } from '#components/application-search';
@@ -77,7 +78,7 @@ export default function TransferList() {
         header: ({ column }) => (
           <DataTableColumnHeader
             column={column}
-            title={t('transfer.fields.id')}
+            title={t('transfer.fields.employeeId')}
           />
         ),
         cell: ({ row }) => (
@@ -89,7 +90,7 @@ export default function TransferList() {
               hash: location.hash,
             }}
           >
-            {row.original.id}
+            {row.original.employee?.name ?? t('approvals.unknownPerson')}
           </Link>
         ),
         enableHiding: false,
@@ -108,10 +109,15 @@ export default function TransferList() {
         accessorKey: 'kinds',
         header: t('transfer.fields.kinds'),
         enableSorting: false,
-        cell: ({ row }) =>
-          row.original.kinds
-            .map((kind) => t(`transfer.kinds.${kind}`))
-            .join(' · '),
+        cell: ({ row }) => (
+          <div className='flex flex-wrap gap-1'>
+            {row.original.kinds.map((kind) => (
+              <Badge key={kind} variant='outline'>
+                {t(`transfer.kinds.${kind}`)}
+              </Badge>
+            ))}
+          </div>
+        ),
       },
       {
         accessorKey: 'effectiveDate',

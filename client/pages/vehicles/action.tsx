@@ -1,3 +1,4 @@
+import { Spinner } from '#components/ui/spinner';
 import { useBusinessErrorFormatter } from '#hooks/use-business-error-message';
 import { createRequestKey } from '#lib/request-key';
 import { useMemo, useRef, useState, type FormEvent } from 'react';
@@ -77,6 +78,7 @@ export default function RequestAction() {
   };
   return (
     <RouteDrawer
+      className='sm:max-w-2xl'
       title={t(`vehicles.actions.${operation}`)}
       beforeClose={() => !workingRef.current}
       footer={<Footer busy={busy} ready={ready} />}
@@ -105,6 +107,7 @@ export default function RequestAction() {
   );
 }
 function Footer({ busy, ready }: { busy: boolean; ready: boolean }) {
+  const { operation } = useParams();
   const { close } = useRouteOverlay(),
     { t } = useTranslation();
   return (
@@ -117,7 +120,8 @@ function Footer({ busy, ready }: { busy: boolean; ready: boolean }) {
         form='vehicle-action-form'
         disabled={busy || !ready}
       >
-        {t('vehicles.confirm')}
+        {busy ? <Spinner data-icon='inline-start' /> : null}
+        {t(`vehicles.actions.${operation}`)}
       </Button>
     </>
   );
@@ -265,7 +269,13 @@ function Body({
       form.reset(v);
       saved();
       busy(false);
-      toaster.show({ type: 'success', title: t('vehicles.operationSaved') });
+      toaster.show({
+        type: 'success',
+        title: t('vehicles.operationSaved', {
+          action: t(`vehicles.actions.${operation}`),
+          name: detail.record.number ?? t('vehicles.draft'),
+        }),
+      });
       await close();
     } catch (error) {
       form.setError('root', {
@@ -331,7 +341,10 @@ function Body({
                   render={({ field, fieldState }) => (
                     <Field data-invalid={!!fieldState.error}>
                       <FieldLabel htmlFor={`vehicle-action-${name}`}>
-                        {t(`vehicles.fields.${name}`)}
+                        {t(`vehicles.fields.${name}`)}{' '}
+                        <span aria-hidden='true' className='text-destructive'>
+                          *
+                        </span>
                       </FieldLabel>
                       <Select
                         items={
@@ -359,7 +372,7 @@ function Body({
                         >
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                           <SelectGroup>
                             {(name === 'vehicleId'
                               ? (candidates.data?.data.vehicles ?? []).map(
@@ -393,7 +406,10 @@ function Body({
             <>
               <Field data-invalid={!!form.formState.errors.mileage}>
                 <FieldLabel htmlFor='vehicle-action-mileage'>
-                  {t('vehicles.fields.mileage')}
+                  {t('vehicles.fields.mileage')}{' '}
+                  <span aria-hidden='true' className='text-destructive'>
+                    *
+                  </span>
                 </FieldLabel>
                 <Input
                   id='vehicle-action-mileage'
@@ -451,7 +467,10 @@ function Body({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t('vehicles.destructiveTitle')}
+              {t('vehicles.destructiveTitle', {
+                action: t(`vehicles.actions.${operation}`),
+                name: detail.record.number ?? t('vehicles.draft'),
+              })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t('vehicles.destructiveDescription')}
@@ -466,7 +485,7 @@ function Body({
               disabled={pending}
               onClick={() => values && void perform(values)}
             >
-              {t('vehicles.confirm')}
+              {t(`vehicles.actions.${operation}`)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

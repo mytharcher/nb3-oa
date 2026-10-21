@@ -119,6 +119,14 @@ describe('application translations', () => {
       const module = path
         .relative(path.join(clientDirectory, 'pages', 'administration'), file)
         .split(path.sep)[0];
+      const refs = scan(source);
+      // Cross-module presentation helpers receive translated copy from their callers;
+      // they are not a plugin namespace and must not introduce untranslated keys.
+      if (module === 'components') {
+        expect([...refs.keys]).toEqual([]);
+        expect([...refs.prefixes]).toEqual([]);
+        continue;
+      }
       const namespace =
         `@nocobase/app-plugin-${module}` as keyof typeof enUS.overrides;
       for (const locale of [enUS, zhCN]) {
@@ -129,7 +137,6 @@ describe('application translations', () => {
           ...translationKeys(locale.overrides[namespace]),
           ...(module.startsWith('authz-') ? shared : []),
         ]);
-        const refs = scan(source);
         expect([...refs.keys].filter((key) => !keys.has(key))).toEqual([]);
         expect(
           [...refs.prefixes].filter(

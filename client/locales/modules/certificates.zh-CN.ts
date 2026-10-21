@@ -1,5 +1,9 @@
 export default {
   certificates: {
+    savedRecord: '已保存“{{name}}”的证明申请',
+    issuedRecord: '已为“{{name}}”开具证明',
+    submittedRecord: '已提交“{{name}}”的证明申请',
+
     businessErrors: {
       CERTIFICATE_ACCESS_DENIED: '没有当前记录或字段权限',
       CERTIFICATE_APPROVAL_REFUSED: '当前审批操作不可执行',

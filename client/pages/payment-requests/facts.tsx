@@ -68,10 +68,10 @@ export function PaymentFacts({
     [f('sourceMode'), t(`paymentRequests.sourceModes.${record.sourceMode}`)],
     ...(record.contractId
       ? [
-          [t('paymentRequestsForm.contractId'), record.contractId] as [
-            string,
-            ReactNode,
-          ],
+          [
+            t('paymentRequestsForm.contractId'),
+            detail.contractName ?? t('paymentRequests.relatedUnavailable'),
+          ] as [string, ReactNode],
           [
             t('paymentRequestsForm.contractVersion'),
             String(
@@ -91,10 +91,13 @@ export function PaymentFacts({
             search: location.search,
           }}
         >
-          {order?.number ?? record.purchaseOrderId}
+          {order?.number ?? t('paymentRequests.relatedUnavailable')}
         </Link>
       ) : (
-        (order?.number ?? record.purchaseOrderId ?? '—')
+        (order?.number ??
+        (record.purchaseOrderId
+          ? t('paymentRequests.relatedUnavailable')
+          : '—'))
       ),
     ] as const,
     [f('noPriorReason'), record.noPriorApprovalReason || '—'],
@@ -181,9 +184,11 @@ export function PaymentFacts({
                               ? 'paymentRequests.yes'
                               : 'paymentRequests.no',
                           )
-                        : typeof value === 'string' || typeof value === 'number'
-                          ? String(value)
-                          : '—'}
+                        : typeof value === 'number'
+                          ? new Intl.NumberFormat(i18n.language).format(value)
+                          : typeof value === 'string'
+                            ? value
+                            : '—'}
                   </dd>
                 </div>
               ))}

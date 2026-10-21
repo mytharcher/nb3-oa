@@ -66,7 +66,7 @@ export function SealSkeleton() {
     <div
       role='status'
       aria-label={t('seals.loading')}
-      className='flex flex-col gap-5'
+      className='flex flex-col gap-4'
     >
       <Skeleton className='h-6 w-1/2' />
       <Skeleton className='h-20 w-full' />

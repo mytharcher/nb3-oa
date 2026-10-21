@@ -287,7 +287,7 @@ function Inspector({
         item.type === detail.resource.type && item.value === detail.resource.id,
     );
   return (
-    <div className='space-y-4'>
+    <div className='flex flex-col gap-4'>
       <div className='flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3'>
         <SubjectPicker
           settings='inspector'
@@ -348,7 +348,7 @@ function Inspector({
         <div className='flex min-w-0 flex-col gap-3 sm:min-h-[60vh] sm:flex-row'>
           <nav
             aria-label={t('editors.resourceGroup')}
-            className='grid max-w-full grid-cols-2 gap-1 rounded-lg border bg-card p-2 sm:block sm:w-40 sm:shrink-0 sm:space-y-1'
+            className='grid max-w-full grid-cols-2 gap-1 rounded-lg border bg-card p-2 sm:block sm:w-40 sm:shrink-0 sm:flex flex-col gap-1'
           >
             {entries.map((item, index) => (
               <Fragment key={item.value}>
@@ -360,7 +360,7 @@ function Inspector({
                   </div>
                 )}
                 <Button
-                  className={`min-h-[44px] w-full justify-start whitespace-normal ${item === entry ? 'bg-primary/10 font-medium text-primary hover:bg-primary/10' : 'font-normal text-foreground'}`}
+                  className={`min-h-11 w-full justify-start whitespace-normal ${item === entry ? 'bg-primary/10 font-medium text-primary hover:bg-primary/10' : 'font-normal text-foreground'}`}
                   variant='ghost'
                   aria-label={item.label}
                   aria-current={item === entry ? 'page' : undefined}
@@ -385,7 +385,7 @@ function Inspector({
               </Fragment>
             ))}
           </nav>
-          <div className='min-w-0 flex-1 space-y-3'>
+          <div className='min-w-0 flex-1 flex flex-col gap-3'>
             <FilterBar>
               <SearchField
                 className='min-w-0 sm:max-w-none'
@@ -410,12 +410,10 @@ function Inspector({
               data-slot='responsive-table'
               className='max-h-[60vh] overflow-auto rounded-lg border bg-card'
             >
-              <table className='w-full table-fixed text-sm [&_td]:wrap-anywhere'>
+              <table className='w-full table-auto text-sm [&_td]:wrap-anywhere'>
                 <thead className='sticky top-0 z-10 bg-card'>
                   <tr>
-                    <th className='w-[32%] p-3 text-left'>
-                      {t('common.resource')}
-                    </th>
+                    <th className='p-3 text-left'>{t('common.resource')}</th>
                     <th className='p-3 text-left'>{t('editors.actions')}</th>
                   </tr>
                 </thead>

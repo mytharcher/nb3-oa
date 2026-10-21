@@ -59,7 +59,7 @@ export function DataTableColumnHeader<TData, TValue>({
             <ChevronsUpDownIcon />
           )}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align='start'>
+        <DropdownMenuContent className='w-auto min-w-40' align='start'>
           <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
             <ArrowUpIcon />
             {t('dataTable.sortAscending')}

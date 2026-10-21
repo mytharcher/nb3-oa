@@ -83,8 +83,7 @@ const copy = {
   emptyCopiedTitle: 'No copied approvals',
   emptyCopiedDescription: 'Requests copied to you will appear here.',
   emptyMineTitle: 'No requests started',
-  emptyMineDescription:
-    'Complete a leave request and submit it, or save a draft.',
+  emptyMineDescription: 'Complete a request and submit it, or save a draft.',
   calendarTimeZone: 'Dates use the working calendar in {{zone}}.',
   refreshAfterSuccess:
     'The action succeeded, but the latest details could not load. Refresh without repeating the action.',
@@ -141,7 +140,7 @@ const copy = {
   reject: 'Reject',
   return: 'Return',
   comment: 'Comment',
-  appoint: 'Appoint',
+  appoint: 'Assign',
   reassign: 'Reassign',
   reason: 'Reason',
   opinion: 'Comment',
@@ -187,7 +186,7 @@ const copy = {
   progress: 'Approval progress',
   timeline: 'Approval history',
   saved: 'Saved leave request "{{name}}"',
-  completed: '{{action}} completed for leave request "{{name}}"',
+  completed: '{{action}}: "{{name}}"',
   actionTitle: '{{action}} leave request "{{name}}"',
   returnHint:
     'Return to the applicant; resubmission starts at the first stage.',
@@ -241,6 +240,7 @@ const copy = {
     revision: 'Applicant revision',
   },
   delegations: {
+    create: 'Create',
     description: 'Let a delegate process approvals during a specified period.',
     new: 'New delegation',
     edit: 'Edit delegation',

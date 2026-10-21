@@ -196,6 +196,36 @@ export function createSealLedger(d: {
       await saveCommand(command, input.actorId, null, saved, tx);
       return saved as SealInstance;
     },
+    async instanceNames(requested, tx, policy) {
+      const ids = [...new Set(requested)];
+      const read = policy?.read;
+      if (
+        !ids.length ||
+        !read ||
+        (read !== true &&
+          (!Array.isArray(read.fields) ||
+            !read.fields.includes('id') ||
+            !read.fields.includes('name')))
+      )
+        return new Map();
+      const rows = await tx
+        .repository<SealInstance>('seals')
+        .withPolicy(policy)
+        .findMany({
+          select: (s) => s.fields('id', 'name'),
+          filter: (f) => f.or(ids.map((id) => f.string('id').eq(id))),
+        });
+      return new Map(
+        rows.flatMap((row) =>
+          typeof row.id === 'string' &&
+          ids.includes(row.id) &&
+          typeof row.name === 'string' &&
+          row.name.trim()
+            ? [[row.id, row.name] as const]
+            : [],
+        ),
+      );
+    },
     async listInstances(tx, policy) {
       const rows = await tx
         .repository<SealInstance>('seals')

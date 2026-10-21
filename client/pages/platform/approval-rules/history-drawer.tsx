@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '#components/ui/alert-dialog';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import { Badge } from '#components/ui/badge';
 import { Button } from '#components/ui/button';
 import { Spinner } from '#components/ui/spinner';
@@ -115,6 +116,12 @@ function HistoryDrawer({
           rules.reload();
         }}
       />
+    );
+  } else if (rules.data && !rule) {
+    body = (
+      <Alert variant='destructive'>
+        <AlertDescription>{t('platform.rules.notFound')}</AlertDescription>
+      </Alert>
     );
   } else if (!rows || !rule) {
     body = <TableSkeleton rows={3} columns={3} />;

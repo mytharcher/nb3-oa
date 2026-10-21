@@ -1,3 +1,4 @@
+import NewEmployeePage from '../../client/pages/employees/new.js';
 // Component tests of the employee archive pages and the directory. The setup follows
 // tests/components/page-harness.test.tsx: the real strict i18n runtime with the application's locales, and mocks only
 // for what the pages reach outside themselves for (the API client, the toaster, useCan, the session).
@@ -9,7 +10,14 @@ import {
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactElement, ReactNode } from 'react';
-import { createMemoryRouter, Outlet, RouterProvider } from 'react-router';
+import {
+  createMemoryRouter,
+  Link,
+  Outlet,
+  RouterProvider,
+  useLocation,
+  useOutletContext,
+} from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import packageMetadata from '../../package.json' with { type: 'json' };
@@ -22,7 +30,10 @@ import EmployeePage from '../../client/pages/employees/detail/index.js';
 import EmployeeProfileTab from '../../client/pages/employees/detail/profile.js';
 import EmployeesPage from '../../client/pages/employees/index.js';
 import { EmployeeForm } from '../../client/pages/employees/employee-form.js';
-import type { Employee } from '../../client/pages/employees/types.js';
+import type {
+  EmployeePageOutletContext,
+  Employee,
+} from '../../client/pages/employees/types.js';
 
 const { api, toaster, granted, refresh } = vi.hoisted(() => ({
   api: { request: vi.fn() },
@@ -262,7 +273,16 @@ function renderEmployee(url: string) {
                 ],
               },
               { path: 'profile', element: <EmployeeProfileTab /> },
-              { path: 'history', element: <EmployeeHistoryTab /> },
+              {
+                path: 'history',
+                element: <EmployeeHistoryTab />,
+                children: [
+                  {
+                    path: 'sourceOnboarding/:onboardingId',
+                    element: <SourceProbe />,
+                  },
+                ],
+              },
             ],
           },
         ],
@@ -414,8 +434,11 @@ describe('employee page', () => {
   it('corrects a status only with a reason, then shows the result', async () => {
     granted.add('oa.employees.archive:correctStatus');
     const corrected = { ...EMPLOYEE, status: 'regular' };
+    let archiveReads = 0;
     answer({
-      'GET employees/e1': { data: EMPLOYEE },
+      'GET employees/e1': () => ({
+        data: archiveReads++ === 0 ? EMPLOYEE : corrected,
+      }),
       'POST employees/e1/correctStatus': { data: corrected },
     });
     const router = renderEmployee('/employees/e1/basic/correctStatus');
@@ -445,7 +468,7 @@ describe('employee page', () => {
           path: 'employees/e1/correctStatus',
           method: 'POST',
           json: expect.objectContaining({
-            status: 'probation',
+            status: 'regular',
             reason: 'Approved on paper',
           }),
         }),
@@ -542,4 +565,134 @@ describe('directory', () => {
       }),
     );
   });
+});
+
+function SourceProbe() {
+  const context = useOutletContext<EmployeePageOutletContext>();
+  const location = useLocation();
+  return (
+    <div role='dialog' aria-label='Source probe'>
+      <button onClick={() => context.reload?.()}>Save source</button>
+      <Link
+        to={{ pathname: '..', search: location.search, hash: location.hash }}
+      >
+        Close source
+      </Link>
+    </div>
+  );
+}
+const SOURCE_HISTORY = {
+  id: 'h-source',
+  kind: 'hire',
+  before: null,
+  after: { active: true },
+  effectiveAt: '2026-10-10',
+  sourceApplication: 'oa.onboarding:o1',
+  note: null,
+  createdAt: '2026-10-10T00:00:00Z',
+};
+it('opens an authorized source over the nondefault history tab, refreshes both owners, and closes in one navigation', async () => {
+  reloadOwner.mockClear();
+  granted.add('oa.onboarding:view');
+  answer({
+    'GET employees/e1': { data: EMPLOYEE },
+    'GET employees/e1/history': { data: [SOURCE_HISTORY] },
+    'GET positions/options': { data: [] },
+    'GET grades/options': { data: [] },
+  });
+  const router = renderEmployee('/employees/e1/history?status=regular#notes');
+  const source = await screen.findByRole('link', {
+    name: 'Onboarding',
+    exact: true,
+  });
+  expect(source).toHaveAttribute(
+    'href',
+    '/employees/e1/history/sourceOnboarding/o1?status=regular#notes',
+  );
+  await userEvent.click(source);
+  await userEvent.click(
+    await screen.findByRole('button', { name: 'Save source' }),
+  );
+  await waitFor(() =>
+    expect(
+      api.request.mock.calls.filter(
+        ([request]) => request.path === 'employees/e1/history',
+      ),
+    ).toHaveLength(2),
+  );
+  expect(
+    api.request.mock.calls.filter(
+      ([request]) => request.path === 'employees/e1',
+    ),
+  ).toHaveLength(2);
+  expect(reloadOwner).toHaveBeenCalledOnce();
+  await userEvent.click(
+    await screen.findByRole('link', { name: 'Close source' }),
+  );
+  expect(router.state.location).toMatchObject({
+    pathname: '/employees/e1/history',
+    search: '?status=regular',
+    hash: '#notes',
+  });
+});
+it('renders source wording without a link when its independent view capability is absent', async () => {
+  answer({
+    'GET employees/e1': { data: EMPLOYEE },
+    'GET employees/e1/history': { data: [SOURCE_HISTORY] },
+    'GET positions/options': { data: [] },
+    'GET grades/options': { data: [] },
+  });
+  renderEmployee('/employees/e1/history?status=regular#notes');
+  await screen.findByText('Onboarding', { exact: true });
+  expect(
+    screen.queryByRole('link', { name: 'Onboarding', exact: true }),
+  ).not.toBeInTheDocument();
+});
+
+it('creates employees in a right drawer with fixed native form actions and guarded cancellation', async () => {
+  answer({
+    'GET positions/options': { data: [] },
+    'GET grades/options': { data: [] },
+  });
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/employees',
+        element: <OutletOwner />,
+        children: [{ path: 'new', element: <NewEmployeePage /> }],
+      },
+    ],
+    { initialEntries: ['/employees/new?q=staff&page=2#rows'] },
+  );
+  render(<RouterProvider router={router} />, { wrapper: I18n });
+  const drawer = await screen.findByRole('dialog');
+  expect(drawer).toHaveAttribute('data-presentation', 'drawer');
+  const save = within(drawer).getByRole('button', {
+    name: copy.create.submit,
+  }) as HTMLButtonElement;
+  expect(save.closest('[data-slot="route-overlay-footer"]')).not.toBeNull();
+  expect(save.form?.id).toBe('employee-create-form');
+  await userEvent.type(
+    within(drawer).getByRole('textbox', { name: /Name/ }),
+    'Draft employee',
+  );
+  await userEvent.click(within(drawer).getByRole('button', { name: 'Cancel' }));
+  const confirmation = await screen.findByRole('alertdialog');
+  await userEvent.click(
+    within(confirmation).getByRole('button', { name: 'Continue editing' }),
+  );
+  expect(within(drawer).getByRole('textbox', { name: /Name/ })).toHaveValue(
+    'Draft employee',
+  );
+  await userEvent.click(within(drawer).getByRole('button', { name: 'Close' }));
+  await userEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'Discard changes',
+    }),
+  );
+  await waitFor(() =>
+    expect(router.state.location.pathname).toBe('/employees'),
+  );
+  expect(router.state.location.search).toBe('?q=staff&page=2');
+  expect(router.state.location.hash).toBe('#rows');
 });

@@ -38,7 +38,6 @@ export default {
     saved: 'Purchase saved',
     formDescription:
       'Describe the items, purpose and estimate. Submission reserves the primary department budget for the current company-calendar year.',
-    applicantHint: 'Applicant: {{name}}',
     primaryDepartment: 'Primary department: {{department}}',
     yearHint:
       'The submission year follows the company calendar ({{timeZone}}).',

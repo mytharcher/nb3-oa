@@ -38,6 +38,11 @@ export type LoanRequestInput = Pick<
   'reason' | 'amountCents' | 'dueDate' | 'travelId'
 >;
 export interface LoanRequestService {
+  /** Optional display number; independently scoped, with no ledger mapping or balance disclosure. */
+  nameForLedger(
+    id: string,
+    policy: RepositoryPolicy | undefined,
+  ): Promise<string | null>;
   /** Public maintenance facade for departure task reassignment; mutation stays in this module's lifecycle. */
   readonly approvals: Pick<
     ApprovalService,

@@ -98,7 +98,10 @@ export function Breadcrumbs({
                     >
                       <BreadcrumbEllipsis />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align='start'>
+                    <DropdownMenuContent
+                      className='w-auto min-w-40'
+                      align='start'
+                    >
                       {folded.map((middle) =>
                         middle.to ? (
                           <DropdownMenuItem

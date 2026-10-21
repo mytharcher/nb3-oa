@@ -442,6 +442,10 @@ describe('overtime request pages', () => {
     const combo = within(dialog).getByRole('combobox', { name: 'Approver *' });
     await waitFor(() => expect(combo).not.toBeDisabled());
     await userEvent.click(combo);
+    expect(
+      api.request.mock.calls.some(([r]) => r.path.endsWith('/candidates')),
+    ).toBe(false);
+    await userEvent.type(combo, 'Bob');
     await userEvent.click(
       await screen.findByRole('option', { name: 'Bob eligible' }),
     );
@@ -488,6 +492,10 @@ describe('overtime request pages', () => {
     });
     await waitFor(() => expect(combo).not.toBeDisabled());
     await userEvent.click(combo);
+    expect(
+      api.request.mock.calls.some(([r]) => r.path.endsWith('/candidates')),
+    ).toBe(false);
+    await userEvent.type(combo, 'Bob');
     await userEvent.click(
       await screen.findByRole('option', { name: 'Bob eligible' }),
     );

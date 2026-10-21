@@ -60,7 +60,7 @@ export function useOnboardingResource<T>(
     [source, key],
   );
   return {
-    data: path && result?.key === key ? result.data : undefined,
+    data: path && result?.source === source ? result.data : undefined,
     error: result?.key === key ? result.error : undefined,
     loading: !!path && result?.key !== key,
     reload,

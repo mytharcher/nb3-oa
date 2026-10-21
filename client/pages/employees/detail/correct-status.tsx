@@ -3,13 +3,13 @@ import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { format } from 'date-fns';
 import { AlertCircleIcon } from 'lucide-react';
-import { type ReactElement, useMemo, useRef, useState } from 'react';
+import { type ReactElement, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useOutletContext } from 'react-router';
 import { z } from 'zod';
 
 import { DatePicker } from '#components/date-picker';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { SessionExpiredAlert } from '#components/session-expired-alert';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import { Button } from '#components/ui/button';
@@ -40,6 +40,7 @@ import {
 } from '../types.js';
 import { parseDay } from '../dates.js';
 import { CloseButton } from './edit.js';
+import { TabLoadError, TabSkeleton } from './load-state.js';
 
 const FORM_ID = 'employee-correct-status-form';
 
@@ -52,10 +53,10 @@ export default function CorrectStatusDialog(): ReactElement {
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   return (
-    <RouteDialog
+    <RouteDrawer
       title={t('employees.correction.title')}
       description={t('employees.correction.description')}
-      className='sm:max-w-md'
+      className='sm:max-w-2xl'
       beforeClose={() => !submittingRef.current}
       footer={
         <>
@@ -75,7 +76,7 @@ export default function CorrectStatusDialog(): ReactElement {
           setSubmitting(value);
         }}
       />
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 
@@ -84,12 +85,60 @@ function CorrectStatusForm({
 }: {
   readonly onSubmittingChange: (submitting: boolean) => void;
 }): ReactElement {
+  const api = useApiClient();
+  const { employee: shown } = useOutletContext<EmployeePageOutletContext>();
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<{
+    id: string;
+    employee?: Employee;
+    error?: unknown;
+  }>();
+  const key = `${shown.id}:${attempt}`;
+  useEffect(() => {
+    const controller = new AbortController();
+    void api
+      .request<{ data: Employee }>({
+        path: `employees/${encodeURIComponent(shown.id)}`,
+        signal: controller.signal,
+      })
+      .then(
+        ({ data }) => {
+          if (!controller.signal.aborted)
+            setResult({ id: key, employee: data });
+        },
+        (error: unknown) => {
+          if (!controller.signal.aborted) setResult({ id: key, error });
+        },
+      );
+    return () => controller.abort();
+  }, [api, shown.id, key]);
+  if (result?.id !== key) return <TabSkeleton />;
+  if (result.error || !result.employee)
+    return (
+      <TabLoadError
+        error={result.error}
+        onRetry={() => setAttempt((v) => v + 1)}
+      />
+    );
+  return (
+    <LoadedCorrectStatusForm
+      employee={result.employee}
+      onSubmittingChange={onSubmittingChange}
+    />
+  );
+}
+function LoadedCorrectStatusForm({
+  employee,
+  onSubmittingChange,
+}: {
+  readonly employee: Employee;
+  readonly onSubmittingChange: (submitting: boolean) => void;
+}): ReactElement {
   const { t } = useTranslation();
   const api = useApiClient();
   const toaster = useToaster();
   const { close } = useRouteOverlay();
-  const { employee, onSaved, onNotFound } =
-    useOutletContext<EmployeePageOutletContext>();
+  const { onSaved, onNotFound } = useOutletContext<EmployeePageOutletContext>();
 
   const schema = useMemo(
     () =>

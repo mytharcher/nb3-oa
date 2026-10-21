@@ -49,8 +49,8 @@ export function ApprovalBranches({
     ? Math.round((finished.length / required.length) * 100)
     : 100;
   return (
-    <div className={cn('space-y-3', className)}>
-      <div className='space-y-1.5'>
+    <div className={cn('flex flex-col gap-3', className)}>
+      <div className='flex flex-col gap-1.5'>
         <div className='flex items-baseline justify-between gap-2 text-xs text-muted-foreground'>
           <span className='font-medium text-foreground tabular-nums'>
             {t('approvalUi.branches.done', {
