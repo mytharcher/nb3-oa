@@ -1,3 +1,4 @@
+import { inDemoPartition } from '../demo-data/context.js';
 import type { DatabaseConnection } from '@nocobase/db';
 import type { EmployeeService, EmployeeStatus } from '../employees/contract.js';
 import type { OrgService } from '../org/contract.js';
@@ -203,8 +204,13 @@ export function transferPreparation(d: {
       targetCents,
       ruleSnapshot['raise.gm'],
     );
-    const hrIds = [...new Set(await d.org.dutyRoleMembers('hr', tx))];
-    const gmIds = await d.org.dutyRoleMembers('gm', tx);
+    // Freeze candidates from the same partition used by the approval directory.
+    const hrIds = [...new Set(await d.org.dutyRoleMembers('hr', tx))].filter(
+      (id) => inDemoPartition(id, tx),
+    );
+    const gmIds = (await d.org.dutyRoleMembers('gm', tx)).filter((id) =>
+      inDemoPartition(id, tx),
+    );
     if (gmIds.length > 1) fail('TRANSFER_AMBIGUOUS_SINGLE_ROLE');
     return {
       snapshot: {
