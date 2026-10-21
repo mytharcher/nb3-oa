@@ -10,6 +10,7 @@ import sealsRoutes, { sealViewChildren } from './route-modules/seals.js';
 import announcementsRoutes from './route-modules/announcements.js';
 import { centerEntry } from './pages/approvals/center-entry.js';
 import workItemsRoutes from './route-modules/work-items.js';
+import taskCenterRoutes from './route-modules/task-center.js';
 import knowledgeRoutes from './route-modules/knowledge.js';
 import certificateRoutes, {
   certificateViewChildren,
@@ -415,6 +416,7 @@ const routes: readonly AppClientRouteContribution[] = [
   sealsRoutes,
   announcementsRoutes,
   workItemsRoutes,
+  taskCenterRoutes,
   knowledgeRoutes,
   certificateRoutes,
   attendanceManagementRoutes,

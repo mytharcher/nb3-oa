@@ -523,6 +523,7 @@ describe('app client routes', () => {
     ).not.toContain('oa-seal-instances');
     const visiblePages = new Set([
       'home',
+      'oa-task-center',
       'oa-approvals',
       'oa-directory',
       'inbox',
@@ -543,6 +544,7 @@ describe('app client routes', () => {
     );
     expect(employeeMenu.map((item) => item.route.name)).toEqual([
       'home',
+      'oa-task-center',
       'oa-approvals',
       'inbox',
       'oa-personal',
@@ -570,6 +572,7 @@ describe('app client routes', () => {
       .sort((a, b) => (a.navigation?.order ?? 0) - (b.navigation?.order ?? 0));
     expect(menu.map((route) => route.name)).toEqual([
       'home',
+      'oa-task-center',
       'oa-approvals',
       'inbox',
       'oa-personal',

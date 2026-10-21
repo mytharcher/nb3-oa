@@ -8,6 +8,7 @@ import sealsLocale from './modules/seals.zh-CN.js';
 import recruitmentLocale from './modules/recruitment.zh-CN.js';
 import announcementsLocale from './modules/announcements.zh-CN.js';
 import workItemsLocale from './modules/work-items.zh-CN.js';
+import taskCenterLocale from './modules/task-center.zh-CN.js';
 import knowledgeLocale from './modules/knowledge.zh-CN.js';
 import transferLocale from './modules/transfer.zh-CN.js';
 import attendanceManagementLocale from './modules/attendance-management.zh-CN.js';
@@ -82,6 +83,7 @@ const zhCN = {
   ...certificatesLocale,
   ...knowledgeLocale,
   ...workItemsLocale,
+  ...taskCenterLocale,
   ...accessLocale,
   ...meetingRoomsLocale,
   ...vehiclesLocale,
