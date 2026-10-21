@@ -135,13 +135,21 @@ export async function validateDemo(
     )
       throw new Error('DEMO_HEADCOUNT_RECONCILIATION');
   }
-  // Every application row registered as created must still exist. Shared-row preimages
-  // remain restoration metadata and are checked separately by the removal preflight.
-  for (const own of owned.filter((r) => !r.shared && r.collection !== '@user'))
+  // Finished effect attempts are disposable: engine maintenance prunes them after
+  // 30 days, outside the import context, so their ownership entries may outlive
+  // them. Keep that provenance for cleanup, but do not require the attempts to
+  // survive a retry. Business records and permanent transition history must exist.
+  // Shared-row preimages are checked separately by the removal preflight.
+  for (const own of owned.filter(
+    (r) =>
+      !r.shared &&
+      r.collection !== '@user' &&
+      r.collection !== 'oaLifecycleEffectRuns',
+  ))
     if (
       !(await tx
         .repository(own.collection)
         .exists({ filter: rowFilter(own.key) }))
     )
-      throw new Error('DEMO_OWNED_ROW_MISSING');
+      throw new Error(`DEMO_OWNED_ROW_MISSING:${own.collection}`);
 }

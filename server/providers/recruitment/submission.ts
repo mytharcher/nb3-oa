@@ -1,3 +1,4 @@
+import { inDemoPartition } from '../demo-data/context.js';
 import type { DatabaseConnection } from '@nocobase/db';
 import type { OrgService } from '../org/contract.js';
 import type { EmployeeService } from '../employees/contract.js';
@@ -175,12 +176,19 @@ export function createRecruitmentSubmissionCoordinator(
           refuse('RECRUITMENT_UNSUPPORTED_SLA');
         const head = await d.org.headOf(proposal.departmentId, tx);
         const executive = await d.org.executiveOf(proposal.departmentId, tx);
-        const gm = await d.org.dutyRoleMembers('gm', tx);
-        const hrDirector = await d.org.dutyRoleMembers('hrDirector', tx);
+        // Match the approval directory's partition before checking single-person roles.
+        const gm = (await d.org.dutyRoleMembers('gm', tx)).filter((id) =>
+          inDemoPartition(id, tx),
+        );
+        const hrDirector = (
+          await d.org.dutyRoleMembers('hrDirector', tx)
+        ).filter((id) => inDemoPartition(id, tx));
         // Single-person roles may be empty (SDK hold/appoint) but ambiguous roles must not silently pick one.
         if (gm.length > 1 || hrDirector.length > 1)
           refuse('RECRUITMENT_AMBIGUOUS_SINGLE_ROLE');
-        const hrbp = await d.org.dutyRoleMembers('hrbp', tx);
+        const hrbp = (await d.org.dutyRoleMembers('hrbp', tx)).filter((id) =>
+          inDemoPartition(id, tx),
+        );
         const snapshot: RecruitmentSubmissionSnapshot = {
           departmentId: proposal.departmentId,
           positionId: proposal.positionId,
