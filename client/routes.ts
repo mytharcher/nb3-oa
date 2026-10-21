@@ -1,4 +1,3 @@
-import demoDataRoutes from './route-modules/demo-data.js';
 import headcountsRoutes from './route-modules/headcounts.js';
 import processManagementRoutes from './route-modules/process-management.js';
 import attendanceImportRoutes from './route-modules/attendance-import.js';
@@ -392,7 +391,6 @@ const managementRoutes: AppClientRouteContribution = defineAppRoutes([
 
 const routes: readonly AppClientRouteContribution[] = [
   appRoutes,
-  demoDataRoutes,
   managementRoutes,
   budgetsRoutes,
   reportsRoutes,

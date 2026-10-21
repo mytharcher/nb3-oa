@@ -64,6 +64,7 @@ export interface DemoPreview {
 }
 export interface DemoDataService {
   status(): Promise<DemoStatus>;
+  useSamplePasswords(): Promise<void>;
   presence(): Promise<{ present: boolean; busy: boolean }>;
   import(
     input: { locale: DemoLocale; expectedVersion: number; requestKey: string },

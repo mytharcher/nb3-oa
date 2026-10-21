@@ -1,5 +1,4 @@
 import { ApplicationRefreshButton } from '#components/application-refresh-button';
-import { DemoBanner } from '../demo-data/banner.js';
 import { approvalStatusTone } from '../approvals/status-tone.js';
 import { PersonalCards } from './personal-cards.js';
 import { UserName } from '#components/user-name';
@@ -205,7 +204,6 @@ export default function HomePage() {
           title={t('workbench.title')}
           description={t('workbench.description')}
         />
-        <DemoBanner />
         <PersonalCards />
         <LoadingCards />
       </PageContainer>
@@ -262,7 +260,6 @@ function PersonalWorkbench() {
         title={t('workbench.title')}
         description={t('workbench.description')}
       />
-      <DemoBanner />
       <PersonalCards key={revision} />
       <Alert role='status'>
         <AlertDescription>{t('workbench.noAccess')}</AlertDescription>
@@ -714,7 +711,6 @@ function Workbench() {
           />
         }
       />
-      <DemoBanner />
       {revisionCount > 0 ? (
         <Alert
           role='status'

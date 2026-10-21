@@ -68,10 +68,10 @@ describe('app client routes', () => {
       ]),
     );
   });
-  it('registers the protected demo-data settings page in the application routes', () => {
+  it('does not expose the sample generator as a product page', () => {
     const resolved = resolveRoutes();
-    expect(pagePaths(resolved.routes)).toContain('/demo-data');
-    expect(pageAuthorizations(resolved.routes)).toContainEqual({
+    expect(pagePaths(resolved.routes)).not.toContain('/demo-data');
+    expect(pageAuthorizations(resolved.routes)).not.toContainEqual({
       name: 'demo-data',
       authorizedAs: 'settings:oa.demoData',
     });
