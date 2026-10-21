@@ -20,9 +20,8 @@ const app: AppConfigFactory<AppIdentityConfig> = defineAppConfig({
     }),
     APP_SAMPLE_DATA: envBoolean('sampleData', {
       description:
-        'Load sample data while the database is first installed: seeds declared with sample: true and sampleDataToken registrations.',
+        'Load sample data on first installation (sample seeds and sampleDataToken registrations); while true, this sample process also permits six-character account passwords.',
       required: false,
-      firstStartOnly: true,
     }),
   },
   defaults: (runtime) => {

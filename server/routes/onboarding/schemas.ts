@@ -1,3 +1,4 @@
+import { currentDemo } from '../../providers/demo-data/context.js';
 import { z } from 'zod';
 export const Id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
 export const Date = z.iso.date();
@@ -19,7 +20,15 @@ export const Create = Command.extend({
       name: z.string().trim().min(1).max(200),
       email: z.email(),
       username: z.string().min(1).max(200).optional(),
-      password: z.string().min(8).max(128),
+      password: z
+        .string()
+        .min(6)
+        .max(128)
+        .refine(
+          (value) =>
+            value.length >= 8 ||
+            (value === '123456' && Boolean(currentDemo()?.operationToken)),
+        ),
     })
     .strict(),
   employee: z

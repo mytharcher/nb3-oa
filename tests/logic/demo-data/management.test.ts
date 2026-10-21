@@ -1,3 +1,10 @@
+import { readFile, stat } from 'node:fs/promises';
+import { secretsServiceToken } from '@nocobase/app-server/secrets';
+import {
+  oaSampleData,
+  exportOaSampleAccess,
+} from '../../../server/samples/oa.js';
+import { sampleDataToken } from '@nocobase/app-server/sample-data';
 import { inAppNotificationStoreToken } from '@nocobase/app-plugin-notification-in-app/server';
 import { cleanupBlocked } from '../../../server/providers/demo-data/cleanup.js';
 import { createEmployee } from '../employees/helpers.js';
@@ -13,55 +20,33 @@ import { dictionaryServiceToken } from '../../../server/providers/platform/index
 import { randomUUID } from 'node:crypto';
 let fixture: OrgTestApp;
 beforeAll(async () => {
-  fixture = await startOrgTestApp();
+  fixture = await startOrgTestApp({ samplePasswords: true });
 }, 120000);
 afterAll(async () => {
   await fixture?.close();
 });
-it('authenticates and independently authorizes every management action', async () => {
-  const anonymous = await fixture.testApp.request('/demoData');
-  expect(anonymous.status).toBe(401);
-  const ordinary = await fixture.createUser('DemoObserver');
-  expect((await ordinary.fetch('/demoData/presence')).status).toBe(200);
-  expect((await ordinary.fetch('/demoData')).status).toBe(403);
-  for (const [path, body] of [
-    [
-      'import',
-      { locale: 'en-US', expectedVersion: 0, requestKey: randomUUID() },
-    ],
-    ['removePreview', { datasetId: 'unknown', expectedVersion: 0 }],
-    [
-      'remove',
-      {
-        datasetId: 'unknown',
-        expectedVersion: 0,
-        previewToken: randomUUID(),
-        requestKey: randomUUID(),
-      },
-    ],
-    ['credentials', { datasetId: 'unknown', expectedVersion: 0 }],
-  ] as const)
-    expect((await ordinary.fetch(`/demoData/${path}`, json(body))).status).toBe(
-      403,
-    );
+it('does not expose sample management over HTTP', async () => {
   const admin = await fixture.admin();
-  expect((await (await admin.fetch('/demoData')).json()).data).toMatchObject({
-    state: 'absent',
-    version: 0,
-    accounts: [],
-  });
-  expect(
-    (
-      await admin.fetch(
-        '/demoData/import',
-        json({
-          locale: 'fr-FR',
-          expectedVersion: 0,
-          requestKey: 'invalid-locale',
-        }),
-      )
-    ).status,
-  ).toBe(400);
+  for (const session of [fixture.testApp, admin]) {
+    const request =
+      session === fixture.testApp
+        ? fixture.testApp.request.bind(fixture.testApp)
+        : admin.fetch.bind(admin);
+    for (const endpoint of [
+      '',
+      '/presence',
+      '/import',
+      '/removePreview',
+      '/remove',
+      '/credentials',
+    ]) {
+      const response = await request(
+        `/demoData${endpoint}`,
+        endpoint && endpoint !== '/presence' ? json({}) : undefined,
+      );
+      expect(response.status).toBe(session === fixture.testApp ? 401 : 404);
+    }
+  }
 });
 it('records dataset-owned business creations atomically and rejects changes to pre-existing records', async () => {
   const app = fixture.testApp.application,
@@ -191,31 +176,19 @@ it('records dataset-owned business creations atomically and rejects changes to p
 it('imports a complete dataset with actionable scenarios and reports its actual result', async () => {
   const service =
     fixture.testApp.application.container.resolve(demoDataServiceToken);
-  const admin = await fixture.admin();
   const current = await service.status();
-  const requestKey = randomUUID();
-  const response = await admin.fetch(
-    '/demoData/import',
-    json({
-      locale: 'zh-CN',
-      expectedVersion: current.version,
-      requestKey,
-    }),
-  );
-  expect(response.status).toBe(202);
-  const first = (await response.json()).data;
-  const repeated = await admin.fetch(
-    '/demoData/import',
-    json({ locale: 'zh-CN', expectedVersion: current.version, requestKey }),
-  );
-  expect(repeated.status).toBe(202);
-  expect((await repeated.json()).data.operationId).toBe(first.operationId);
-  const changedPayload = await admin.fetch(
-    '/demoData/import',
-    json({ locale: 'en-US', expectedVersion: current.version, requestKey }),
-  );
-  expect(changedPayload.status).toBe(409);
-  await service.idle();
+  const samples =
+    fixture.testApp.application.container.resolve(sampleDataToken);
+  expect(
+    samples.registrations().some((sample) => sample.name === 'oa/demo-data'),
+  ).toBe(true);
+  expect(current.state).toBe('absent');
+  samples.rerunSkipped();
+  const generated = await samples.run();
+  expect(generated.failed).toEqual([]);
+  expect(generated.executed).toContain('oa/demo-data');
+  const repeated = await samples.run();
+  expect(repeated.executed).toEqual([]);
   const result = await service.status();
   expect(result.safeFailures).toEqual([]);
   expect(result.state).toBe('ready');
@@ -227,6 +200,11 @@ it('imports a complete dataset with actionable scenarios and reports its actual 
     result.datasetId!,
     result.version,
   );
+  expect(
+    credentialsBefore.accounts.every(
+      (account) => account.password === '123456',
+    ),
+  ).toBe(true);
   // Simulate the durable state left by a process that stopped after its final checkpoint.
   const recovery = randomUUID();
   await db.repository('demoDataSets').updateOne({
@@ -263,6 +241,65 @@ it('imports a complete dataset with actionable scenarios and reports its actual 
   );
 }, 360000);
 
+it('adopts existing samples, changes old sample passwords and preserves the administrator', async () => {
+  const app = fixture.testApp.application;
+  const service = app.container.resolve(demoDataServiceToken);
+  const before = await service.status();
+  const credentials = await service.credentials(
+    before.datasetId!,
+    before.version,
+  );
+  const employee = credentials.accounts.find(
+    (account) => account.role === 'employee',
+  )!;
+  const db = app.container.resolve(databaseManagerToken);
+  const secrets = app.container.resolve(secretsServiceToken);
+  const oldPassword = 'Old-random-sample-password';
+  await db.transaction(async (tx) => {
+    const dataset = await tx
+      .repository('demoDataSets')
+      .findOne({ filter: { id: before.datasetId! } });
+    const envelope = {
+      purpose: 'nb3-oa/demo-data/credentials',
+      aad: [before.datasetId!],
+    };
+    const passwords = JSON.parse(
+      secrets.open(String(dataset!.credentials), envelope),
+    );
+    passwords.employee = oldPassword;
+    await app.container
+      .resolve(userAdministrationServiceToken)
+      .withConnection(tx)
+      .resetPassword(employee.id, oldPassword);
+    await tx.repository('demoDataSets').updateOne({
+      filter: { id: before.datasetId! },
+      values: {
+        credentials: secrets.seal(JSON.stringify(passwords), envelope),
+      },
+    });
+  });
+  await oaSampleData(app).run();
+  const after = await service.status();
+  expect(after.datasetId).toBe(before.datasetId);
+  expect(after.completedSteps).toBe(before.completedSteps);
+  const file = await exportOaSampleAccess(app);
+  expect((await stat(file)).mode & 0o777).toBe(0o600);
+  const exported = JSON.parse(await readFile(file, 'utf8'));
+  expect(
+    exported.accounts.every(
+      (account: { password: string }) => account.password === '123456',
+    ),
+  ).toBe(true);
+  const login = (password: string) =>
+    fixture.testApp.request(
+      '/auth/sign-in/email',
+      json({ email: employee.email, password }),
+    );
+  expect((await login(oldPassword)).status).toBe(401);
+  expect((await login('123456')).status).toBe(200);
+  await fixture.admin();
+}, 120000);
+
 it('preflights, removes only the imported batch, revokes sign-in and allows a fresh English import', async () => {
   const app = fixture.testApp.application,
     c = app.container;
@@ -281,7 +318,7 @@ it('preflights, removes only the imported batch, revokes sign-in and allows a fr
   const inbox = c.resolve(inAppNotificationStoreToken);
   expect(await inbox.countUnread(employee.id)).toBeGreaterThan(0);
   expect(await inbox.countUnread(admin.user.id)).toBe(0);
-  expect(employee.password.length).toBeGreaterThan(20);
+  expect(employee.password).toBe('123456');
   const histories = await db
     .repository('generalRequests')
     .findMany({ filter: (f) => f.string('title').includes(' · ') });
@@ -321,30 +358,31 @@ it('preflights, removes only the imported batch, revokes sign-in and allows a fr
     filter: { id: expired.previewToken },
     values: { expiresAt: new Date(Date.now() - 1000) },
   });
-  const refused = await admin.fetch(
-    '/demoData/remove',
-    json({
-      datasetId: id,
-      expectedVersion: ready.version,
-      previewToken: expired.previewToken,
-      requestKey: randomUUID(),
-    }),
-  );
-  expect(refused.status).toBe(409);
+  await expect(
+    service.remove(
+      {
+        datasetId: id,
+        expectedVersion: ready.version,
+        previewToken: expired.previewToken,
+        requestKey: randomUUID(),
+      },
+      admin.user.id,
+    ),
+  ).rejects.toMatchObject({ reason: 'DEMO_PREVIEW_EXPIRED' });
   expect((await service.status()).state).toBe('ready');
   const previews = await service.preview({
     datasetId: id,
     expectedVersion: ready.version,
   });
   expect(previews.blocked).toBe(false);
-  await admin.fetch(
-    '/demoData/remove',
-    json({
+  await service.remove(
+    {
       datasetId: id,
       expectedVersion: ready.version,
       previewToken: previews.previewToken,
       requestKey: randomUUID(),
-    }),
+    },
+    admin.user.id,
   );
   await service.idle();
   expect((await service.status()).state).toBe('absent');
@@ -389,13 +427,13 @@ it('preflights, removes only the imported batch, revokes sign-in and allows a fr
     )?.name,
   ).toBe(sentinel!.name);
   const absent = await service.status();
-  await admin.fetch(
-    '/demoData/import',
-    json({
+  await service.import(
+    {
       locale: 'en-US',
       expectedVersion: absent.version,
       requestKey: randomUUID(),
-    }),
+    },
+    admin.user.id,
   );
   await service.idle();
   const english = await service.status();
@@ -411,14 +449,14 @@ it('preflights, removes only the imported batch, revokes sign-in and allows a fr
     expectedVersion: english.version,
   });
   expect(last.blocked).toBe(false);
-  await admin.fetch(
-    '/demoData/remove',
-    json({
-      datasetId: english.datasetId,
+  await service.remove(
+    {
+      datasetId: english.datasetId!,
       expectedVersion: english.version,
       previewToken: last.previewToken,
       requestKey: randomUUID(),
-    }),
+    },
+    admin.user.id,
   );
   await service.idle();
   expect((await service.status()).state).toBe('absent');

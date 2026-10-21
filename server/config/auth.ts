@@ -13,7 +13,7 @@ import { bearer, deviceAuthorization, username } from 'better-auth/plugins';
 const CLI_CLIENT_IDS: readonly string[] = ['nocobase-cli'];
 
 const auth: AppConfigFactory<AuthConfig> = defineAuthConfig({
-  defaults: {
+  defaults: ({ env = {} }) => ({
     plugins: [
       username({ displayUsername: false }),
       apiKey(),
@@ -28,10 +28,16 @@ const auth: AppConfigFactory<AuthConfig> = defineAuthConfig({
       bearer(),
     ],
     // OA accounts are provisioned by administrators and onboarding, not self-registration.
-    emailAndPassword: { enabled: true, autoSignIn: false, disableSignUp: true },
+    emailAndPassword: {
+      enabled: true,
+      autoSignIn: false,
+      disableSignUp: true,
+      // Only an explicitly enabled sample installation accepts six-character passwords.
+      minPasswordLength: env.APP_SAMPLE_DATA === 'true' ? 6 : 8,
+    },
     session: { storeSessionInDatabase: true },
     account: { encryptOAuthTokens: true },
-  },
+  }),
 });
 
 export default auth;

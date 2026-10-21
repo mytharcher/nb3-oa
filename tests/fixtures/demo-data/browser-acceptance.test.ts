@@ -10,13 +10,14 @@ import { startIsolatedBrowserApp } from '../browser/harness.js';
 import { demoDataServiceToken } from '../../../server/providers/demo-data/contract.js';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { themeStorageKeys } from '../../../client/theme/theme-preferences.js';
+import { sampleDataToken } from '@nocobase/app-server/sample-data';
 
 it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
-  'accepts demo management and role views in an isolated real browser',
+  'accepts native samples and role views in an isolated real browser',
   async () => {
     const h = await startIsolatedBrowserApp({
       name: 'demo-data',
+      samplePasswords: true,
       apiPort: 14271,
       vitePort: 14272,
     });
@@ -46,91 +47,19 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
       await capture('00-workbench-baseline');
       const baselineErrors = [...errors];
       errors.length = 0;
-      await page.goto(`${url}demo-data`);
-      await expect(
-        page.getByRole('button', { name: 'Import', exact: true }),
-      ).toBeVisible();
-      await capture('01-absent');
-      const importing = page.waitForResponse(
-        (r) =>
-          r.url().includes('/api/demoData/import') &&
-          r.request().method() === 'POST',
-      );
-      await page.getByRole('button', { name: 'Import', exact: true }).click();
-      assert.equal((await importing).status(), 202);
-      await expect(
-        page.getByText('Importing', { exact: true }).first(),
-      ).toBeVisible();
-      await capture('02-importing');
+      await expect(page.locator('a[href$="/demo-data"]')).toHaveCount(0);
+      const samples = h.testApp.application.container.resolve(sampleDataToken);
+      samples.rerunSkipped();
+      const generated = await samples.run();
+      assert.deepEqual(generated.failed, []);
+      assert.ok(generated.executed.includes('oa/demo-data'));
       const service =
         h.testApp.application.container.resolve(demoDataServiceToken);
-      await service.idle();
       const status = await service.status();
-      assert.equal(status.state, 'ready', JSON.stringify(status.safeFailures));
-      await expect(
-        page.getByText('Imported', { exact: true }).first(),
-      ).toBeVisible({
-        timeout: 30000,
-      });
-      await capture('03-ready');
-      checks.push('absent → one-click English import → actual ready status');
-      const search = page.getByRole('textbox').first();
-      await search.pressSequentially('Olivia');
-      await expect(
-        page.getByText('Olivia Bennett', { exact: true }),
-      ).toBeVisible();
-      await search.press('Home');
-      await search.pressSequentially('x');
-      await expect(
-        page.getByText('Olivia Bennett', { exact: true }),
-      ).toHaveCount(0);
-      await search.press('ControlOrMeta+A');
-      await search.press('Backspace');
-      const cdp = await page.context().newCDPSession(page);
-      await search.focus();
-      await cdp.send('Input.imeSetComposition', {
-        text: 'xiao',
-        selectionStart: 4,
-        selectionEnd: 4,
-      });
-      await cdp.send('Input.insertText', { text: '销售' });
-      await expect(search).toHaveValue('销售');
-      await search.press('ControlOrMeta+A');
-      await search.press('Backspace');
-      checks.push('character typing, middle edit and Chinese IME composition');
-      await page.setViewportSize({ width: 375, height: 812 });
-      await capture('04-narrow');
-      assert.equal(
-        await page.evaluate(
-          () => document.documentElement.scrollWidth > innerWidth,
-        ),
-        false,
+      assert.equal(status.state, 'ready');
+      checks.push(
+        'native sample registry generates complete data; no product entry',
       );
-      for (const preset of ['default', 'compact']) {
-        for (const mode of ['light', 'dark']) {
-          await page.evaluate(
-            ({ keys, mode, preset }) => {
-              localStorage.setItem(keys.mode, mode);
-              localStorage.setItem(keys.preset, preset);
-            },
-            { keys: themeStorageKeys(h.basePath), mode, preset },
-          );
-          await page.reload();
-          await expect(
-            page.getByText('Imported', { exact: true }).first(),
-          ).toBeVisible();
-          await expect(page.locator('html')).toHaveClass(new RegExp(mode));
-          assert.equal(
-            await page.evaluate(
-              () => document.documentElement.scrollWidth > innerWidth,
-            ),
-            false,
-          );
-          await capture(`narrow-${preset}-${mode}`);
-        }
-      }
-      checks.push('375px, both presets and both color schemes');
-      await page.setViewportSize({ width: 1365, height: 900 });
       const credentials = await service.credentials(
         status.datasetId!,
         status.version,
@@ -303,48 +232,6 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
           `${entry.role}/${entry.route}: ${entry.text}`,
         );
       }
-      await page.goto(`${url}demo-data`);
-      await page.getByRole('button', { name: 'Remove', exact: true }).click();
-      await expect(page.getByRole('alertdialog')).toBeVisible();
-      await capture('05-remove-preview');
-      await page
-        .getByRole('alertdialog')
-        .getByRole('button', { name: 'Remove', exact: true })
-        .click();
-      await expect(page.getByRole('alertdialog')).toHaveCount(0);
-      await service.idle();
-      assert.equal((await service.status()).state, 'absent');
-      await expect(
-        page.getByRole('button', { name: 'Import', exact: true }),
-      ).toBeVisible({ timeout: 30000 });
-      checks.push('preflight → confirm removal → absent');
-      for (const status of [403, 404, 500]) {
-        await page.route('**/api/demoData', (route) =>
-          route.fulfill({
-            status,
-            contentType: 'application/json',
-            body: JSON.stringify({
-              message: 'Synthetic isolated acceptance failure',
-            }),
-          }),
-        );
-        await page.reload();
-        if (status === 500)
-          await expect(
-            page.getByRole('button', { name: 'Retry', exact: true }),
-          ).toBeVisible();
-        else {
-          await expect(
-            page.getByRole('button', { name: 'Retry', exact: true }),
-          ).toHaveCount(0);
-          await expect(
-            page.getByRole('button', { name: 'Import', exact: true }),
-          ).toHaveCount(0);
-        }
-        await capture(`failure-${status}`);
-        await page.unroute('**/api/demoData');
-      }
-      checks.push('injected 403/404 terminal and 500 retryable states');
       assert.deepEqual(errors, []);
       await writeFile(
         path.join(h.screenshotsDir, 'capture-log.json'),

@@ -1,6 +1,7 @@
+import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { retireOwnedProcesses } from '../process-management/index.js';
 import { hashKey } from './ownership.js';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Application } from '@nocobase/app-server/application';
 import {
   databaseManagerToken,
@@ -378,7 +379,7 @@ export function createDemoDataService(app: Application): DemoDataService {
         const passwords = Object.fromEntries(
           [...trialAccounts.map((a) => a.key), 'newhire'].map((key) => [
             key,
-            randomBytes(18).toString('base64url'),
+            '123456',
           ]),
         ) as TrialPasswords;
         await tx.repository('demoDataSets').createOne({
@@ -438,6 +439,59 @@ export function createDemoDataService(app: Application): DemoDataService {
   }
   return {
     status,
+    async useSamplePasswords() {
+      await db.transaction(async (tx) => {
+        const c = await control(tx);
+        if (!c.datasetId) return;
+        if (c.operationId) demoError('DEMO_BUSY');
+        await lock(tx, c.version);
+        const d = await dataset(c.datasetId, tx);
+        if (!d.credentials)
+          demoError('DEMO_CREDENTIALS_UNAVAILABLE', 'UNAVAILABLE');
+        const passwords = JSON.parse(
+          secrets.open(d.credentials, { purpose: PURPOSE, aad: [d.id] }),
+        ) as Record<string, string>;
+        const users = app.container
+          .resolve(userAdministrationServiceToken)
+          .withConnection(tx);
+        for (const account of d.accounts) {
+          if (account.role === 'system' || passwords[account.role] === '123456')
+            continue;
+          const owned = await tx.repository('demoDataRecords').exists({
+            filter: {
+              datasetId: d.id,
+              collection: '@user',
+              keyHash: hashKey({ id: account.id }),
+            },
+          });
+          if (!owned) demoError('DEMO_OWNERSHIP_MISSING');
+          await users.resetPassword(account.id, '123456');
+          await app.container.resolve(auditServiceToken).record(
+            {
+              actorId: null,
+              action: 'sampleData.resetPassword',
+              targetType: 'user',
+              targetId: account.id,
+              reason: 'Apply the requested sample account password',
+            },
+            tx,
+          );
+        }
+        for (const role of Object.keys(passwords)) {
+          if (role !== 'system') passwords[role] = '123456';
+        }
+        await tx.repository('demoDataSets').updateOne({
+          filter: { id: d.id },
+          values: {
+            credentials: secrets.seal(JSON.stringify(passwords), {
+              purpose: PURPOSE,
+              aad: [d.id],
+            }),
+            updatedAt: new Date(),
+          },
+        });
+      });
+    },
     async presence() {
       const s = await status();
       return {

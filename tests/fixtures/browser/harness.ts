@@ -21,10 +21,12 @@ export async function startIsolatedBrowserApp({
   name,
   apiPort,
   vitePort,
+  samplePasswords = false,
 }: {
   name: string;
   apiPort: number;
   vitePort: number;
+  samplePasswords?: boolean;
 }) {
   const apiOrigin = `http://127.0.0.1:${apiPort}`,
     origin = `http://127.0.0.1:${vitePort}`;
@@ -56,6 +58,11 @@ export async function startIsolatedBrowserApp({
       server: OA_TEST_SERVER,
       config: {
         app: { publicOrigin: OA_TEST_ORIGIN },
+        ...(samplePasswords
+          ? { auth: { emailAndPassword: { minPasswordLength: 6 } } }
+          : {}),
+        // Vite serves source code; a clean worktree has no dist/client HTML.
+        spa: { indexPath: path.resolve('index.html') },
         secrets: { keys: [{ version: 1, key: 'b'.repeat(64) }] },
       },
     });

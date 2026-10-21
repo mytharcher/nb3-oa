@@ -42,7 +42,9 @@ export interface OrgTestApp {
 let sequence = 0;
 
 /** The whole application on test databases: every plugin, migration and seed, as `pnpm start` runs it. */
-export async function startOrgTestApp(): Promise<OrgTestApp> {
+export async function startOrgTestApp(
+  options: { samplePasswords?: boolean } = {},
+): Promise<OrgTestApp> {
   const testApp = await createTestApp({
     createServer: createStandaloneServer,
     env: OA_TEST_DATABASE_ENV,
@@ -50,6 +52,9 @@ export async function startOrgTestApp(): Promise<OrgTestApp> {
     // The employees module encrypts controlled fields and needs a key to start.
     config: {
       secrets: { keys: [{ version: 1, key: 'a'.repeat(64) }] },
+      ...(options.samplePasswords
+        ? { auth: { emailAndPassword: { minPasswordLength: 6 } } }
+        : {}),
       // Cookie-authenticated writes must come from the application's public origin.
       app: { publicOrigin: OA_TEST_ORIGIN },
     },
