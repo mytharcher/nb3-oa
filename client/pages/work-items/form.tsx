@@ -108,7 +108,8 @@ function Body() {
   const d = r.data?.data,
     zone = ctx.data?.data.timeZone;
   const form = useForm<Values>({
-    mode: 'onBlur',
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
     defaultValues: {
       title: '',
       description: '',
@@ -141,7 +142,9 @@ function Body() {
     terminal =
       error instanceof ApiClientError && [401, 403, 404].includes(error.status);
   const returnPath = draft
-      ? source.basePath
+      ? workItemId
+        ? (source.detailPath ?? `${source.basePath}/${workItemId}`)
+        : source.basePath
       : (source.detailPath ?? `${source.basePath}/${workItemId}`),
     back = {
       pathname: returnPath,
@@ -242,6 +245,19 @@ function Body() {
       }
     }
   }, [errors]);
+  function fieldError(key: Path<Values>) {
+    return [
+      'title',
+      'description',
+      'dueAt',
+      'targetUserId',
+      'dutyRoleCode',
+      'reason',
+      'result',
+    ].includes(key)
+      ? t(`workItems.validation.${key}`)
+      : t('workItems.invalid');
+  }
   async function save(values: Values) {
     if (busyRef.current || locked || !zone || (!draft && !d)) return;
     const required: Path<Values>[] = [];
@@ -271,7 +287,7 @@ function Body() {
       required.push('result');
     if (required.length) {
       for (const key of required)
-        form.setError(key, { message: t('workItems.invalid') });
+        form.setError(key, { message: fieldError(key) });
       focusField(required[0]);
       return;
     }
@@ -338,9 +354,10 @@ function Body() {
       for (const key of fieldViolationsOf(e))
         if (key in values)
           form.setError(key as Path<Values>, {
-            message: t(
-              key === 'dueAt' ? 'workItems.dueAtFuture' : 'workItems.invalid',
-            ),
+            message:
+              key === 'dueAt'
+                ? t('workItems.dueAtFuture')
+                : fieldError(key as Path<Values>),
           });
       const key = fieldViolationsOf(e).find((k) => k in values);
       if (key) focusField(key as Path<Values>);
@@ -443,15 +460,17 @@ function Body() {
               <>
                 <Field data-invalid={!!errors.title}>
                   <FieldLabel htmlFor='task-title'>
-                    {t('workItems.titleField')}
+                    {t('workItems.titleField')}{' '}
+                    <span aria-hidden='true'>*</span>
                   </FieldLabel>
                   <Input
                     id='task-title'
+                    aria-label={t('workItems.titleField')}
                     {...form.register('title', {
-                      required: t('workItems.invalid'),
+                      required: t('workItems.validation.title'),
                       maxLength: {
                         value: 200,
-                        message: t('workItems.invalid'),
+                        message: t('workItems.validation.title'),
                       },
                     })}
                     maxLength={200}
@@ -512,7 +531,8 @@ function Body() {
                     render={({ field }) => (
                       <Field data-invalid={!!errors.targetUserId}>
                         <FieldLabel htmlFor='task-target'>
-                          {t('workItems.assignee')}
+                          {t('workItems.assignee')}{' '}
+                          <span aria-hidden='true'>*</span>
                         </FieldLabel>
                         {users.can && !users.isPending && !users.error ? (
                           <UserPicker
@@ -547,7 +567,8 @@ function Body() {
                     render={({ field }) => (
                       <Field>
                         <FieldLabel htmlFor='task-role'>
-                          {t('workItems.pool')}
+                          {t('workItems.pool')}{' '}
+                          <span aria-hidden='true'>*</span>
                         </FieldLabel>
                         {ctx.data?.data.dutyRoles ? (
                           <OptionSelect
@@ -584,7 +605,7 @@ function Body() {
                   render={({ field }) => (
                     <Field>
                       <FieldLabel htmlFor='task-due'>
-                        {t('workItems.dueAt')}
+                        {t('workItems.dueAt')} <span aria-hidden='true'>*</span>
                       </FieldLabel>
                       {zone ? (
                         <DateTimePicker
@@ -640,15 +661,21 @@ function Body() {
                 <Field>
                   <FieldLabel htmlFor='task-result'>
                     {t('workItems.result')}
+                    {action === 'complete' ? (
+                      <span aria-hidden='true'>*</span>
+                    ) : null}
                   </FieldLabel>
                   <Textarea
                     id='task-result'
+                    aria-label={t('workItems.result')}
                     {...form.register('result', {
                       required:
-                        action === 'complete' ? t('workItems.invalid') : false,
+                        action === 'complete'
+                          ? t('workItems.validation.result')
+                          : false,
                       maxLength: {
                         value: 100000,
-                        message: t('workItems.invalid'),
+                        message: t('workItems.validation.result'),
                       },
                     })}
                     maxLength={100000}
@@ -682,13 +709,19 @@ function Body() {
             {needsReason ? (
               <Field>
                 <FieldLabel htmlFor='task-reason'>
-                  {t('workItems.reason')}
+                  {t('workItems.reason')} <span aria-hidden='true'>*</span>
                 </FieldLabel>
                 <Textarea
                   id='task-reason'
+                  aria-label={t('workItems.reason')}
                   {...form.register('reason', {
-                    required: needsReason ? t('workItems.invalid') : false,
-                    maxLength: { value: 2000, message: t('workItems.invalid') },
+                    required: needsReason
+                      ? t('workItems.validation.reason')
+                      : false,
+                    maxLength: {
+                      value: 2000,
+                      message: t('workItems.validation.reason'),
+                    },
                   })}
                   maxLength={2000}
                   disabled={locked}

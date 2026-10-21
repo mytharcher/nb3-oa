@@ -1,9 +1,14 @@
+import { LoadFailure } from '../../components/load-failure.js';
+import { responseStatus } from '../../components/response-status.js';
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
+import { ApplicationTableEmpty } from '#components/application-table-empty';
+import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import { ApplicationSearch } from '#components/application-search';
 import { ApplicationToolbar } from '#components/application-toolbar';
 import { scheduleTitle } from './schedule-title.js';
 import { Outlet } from 'react-router';
 import { ResponsiveTable as Table } from '#components/responsive-table';
-import { EmptyState } from '../components/empty-state.js';
 import { PageSection } from '../components/page-section.js';
 import { StatusBadge } from '../components/status-badge.js';
 import { Button } from '#components/ui/button';
@@ -26,7 +31,7 @@ import { PageContainer } from '../components/page-container.js';
 import { PageHeader } from '../components/page-header.js';
 import { apiClientToken, useService } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { CircleAlert } from 'lucide-react';
+import { ArrowUpDown } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { Link } from 'react-router';
 
@@ -77,7 +82,17 @@ export default function SchedulesPage(): ReactElement {
   const api = useService(apiClientToken);
   const { i18n, t } = useTranslation(SCHEDULER_NS);
   const [items, setItems] = useState<readonly ScheduleItem[]>([]);
-  const [listError, setListError] = useState<string>();
+  const [actionError, setActionError] = useState(false);
+  const [savedName, setSavedName] = useState<string>();
+  const [listError, setListError] = useState<unknown>();
+  const [revision, setRevision] = useState(0);
+  const [sort, setSort] = useState<'runCount' | 'nextRunAt'>('nextRunAt');
+  const [descending, setDescending] = useState(true);
+  const refresh = () => {
+    setLoading(true);
+    setListError(undefined);
+    setRevision((value) => value + 1);
+  };
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | ViewStatus>('all');
@@ -87,6 +102,8 @@ export default function SchedulesPage(): ReactElement {
     () => new Set(),
   );
   const setScheduleEnabled = (item: ScheduleItem, enabled: boolean): void => {
+    setActionError(false);
+    setSavedName(undefined);
     setItems((current) =>
       current.map((candidate) =>
         candidate.id === item.id ? { ...candidate, enabled } : candidate,
@@ -98,22 +115,24 @@ export default function SchedulesPage(): ReactElement {
         method: 'POST',
         path: `scheduler/schedules/${encodeURIComponent(item.id)}/${enabled ? 'enable' : 'disable'}`,
       })
-      .then(({ data }) =>
+      .then(({ data }) => {
+        setSavedName(scheduleTitle(data, t));
         setItems((current) =>
           current.map((candidate) =>
             candidate.id === item.id ? data : candidate,
           ),
-        ),
-      )
-      .catch(() =>
+        );
+      })
+      .catch(() => {
+        setActionError(true);
         setItems((current) =>
           current.map((candidate) =>
             candidate.id === item.id
               ? { ...candidate, enabled: item.enabled }
               : candidate,
           ),
-        ),
-      )
+        );
+      })
       .finally(() =>
         setUpdating((current) => {
           const next = new Set(current);
@@ -142,18 +161,19 @@ export default function SchedulesPage(): ReactElement {
       }
     };
     void loadAll()
-      .then((loaded) => setItems(loaded))
+      .then((loaded) => {
+        if (!controller.signal.aborted) setItems(loaded);
+      })
       .catch((cause: unknown) => {
-        if (!controller.signal.aborted)
-          setListError(
-            cause instanceof Error ? cause.message : t('errors.loadSchedules'),
-          );
+        if (controller.signal.aborted) return;
+        setListError(cause);
+        if ([401, 403, 404].includes(responseStatus(cause) ?? 0)) setItems([]);
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [api, t]);
+  }, [api, t, revision]);
 
   const targetTypes = useMemo(
     () => [...new Set(items.map(({ targetType }) => targetType))].sort(),
@@ -161,27 +181,39 @@ export default function SchedulesPage(): ReactElement {
   );
   const visibleItems = useMemo(() => {
     const term = search.trim().toLocaleLowerCase();
-    return items.filter((item) => {
-      const scheduleDescription = formatCronDescription(
-        item.cron,
-        i18n.resolvedLanguage ?? i18n.language,
-      );
-      const matchesText =
-        !term ||
-        [
-          scheduleTitle(item, t),
-          item.title,
+    return items
+      .filter((item) => {
+        const scheduleDescription = formatCronDescription(
           item.cron,
-          scheduleDescription,
-          item.targetType,
-        ].some((value) => value?.toLocaleLowerCase().includes(term));
-      return (
-        matchesText &&
-        (statusFilter === 'all' || viewStatus(item) === statusFilter) &&
-        (targetFilter === 'all' || item.targetType === targetFilter)
-      );
-    });
+          i18n.resolvedLanguage ?? i18n.language,
+        );
+        const matchesText =
+          !term ||
+          [
+            scheduleTitle(item, t),
+            item.title,
+            item.cron,
+            scheduleDescription,
+            item.targetType,
+          ].some((value) => value?.toLocaleLowerCase().includes(term));
+        return (
+          matchesText &&
+          (statusFilter === 'all' || viewStatus(item) === statusFilter) &&
+          (targetFilter === 'all' || item.targetType === targetFilter)
+        );
+      })
+      .sort((a, b) => {
+        if (sort === 'runCount')
+          return (a.runCount - b.runCount) * (descending ? -1 : 1);
+        const left = a.nextRunAt ? Date.parse(a.nextRunAt) : null,
+          right = b.nextRunAt ? Date.parse(b.nextRunAt) : null;
+        if (left === null) return right === null ? 0 : 1;
+        if (right === null) return -1;
+        return (left - right) * (descending ? -1 : 1);
+      });
   }, [
+    sort,
+    descending,
     i18n.language,
     i18n.resolvedLanguage,
     items,
@@ -208,12 +240,40 @@ export default function SchedulesPage(): ReactElement {
     t(`page.targetStates.${state}`);
   return (
     <PageContainer>
-      <PageHeader title={t('page.title')} />
+      <PageHeader
+        title={t('page.title')}
+        description={t('page.description')}
+        actions={
+          <ApplicationRefreshButton
+            label={t('page.refresh')}
+            loading={loading}
+            onClick={refresh}
+          />
+        }
+      />
+      {actionError ? (
+        <Alert variant='destructive'>
+          <AlertDescription>{t('errors.toggleFailed')}</AlertDescription>
+        </Alert>
+      ) : null}
+      {savedName ? (
+        <p role='status' className='text-sm text-muted-foreground'>
+          {t('page.saved', { name: savedName })}
+        </p>
+      ) : null}
       {listError ? (
-        <div className='flex gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive'>
-          <CircleAlert className='size-5 shrink-0' />
-          {listError}
-        </div>
+        <LoadFailure
+          error={listError}
+          message={t(
+            responseStatus(listError) === 403
+              ? 'errors.forbidden'
+              : responseStatus(listError) === 404
+                ? 'errors.notFound'
+                : 'errors.loadSchedules',
+          )}
+          retryLabel={t('page.retry')}
+          onRetry={refresh}
+        />
       ) : null}
 
       <PageSection className='overflow-hidden'>
@@ -297,25 +357,36 @@ export default function SchedulesPage(): ReactElement {
           </Select>
         </ApplicationToolbar>
 
-        {loading ? (
-          <EmptyState>{t('page.loading')}</EmptyState>
-        ) : visibleItems.length === 0 ? (
-          <EmptyState>
-            {items.length === 0 ? t('page.empty') : t('page.noMatches')}
-          </EmptyState>
+        {loading && items.length === 0 ? (
+          <ApplicationTableSkeleton columns={5} />
+        ) : listError && items.length === 0 ? null : visibleItems.length ===
+          0 ? (
+          <ApplicationTableEmpty
+            title={t(
+              search.trim() || statusFilter !== 'all' || targetFilter !== 'all'
+                ? 'page.noMatches'
+                : 'page.empty',
+            )}
+            clearFilters={
+              search.trim() || statusFilter !== 'all' || targetFilter !== 'all'
+                ? {
+                    label: t('page.clearFilters'),
+                    onClick: () => {
+                      setSearch('');
+                      setStatusFilter('all');
+                      setTargetFilter('all');
+                      setPage(1);
+                    },
+                  }
+                : undefined
+            }
+          />
         ) : (
           <>
             <Table
               containerClassName='rounded-none! border-0!'
-              className='min-w-3xl table-fixed text-left'
+              className='min-w-3xl text-left'
             >
-              <colgroup>
-                <col className='w-[34%]' />
-                <col className='w-[8%]' />
-                <col className='w-[22%]' />
-                <col className='w-[10%]' />
-                <col className='w-[26%]' />
-              </colgroup>
               <TableHeader className='bg-muted/30 tracking-wide uppercase'>
                 <TableRow>
                   {(
@@ -327,8 +398,41 @@ export default function SchedulesPage(): ReactElement {
                       'nextRun',
                     ] as const
                   ).map((column) => (
-                    <TableHead key={column}>
-                      {t(`page.columns.${column}`)}
+                    <TableHead
+                      key={column}
+                      aria-sort={
+                        (column === 'triggered' && sort === 'runCount') ||
+                        (column === 'nextRun' && sort === 'nextRunAt')
+                          ? descending
+                            ? 'descending'
+                            : 'ascending'
+                          : undefined
+                      }
+                      className={
+                        column === 'triggered' ? 'text-right' : undefined
+                      }
+                    >
+                      {column === 'triggered' || column === 'nextRun' ? (
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={() => {
+                            const field =
+                              column === 'triggered' ? 'runCount' : 'nextRunAt';
+                            if (sort === field)
+                              setDescending((value) => !value);
+                            else {
+                              setSort(field);
+                              setDescending(true);
+                            }
+                          }}
+                        >
+                          {t(`page.columns.${column}`)}
+                          <ArrowUpDown />
+                        </Button>
+                      ) : (
+                        t(`page.columns.${column}`)
+                      )}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -385,8 +489,12 @@ export default function SchedulesPage(): ReactElement {
                           {item.timezone}
                         </p>
                       </TableCell>
-                      <TableCell className='break-words'>
-                        <span className='tabular-nums'>{item.runCount}</span>
+                      <TableCell className='break-words text-right'>
+                        <span className='tabular-nums'>
+                          {new Intl.NumberFormat(i18n.language).format(
+                            item.runCount,
+                          )}
+                        </span>
                         <p className='mt-1 text-xs text-muted-foreground'>
                           {item.lastRunAt
                             ? (formatClientRelativeTime(item.lastRunAt) ??
@@ -419,6 +527,7 @@ export default function SchedulesPage(): ReactElement {
                 </p>
                 <div className='flex gap-2'>
                   <Button
+                    variant='outline'
                     disabled={currentPage <= 1}
                     onClick={() => setPage(currentPage - 1)}
                     size='sm'
@@ -426,6 +535,7 @@ export default function SchedulesPage(): ReactElement {
                     {t('page.pagination.previous')}
                   </Button>
                   <Button
+                    variant='outline'
                     disabled={currentPage >= pageCount}
                     onClick={() => setPage(currentPage + 1)}
                     size='sm'

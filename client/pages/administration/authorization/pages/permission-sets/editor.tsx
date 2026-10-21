@@ -14,7 +14,7 @@ import type {
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
 import { useAuthorizationTranslation } from '../../i18n.js';
-import { resourceKey } from './drafts.js';
+import { hasEmptyCustomFilter, resourceKey } from './drafts.js';
 import { SelectionMark } from '../../components/selection-marks.js';
 import { ResourceTypeList } from './resource-tree.js';
 import { ModulePermissions } from './module-permissions.js';
@@ -48,6 +48,21 @@ export function PermissionSetEditor({
 }): ReactElement {
   const t = useAuthorizationTranslation();
   const configurationRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const keyRef = useRef<HTMLInputElement>(null);
+  const [checked, setChecked] = useState(false);
+  const invalidGrants = Object.fromEntries(
+    draft.grants.flatMap<readonly [string, string]>((grant) => {
+      const problem = !grant.resource.id
+        ? t('permissionSets.editor.resourceRequired')
+        : !grant.actions.length
+          ? t('permissionSets.editor.actionsRequired')
+          : hasEmptyCustomFilter({ ...draft, grants: [grant] })
+            ? t('databasePolicy.conditionRequired')
+            : undefined;
+      return problem ? [[String(grant.id), problem]] : [];
+    }),
+  );
   const entries = workspaceEntries(options);
   const [params, setParams] = useSearchParams();
   const entry = selectedEntry(entries, params.get('section'));
@@ -149,7 +164,46 @@ export function PermissionSetEditor({
     <>
       <form
         className='flex min-h-0 flex-1 flex-col overflow-hidden'
+        noValidate
         onSubmit={(event) => {
+          event.preventDefault();
+          setChecked(true);
+          if (!draft.title.trim()) {
+            nameRef.current?.focus();
+            return;
+          }
+          if (!draft.key.trim()) {
+            keyRef.current?.focus();
+            return;
+          }
+          if (Object.keys(invalidGrants).length) {
+            const invalid = draft.grants.find(
+              (grant) => invalidGrants[String(grant.id)],
+            );
+            const target =
+              invalid &&
+              entries.find((item) => item.recordType === invalid.resource.type);
+            if (target)
+              setParams(
+                (previous) => {
+                  const next = new URLSearchParams(previous);
+                  next.set('section', target.value);
+                  next.delete('permissionGroup');
+                  return next;
+                },
+                { replace: true },
+              );
+            setSearch('');
+            setConfiguredOnly(false);
+            setCollapsed(new Set());
+            setLimit(Number.MAX_SAFE_INTEGER);
+            requestAnimationFrame(() =>
+              configurationRef.current
+                ?.querySelector<HTMLElement>('[aria-invalid=true]')
+                ?.focus(),
+            );
+            return;
+          }
           if (readOnly) {
             event.preventDefault();
             return;
@@ -171,26 +225,48 @@ export function PermissionSetEditor({
         >
           {showDetails || !draft.originalKey ? (
             <div className='min-h-0 flex-1 overflow-auto p-6'>
-              <div className='max-w-xl space-y-5'>
-                <label className='block space-y-2 text-sm'>
+              <div className='max-w-xl flex flex-col gap-5'>
+                <label className='block flex flex-col gap-2 text-sm'>
                   {t('permissionSets.editor.name')}
+                  <span aria-hidden='true' className='text-destructive'>
+                    *
+                  </span>
                   <Input
+                    ref={nameRef}
+                    aria-invalid={checked && !draft.title.trim()}
+                    aria-required='true'
                     disabled={readOnly}
                     value={draft.title}
                     onChange={(event) =>
                       onChange({ ...draft, title: event.target.value })
                     }
                   />
+                  {checked && !draft.title.trim() ? (
+                    <span role='alert' className='text-sm text-destructive'>
+                      {t('permissionSets.editor.nameRequired')}
+                    </span>
+                  ) : null}
                 </label>
-                <label className='block space-y-2 text-sm'>
+                <label className='block flex flex-col gap-2 text-sm'>
                   {t('common.key')}
+                  <span aria-hidden='true' className='text-destructive'>
+                    *
+                  </span>
                   <Input
                     disabled={readOnly || Boolean(draft.originalKey)}
+                    ref={keyRef}
+                    aria-invalid={checked && !draft.key.trim()}
+                    aria-required='true'
                     value={draft.key}
                     onChange={(event) =>
                       onChange({ ...draft, key: event.target.value })
                     }
                   />
+                  {checked && !draft.key.trim() ? (
+                    <span role='alert' className='text-sm text-destructive'>
+                      {t('permissionSets.editor.keyRequired')}
+                    </span>
+                  ) : null}
                 </label>
               </div>
             </div>
@@ -303,6 +379,7 @@ export function PermissionSetEditor({
                           {
                             <ModulePermissions
                               container={configurationRef}
+                              errors={checked ? invalidGrants : {}}
                               pages={pages}
                               label={entry?.label ?? ''}
                               rows={rows.slice(0, limit)}
@@ -387,7 +464,7 @@ export function PermissionSetEditor({
           )}
         </fieldset>
         {!readOnly ? (
-          <footer className='flex shrink-0 items-center justify-end gap-2 border-t px-4 py-3'>
+          <footer className='flex shrink-0 flex-wrap items-center justify-end gap-2 border-t bg-popover p-4 sm:p-6'>
             {dirty ? (
               <span className='mr-auto text-xs text-muted-foreground'>
                 {t('permissionWorkspace.unsaved')}
@@ -395,7 +472,7 @@ export function PermissionSetEditor({
             ) : null}
             <Button
               type='button'
-              variant='ghost'
+              variant='outline'
               disabled={busy || !dirty}
               onClick={onClose}
             >

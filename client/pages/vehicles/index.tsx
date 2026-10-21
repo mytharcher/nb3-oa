@@ -160,6 +160,12 @@ export function VehicleList({ garage }: { garage: boolean }) {
                   >
                     <TruncatedText text={(row.original as Vehicle).name} />
                   </Link>
+                ) : k === 'capacity' ? (
+                  <span className='block text-right tabular-nums'>
+                    {new Intl.NumberFormat(i18n.language).format(
+                      (row.original as Vehicle).capacity,
+                    )}
+                  </span>
                 ) : (
                   String((row.original as Vehicle)[k])
                 ),

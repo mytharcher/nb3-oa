@@ -85,12 +85,13 @@ export function grantSummary(
 export function operationSummary(
   options: AuthorizationOptions,
   set: PermissionSet,
+  formatPair: (label: string, value: string) => string,
 ): string[] {
   return actionRows(options, set)
     .filter((row) => row.enabled)
     .map(
       (row) =>
-        `${row.resource.label} · ${row.label}${row.custom ? '' : (row.resource.dataScopes?.[row.action] ?? []).map((scope) => ` · ${scope.label}: ${scope.options.find((option) => option.value === row.scopes[scope.key])?.label ?? '—'}`).join('')}`,
+        `${row.resource.label} · ${row.label}${row.custom ? '' : (row.resource.dataScopes?.[row.action] ?? []).map((scope) => ` · ${formatPair(scope.label, scope.options.find((option) => option.value === row.scopes[scope.key])?.label ?? '—')}`).join('')}`,
     );
 }
 

@@ -530,7 +530,10 @@ function ActionForm({
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor='approval-person'>
-                    {t('approvals.person')} *
+                    {t('approvals.person')}{' '}
+                    <span aria-hidden='true' className='text-destructive'>
+                      *
+                    </span>
                   </FieldLabel>
                   {scopedPerson ? (
                     <ApprovalRecipientPicker
@@ -568,7 +571,10 @@ function ActionForm({
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor='approval-mode'>
-                    {t('approvals.signerMode')} *
+                    {t('approvals.signerMode')}{' '}
+                    <span aria-hidden='true' className='text-destructive'>
+                      *
+                    </span>
                   </FieldLabel>
                   <Select
                     value={field.value || null}
@@ -582,7 +588,7 @@ function ActionForm({
                     <SelectTrigger id='approval-mode'>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                       <SelectGroup>
                         {modes.map((v) => (
                           <SelectItem key={v} value={v}>
@@ -604,7 +610,10 @@ function ActionForm({
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor='approval-place'>
-                    {t('approvals.place')} *
+                    {t('approvals.place')}{' '}
+                    <span aria-hidden='true' className='text-destructive'>
+                      *
+                    </span>
                   </FieldLabel>
                   <Select
                     disabled={running || committed}

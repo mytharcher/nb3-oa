@@ -64,7 +64,13 @@ export interface KnowledgeListQuery {
   pageSize: number;
   q?: string;
   folderId?: string | null;
-  orderBy?: 'updatedAt:asc' | 'updatedAt:desc' | 'title:asc' | 'title:desc';
+  orderBy?:
+    | 'updatedAt:asc'
+    | 'updatedAt:desc'
+    | 'title:asc'
+    | 'title:desc'
+    | 'version:asc'
+    | 'version:desc';
 }
 export interface KnowledgeFileMetadata {
   id: string;

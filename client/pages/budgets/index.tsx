@@ -35,7 +35,7 @@ import {
   TooltipContent,
 } from '#components/ui/tooltip';
 import { useUrlSearch } from '#hooks/use-url-search';
-import { TruncatedText } from '../platform/shared/truncated-text.js';
+import { TruncatedText } from '#components/truncated-text';
 import { useBalanceResource } from './resource.js';
 import { BudgetEmpty, BudgetError } from './states.js';
 import {
@@ -142,7 +142,11 @@ export default function BudgetsPage() {
     ).map((key) => ({
       accessorKey: key,
       header: ({ column }: { column: Column<Budget, unknown> }) => (
-        <DataTableColumnHeader column={column} title={t(`budgets.${key}`)} />
+        <DataTableColumnHeader
+          column={column}
+          title={t(`budgets.${key}`)}
+          className='justify-end'
+        />
       ),
       cell: ({ row }: { row: { original: Budget } }) => (
         <div className='text-right tabular-nums'>

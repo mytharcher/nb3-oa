@@ -32,6 +32,11 @@ export interface SealRequest {
   createdAt: string;
 }
 export interface Detail {
+  relatedNames?: {
+    contractName: string | null;
+    sealName: string | null;
+    registrationSourceNumber: string | null;
+  };
   record: SealRequest;
   tasks: {
     id: string;
@@ -66,6 +71,8 @@ export interface Options {
 }
 export interface Ledger {
   id: string;
+  requestNumber?: string | null;
+  sealName?: string | null;
   requestId: string;
   sealId: string;
   applicant: Person;
@@ -155,4 +162,12 @@ export interface LedgerDetail {
     reason: string;
   } | null;
   printable: boolean;
+}
+
+export interface SealFile {
+  id: string;
+  filename: string;
+  ext: string;
+  mimeType: string;
+  size: number;
 }

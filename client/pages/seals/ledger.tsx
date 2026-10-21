@@ -1,3 +1,4 @@
+import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { Link, Outlet, useLocation, useSearchParams } from 'react-router';
 import { UserName } from '#components/user-name';
@@ -7,7 +8,7 @@ import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { ApplicationToolbar } from '#components/application-toolbar';
 import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
-import { DataTableServer } from '#components/data-table';
+import { DataTableServer, DataTableColumnHeader } from '#components/data-table';
 import { useSealResource } from './resource.js';
 import { SealError } from './states.js';
 import type { Ledger } from './types.js';
@@ -19,28 +20,41 @@ export default function SealLedger() {
     pageSize = [10, 20, 50, 100].includes(Number(params.get('pageSize')))
       ? Number(params.get('pageSize'))
       : 20,
+    sort = ['borrowedAt', 'sealedAt'].includes(params.get('sort') ?? '')
+      ? params.get('sort')!
+      : 'registeredAt',
+    direction = params.get('direction') === 'asc' ? 'asc' : 'desc',
     r = useSealResource<{
       data: Ledger[];
       meta: { total: number; timeZone: string };
-    }>('sealLedger', { page: String(page), pageSize: String(pageSize) });
+    }>('sealLedger', {
+      page: String(page),
+      pageSize: String(pageSize),
+      sort,
+      direction,
+    });
   const cols: ColumnDef<Ledger, unknown>[] = [
     {
       accessorKey: 'id',
-      header: t('seals.ledgerId'),
+      header: t('seals.number'),
       cell: ({ row }) => (
         <Link
-          className='text-primary underline underline-offset-4'
+          className='font-medium underline-offset-4 hover:underline'
           to={{
             pathname: row.original.id,
             search: location.search,
             hash: location.hash,
           }}
         >
-          {row.original.id}
+          {row.original.requestNumber ?? t('seals.draft')}
         </Link>
       ),
     },
-    { accessorKey: 'sealId', header: t('seals.sealId') },
+    {
+      accessorKey: 'sealId',
+      header: t('seals.sealId'),
+      cell: ({ row }) => row.original.sealName ?? t('seals.unavailable'),
+    },
     {
       id: 'applicant',
       header: t('seals.applicant'),
@@ -50,7 +64,7 @@ export default function SealLedger() {
       id: 'approvedCopies',
       header: t('seals.copies'),
       cell: ({ row }) => (
-        <span className='block text-right'>
+        <span className='block text-right tabular-nums'>
           {row.original.approvedCopies.toLocaleString(i18n.language)}
         </span>
       ),
@@ -59,14 +73,16 @@ export default function SealLedger() {
       id: 'actualCopies',
       header: t('seals.actualCopies'),
       cell: ({ row }) => (
-        <span className='block text-right'>
+        <span className='block text-right tabular-nums'>
           {row.original.actualCopies?.toLocaleString(i18n.language) ?? '—'}
         </span>
       ),
     },
     {
       id: 'borrowedAt',
-      header: t('seals.borrowedAt'),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('seals.borrowedAt')} />
+      ),
       cell: ({ row }) =>
         row.original.borrowedAt
           ? new Date(row.original.borrowedAt).toLocaleString(i18n.language, {
@@ -76,10 +92,27 @@ export default function SealLedger() {
     },
     {
       id: 'sealedAt',
-      header: t('seals.sealedAt'),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('seals.sealedAt')} />
+      ),
       cell: ({ row }) =>
         row.original.sealedAt
           ? new Date(row.original.sealedAt).toLocaleString(i18n.language, {
+              timeZone: r.data?.meta.timeZone,
+            })
+          : '—',
+    },
+    {
+      id: 'registeredAt',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t('approvals.createdAt')}
+        />
+      ),
+      cell: ({ row }) =>
+        Number.isFinite(Date.parse(row.original.registeredAt))
+          ? new Date(row.original.registeredAt).toLocaleString(i18n.language, {
               timeZone: r.data?.meta.timeZone,
             })
           : '—',
@@ -109,6 +142,21 @@ export default function SealLedger() {
       {r.loading && !r.data ? <ApplicationTableSkeleton /> : null}
       {r.data ? (
         <DataTableServer
+          sorting={[{ id: sort, desc: direction === 'desc' }]}
+          onSortingChange={(sorting) =>
+            setParams(
+              (params) => {
+                params.set('sort', sorting[0]?.id ?? 'registeredAt');
+                params.set(
+                  'direction',
+                  sorting[0]?.desc === false ? 'asc' : 'desc',
+                );
+                params.delete('page');
+                return params;
+              },
+              { replace: true },
+            )
+          }
           columns={cols}
           rows={r.data.data}
           total={r.data.meta.total}
@@ -121,7 +169,9 @@ export default function SealLedger() {
             setParams(p);
           }}
           pageSizeOptions={[10, 20, 50, 100]}
-          emptyMessage={t('seals.emptyLedger')}
+          emptyMessage={
+            <ApplicationTableEmpty title={t('seals.emptyLedger')} />
+          }
         />
       ) : null}
       <Outlet context={{ reload: r.reload }} />

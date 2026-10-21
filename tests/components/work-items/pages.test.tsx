@@ -171,7 +171,7 @@ it('dirty top return is guarded and successful edit navigates to exact source', 
   expect(observed.pathname).toBe('/work-items/t1/edit');
   await u.click(screen.getByRole('button', { name: 'Continue editing' }));
   await u.click(screen.getByRole('button', { name: 'Save draft' }));
-  await waitFor(() => expect(observed.pathname).toBe('/work-items'));
+  await waitFor(() => expect(observed.pathname).toBe('/work-items/t1'));
   expect(observed.search).toBe('?mode=pool&q=Follow');
   expect(state.request).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -206,7 +206,7 @@ it('complete requires a result and sends version without final-completion assump
   show('/work-items/t1/actions/complete?mode=assigned');
   await screen.findByLabelText('Result');
   await u.click(screen.getByRole('button', { name: 'Submit result' }));
-  await screen.findByText('Enter a valid value');
+  await screen.findByText('Enter a result of 1–100,000 characters');
   await u.type(screen.getByLabelText('Result'), 'Done');
   await u.click(screen.getByRole('button', { name: 'Submit result' }));
   await waitFor(() => expect(observed.pathname).toBe('/work-items/t1'));
@@ -483,4 +483,26 @@ it('shows a server deadline violation inline while retaining unsaved input', asy
   await u.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByText('Choose a due date and time later than now');
   expect(title).toHaveValue('Keep the revised title');
+});
+
+it('does not validate a required title on blur and gives a specific error on submit', async () => {
+  const user = userEvent.setup();
+  show('/work-items/new');
+  const title = await screen.findByLabelText('Title');
+  await user.click(title);
+  await user.tab();
+  expect(screen.queryByText('Enter a title of 1–200 characters')).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Save draft' }));
+  expect(
+    await screen.findByText('Enter a title of 1–200 characters'),
+  ).toBeVisible();
+  await user.type(title, 'A clear title');
+  await waitFor(() =>
+    expect(screen.queryByText('Enter a title of 1–200 characters')).toBeNull(),
+  );
+  expect(
+    state.request.mock.calls.some(([request]) =>
+      ['POST', 'PATCH'].includes(request.method),
+    ),
+  ).toBe(false);
 });

@@ -17,7 +17,7 @@ import {
   useNavigate,
 } from 'react-router';
 import { z } from 'zod';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { Button } from '#components/ui/button';
 import {
@@ -97,8 +97,8 @@ export default function AdjustBalanceDialog() {
   };
   return (
     <>
-      <RouteDialog
-        className='sm:max-w-md'
+      <RouteDrawer
+        className='sm:max-w-2xl'
         closeTo={{ pathname: '..', search: `?${closeParams.toString()}` }}
         title={t('leaveBalances.adjustTitle')}
         description={t('leaveBalances.adjustDescription', {
@@ -148,7 +148,7 @@ export default function AdjustBalanceDialog() {
             }}
           />
         )}
-      </RouteDialog>
+      </RouteDrawer>
       <AlertDialog
         open={discard}
         onOpenChange={(open) => {
@@ -184,6 +184,7 @@ export default function AdjustBalanceDialog() {
               {t('leaveBalances.keepEditing')}
             </Button>
             <Button
+              variant='destructive'
               onClick={() => {
                 setDiscard(false);
                 if (navigationDiscard) {

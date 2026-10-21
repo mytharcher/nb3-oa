@@ -20,14 +20,10 @@ const runtime = await createTestI18nRuntime({
 function I18n({ children }: { children: ReactNode }) {
   return <TestI18nProvider runtime={runtime}>{children}</TestI18nProvider>;
 }
-function Form({
-  presentation = 'drawer',
-}: {
-  presentation?: 'drawer' | 'page';
-}) {
+function Form() {
   const [saved, setSaved] = useState(false);
   return (
-    <RouteFormPage title='Edit order' presentation={presentation}>
+    <RouteFormPage title='Edit order'>
       <PageContainer>
         <BackButton />
         <PageHeader
@@ -68,7 +64,7 @@ function open(path: string, busy = false) {
         ),
         children: [
           { path: 'new', element: <Form /> },
-          { path: 'configure', element: <Form presentation='page' /> },
+          { path: 'configure', element: <Form /> },
           {
             path: ':id',
             element: (
@@ -142,13 +138,16 @@ it('keeps the record open during its write', async () => {
   expect(router.state.location.pathname).toBe('/orders/42');
   expect(drawer).toBeVisible();
 });
-it('keeps configuration forms at their list entry in the existing page presentation', async () => {
+it('opens configuration forms at their list entry in the shared right drawer', async () => {
   open('/orders/configure');
   expect(
     await screen.findByRole('heading', { name: 'Edit order' }),
   ).toBeVisible();
-  expect(screen.queryByRole('dialog')).toBeNull();
-  expect(screen.getByRole('link', { name: 'Back' })).toBeVisible();
+  expect(screen.getByRole('dialog')).toHaveAttribute(
+    'data-presentation',
+    'drawer',
+  );
+  expect(screen.queryByRole('link', { name: 'Back' })).toBeNull();
 });
 
 it('opens a root create form as a drawer and keeps its native submit action in the fixed footer', async () => {

@@ -11,7 +11,7 @@ export default {
     },
     notice:
       'Restriction rules only narrow existing access. They never grant permission on their own.',
-    search: 'Search restriction rules',
+    search: 'Search by rule name, key or resource',
     create: 'New restriction rule',
     ruleHeader: 'Rule',
     appliesToHeader: 'Applies to',
@@ -35,7 +35,7 @@ export default {
       'Set the maximum record scope independently for each action.',
     deleteRule: 'Delete rule',
     save: 'Save restriction rule',
-    confirmDeleteTitle: 'Delete this restriction rule?',
+    confirmDeleteTitle: 'Delete rule "{{title}}"?',
     confirmDeleteBody:
       'Delete restriction rule “{{title}}”. Remaining permission sets and rules determine access.',
   },

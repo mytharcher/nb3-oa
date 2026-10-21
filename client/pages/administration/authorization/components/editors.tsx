@@ -28,7 +28,7 @@ export function Field({
   hint?: string;
 }): ReactElement {
   return (
-    <div className='space-y-2'>
+    <div className='flex flex-col gap-2'>
       <Label>{label}</Label>
       {children}
       {hint ? <p className='text-xs text-muted-foreground'>{hint}</p> : null}
@@ -203,7 +203,7 @@ export function SelectionEditor({
     ) : null;
   if (compact)
     return (
-      <div className='min-w-0 space-y-2 text-sm font-normal'>
+      <div className='min-w-0 flex flex-col gap-2 text-sm font-normal'>
         <SelectField
           aria-label={t('editors.recordScope')}
           className={selectClass}
@@ -315,7 +315,7 @@ export function RuleActionsEditor({
 }): ReactElement {
   const selectedActions = value.map((item) => item.action);
   return (
-    <div className='space-y-4'>
+    <div className='flex flex-col gap-4'>
       <ActionsEditor
         options={options}
         resourceType={resourceType}
@@ -336,7 +336,7 @@ export function RuleActionsEditor({
       {value.map((current) => (
         <section
           key={current.action}
-          className='space-y-3 rounded-lg border p-4'
+          className='flex flex-col gap-3 rounded-lg border p-4'
         >
           <h4 className='font-medium'>
             {actionLabel(options, resourceType, current.action)}
@@ -383,7 +383,7 @@ function RecordSelectionEditor({
       ),
   );
   return (
-    <div className='space-y-2 md:col-span-2'>
+    <div className='flex flex-col gap-2 md:col-span-2'>
       <Field label={t('editors.records')}>
         <SearchField
           className='sm:max-w-none'

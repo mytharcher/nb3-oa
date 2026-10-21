@@ -1,3 +1,4 @@
+import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { statusTone } from './status-tone.js';
 import { ApplicationSearch } from '#components/application-search';
 import { UserName } from '#components/user-name';
@@ -41,6 +42,7 @@ import { useUrlSearch } from '#hooks/use-url-search';
 
 import { useResource } from '../approvals/use-resource.js';
 import { ErrorState } from './states.js';
+import type { FormOptions } from './types-form.js';
 import { moneyLabel } from './money.js';
 import { STATUSES, type ReimbursementRecord } from './types.js';
 
@@ -76,6 +78,9 @@ export default function ReimbursementsPage() {
   const resource = useResource<ReimbursementRecord[]>('reimbursementRequests', {
     view,
   });
+  const zoneResource = useResource<FormOptions>(
+    'reimbursementRequests/options',
+  );
   const submit = useCan({
     resource: { type: 'composite', id: 'oa.reimbursement' },
     action: 'submit',
@@ -184,6 +189,7 @@ export default function ReimbursementsPage() {
         header: ({ column }) => (
           <DataTableColumnHeader
             column={column}
+            className='justify-end'
             title={t('reimbursementRequests.gross')}
           />
         ),
@@ -213,9 +219,12 @@ export default function ReimbursementsPage() {
           />
         ),
         cell: ({ row }) =>
-          new Intl.DateTimeFormat(i18n.language, {
-            dateStyle: 'medium',
-          }).format(new Date(row.original.createdAt)),
+          zoneResource.data?.timeZone
+            ? new Intl.DateTimeFormat(i18n.language, {
+                dateStyle: 'medium',
+                timeZone: zoneResource.data.timeZone,
+              }).format(new Date(row.original.createdAt))
+            : '—',
       },
       {
         id: 'actions',
@@ -223,7 +232,7 @@ export default function ReimbursementsPage() {
         cell: ({ row }) => <ReimbursementRowActions record={row.original} />,
       },
     ],
-    [t, i18n.language],
+    [t, i18n.language, zoneResource.data],
   );
   const statusItems = [
     { value: 'all', label: t('reimbursementRequests.allStatuses') },
@@ -396,7 +405,17 @@ export default function ReimbursementsPage() {
                 </EmptyHeader>
               </Empty>
             ) : (
-              t('reimbursementRequests.noResults')
+              <ApplicationTableEmpty
+                title={t('reimbursementRequests.noResults')}
+                clearFilters={{
+                  label: t('reimbursementRequests.clearFilters'),
+                  onClick: () =>
+                    clear((params) => {
+                      params.delete('status');
+                      params.delete('page');
+                    }),
+                }}
+              />
             )
           }
         />

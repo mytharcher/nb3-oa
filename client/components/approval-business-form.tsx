@@ -18,7 +18,6 @@ import { z } from 'zod';
 import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { DateTimePicker } from '#components/date-time-picker';
-import { UserPicker } from '#components/user-picker';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
 import { Textarea } from '#components/ui/textarea';
@@ -94,13 +93,9 @@ export function ApprovalBusinessFormDialog({ kind }: { kind: Kind }) {
     resource: { type: 'composite', id: lifecycleIds[kind] },
     action: 'submit',
   }).can;
-  const canDelegate = useCan({
-    resource: { type: 'composite', id: lifecycleIds[kind] },
-    action: 'delegate',
-  }).can;
   const allowed = requestId
     ? resource.data?.view.available.some((a) => a.name === 'edit' && a.allowed)
-    : canSubmit || canDelegate;
+    : canSubmit;
   useEffect(() => {
     if (
       resource.error instanceof ApiClientError &&
@@ -237,7 +232,12 @@ function BusinessForm({
   onDirty: (value: boolean) => void;
   onDone: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const attendanceDate = (value: string) =>
+    new Intl.DateTimeFormat(i18n.language, {
+      dateStyle: 'medium',
+      timeZone: 'UTC',
+    }).format(new Date(`${value}T12:00:00Z`));
   const api = useApiClient();
   const toaster = useToaster();
   const { close } = useRouteOverlay();
@@ -245,14 +245,6 @@ function BusinessForm({
   const parent = useOutletContext<SourceContext & Partial<DetailContext>>();
   const ErrorState =
     kind === 'attendanceChange' ? CorrectionError : OutingError;
-  const delegate = useCan({
-    resource: { type: 'composite', id: lifecycleIds[kind] },
-    action: 'delegate',
-  }).can;
-  const pick = useCan({
-    resource: { type: 'user', id: '*' },
-    action: 'read',
-  }).can;
   const [error, setError] = useState<unknown>();
   const [uncertain, setUncertain] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
@@ -270,7 +262,6 @@ function BusinessForm({
     () =>
       z
         .object({
-          applicantId: z.string(),
           originalAttendanceId: z.string(),
           originalVersion: z.number().int().nonnegative(),
           date: z.string(),
@@ -330,7 +321,6 @@ function BusinessForm({
     mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: {
-      applicantId: record?.applicantId ?? '',
       originalAttendanceId: correction?.originalAttendanceId ?? '',
       originalVersion: correction?.originalVersion ?? 0,
       date: correction?.date ?? '',
@@ -348,11 +338,7 @@ function BusinessForm({
     name: 'attachments',
   });
   const selectedDate = useWatch({ control: form.control, name: 'date' });
-  const watchedApplicantId = useWatch({
-    control: form.control,
-    name: 'applicantId',
-  });
-  const applicantId = watchedApplicantId || session?.user.id || '';
+  const applicantId = record?.applicantId || session?.user.id || '';
   const missing = useResource<
     Array<{
       id: string;
@@ -394,16 +380,12 @@ function BusinessForm({
             location: values.location,
             reason: values.reason,
           };
-    const key = JSON.stringify([
-      input,
-      record?.lifecycleVersion,
-      values.applicantId,
-    ]);
+    const key = JSON.stringify([input, record?.lifecycleVersion]);
     if (attemptRef.current?.key !== key)
       attemptRef.current = { key, id: createRequestId() };
     const draftRequestId = attemptRef.current.id;
     const savedRecord = await submission.save(
-      { input, applicantId: values.applicantId },
+      { input },
       record,
       async (current) => {
         const { data } = await api.request<{
@@ -420,13 +402,7 @@ function BusinessForm({
                 requestId: draftRequestId,
                 input,
               }
-            : {
-                ...input,
-                ...(values.applicantId &&
-                values.applicantId !== session?.user.id
-                  ? { applicantId: values.applicantId }
-                  : {}),
-              },
+            : input,
         });
         return data.record;
       },
@@ -520,30 +496,6 @@ function BusinessForm({
         }}
       >
         <FieldGroup inert={submission.submitUnknown || undefined}>
-          {!record && delegate && pick ? (
-            <Controller
-              name='applicantId'
-              control={form.control}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel htmlFor='business-applicant'>
-                    {t('approvals.applicant')}
-                  </FieldLabel>
-                  <UserPicker
-                    id='business-applicant'
-                    value={field.value}
-                    onChange={(id) => {
-                      field.onChange(id);
-                      form.setValue('originalAttendanceId', '');
-                      form.setValue('date', '');
-                      form.setValue('correctionAt', '');
-                    }}
-                    disabled={disabled}
-                  />
-                </Field>
-              )}
-            />
-          ) : null}
           {kind === 'attendanceChange' ? (
             <>
               {missing.error ? (
@@ -561,7 +513,7 @@ function BusinessForm({
                       value={field.value || null}
                       items={(missing.data ?? []).map((row) => ({
                         value: row.id,
-                        label: `${row.date} · ${t(`attendanceChange.punchKinds.${row.punchKind}`)}`,
+                        label: `${attendanceDate(row.date)} · ${t(`attendanceChange.punchKinds.${row.punchKind}`)}`,
                       }))}
                       disabled={disabled || missing.loading || !!missing.error}
                       onValueChange={(id) => {
@@ -579,11 +531,11 @@ function BusinessForm({
                           placeholder={t('attendanceChange.missing')}
                         />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                         <SelectGroup>
                           {(missing.data ?? []).map((row) => (
                             <SelectItem key={row.id} value={row.id}>
-                              {row.date} ·{' '}
+                              {attendanceDate(row.date)} ·{' '}
                               {t(
                                 `attendanceChange.punchKinds.${row.punchKind}`,
                               )}

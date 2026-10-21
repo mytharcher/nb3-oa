@@ -1,3 +1,4 @@
+import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { statusTone } from './status-tone.js';
 import { ApplicationSearch } from '#components/application-search';
 import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
@@ -6,7 +7,7 @@ import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { Link, Outlet, useLocation } from 'react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, PackageCheck, RefreshCw, Plus } from 'lucide-react';
+import { PackageCheck, RefreshCw, Plus } from 'lucide-react';
 import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { DataTableServer, DataTableColumnHeader } from '#components/data-table';
@@ -26,20 +27,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '#components/ui/tooltip';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuGroup,
-} from '#components/ui/dropdown-menu';
-import {
-  Empty,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-  EmptyDescription,
-} from '#components/ui/empty';
+
 import { useUrlSearch } from '#hooks/use-url-search';
 import { TruncatedText } from '../platform/shared/truncated-text.js';
 import { useResource } from './resource.js';
@@ -217,37 +205,6 @@ export default function AssetRequestsPage() {
             }).format(new Date(row.original.updatedAt))
           : '—',
     },
-    {
-      id: 'actions',
-      header: '',
-      enableSorting: false,
-      cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant='ghost'
-                size='icon-sm'
-                aria-label={t('assetRequests.rowActions', {
-                  name: row.original.number ?? t('assetRequests.draft'),
-                })}
-              />
-            }
-          >
-            <MoreHorizontal />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className='w-auto min-w-40' align='end'>
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                render={<Link to={link(`assetRequest/${row.original.id}`)} />}
-              >
-                {t('assetRequests.detail')}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-    },
   ];
   return (
     <PageContainer>
@@ -350,7 +307,7 @@ export default function AssetRequestsPage() {
           </Select>
         ))}
         {filtered ? (
-          <Button variant='ghost' onClick={clearFilters}>
+          <Button variant='outline' onClick={clearFilters}>
             {t('assetRequests.clearFilters')}
           </Button>
         ) : null}
@@ -383,33 +340,27 @@ export default function AssetRequestsPage() {
           }
           pageSizeOptions={[10, 20, 50, 100]}
           emptyMessage={
-            r.data.meta.total === 0 ? (
-              <Empty className='min-h-48'>
-                <EmptyHeader>
-                  <EmptyMedia variant='icon'>
-                    <PackageCheck />
-                  </EmptyMedia>
-                  <EmptyTitle>
-                    {t(
-                      filtered
-                        ? 'assetRequests.noResults'
-                        : 'assetRequests.empty',
-                    )}
-                  </EmptyTitle>
-                  <EmptyDescription>
-                    {t(
-                      filtered
-                        ? 'assetRequests.noResultsDescription'
-                        : canCreate
-                          ? 'assetRequests.emptyDescription'
-                          : 'assetRequests.emptyReadonly',
-                    )}
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            ) : (
-              t('assetRequests.noResults')
-            )
+            <ApplicationTableEmpty
+              title={t(
+                filtered ? 'assetRequests.noResults' : 'assetRequests.empty',
+              )}
+              description={t(
+                filtered
+                  ? 'assetRequests.noResultsDescription'
+                  : canCreate
+                    ? 'assetRequests.emptyDescription'
+                    : 'assetRequests.emptyReadonly',
+              )}
+              icon={<PackageCheck />}
+              clearFilters={
+                filtered
+                  ? {
+                      label: t('assetRequests.clearFilters'),
+                      onClick: clearFilters,
+                    }
+                  : undefined
+              }
+            />
           }
         />
       )}

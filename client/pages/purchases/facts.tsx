@@ -97,7 +97,7 @@ export function PurchaseFacts({
       {options.error ? (
         <ErrorState error={options.error} retry={options.reload} />
       ) : null}
-      <dl className='grid gap-3 sm:grid-cols-[9rem_1fr]'>
+      <dl className='grid gap-3 sm:grid-cols-[8rem_1fr]'>
         {values.map(([key, value]) => (
           <div key={key} className='contents'>
             <dt className='text-muted-foreground'>{key}</dt>

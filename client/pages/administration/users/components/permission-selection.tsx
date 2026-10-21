@@ -48,7 +48,7 @@ export function PermissionSelection({
     );
   return (
     <>
-      <div className='shrink-0 space-y-3 border-b px-6 py-4'>
+      <div className='shrink-0 flex flex-col gap-3 border-b px-6 py-4'>
         <h2 className='text-sm font-medium'>{scope.label}</h2>
         <Input
           autoFocus

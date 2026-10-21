@@ -206,7 +206,7 @@ export default {
     latest: 'Read latest version',
     conflict:
       'The departure request changed. Your input is retained. Read the latest version, review it, then confirm again.',
-    completed: '{{action}} completed for “{{name}}”',
+    completed: '{{action}} completed for "{{name}}"',
     committed:
       'The operation completed. Refresh the departure request before taking another action.',
     before: 'Before',

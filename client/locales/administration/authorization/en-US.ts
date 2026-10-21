@@ -7,7 +7,15 @@ const messages = {
     permissionSets: 'Permission Sets',
     inspector: 'Permission Inspector',
   },
+  feedback: {
+    saved: 'Saved "{{name}}"',
+    deleted: 'Deleted "{{name}}"',
+    assigned: 'Assigned permissions from "{{name}}"',
+    revoked: 'Revoked permissions from "{{name}}"',
+  },
   common: {
+    actionsFor: 'Actions for "{{name}}"',
+    clearFilters: 'Clear filters',
     all: 'All',
     allFields: 'All fields',
     cancel: 'Cancel',
@@ -323,7 +331,7 @@ const messages = {
       other: '{{count}} assignments',
     },
     list: {
-      search: 'Search permission sets',
+      search: 'Search by permission set name or key',
       create: 'New permission set',
       nameHeader: 'Permission set',
       system: 'System',
@@ -341,7 +349,7 @@ const messages = {
       confirmDeleteTitle: 'Delete permission set "{{title}}"?',
       confirmDeleteBody:
         'Delete “{{title}}” and its assignments. Other permission sets and rules remain in effect.',
-      confirmDelete: 'Delete permission set',
+      confirmDelete: 'Delete',
     },
     assignments: {
       search: 'Search assignments',
@@ -362,8 +370,8 @@ const messages = {
         'No assignments yet. Add one to give someone this permission set.',
       emptyFiltered: 'No assignments match these filters.',
       pagerLabel: 'Assignments',
-      confirmRevokeTitleOne: 'Revoke this assignment?',
-      confirmRevokeTitleMany: 'Revoke these assignments?',
+      confirmRevokeTitleOne: 'Revoke assignment for "{{name}}"?',
+      confirmRevokeTitleMany: 'Revoke assignments for "{{name}}"?',
       confirmRevokeBody:
         '{{label}} will no longer hold this permission set. Other assignments remain in effect, and this set can be assigned again.',
       confirmRevoke: 'Revoke',
@@ -379,6 +387,10 @@ const messages = {
       assigning: 'Assigning…',
     },
     editor: {
+      nameRequired: 'Enter a permission set name.',
+      keyRequired: 'Enter a permission set key.',
+      resourceRequired: 'Choose a resource for this permission.',
+      actionsRequired: 'Choose at least one action for this resource.',
       editTitle: 'Edit permission set',
       newTitle: 'New permission set',
       description: 'Bundle access into a reusable assignment.',

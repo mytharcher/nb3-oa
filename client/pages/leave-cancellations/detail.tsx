@@ -1,3 +1,4 @@
+import { approvalStatusTone } from '../approvals/status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
 import { UserName } from '#components/user-name';
 import { formatLeaveDate } from './format-date.js';
@@ -207,13 +208,7 @@ export default function CancellationDetailPage() {
       headerStatus={
         record ? (
           <StatusBadge
-            tone={
-              record.status === 'approved'
-                ? 'success'
-                : ['rejected', 'terminated'].includes(record.status)
-                  ? 'warning'
-                  : 'neutral'
-            }
+            tone={approvalStatusTone(record.status, 'oa.leaveCancellation')}
           >
             {t(`approvals.states.${record.status}`)}
           </StatusBadge>
@@ -320,7 +315,7 @@ export default function CancellationDetailPage() {
       }
       beforeClose={() => !pending}
     >
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         {resource.error ? (
           <ErrorState error={resource.error} retry={resource.reload} />
         ) : null}

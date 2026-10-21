@@ -1,5 +1,8 @@
 export default {
   knowledge: {
+    discardNamed: 'Discard changes to "{{name}}"?',
+    reloadNamed: 'Reload "{{name}}" and discard local changes?',
+
     folderTree: 'Folders',
     expandFolder: 'Expand {{name}}',
     collapseFolder: 'Collapse {{name}}',
@@ -57,9 +60,9 @@ export default {
     cancel: 'Cancel',
     saving: 'Saving…',
     publishVersion: 'Publish version',
-    published: 'Version published',
+    published: 'Published version of "{{name}}"',
     saveFolder: 'Save folder',
-    folderSaved: 'Folder saved',
+    folderSaved: 'Saved folder "{{name}}"',
     newFolder: 'New folder',
     editFolder: 'Edit folder',
     noFolders: 'No folders yet.',

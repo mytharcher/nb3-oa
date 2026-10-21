@@ -89,6 +89,12 @@ export function createSealLedgerReader(d: {
       id: userId,
       name: (await d.users.withConnection(tx).get(userId))?.name ?? userId,
     });
+    const instance = access.seals
+      ? await tx
+          .repository<{ id: string; name: string }>('seals')
+          .withPolicy(access.seals)
+          .findOne({ filter: { id: ledger.sealId } })
+      : null;
     let printable = false;
     try {
       await print(id, actorId, tx, access);
@@ -103,6 +109,8 @@ export function createSealLedgerReader(d: {
     return {
       record: {
         ...ledger,
+        requestNumber: request.number,
+        sealName: typeof instance?.name === 'string' ? instance.name : null,
         applicant: await person(ledger.applicantId),
         registeredBy: await person(ledger.registeredById),
       },
@@ -146,6 +154,22 @@ export function createSealLedgerReader(d: {
             throw error;
         }
       }
+      const sort = query.sort ?? 'registeredAt';
+      visible.sort((a, b) => {
+        const left = a[sort] ? Date.parse(String(a[sort])) : null;
+        const right = b[sort] ? Date.parse(String(b[sort])) : null;
+        if (left === null || right === null)
+          return left === right
+            ? a.id.localeCompare(b.id)
+            : left === null
+              ? 1
+              : -1;
+        return (
+          ((query.direction ?? 'desc') === 'asc'
+            ? left - right
+            : right - left) || a.id.localeCompare(b.id)
+        );
+      });
       return {
         data: visible.slice(
           (query.page - 1) * query.pageSize,

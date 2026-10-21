@@ -1,4 +1,5 @@
 import { statusTone } from './status-tone.js';
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { StatusBadge } from '#components/status-badge';
 import { Timeline } from './timeline.js';
 import { Attachments } from './attachments.js';
@@ -43,11 +44,15 @@ function Private({ id, kind }: { id: string; kind: 'bank' | 'salary' }) {
         ) : r.error ? (
           <Failure module='onboarding' error={r.error} retry={r.reload} />
         ) : (
-          <dl>
+          <dl className='grid gap-x-4 gap-y-3 sm:grid-cols-[8rem_1fr]'>
             {Object.entries(r.data?.data ?? {}).map(([key, value]) => (
-              <div key={key}>
-                <dt>{t(`onboarding.fields.${key}`)}</dt>
-                <dd className='break-words'>{value}</dd>
+              <div key={key} className='contents'>
+                <dt className='text-sm text-muted-foreground'>
+                  {t(`onboarding.fields.${key}`)}
+                </dt>
+                <dd className='text-sm whitespace-pre-wrap break-words'>
+                  {value || '—'}
+                </dd>
               </div>
             ))}
           </dl>
@@ -58,11 +63,27 @@ function Private({ id, kind }: { id: string; kind: 'bank' | 'salary' }) {
 }
 function Body() {
   const { onboardingId = '' } = useParams(),
-    { t } = useTranslation(),
+    { t, i18n } = useTranslation(),
     parent = useOutletContext<Source>(),
     location = useLocation(),
     r = useOnboardingResource<{ data: Detail }>(`onboardings/${onboardingId}`),
     d = r.data?.data;
+  const departments = useOnboardingResource<{
+    data: { id: string; title: string }[];
+  }>('departments/options', { includeInactive: 'true' });
+  const positions = useOnboardingResource<{
+    data: { id: string; title: string }[];
+  }>('positions/options', { includeInactive: 'true' });
+  const grades = useOnboardingResource<{
+    data: { id: string; title: string }[];
+  }>('grades/options', { includeInactive: 'true' });
+  const catalogName = (
+    rows: { data: { id: string; title: string }[] } | undefined,
+    id: string,
+  ) =>
+    Array.isArray(rows?.data)
+      ? (rows.data.find((r) => r.id === id)?.title ?? '—')
+      : '—';
   const reload = () => {
       r.reload();
       parent.reload();
@@ -95,9 +116,11 @@ function Body() {
       closeTo={link(parent.basePath)}
       footer={
         <>
-          <Button variant='outline' onClick={reload}>
-            {t('onboarding.refresh')}
-          </Button>
+          <ApplicationRefreshButton
+            label={t('onboarding.refresh')}
+            onClick={reload}
+            loading={r.loading}
+          />
           {d?.canCancel && !r.loading && !r.error ? (
             <Button
               variant='destructive'
@@ -126,16 +149,34 @@ function Body() {
                 'creator',
                 <UserName key={'creator'} name={d.record.creator.name} />,
               ] as const,
-              ['fields.hireDate', d.record.hireDate],
               [
-                'fields.mentorEmployeeId',
-                d.record.mentorName ?? t('onboarding.unavailable'),
+                'fields.hireDate',
+                new Intl.DateTimeFormat(i18n.language, {
+                  dateStyle: 'medium',
+                  timeZone: 'UTC',
+                }).format(new Date(`${d.record.hireDate}T00:00:00Z`)),
               ],
+              ['fields.mentorEmployeeId', d.record.mentorName ?? '—'],
               [
                 'fields.workstationRequirement',
-                d.record.workstationRequirement ?? t('onboarding.unavailable'),
+                d.record.workstationRequirement ?? '—',
               ],
-              ['fields.requisitionId', d.record.requisitionId],
+              [
+                'fields.requisitionId',
+                d.record.requisitionId
+                  ? t('onboarding.organizationLabel', {
+                      department: catalogName(
+                        departments.data,
+                        d.record.departmentId,
+                      ),
+                      position: catalogName(
+                        positions.data,
+                        d.record.positionId,
+                      ),
+                      grade: catalogName(grades.data, d.record.gradeId),
+                    })
+                  : '—',
+              ],
             ].map(([key, value]) => (
               <div key={key}>
                 <dt className='text-muted-foreground'>
@@ -166,7 +207,11 @@ function Body() {
                 ) : null}
               </div>
               <p>
-                {t('onboarding.dueDate')}: {task.dueDate}
+                {t('onboarding.dueDate')}:{' '}
+                {new Intl.DateTimeFormat(i18n.language, {
+                  dateStyle: 'medium',
+                  timeZone: d.timeZone,
+                }).format(new Date(task.dueDate))}
               </p>
               <p>
                 {t('onboarding.assignee')}:{' '}
@@ -196,7 +241,10 @@ function Body() {
                             : 'whitespace-pre-wrap break-words'
                         }
                       >
-                        {value}
+                        {key === 'mentorEmployeeId'
+                          ? (d.record.mentorName ??
+                            t('onboarding.historicalPersonUnavailable'))
+                          : value || '—'}
                       </dd>
                     </div>
                   ))}

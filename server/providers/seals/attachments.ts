@@ -176,6 +176,25 @@ export function createSealAttachments(
   return {
     upload,
     content,
+    files: ((_actorId, requestId, policy) =>
+      d.db.transaction(async (tx) => {
+        const record = await d.read(requestId, tx, policy);
+        const files = [];
+        for (const id of record.fileIds) {
+          const file = await tx
+            .repository<StoredFile>('sealFiles')
+            .findOne({ filter: { id, requestId } });
+          if (!file || !TYPES[file.ext]) fail('INVALID_FILE');
+          files.push({
+            id: file.id,
+            filename: file.filename,
+            ext: file.ext,
+            mimeType: TYPES[file.ext],
+            size: Number(file.size),
+          });
+        }
+        return files;
+      })) satisfies SealRequestService['files'],
     async validate(record: SealRequest, tx: DatabaseConnection) {
       for (const id of record.fileIds) {
         const file = await tx.repository<StoredFile>('sealFiles').findOne({

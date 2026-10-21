@@ -39,6 +39,7 @@ import {
   Routes,
   Route,
   useLocation,
+  Link,
 } from 'react-router';
 import { useEffect } from 'react';
 import {
@@ -99,7 +100,9 @@ function LocationProbe({
 }) {
   const location = useLocation();
   useEffect(() => observe(location), [location, observe]);
-  return null;
+  return (
+    <Link to='/attendance-management?search=DAY&enabled=true'>Leave form</Link>
+  );
 }
 afterEach(() => {
   cleanup();
@@ -241,12 +244,12 @@ describe('attendance configuration page', () => {
     const reason = await screen.findByLabelText(/Reason for change/);
     await userEvent.clear(reason);
     await userEvent.type(reason, 'Changed rules');
-    const back = screen.getByRole('link', { name: 'Back' });
-    expect(back).toHaveAttribute(
-      'href',
-      '/attendance-management?search=DAY&enabled=true',
+    expect(
+      screen.queryByRole('link', { name: 'Back' }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Close', exact: true }),
     );
-    await userEvent.click(back);
     expect(router.state.location.pathname).toBe(
       '/attendance-management/s1/edit',
     );

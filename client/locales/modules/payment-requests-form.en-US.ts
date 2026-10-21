@@ -24,8 +24,6 @@ export default {
     leaveReady:
       'Click your original destination again to leave. Further editing cancels this confirmation.',
     applicantId: 'Applicant',
-    peopleDenied:
-      'You cannot search employees. Ask an administrator for user read access to select a delegated applicant.',
     reason: 'Payment reason',
     sourceMode: 'Prior approval source',
     contract: 'Contract',

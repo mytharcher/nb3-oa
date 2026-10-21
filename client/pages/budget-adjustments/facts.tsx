@@ -2,7 +2,7 @@ import { UserName } from '#components/user-name';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useDepartmentOptions } from '#hooks/use-department-options';
 import { useResource } from '../approvals/use-resource.js';
-import { amountText } from './money.js';
+import { formatCents } from '#lib/money';
 import type { BudgetAdjustmentRecord } from './types.js';
 import { subjectLabel, type BudgetOptions } from './options.js';
 export function BudgetFacts({
@@ -43,7 +43,7 @@ export function BudgetFacts({
     ],
     [
       t('budgetAdjustments.amount'),
-      `${amountText(record.amountCents)} ${t('budgetAdjustments.yuan')}`,
+      `${formatCents(record.amountCents, i18n.language)} ${t('budgetAdjustments.yuan')}`,
     ],
     [t('approvals.reason'), record.reason],
   ];
@@ -88,7 +88,8 @@ export function BudgetFacts({
           <p className='mt-2 break-words'>
             {department(record.heldAccount.departmentId)} ·{' '}
             {record.heldAccount.year} · {subject(record.heldAccount.subject)} ·{' '}
-            {amountText(record.heldCents)} {t('budgetAdjustments.yuan')}
+            {formatCents(record.heldCents, i18n.language)}{' '}
+            {t('budgetAdjustments.yuan')}
           </p>
         </div>
       ) : null}

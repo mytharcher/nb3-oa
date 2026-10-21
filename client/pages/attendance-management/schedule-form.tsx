@@ -12,7 +12,7 @@ import {
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useNavigate, useOutletContext, useSearchParams } from 'react-router';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
@@ -91,7 +91,8 @@ export default function ScheduleFormPage() {
   };
   useNavigationGuard(beforeClose);
   return (
-    <RouteDialog
+    <RouteDrawer
+      className='sm:max-w-2xl'
       title={t('attendanceManagement.configure')}
       closeTo={closeTo}
       beforeClose={beforeClose}
@@ -172,7 +173,7 @@ export default function ScheduleFormPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 function ScheduleFooter({ busy, ready }: { busy: boolean; ready: boolean }) {
@@ -228,6 +229,9 @@ function ScheduleForm({
     api = useApiClient(),
     toaster = useToaster(),
     { close } = useRouteOverlay();
+  const departments = useAttendanceResource<
+    Envelope<{ id: string; title: string }[]>
+  >('departments/options', { includeInactive: 'true' });
   const schema = useMemo(
     () =>
       z
@@ -348,7 +352,16 @@ function ScheduleForm({
       busyRef.current = false;
       form.reset(values);
       source.onScheduleSaved(saved.data);
-      toaster.show({ title: t('attendanceManagement.saved'), type: 'success' });
+      toaster.show({
+        title: t('attendanceManagement.savedSchedule', {
+          department: Array.isArray(departments.data?.data)
+            ? (departments.data.data.find((item) => item.id === departmentId)
+                ?.title ?? t('attendanceManagement.department'))
+            : t('attendanceManagement.department'),
+          date,
+        }),
+        type: 'success',
+      });
       await close();
     } catch (failure) {
       setError(failure);

@@ -1,3 +1,4 @@
+import { approvalStatusTone } from '../approvals/status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
 import { UserName } from '#components/user-name';
 import { AttendanceChangeAttachments } from './attachments.js';
@@ -208,13 +209,7 @@ export default function AttendanceChangeDetailPage() {
       headerStatus={
         record ? (
           <StatusBadge
-            tone={
-              record.status === 'approved'
-                ? 'success'
-                : ['rejected', 'terminated'].includes(record.status)
-                  ? 'warning'
-                  : 'neutral'
-            }
+            tone={approvalStatusTone(record.status, 'oa.attendanceChange')}
           >
             {t(`approvals.states.${record.status}`)}
           </StatusBadge>
@@ -321,7 +316,7 @@ export default function AttendanceChangeDetailPage() {
       }
       beforeClose={() => !pending}
     >
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         {resource.error ? (
           <ErrorState error={resource.error} retry={resource.reload} />
         ) : null}

@@ -1,3 +1,5 @@
+import { ruleKeyId } from '../platform/approval-rules/rule-format.js';
+
 /** Explicit bindings to parameters actually consumed by the owning business flow.
  * Shared keys retain their existing global scope; this registry never defines new rules.
  * Keep node names aligned with the registered lifecycle, not translated labels.
@@ -85,4 +87,9 @@ export function ruleNodeTargets(key: string) {
         ]
       : [];
   });
+}
+
+/** The input of a parameter in the definition page's form, so the diagram can move focus to the one a step uses. */
+export function parameterInputId(key: string): string {
+  return `process-parameters-${ruleKeyId(key)}`;
 }

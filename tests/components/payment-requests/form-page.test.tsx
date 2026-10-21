@@ -208,7 +208,6 @@ it('locks uncertain creation and replays exactly the same payload and key', asyn
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByRole('button', { name: 'Reconcile the original request' });
   expect(screen.getByLabelText('Payment reason *')).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Choose Bob' })).toBeDisabled();
   const original = api.request.mock.calls.find(
     ([v]) => v.path === 'paymentRequests',
   )![0];

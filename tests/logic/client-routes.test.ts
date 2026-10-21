@@ -12,6 +12,62 @@ import {
 } from '../../client/routing/route-navigation.js';
 
 describe('app client routes', () => {
+  it('keeps independently authorized employee source overlays under every tab', () => {
+    const walk = (
+      routes: readonly AppClientRegisteredRoute[],
+    ): AppClientRegisteredRoute[] =>
+      routes.flatMap((route) => [route, ...walk(route.children ?? [])]);
+    const routes = walk(resolveRoutes().routes);
+    for (const tab of ['basic', 'profile', 'compensation', 'history']) {
+      const owner = routes.find(
+        (route) => route.name === `oa-employee-detail-${tab}`,
+      );
+      for (const [segment, resource] of [
+        ['Onboarding', 'oa.onboarding'],
+        ['Departure', 'oa.departure'],
+        ['Transfer', 'oa.transfer'],
+        ['Probation', 'oa.probation'],
+      ]) {
+        const source = owner?.children?.find((route) =>
+          route.path?.includes(`/source${segment}/`),
+        );
+        expect(source?.authz).toEqual({
+          resource: { type: 'composite', id: resource },
+          action: 'view',
+        });
+        expect(source?.children?.length).toBeGreaterThan(0);
+      }
+    }
+  });
+  it('registers work-item edits over every workbench and approval view', () => {
+    const resolved = resolveRoutes();
+    const expected = [
+      'home',
+      ...['todo', 'done', 'copied', 'mine'].map((tab) => `oa-approvals-${tab}`),
+    ];
+    const walk = (
+      routes: readonly AppClientRegisteredRoute[],
+    ): AppClientRegisteredRoute[] =>
+      routes.flatMap((route) => [route, ...walk(route.children ?? [])]);
+    const routes = walk(resolved.routes);
+    for (const owner of expected) {
+      const edit = routes.find(
+        (route) => route.name === `${owner}-work-item-edit`,
+      );
+      expect(edit?.path).toMatch(/workItem\/:workItemId\/edit$/);
+      expect(edit?.authz).toEqual({
+        resource: { type: 'composite', id: 'oa.workItems' },
+        action: 'edit',
+      });
+    }
+    expect(pagePaths(resolved.routes)).toEqual(
+      expect.arrayContaining([
+        '/booking/:bookingId',
+        '/booking/:bookingId/edit',
+        '/booking/:bookingId/action/:action',
+      ]),
+    );
+  });
   it('does not expose database exploration or document counter pages', () => {
     const paths = pagePaths(resolveRoutes().routes);
     expect(
@@ -391,37 +447,38 @@ describe('app client routes', () => {
     const routes = resolveRoutes().routes;
     const menu = buildRouteNavigation(routes, new Set());
     const businessGroups = {
-      'oa-office': [
+      'oa-personal': [
+        'oa-directory',
+        'oa-leave-balances',
         'oa-approval-delegations',
-        'announcements',
-        'work-items',
-        'oa-knowledge',
       ],
+      'oa-office': ['announcements', 'work-items', 'oa-knowledge'],
       'oa-organization': [
         'org-departments',
         'org-positions',
         'org-grades',
         'oa-employees',
         'org-duty-roles',
+        'oa-headcounts',
+        'import-data',
+      ],
+      'oa-hr': [
         'oa-recruitment-requests',
         'oa-requisitions',
-        'oa-headcounts',
         'onboardings',
         'oa-probation-requests',
         'oa-transfer',
         'oa-departure-requests',
-        'oa-directory',
-        'oa-leave-balances',
         'oa-leave-balance-administration',
         'oa-certificates',
-        'import-data',
+        'attendance-management',
+        'attendance-import',
       ],
       'oa-finance': [
         'oa-reimbursement-requests',
         'oa-loan-requests',
         'oa-payment-requests',
         'oa-budgets',
-        'oa-reports',
         'oa-finance-assignments',
       ],
       'oa-procurement': [
@@ -480,7 +537,7 @@ describe('app client routes', () => {
       'home',
       'oa-approvals',
       'inbox',
-      'oa-organization',
+      'oa-personal',
     ]);
     expect(
       employeeMenu.at(-1)?.children.map((item) => item.route.name),
@@ -507,11 +564,14 @@ describe('app client routes', () => {
       'home',
       'oa-approvals',
       'inbox',
+      'oa-personal',
       'oa-office',
       'oa-organization',
+      'oa-hr',
       'oa-finance',
       'oa-procurement',
       'oa-administration',
+      'oa-reports',
       'oa-configuration',
       'oa-automation',
       'oa-system',

@@ -192,7 +192,9 @@ it('shows safe-limit cents without rounding and distinguishes filtered no-result
   expect(
     screen.getByRole('button', { name: 'New payment request' }),
   ).toBeTruthy();
-  await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+  await user.click(
+    screen.getAllByRole('button', { name: 'Clear filters' }).at(-1)!,
+  );
   await screen.findByRole('link', { name: 'R-2' });
   expect(router.state.location.search).not.toContain('search=');
 });

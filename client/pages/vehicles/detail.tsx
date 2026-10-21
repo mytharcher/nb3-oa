@@ -1,3 +1,10 @@
+import {
+  ApprovalUiProvider,
+  ApprovalProgress,
+  ApprovalTimeline,
+} from '#extensions/nocobase-approval-ui';
+import { progressOf, copiesOf, timelineOf } from './approval-mapping.js';
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { statusTone } from './status-tone.js';
 import { StatusBadge } from '#components/status-badge';
 import { UserName } from '#components/user-name';
@@ -9,12 +16,7 @@ import {
   useParams,
 } from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
-import {
-  offeredActions,
-  approvalStepsOf,
-  renderTimelineEntry,
-} from '@nocobase/app-plugin-approval/client';
-import { RefreshCw } from 'lucide-react';
+import { offeredActions } from '@nocobase/app-plugin-approval/client';
 import { RecordDetailDrawer } from '#components/record-detail-drawer';
 import { Button } from '#components/ui/button';
 import { useVehicleResource } from './resource.js';
@@ -128,15 +130,11 @@ export default function RequestDetail() {
             </Button>
           ))
         : null}
-      <Button
-        variant='outline'
-        size='icon'
-        aria-label={t('vehicles.refresh')}
-        disabled={r.loading}
+      <ApplicationRefreshButton
+        label={t('vehicles.refresh')}
+        loading={r.loading}
         onClick={reload}
-      >
-        <RefreshCw />
-      </Button>
+      />
     </>
   );
   const record = detail?.record,
@@ -159,7 +157,7 @@ export default function RequestDetail() {
     >
       {r.error ? (
         <VehicleError error={r.error} retry={reload} />
-      ) : r.loading ? (
+      ) : r.loading && !r.data ? (
         <Loading />
       ) : record && detail ? (
         <div className='flex flex-col gap-5'>
@@ -195,7 +193,7 @@ export default function RequestDetail() {
           </dl>
           {f.error ? (
             <VehicleError error={f.error} retry={f.reload} />
-          ) : f.loading ? (
+          ) : f.loading && !f.data ? (
             <Loading />
           ) : f.data?.data.dispatch ? (
             <section>
@@ -242,63 +240,42 @@ export default function RequestDetail() {
               ) : null}
             </section>
           ) : null}
-          <section>
-            <h3 className='font-medium'>{t('vehicles.progress')}</h3>
-            <ol className='flex flex-col gap-2'>
-              {approvalStepsOf(detail.runs, []).map((step) => (
-                <li key={step.key}>
-                  {t(`vehicles.stages.${step.stage}`, {
-                    defaultValue: step.title,
-                  })}{' '}
-                  ·{' '}
-                  {t(`vehicles.progressStatus.${step.state}`, {
-                    defaultValue: step.state,
-                  })}
-                </li>
-              ))}
-            </ol>
-          </section>
-          <section>
-            <h3 className='font-medium'>{t('vehicles.history')}</h3>
-            <ol className='flex flex-col gap-2'>
-              {detail.timeline.runs
-                .flatMap((run) => [
-                  ...run.entries,
-                  ...run.stages.flatMap((stage) => stage.entries),
-                ])
-                .map((entry) => {
-                  const line = renderTimelineEntry(entry, {
+          <ApprovalUiProvider
+            personName={(id) => (id ? person(id) : t('vehicles.unknown'))}
+            formatDateTime={(value) =>
+              dateText(value, i18n.language, detail.timeZone)
+            }
+          >
+            <section className='flex flex-col gap-4'>
+              <h3 className='text-base font-medium'>
+                {t('vehicles.progress')}
+              </h3>
+              <ApprovalProgress
+                steps={progressOf(
+                  detail,
+                  {
                     t: (key, options) => t(key, options),
-                    name: (id) => (id ? person(id) : ''),
+                    name: (id) => (id ? person(id) : t('vehicles.unknown')),
                     stage: (key, title) =>
                       t(`vehicles.stages.${key}`, { defaultValue: title }),
-                  });
-                  return (
-                    <li key={line.key} className='break-words'>
-                      {line.title}{' '}
-                      <time dateTime={line.at}>
-                        {new Date(line.at).toLocaleString(i18n.language)}
-                      </time>
-                      <div data-print-expanded className='hidden'>
-                        {line.details.map((detail) => (
-                          <p key={detail.label}>
-                            {detail.label}: {detail.value}
-                          </p>
-                        ))}
-                        {line.children.map((child) => (
-                          <p key={child.key}>{child.label}</p>
-                        ))}
-                      </div>
-                      {line.comment ? (
-                        <p className='text-sm text-muted-foreground'>
-                          {line.comment}
-                        </p>
-                      ) : null}
-                    </li>
-                  );
+                  },
+                  i18n.language,
+                )}
+                copies={copiesOf(detail)}
+              />
+            </section>
+            <section className='flex flex-col gap-4'>
+              <h3 className='text-base font-medium'>{t('vehicles.history')}</h3>
+              <ApprovalTimeline
+                lines={timelineOf(detail, {
+                  t: (key, options) => t(key, options),
+                  name: (id) => (id ? person(id) : t('vehicles.unknown')),
+                  stage: (key, title) =>
+                    t(`vehicles.stages.${key}`, { defaultValue: title }),
                 })}
-            </ol>
-          </section>
+              />
+            </section>
+          </ApprovalUiProvider>
         </div>
       ) : null}
       <Outlet context={{ reload }} />

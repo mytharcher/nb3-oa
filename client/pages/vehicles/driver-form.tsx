@@ -1,3 +1,4 @@
+import { useDrawerFormGuard } from '#hooks/use-drawer-form-guard';
 import { UserName } from '#components/user-name';
 import { useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -6,7 +7,7 @@ import { z } from 'zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useParams, useOutletContext } from 'react-router';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import {
   Field,
@@ -56,7 +57,8 @@ export default function DriverForm() {
       setBusy(v);
     };
   return (
-    <RouteDialog
+    <RouteDrawer
+      className='sm:max-w-2xl'
       title={t(driverId ? 'vehicles.editDriver' : 'vehicles.newDriver')}
       beforeClose={() => !workingRef.current}
       footer={<Footer busy={busy} ready={!!ready} />}
@@ -83,7 +85,7 @@ export default function DriverForm() {
           <AlertDescription>{t('vehicles.errors.forbidden')}</AlertDescription>
         </Alert>
       )}
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 function Footer({ busy, ready }: { busy: boolean; ready: boolean }) {
@@ -147,6 +149,10 @@ function Body({
       },
     }),
     pending = form.formState.isSubmitting;
+  const drawerGuard = useDrawerFormGuard(
+    form.formState.isDirty,
+    form.formState.isSubmitting,
+  );
   const submit = form.handleSubmit(async (values) => {
     busy(true);
     try {
@@ -158,7 +164,17 @@ function Body({
       form.reset(values);
       saved();
       busy(false);
-      toaster.show({ type: 'success', title: t('vehicles.saved') });
+      toaster.show({
+        type: 'success',
+        title: t('vehicles.saved', {
+          name:
+            driver?.employee.user.name ??
+            c.data?.data.items.find((person) => person.id === values.employeeId)
+              ?.user.name ??
+            t('vehicles.unknown'),
+        }),
+      });
+      drawerGuard.markSaved();
       await close();
     } catch (error) {
       form.setError('root', {
@@ -180,6 +196,7 @@ function Body({
   };
   return (
     <form id='vehicle-driver-form' noValidate onSubmit={(e) => void submit(e)}>
+      {drawerGuard.confirmation}
       <FieldGroup>
         <FormError error={form.formState.errors.root} />
         <Controller
@@ -221,7 +238,7 @@ function Body({
                     <SelectTrigger id='driver-employee'>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                       <SelectGroup>
                         {c.data?.data.items.map((item) => (
                           <SelectItem key={item.id} value={item.id}>
@@ -256,7 +273,10 @@ function Body({
         />
         <Field data-invalid={!!form.formState.errors.reason}>
           <FieldLabel htmlFor='driver-reason'>
-            {t('vehicles.fields.reason')}
+            {t('vehicles.fields.reason')}{' '}
+            <span aria-hidden='true' className='text-destructive'>
+              *
+            </span>
           </FieldLabel>
           <Textarea
             id='driver-reason'

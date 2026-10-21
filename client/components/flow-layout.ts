@@ -15,6 +15,10 @@ export interface FlowDiagramNode {
   readonly visited?: boolean;
   readonly highlighted?: boolean;
   readonly className?: string;
+  /** OA extension: the caller's rendered content draws the whole node, without the default box or state tint. */
+  readonly bare?: boolean;
+  readonly minimapShape?: 'pill' | 'card';
+  readonly minimapColor?: string;
 }
 
 export interface FlowDiagramEdge {
@@ -27,6 +31,10 @@ export interface FlowDiagramEdge {
   readonly visited?: boolean;
   readonly highlighted?: boolean;
   readonly dashed?: boolean;
+  /** OA extension: a secondary route drawn thin and light, so the main path reads first. */
+  readonly faint?: boolean;
+  /** OA extension: hover and accessible text for an edge that shows no label on the canvas. */
+  readonly title?: string;
 }
 
 export type FlowDiagramDirection = 'RIGHT' | 'DOWN';
@@ -265,5 +273,62 @@ export async function layoutFlowDiagram(
       }
       return { ...edge, points, labelPosition };
     }),
+  };
+}
+
+type PlacedFlowNode = FlowDiagramLayout['nodes'][number];
+
+/** OA extension: a transient route for an edge left out of the layout. It runs in a lane
+ * outside every node it passes, so revealing it never moves the laid-out graph.
+ * Deeper lanes keep nested routes from crossing one another; a self-transition loops
+ * beside its own node. The label sits outside the lane instead of over the nodes. */
+export function revealRoute(
+  nodes: readonly PlacedFlowNode[],
+  source: PlacedFlowNode,
+  target: PlacedFlowNode,
+  direction: FlowDiagramDirection,
+  lane = 0,
+): {
+  points: FlowDiagramPoint[];
+  labelPosition: FlowDiagramPoint;
+  labelAnchor: 'end' | 'middle';
+} {
+  // Measure along the flow (main) and across it; the lane runs before the nodes on the cross axis.
+  const down = direction === 'DOWN';
+  const main = (node: PlacedFlowNode) => (down ? node.y : node.x);
+  const cross = (node: PlacedFlowNode) => (down ? node.x : node.y);
+  const size = (node: PlacedFlowNode) => (down ? node.height : node.width);
+  const point = (along: number, across: number): FlowDiagramPoint =>
+    down ? { x: across, y: along } : { x: along, y: across };
+  const loop = source === target;
+  const start = Math.min(main(source), main(target));
+  const end = Math.max(
+    main(source) + size(source),
+    main(target) + size(target),
+  );
+  const lanePosition =
+    Math.min(
+      ...(loop
+        ? [cross(source)]
+        : nodes
+            .filter(
+              (node) => main(node) < end && main(node) + size(node) > start,
+            )
+            .map(cross)),
+    ) -
+    16 -
+    lane * 10;
+  const from = main(source) + size(source) * (loop ? 0.3 : 0.5);
+  const to = main(target) + size(target) * (loop ? 0.7 : 0.5);
+  return {
+    points: [
+      point(from, cross(source)),
+      point(from, lanePosition),
+      point(to, lanePosition),
+      point(to, cross(target)),
+    ],
+    // DOWN lanes run left of the nodes, so labels end at the lane; RIGHT lanes run above them.
+    labelPosition: point((from + to) / 2, lanePosition - (down ? 6 : 14)),
+    labelAnchor: down ? 'end' : 'middle',
   };
 }

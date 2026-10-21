@@ -120,6 +120,7 @@ export const Result = z.object({
   effectRuns: z.array(z.json()),
 });
 export const Detail = z.object({
+  contractName: z.string().nullable(),
   record: Record,
   users: z.array(z.strictObject({ id: z.string(), name: z.string() })),
   view: z.json(),

@@ -2,7 +2,7 @@ import { UserName } from '#components/user-name';
 import { useTranslation } from '@nocobase/i18n/client';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import { useResource } from '../approvals/use-resource.js';
-import { amountText } from './money.js';
+import { formatCents } from '#lib/money';
 import { subjectLabel, type ExpenseOptions } from './options.js';
 import { ErrorState } from './states.js';
 import type { ExpensePlanRecord, ExpensePlanDetail } from './types.js';
@@ -60,7 +60,7 @@ export function ExpenseFacts({
     [t('expensePlans.subject'), label('subjects', record.subject)],
     [
       t('expensePlans.amount'),
-      `${amountText(record.amountCents)} ${t('expensePlans.yuan')}`,
+      `${formatCents(record.amountCents, i18n.language)} ${t('expensePlans.yuan')}`,
     ],
     [t('expensePlans.participants'), String(record.participants)],
     [t('expensePlans.eventDate'), date(record.eventDate)],
@@ -110,7 +110,8 @@ export function ExpenseFacts({
               t('expensePlans.departmentUnavailable')}{' '}
             · {record.heldAccount.year} ·{' '}
             {label('subjects', record.heldAccount.subject)} ·{' '}
-            {amountText(record.heldCents)} {t('expensePlans.yuan')}
+            {formatCents(record.heldCents, i18n.language)}{' '}
+            {t('expensePlans.yuan')}
           </p>
           <p className='mt-2 text-muted-foreground'>
             {t('expensePlans.holdFactHint')}
@@ -122,11 +123,15 @@ export function ExpenseFacts({
           {t('expensePlans.frozenThreshold', {
             vp:
               typeof record.ruleSnapshot['spend.vp'] === 'number'
-                ? String(record.ruleSnapshot['spend.vp'])
+                ? new Intl.NumberFormat(i18n.language).format(
+                    record.ruleSnapshot['spend.vp'],
+                  )
                 : '—',
             gm:
               typeof record.ruleSnapshot['spend.gm'] === 'number'
-                ? String(record.ruleSnapshot['spend.gm'])
+                ? new Intl.NumberFormat(i18n.language).format(
+                    record.ruleSnapshot['spend.gm'],
+                  )
                 : '—',
           })}
         </p>
@@ -136,10 +141,14 @@ export function ExpenseFacts({
           <h2 className='font-medium'>{t('expensePlans.authorization')}</h2>
           <dl className='mt-3 grid gap-2 sm:grid-cols-[9rem_1fr]'>
             {[
-              [t('expensePlans.quotaId'), detail.authorization.id],
+              [
+                t('expensePlans.quotaId'),
+                detail.authorization.sourceReference ??
+                  t('expensePlans.relatedUnavailable'),
+              ],
               [
                 t('expensePlans.grantedAmount'),
-                `${amountText(detail.authorization.grantedCents)} ${t('expensePlans.yuan')}`,
+                `${formatCents(detail.authorization.grantedCents, i18n.language)} ${t('expensePlans.yuan')}`,
               ],
               [
                 t('expensePlans.quotaState'),

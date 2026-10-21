@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ApiClientError, useApiClient } from '@nocobase/app-client';
+import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useOutletContext, useParams } from 'react-router';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
@@ -66,7 +66,8 @@ export default function VendorForm() {
   };
   return (
     <>
-      <RouteDialog
+      <RouteDrawer
+        className='sm:max-w-2xl'
         title={t(`vendors.${vendorId ? 'edit' : 'new'}`)}
         description={t('vendors.formDescription')}
         beforeClose={() => {
@@ -99,7 +100,7 @@ export default function VendorForm() {
             onBlocked={setBlocked}
           />
         )}
-      </RouteDialog>
+      </RouteDrawer>
       <AlertDialog
         open={discard}
         onOpenChange={(v) => {
@@ -168,6 +169,7 @@ function Form({
 }) {
   const { t } = useTranslation(),
     api = useApiClient(),
+    toast = useToaster(),
     { close } = useRouteOverlay(),
     parent = useOutletContext<VendorContext>();
   const baseline = Object.fromEntries(
@@ -254,6 +256,10 @@ function Form({
         path: row ? `vendors/${encodeURIComponent(row.id)}` : 'vendors',
         method: row ? 'PATCH' : 'POST',
         json: input,
+      });
+      toast.show({
+        type: 'success',
+        title: t('vendors.saved', { name: values.name }),
       });
       savedRef.current = true;
       onDirty(false);
@@ -343,9 +349,27 @@ function Form({
                 }
                 aria-invalid={!!errors[k]}
                 aria-describedby={errors[k] ? `vendor-${k}-error` : undefined}
-                onChange={(e) =>
-                  setValues((v) => ({ ...v, [k]: e.target.value }))
-                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setValues((v) => ({ ...v, [k]: value }));
+                  if (errors[k])
+                    setErrors((old) => {
+                      const next = { ...old };
+                      if (
+                        ['code', 'name', 'category'].includes(k) &&
+                        !value.trim()
+                      )
+                        next[k] = t('vendors.required');
+                      else if (
+                        k === 'contactEmail' &&
+                        value &&
+                        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+                      )
+                        next[k] = t('vendors.invalidEmail');
+                      else delete next[k];
+                      return next;
+                    });
+                }}
               />
               {errors[k] ? (
                 <FieldError id={`vendor-${k}-error`}>{errors[k]}</FieldError>
@@ -380,7 +404,15 @@ function Form({
             maxLength={5000}
             aria-invalid={!!errors.reason}
             aria-describedby={errors.reason ? 'vendor-reason-error' : undefined}
-            onChange={(e) => setReason(e.target.value)}
+            onChange={(e) => {
+              setReason(e.target.value);
+              if (errors.reason && e.target.value.trim())
+                setErrors((old) => {
+                  const next = { ...old };
+                  delete next.reason;
+                  return next;
+                });
+            }}
           />
           {errors.reason ? (
             <FieldError id='vendor-reason-error'>{errors.reason}</FieldError>

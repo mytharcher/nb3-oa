@@ -1,3 +1,4 @@
+import { FieldsSkeleton } from '../platform/shared/states.js';
 import { useEffect, useContext } from 'react';
 import { ApiClientError } from '@nocobase/app-client';
 import { ProcessListContext } from './resource.js';
@@ -46,7 +47,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '#components/ui/tooltip';
-import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
 import { approvalBusiness } from '../approvals/business-metadata.js';
 import { useProcessResource } from './resource.js';
 import { Failure, Refresh, State } from './shared.js';
@@ -84,6 +84,13 @@ export default function ProcessExecutionPage() {
     detail?.transitions
       .filter((e) => e.from)
       .map((e) => ({ from: e.from!, to: e.to, name: e.name })) ?? [];
+  // The latest arrival into each state, for the diagram's second line.
+  const arrivals = new Map(
+    detail?.transitions.map((e) => [
+      e.to,
+      `${e.actor?.name ?? '—'} · ${date(e.at)}`,
+    ]) ?? [],
+  );
   const historicStates = [
     ...new Set(
       detail?.transitions.flatMap((e) => (e.from ? [e.from, e.to] : [e.to])) ??
@@ -205,7 +212,7 @@ export default function ProcessExecutionPage() {
             </div>
           )}
           {!detail && resource.loading ? (
-            <ApplicationTableSkeleton />
+            <FieldsSkeleton />
           ) : (
             detail && (
               <>
@@ -252,7 +259,7 @@ export default function ProcessExecutionPage() {
                     </CardHeader>
                     <CardContent>
                       {definition.loading && !definition.data && (
-                        <ApplicationTableSkeleton />
+                        <FieldsSkeleton />
                       )}
                       {Boolean(definition.error) && (
                         <Failure
@@ -265,6 +272,7 @@ export default function ProcessExecutionPage() {
                           states={states}
                           edges={edges}
                           history={history}
+                          arrivals={arrivals}
                           initial={definition.data.data.initial}
                           current={detail.record.status}
                         />
@@ -390,15 +398,7 @@ export default function ProcessExecutionPage() {
                                 <TableCell>
                                   <State value={task.stage} />
                                 </TableCell>
-                                <TableCell>
-                                  {task.assignee.name}
-                                  {task.previousTaskId && (
-                                    <p className='text-xs text-muted-foreground'>
-                                      {t('processManagement.previousTask')}:{' '}
-                                      {task.previousTaskId}
-                                    </p>
-                                  )}
-                                </TableCell>
+                                <TableCell>{task.assignee.name}</TableCell>
                                 <TableCell>
                                   <State value={task.status} />
                                 </TableCell>

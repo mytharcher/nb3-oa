@@ -235,6 +235,18 @@ const employeesEnUS = {
       empty: 'No compensation records yet.',
     },
     history: {
+      referenceNotice:
+        'Reference names use the current directory; names at the time of the change were not stored.',
+      sources: {
+        onboarding: 'Onboarding',
+        departure: 'Departure',
+        transfer: 'Personnel change',
+        probation: 'Regularization',
+        other: 'Other business operation',
+      },
+      referenceUnavailable: 'Historical reference unavailable',
+      personUnavailable: 'Historical person unavailable',
+      otherField: 'Other change',
       title: 'Change history',
       description:
         'Hires, regularizations, transfers, departures and data corrections.',

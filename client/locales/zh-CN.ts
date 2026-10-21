@@ -91,6 +91,8 @@ const zhCN = {
   ...vendorQualificationLocale,
   assets: assetLocale,
   ...system,
+  'shell.buildFreely': '协同办公，井然有序。',
+  'shell.reliability': '连接组织、事务与审批。',
   // Application-owned OA copy overrides the template authentication branding.
   'auth.brandName': 'NocoOA',
   'navigation.brandHome': 'NocoOA 首页',
@@ -158,6 +160,11 @@ const zhCN = {
     signInAgain: '重新登录',
   },
   'status.sessionExpired': '会话已结束，请重新登录后继续。',
+  formDrawer: {
+    discardTitle: '放弃未保存的更改？',
+    discardDescription: '关闭后，尚未保存的内容将丢失。',
+    continueEditing: '继续编辑',
+  },
   overrides: {
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
@@ -180,7 +187,9 @@ const zhCN = {
       procurement: '采购与合同',
       administration: '行政与资产',
 
-      organization: '组织与人事',
+      personal: '个人事务',
+      organization: '组织架构',
+      hr: '人事管理',
       configuration: '业务配置',
       system: '系统管理',
       inbox: '消息',

@@ -292,7 +292,11 @@ export default function DeparturesPage() {
     () => filtered.slice((actualPage - 1) * pageSize, actualPage * pageSize),
     [filtered, actualPage, pageSize],
   );
-  const empty = resource.data?.length === 0 && !search && status === 'all';
+  const empty =
+    resource.data?.length === 0 &&
+    !search &&
+    status === 'all' &&
+    selectedType === 'all';
   return (
     <PageContainer>
       <PageHeader

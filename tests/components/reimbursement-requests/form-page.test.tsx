@@ -406,47 +406,6 @@ it.each([
   },
 );
 
-it('keeps the delegated applicant name after first upload persists the draft', async () => {
-  api.request.mockImplementation(({ path }: { path: string }) =>
-    Promise.resolve({
-      data: path.endsWith('/options')
-        ? options
-        : path.endsWith('/uploadOne')
-          ? { record: { id: 'f1', filename: 'Proof', ext: 'pdf' } }
-          : path.endsWith('/findMany')
-            ? []
-            : { record: { ...record, applicantId: 'bob' } },
-    }),
-  );
-  show();
-  await screen.findByRole('button', { name: 'Choose Bob' });
-  fireEvent.click(screen.getByRole('button', { name: 'Choose Bob' }));
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: /Save draft/ })).toBeEnabled(),
-  );
-  fireEvent.change(screen.getByLabelText('Reason *'), {
-    target: { value: 'Delegated reason' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: 'Add expense line' }));
-  fireEvent.change(screen.getByLabelText('Evidence files *'), {
-    target: {
-      files: [new File(['proof'], 'proof.pdf', { type: 'application/pdf' })],
-    },
-  });
-  await waitFor(() =>
-    expect(api.request).toHaveBeenCalledWith(
-      expect.objectContaining({ path: 'reimbursementAttachments/uploadOne' }),
-    ),
-  );
-  expect(screen.getByText('Bob Delegate')).toBeInTheDocument();
-  expect(api.request).toHaveBeenCalledWith(
-    expect.objectContaining({
-      path: 'reimbursementRequests',
-      json: expect.objectContaining({ applicantId: 'bob', lines: [] }),
-    }),
-  );
-  expect(screen.queryByText('Applicant: Alice')).toBeNull();
-});
 it('uses a synchronous guard and allows only the next navigation after discard confirmation', async () => {
   show();
   await waitFor(() =>
@@ -575,29 +534,4 @@ it('blocks the complete form before entry when the payment account is incomplete
   expect(
     screen.queryByText(en.reimbursementRequests.errors.paymentAccountRequired),
   ).toBeNull();
-});
-
-it('allows HR to switch away from an applicant with an incomplete account and checks the new applicant', async () => {
-  api.request.mockImplementation(
-    ({ path, query }: { path: string; query?: { applicantId?: string } }) =>
-      Promise.resolve({
-        data: path.endsWith('/options')
-          ? {
-              ...options,
-              applicantId: query?.applicantId,
-              paymentAccountComplete: query?.applicantId === 'bob',
-            }
-          : { record },
-      }),
-  );
-  show();
-  await screen.findByRole('button', { name: 'Check payment account again' });
-  fireEvent.click(screen.getByRole('button', { name: 'Choose Bob' }));
-  await waitFor(() => expect(screen.getByLabelText('Reason *')).toBeEnabled());
-  expect(api.request).toHaveBeenCalledWith(
-    expect.objectContaining({
-      path: 'reimbursementRequests/options',
-      query: { applicantId: 'bob' },
-    }),
-  );
 });

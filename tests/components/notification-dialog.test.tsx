@@ -11,21 +11,19 @@ import notification from '../../client/locales/administration/notification/en-US
 const { client } = vi.hoisted(() => ({
   client: {
     listLogs: vi.fn().mockResolvedValue([]),
-    listTestTargets: vi
-      .fn()
-      .mockResolvedValue([
-        {
-          channel: { name: 'Test delivery' },
-          fields: [
-            {
-              name: 'recipient',
-              label: 'Recipient',
-              type: 'text',
-              required: true,
-            },
-          ],
-        },
-      ]),
+    listTestTargets: vi.fn().mockResolvedValue([
+      {
+        channel: { name: 'Test delivery' },
+        fields: [
+          {
+            name: 'recipient',
+            label: 'Recipient',
+            type: 'text',
+            required: true,
+          },
+        ],
+      },
+    ]),
     sendTest: vi.fn(),
   },
 }));
@@ -70,9 +68,51 @@ describe('notification test dialog', () => {
       within(dialog).getByRole('button', { name: 'Send', exact: true }),
     ).toBeEnabled();
     await user.keyboard('{Escape}');
+    const discard = await screen.findByRole('alertdialog');
+    await user.click(
+      within(discard).getByRole('button', { name: 'Continue editing' }),
+    );
+    expect(
+      within(dialog).getByRole('textbox', { name: 'Recipient' }),
+    ).toHaveValue('test');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Discard changes',
+      }),
+    );
     await waitFor(() =>
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
     );
     expect(client.sendTest).not.toHaveBeenCalled();
   });
+});
+
+it('validates each required notification field on submit and preserves typed values', async () => {
+  client.sendTest.mockClear();
+  render(
+    <TestI18nProvider runtime={runtime} namespace={namespace}>
+      <NotificationLogsPage />
+    </TestI18nProvider>,
+  );
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Send test notification' }),
+  );
+  const dialog = screen.getByRole('dialog');
+  await userEvent.click(
+    within(dialog).getByRole('combobox', { name: 'Delivery method' }),
+  );
+  await userEvent.click(
+    await screen.findByRole('option', { name: 'Test delivery' }),
+  );
+  await userEvent.click(
+    within(dialog).getByRole('button', { name: 'Send', exact: true }),
+  );
+  expect(
+    within(dialog).getByRole('textbox', { name: 'Recipient' }),
+  ).toHaveFocus();
+  expect(within(dialog).getByRole('alert')).toHaveTextContent(
+    'Enter Recipient.',
+  );
+  expect(client.sendTest).not.toHaveBeenCalled();
 });

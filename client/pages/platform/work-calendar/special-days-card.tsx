@@ -199,7 +199,7 @@ export function SpecialDaysCard({
                     }
                   >
                     <Trash2Icon />
-                    {t('platform.common.delete')}
+                    {t('platform.calendar.days.remove')}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>
@@ -356,7 +356,7 @@ function RemoveDayDialog({
   readonly onRemoved: () => void;
   readonly focusAfterRef: RefObject<HTMLElement | null>;
 }): ReactElement {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const api = useApiClient();
   const toaster = useToaster();
   const [pending, setPending] = useState(false);
@@ -391,7 +391,12 @@ function RemoveDayDialog({
     setPending(false);
     toaster.show({
       type: 'success',
-      title: t('platform.calendar.days.removed', { date: target.date }),
+      title: t('platform.calendar.days.removed', {
+        date: new Intl.DateTimeFormat(i18n.language, {
+          dateStyle: 'medium',
+          timeZone: 'UTC',
+        }).format(new Date(`${target.date}T00:00:00Z`)),
+      }),
     });
     removedRef.current = true;
     onRemoved();
@@ -415,7 +420,14 @@ function RemoveDayDialog({
       >
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {t('platform.calendar.days.removeTitle', { date: day?.date ?? '' })}
+            {t('platform.calendar.days.removeTitle', {
+              date: day
+                ? new Intl.DateTimeFormat(i18n.language, {
+                    dateStyle: 'medium',
+                    timeZone: 'UTC',
+                  }).format(new Date(`${day.date}T00:00:00Z`))
+                : '',
+            })}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {t('platform.calendar.days.removeDescription')}
@@ -442,7 +454,7 @@ function RemoveDayDialog({
             }}
           >
             {pending ? <Spinner data-icon='inline-start' /> : null}
-            {t('platform.common.delete')}
+            {t('platform.calendar.days.remove')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -1,7 +1,7 @@
 import { defineAppRoutes } from '@nocobase/app-client/plugins';
 import { recruitmentViewChildren } from './recruitment.js';
 import { transferViewChildren } from './transfer.js';
-import { UsersRound } from 'lucide-react';
+import { Gauge } from 'lucide-react';
 const policy = (action: string) => ({
   resource: { type: 'composite' as const, id: 'oa.headcounts' },
   action,
@@ -13,7 +13,7 @@ export default defineAppRoutes([
     path: '/headcounts',
     auth: 'required',
     authz: policy('view'),
-    navigation: { title: 'headcounts.title', icon: UsersRound, order: 62 },
+    navigation: { title: 'headcounts.title', icon: Gauge, order: 62 },
     breadcrumb: { title: 'headcounts.title' },
     componentLoader: () => import('../pages/headcounts/index.js'),
     children: [

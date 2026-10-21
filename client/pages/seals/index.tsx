@@ -1,3 +1,4 @@
+import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { statusTone } from './status-tone.js';
 import { ApplicationSearch } from '#components/application-search';
@@ -11,7 +12,7 @@ import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { ApplicationToolbar } from '#components/application-toolbar';
 import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
-import { DataTableServer } from '#components/data-table';
+import { DataTableServer, DataTableColumnHeader } from '#components/data-table';
 import { Button } from '#components/ui/button';
 import { StatusBadge } from '#components/status-badge';
 import { TruncatedText } from '#components/truncated-text';
@@ -37,25 +38,25 @@ export default function SealRequests() {
       ? Number(p.get('pageSize'))
       : 20,
     status = p.get('status') ?? '',
-    order = p.get('order') === 'asc' ? 'asc' : 'desc';
+    sort = p.get('sort') === 'copies' ? 'copies' : 'createdAt',
+    direction =
+      p.get('direction') === 'asc' || p.get('order') === 'asc' ? 'asc' : 'desc';
   const grant = useCan({
       resource: { type: 'composite', id: 'oa.sealRequests' },
       action: 'create',
     }),
-    r = useSealResource<{ data: SealRequest[] }>('sealRequests');
-  const rows = (r.data?.data ?? [])
-    .filter(
-      (v) =>
-        (!status || v.status === status) &&
-        (!search.search ||
-          [v.number, v.purpose, v.applicant.name].some((x) =>
-            x?.toLocaleLowerCase().includes(search.search.toLocaleLowerCase()),
-          )),
-    )
-    .sort(
-      (a, b) =>
-        (order === 'asc' ? 1 : -1) * a.createdAt.localeCompare(b.createdAt),
+    r = useSealResource<{ data: SealRequest[]; meta: { total: number } }>(
+      'sealRequests',
+      {
+        page: String(page),
+        pageSize: String(pageSize),
+        search: search.search,
+        status,
+        sort,
+        direction,
+      },
     );
+  const rows = r.data?.data ?? [];
   const columns: ColumnDef<SealRequest, unknown>[] = [
     {
       id: 'number',
@@ -90,12 +91,33 @@ export default function SealRequests() {
     },
     {
       id: 'copies',
-      header: t('seals.copies'),
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t('seals.copies')}
+          className='justify-end'
+        />
+      ),
       cell: ({ row }) => (
         <span className='block text-right tabular-nums'>
           {row.original.copies.toLocaleString(i18n.language)}
         </span>
       ),
+    },
+    {
+      id: 'createdAt',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t('approvals.createdAt')}
+        />
+      ),
+      cell: ({ row }) =>
+        Number.isFinite(Date.parse(row.original.createdAt))
+          ? new Intl.DateTimeFormat(i18n.language, {
+              dateStyle: 'medium',
+            }).format(new Date(row.original.createdAt))
+          : '—',
     },
     {
       id: 'status',
@@ -162,7 +184,7 @@ export default function SealRequests() {
               {status ? t(`seals.states.${status}`) : t('seals.all')}
             </SelectValue>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
             <SelectGroup>
               <SelectItem value='all'>{t('seals.all')}</SelectItem>
               {STATES.map((s) => (
@@ -186,24 +208,29 @@ export default function SealRequests() {
             {t('seals.clear')}
           </Button>
         ) : null}
-        <Button
-          variant='outline'
-          onClick={() =>
-            search.updateParams((p) =>
-              p.set('order', order === 'asc' ? 'desc' : 'asc'),
-            )
-          }
-        >
-          {t(order === 'asc' ? 'seals.oldest' : 'seals.newest')}
-        </Button>
       </ApplicationToolbar>
       {r.error ? <SealError error={r.error} retry={r.reload} /> : null}
       {r.loading && !r.data ? <ApplicationTableSkeleton /> : null}
       {r.data ? (
         <DataTableServer
+          sorting={[{ id: sort, desc: direction === 'desc' }]}
+          onSortingChange={(sorting) =>
+            search.updateParams((params) => {
+              params.set(
+                'sort',
+                sorting[0]?.id === 'copies' ? 'copies' : 'createdAt',
+              );
+              params.set(
+                'direction',
+                sorting[0]?.desc === false ? 'asc' : 'desc',
+              );
+              params.delete('order');
+              params.delete('page');
+            })
+          }
           columns={columns}
-          rows={rows.slice((page - 1) * pageSize, page * pageSize)}
-          total={rows.length}
+          rows={rows}
+          total={r.data.meta?.total ?? rows.length}
           getRowId={(v) => v.id}
           pagination={{ pageIndex: page - 1, pageSize }}
           onPaginationChange={(next) =>
@@ -213,12 +240,28 @@ export default function SealRequests() {
             })
           }
           pageSizeOptions={[10, 20, 50, 100]}
-          emptyMessage={t(
-            status || search.search ? 'seals.noMatch' : 'seals.empty',
-          )}
+          emptyMessage={
+            <ApplicationTableEmpty
+              title={t(
+                status || search.search ? 'seals.noMatch' : 'seals.empty',
+              )}
+              clearFilters={
+                status || search.search
+                  ? {
+                      label: t('seals.clear'),
+                      onClick: () =>
+                        search.clear((params) => {
+                          params.delete('status');
+                          params.delete('page');
+                        }),
+                    }
+                  : undefined
+              }
+            />
+          }
         />
       ) : null}
-      <Outlet context={{ reload: r.invalidate }} />
+      <Outlet context={{ reload: r.reload }} />
     </PageContainer>
   );
 }

@@ -1,5 +1,13 @@
 export default {
   seals: {
+    registrationSource: '申请单 {{number}} 的用印登记',
+    relatedUnavailable: '关联记录不可用',
+    copiesRange: '请输入1至{{max}}之间的整数。',
+    actionSaved: '已完成用印申请“{{name}}”的{{action}}',
+    requestSaved: '已保存用印申请“{{name}}”',
+
+    noLongerEditable: '此申请已不可编辑，请关闭并刷新列表。',
+
     businessErrors: {
       REVIEWER_REQUIRED: '实际指派审批人必须仍具备有效职责角色。',
       APPROVAL_REFUSED: '当前审批或办理规则不允许此操作。',
@@ -54,7 +62,7 @@ export default {
     instanceName: '印章名称',
     instanceActive: '启用',
     instanceVersion: '版本',
-    newInstance: '新增印章',
+    newInstance: '新建印章',
     editInstance: '编辑印章',
     emptyInstances: '暂无印章',
 
@@ -76,7 +84,7 @@ export default {
     copies: '批准份数',
     status: '状态',
     refresh: '刷新',
-    new: '发起用印申请',
+    new: '新建用印申请',
     edit: '编辑申请',
     search: '搜索编号、用途或申请人',
     all: '全部状态',

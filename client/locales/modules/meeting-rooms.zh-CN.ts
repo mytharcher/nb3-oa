@@ -1,5 +1,6 @@
 export default {
   meetingRooms: {
+    backToList: '返回列表',
     finder: {
       title: '查找时段',
       description:
@@ -42,7 +43,7 @@ export default {
     savedRoom: '已保存会议室“{{name}}”',
     savedBooking: '已保存“{{name}}”的{{count}}次预订',
     actionSuccess: '{{action}}：“{{name}}”',
-    confirmAction: '确认{{action}}',
+    confirmAction: '{{action}}会议预订“{{name}}”？',
     confirmDescription: '将影响“{{name}}”的{{count}}次预订，预订历史仍会保留。',
     timeZoneDescription: '日期和时间使用当前公司时区：{{zone}}。',
     organizerIncluded: '计算人数时包含组织者。',

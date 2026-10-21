@@ -106,6 +106,21 @@ test('main HTTP private uploads and read scopes, strict actor input, actual admi
     }),
   );
   expect(edited.status).toBe(200);
+  const metadata = await session.fetch(`/sealRequests/${id}/files`);
+  expect(metadata.status).toBe(200);
+  expect(await metadata.json()).toEqual({
+    data: [
+      expect.objectContaining({
+        id: file.id,
+        filename: 'source.pdf',
+        mimeType: 'application/pdf',
+      }),
+    ],
+  });
+  expect(metadata.headers.get('cache-control')).toBe('private, no-store');
+  expect([403, 404]).toContain(
+    (await other.fetch(`/sealRequests/${id}/files`)).status,
+  );
   const content = await session.fetch(
     `/sealRequests/${id}/files/${file.id}/content`,
   );

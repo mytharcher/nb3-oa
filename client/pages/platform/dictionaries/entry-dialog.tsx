@@ -3,7 +3,7 @@ import { AlertCircleIcon } from 'lucide-react';
 import { type ReactElement, useRef, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import { useRouteOverlay } from '#components/use-route-overlay';
 
@@ -101,7 +101,8 @@ function EntryDialog({
   }
 
   return (
-    <RouteDialog
+    <RouteDrawer
+      className='sm:max-w-2xl'
       title={
         editing
           ? t('platform.dictionaries.edit.title')
@@ -114,7 +115,7 @@ function EntryDialog({
       footer={footer}
     >
       {body}
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 

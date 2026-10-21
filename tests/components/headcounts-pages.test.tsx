@@ -152,7 +152,7 @@ it('shows named capacity, a single empty-state creation entry and role-aware con
   mount();
   expect(await screen.findByText('No annual headcount')).toBeVisible();
   expect(
-    screen.getAllByRole('button', { name: 'Create annual headcount' }),
+    screen.getAllByRole('button', { name: enUS.headcounts.create }),
   ).toHaveLength(1);
 });
 it('denied requests have no retry and readonly heads have no write or journal requests', async () => {

@@ -1,3 +1,4 @@
+import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { statusTone } from './status-tone.js';
 import { ApplicationSearch } from '#components/application-search';
 import { UserName } from '#components/user-name';
@@ -413,7 +414,17 @@ export default function QualificationList() {
                 </EmptyHeader>
               </Empty>
             ) : (
-              t('vendorQualifications.common.noResults')
+              <ApplicationTableEmpty
+                title={t('vendorQualifications.common.noResults')}
+                clearFilters={{
+                  label: t('vendorQualifications.clearFilters'),
+                  onClick: () =>
+                    clear((params) => {
+                      params.delete('status');
+                      params.delete('page');
+                    }),
+                }}
+              />
             )
           }
         />

@@ -771,6 +771,7 @@ export function createSealApplication(d: SealDependencies) {
         fail('ACCESS_DENIED');
       return rows.map((r) => normalize(r as SealRequest));
     },
+    files: attachments.files,
     upload: attachments.upload,
     content: attachments.content,
     async actualReturn(id, actorId, input, access) {

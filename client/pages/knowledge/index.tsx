@@ -1,3 +1,4 @@
+import { TruncatedText } from '#components/truncated-text';
 import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { ApplicationSearch } from '#components/application-search';
@@ -13,7 +14,7 @@ import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { ApplicationToolbar } from '#components/application-toolbar';
 import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
-import { DataTableServer } from '#components/data-table';
+import { DataTableServer, DataTableColumnHeader } from '#components/data-table';
 import { Button } from '#components/ui/button';
 import {
   Select,
@@ -27,7 +28,7 @@ import { useUrlSearch } from '#hooks/use-url-search';
 import { KnowledgeFolderTree } from './folder-tree.js';
 import { useKnowledgeResource } from './resource.js';
 import { KnowledgeError } from './states.js';
-import { policy, selectWidth, type Document, type Folder } from './types.js';
+import { policy, type Document, type Folder } from './types.js';
 export default function Knowledge() {
   const { t, i18n } = useTranslation(),
     location = useLocation(),
@@ -38,7 +39,16 @@ export default function Knowledge() {
       ? Number(p.get('pageSize'))
       : 20;
   const folderId = p.get('folderId') ?? '',
-    orderBy = p.get('orderBy') ?? 'updatedAt:desc';
+    orderBy = [
+      'updatedAt:desc',
+      'updatedAt:asc',
+      'title:asc',
+      'title:desc',
+      'version:asc',
+      'version:desc',
+    ].includes(p.get('orderBy') ?? '')
+      ? p.get('orderBy')!
+      : 'updatedAt:desc';
   const manage = useCan(policy('manage')),
     folderView = useCan(policy('view', true));
   const r = useKnowledgeResource<{ data: Document[]; meta: { total: number } }>(
@@ -65,13 +75,18 @@ export default function Knowledge() {
   const columns: ColumnDef<Document>[] = [
     {
       accessorKey: 'title',
-      header: t('knowledge.documentTitle'),
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t('knowledge.documentTitle')}
+        />
+      ),
       cell: ({ row }) => (
         <Link
           to={link(row.original.id)}
           className='font-medium underline-offset-4 hover:underline'
         >
-          {row.original.title}
+          <TruncatedText text={row.original.title} />
         </Link>
       ),
     },
@@ -80,7 +95,21 @@ export default function Knowledge() {
       header: t('knowledge.folder'),
       cell: ({ row }) => folderName(row.original.folderId),
     },
-    { accessorKey: 'version', header: t('knowledge.version') },
+    {
+      accessorKey: 'version',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t('knowledge.version')}
+          className='justify-end'
+        />
+      ),
+      cell: ({ row }) => (
+        <span className='block text-right tabular-nums'>
+          {new Intl.NumberFormat(i18n.language).format(row.original.version)}
+        </span>
+      ),
+    },
     {
       id: 'owner',
       header: t('knowledge.owner'),
@@ -88,7 +117,12 @@ export default function Knowledge() {
     },
     {
       accessorKey: 'updatedAt',
-      header: t('knowledge.updatedAt'),
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t('knowledge.updatedAt')}
+        />
+      ),
       cell: ({ row }) =>
         new Date(row.original.updatedAt).toLocaleString(i18n.language),
     },
@@ -162,7 +196,7 @@ export default function Knowledge() {
                     : t('knowledge.allFolders')}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent className={selectWidth}>
+            <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
               <SelectGroup>
                 <SelectItem value='all'>{t('knowledge.allFolders')}</SelectItem>
                 <SelectItem value='root'>{t('knowledge.unfiled')}</SelectItem>
@@ -175,33 +209,7 @@ export default function Knowledge() {
             </SelectContent>
           </Select>
         ) : null}
-        <Select
-          value={orderBy}
-          onValueChange={(value) =>
-            search.updateParams((p) => {
-              p.set('orderBy', value ?? 'updatedAt:desc');
-              p.delete('page');
-            })
-          }
-        >
-          <SelectTrigger aria-label={t('knowledge.order')}>
-            <SelectValue>{t(`knowledge.orders.${orderBy}`)}</SelectValue>
-          </SelectTrigger>
-          <SelectContent className={selectWidth}>
-            <SelectGroup>
-              {[
-                'updatedAt:desc',
-                'updatedAt:asc',
-                'title:asc',
-                'title:desc',
-              ].map((value) => (
-                <SelectItem key={value} value={value}>
-                  {t(`knowledge.orders.${value}`)}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+
         {search.search || folderId ? (
           <Button
             variant='outline'
@@ -243,6 +251,21 @@ export default function Knowledge() {
             <ApplicationTableSkeleton />
           ) : r.data ? (
             <DataTableServer
+              sorting={[
+                { id: orderBy.split(':')[0], desc: orderBy.endsWith(':desc') },
+              ]}
+              onSortingChange={(sorting) =>
+                search.updateParams((params) => {
+                  const next = sorting[0];
+                  params.set(
+                    'orderBy',
+                    next
+                      ? `${next.id}:${next.desc ? 'desc' : 'asc'}`
+                      : 'updatedAt:desc',
+                  );
+                  params.delete('page');
+                })
+              }
               columns={columns}
               rows={r.data.data}
               total={r.data.meta.total}

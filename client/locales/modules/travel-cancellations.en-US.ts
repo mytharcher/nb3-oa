@@ -1,5 +1,10 @@
 export default {
   travelCancellation: {
+    fieldInvalid: 'Check {{field}}.',
+
+    sourceUnavailable: 'Source trip unavailable',
+    exceptionReason: 'Exception reason',
+    exception: 'Unbooking exception',
     businessErrors: {
       TRAVEL_CANCELLATION_REASON_REQUIRED:
         'Enter the trip cancellation reason.',

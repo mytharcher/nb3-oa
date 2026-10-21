@@ -59,7 +59,7 @@ function Body({ id }: { id: string }) {
     }),
     detailPath = location.pathname
       .split('/actions/')[0]
-      .replace(/\/handover-confirmation$/, ''),
+      .replace(/\/(?:handover-confirmation|edit)$/, ''),
     reload = () => {
       r.reload();
       parent.reload();
@@ -157,7 +157,7 @@ function Body({ id }: { id: string }) {
                 </StatusBadge>
               ) : null}
             </div>
-            <dl className='grid gap-3 sm:grid-cols-2'>
+            <dl className='flex flex-col gap-3'>
               {[
                 [
                   t('workItems.creator'),
@@ -197,6 +197,16 @@ function Body({ id }: { id: string }) {
                   }).format(new Date(d.dueAt)),
                 ],
                 [
+                  t('workItems.completedAt'),
+                  d.completedAt
+                    ? new Intl.DateTimeFormat(i18n.language, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                        timeZone: ctx.data?.data.timeZone ?? 'UTC',
+                      }).format(new Date(d.completedAt))
+                    : '—',
+                ],
+                [
                   t('workItems.confirmation'),
                   t(
                     d.requiresConfirmation
@@ -205,7 +215,7 @@ function Body({ id }: { id: string }) {
                   ),
                 ],
               ].map(([label, value]) => (
-                <div key={label}>
+                <div key={label} className='grid grid-cols-[8rem_1fr] gap-3'>
                   <dt className='text-muted-foreground'>{label}</dt>
                   <dd className='break-words'>{value}</dd>
                 </div>
@@ -233,16 +243,6 @@ function Body({ id }: { id: string }) {
               </h3>
               <Attachments id={id} ids={d.resultAttachments} />
             </section>
-            {d.completedAt ? (
-              <p>
-                {t('workItems.completedAt')}:{' '}
-                {new Intl.DateTimeFormat(i18n.language, {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                  timeZone: ctx.data?.data.timeZone ?? 'UTC',
-                }).format(new Date(d.completedAt))}
-              </p>
-            ) : null}
           </div>
         ) : null}
         <Outlet context={{ ...parent, detailPath, reload }} />

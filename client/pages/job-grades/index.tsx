@@ -14,7 +14,6 @@ import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { Button } from '#components/ui/button';
 import { Alert, AlertDescription } from '#components/ui/alert';
-import { Label } from '#components/ui/label';
 import {
   Tooltip,
   TooltipContent,
@@ -255,8 +254,8 @@ export default function SalaryGradeHistory() {
         }
       >
         <div data-slot='application-filter' className='flex flex-col gap-2'>
-          <Label htmlFor='salary-version-search'>{t('jobGrades.search')}</Label>
           <ApplicationSearch
+            aria-label={t('jobGrades.search')}
             id='salary-version-search'
             placeholder={t('jobGrades.search')}
             inputMode='numeric'
@@ -266,7 +265,7 @@ export default function SalaryGradeHistory() {
         </div>
         {search ? (
           <Button
-            variant='outline'
+            variant='ghost'
             onClick={() => clear((p) => p.delete('page'))}
           >
             {t('jobGrades.clear')}
@@ -298,7 +297,7 @@ export default function SalaryGradeHistory() {
           ) : null}
           {
             <DataTableServer
-              columns={columns}
+              columns={columns.filter((column) => column.id !== 'actions')}
               rows={history.data.data}
               total={history.data.meta.total}
               getRowId={(row) => row.id}

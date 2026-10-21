@@ -1,6 +1,9 @@
 export default {
   approvalCenter: {
     batch: {
+      selectAll: 'Select all eligible tasks (up to 20)',
+      unnamed: 'Unnamed request',
+      result: '{{name}}: {{status}}',
       loading: 'Checking which tasks can be approved together…',
       unknown:
         'Result unknown. Refresh and check each task before deciding whether to retry.',

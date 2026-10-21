@@ -1,3 +1,4 @@
+import { SessionExpiredAlert } from '#components/session-expired-alert';
 import {
   useCallback,
   useEffect,
@@ -25,6 +26,7 @@ export interface AuthorizationPageData {
   readonly error?: string;
   /** The options request was refused rather than failed. */
   readonly forbidden?: boolean;
+  readonly status?: number;
   readonly reload: () => void;
 }
 
@@ -40,6 +42,7 @@ export function useAuthorizationPageData(
     options?: AuthorizationOptionsResponse;
     error?: unknown;
     forbidden?: boolean;
+    status?: number;
   }>({});
   const { t: translateOption } = useTranslation();
   const options = useMemo(
@@ -61,6 +64,7 @@ export function useAuthorizationPageData(
         if (active)
           setState({
             error: cause,
+            status: status(cause),
             forbidden: status(cause) === 403,
           });
       },
@@ -81,13 +85,18 @@ export function useAuthorizationPageData(
 export function AuthorizationPageState({
   error,
   forbidden,
+  status: errorStatus,
   reload,
 }: AuthorizationPageData): ReactElement {
   if (error === undefined) return <PageLoading />;
+  if (errorStatus === 401) return <SessionExpiredAlert />;
   return forbidden === true ? (
     <PageForbidden message={error} />
   ) : (
-    <PageError message={error} onRetry={reload} />
+    <PageError
+      message={error}
+      onRetry={errorStatus === 404 ? undefined : reload}
+    />
   );
 }
 

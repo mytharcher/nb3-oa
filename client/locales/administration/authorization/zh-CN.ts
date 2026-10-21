@@ -9,7 +9,15 @@ const zhCN: AuthorizationResource = {
     permissionSets: '权限集',
     inspector: '权限检查器',
   },
+  feedback: {
+    saved: '已保存“{{name}}”',
+    deleted: '已删除“{{name}}”',
+    assigned: '已分配“{{name}}”的权限',
+    revoked: '已撤销“{{name}}”的权限',
+  },
   common: {
+    actionsFor: '“{{name}}”的操作',
+    clearFilters: '清除筛选',
     all: '全部',
     allFields: '全部字段',
     cancel: '取消',
@@ -311,7 +319,7 @@ const zhCN: AuthorizationResource = {
       other: '{{count}} 条授权',
     },
     list: {
-      search: '搜索权限集',
+      search: '按权限集名称或标识搜索',
       create: '新建权限集',
       nameHeader: '权限集',
       system: '系统',
@@ -328,7 +336,7 @@ const zhCN: AuthorizationResource = {
       confirmDeleteTitle: '删除权限集“{{title}}”？',
       confirmDeleteBody:
         '删除“{{title}}”及其授权记录。其他权限集和规则仍然生效。',
-      confirmDelete: '删除权限集',
+      confirmDelete: '删除',
     },
     assignments: {
       search: '搜索授权',
@@ -348,8 +356,8 @@ const zhCN: AuthorizationResource = {
       emptyNone: '暂无授权记录。选择授权对象并授予该权限集。',
       emptyFiltered: '没有符合筛选条件的授权记录。',
       pagerLabel: '授权记录',
-      confirmRevokeTitleOne: '确定取消该授权吗？',
-      confirmRevokeTitleMany: '确定取消这些授权吗？',
+      confirmRevokeTitleOne: '撤销“{{name}}”的授权？',
+      confirmRevokeTitleMany: '撤销“{{name}}”的授权？',
       confirmRevokeBody:
         '取消后，{{label}}将不再持有该权限集。其他授权仍然生效，也可以重新授权。',
       confirmRevoke: '取消授权',
@@ -364,6 +372,10 @@ const zhCN: AuthorizationResource = {
       assigning: '授权中…',
     },
     editor: {
+      nameRequired: '请输入权限集名称。',
+      keyRequired: '请输入权限集标识。',
+      resourceRequired: '请为此权限选择资源。',
+      actionsRequired: '请为此资源选择至少一个操作。',
       editTitle: '编辑权限集',
       newTitle: '新建权限集',
       description: '配置可重复使用的资源和操作权限。',

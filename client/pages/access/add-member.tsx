@@ -7,7 +7,7 @@ import {
 } from 'react-router';
 import { useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { UserPicker } from '#components/user-picker';
 import { Field, FieldLabel, FieldError } from '#components/ui/field';
 import { Button } from '#components/ui/button';
@@ -66,7 +66,8 @@ export default function AddMember() {
     }
   }
   return (
-    <RouteDialog
+    <RouteDrawer
+      className='sm:max-w-2xl'
       title={t('access.addMemberTitle', { name })}
       beforeClose={() => !busy}
       footer={
@@ -97,7 +98,10 @@ export default function AddMember() {
         ) : null}
         <Field data-invalid={invalid}>
           <FieldLabel htmlFor='access-member'>
-            {t('access.person')} *
+            {t('access.person')}{' '}
+            <span aria-hidden='true' className='text-destructive'>
+              *
+            </span>
           </FieldLabel>
           <UserPicker
             id='access-member'
@@ -117,6 +121,6 @@ export default function AddMember() {
           {t('access.memberImpact')}
         </p>
       </form>
-    </RouteDialog>
+    </RouteDrawer>
   );
 }

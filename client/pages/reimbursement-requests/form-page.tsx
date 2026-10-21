@@ -1,5 +1,4 @@
 import { useRouteFormCloseGuard } from '#hooks/use-route-form-close-guard';
-import { UserName } from '#components/user-name';
 import { useRequestFormSubmission } from '#hooks/use-request-form-submission';
 import {
   RequestFormButtons,
@@ -31,7 +30,6 @@ import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { RouteFormPage } from '#components/route-form-page';
 import { DatePicker } from '#components/date-picker';
-import { UserPicker } from '#components/user-picker';
 import { Button } from '#components/ui/button';
 import {
   AlertDialog,
@@ -88,10 +86,6 @@ export default function ReimbursementFormPage() {
     resource: { type: 'composite', id: 'oa.reimbursement' },
     action: 'submit',
   }).can;
-  const delegate = useCan({
-    resource: { type: 'composite', id: 'oa.reimbursement' },
-    action: 'delegate',
-  }).can;
   useEffect(() => {
     if (
       resource.error instanceof ApiClientError &&
@@ -123,7 +117,7 @@ export default function ReimbursementFormPage() {
                 ? !!resource.data?.view.available.some(
                     (a) => a.name === 'edit' && a.allowed,
                   )
-                : submit || delegate
+                : submit
             }
             reload={() => parent?.reload()}
           />
@@ -147,14 +141,8 @@ export function ReimbursementForm({
     navigate = useNavigate(),
     location = useLocation(),
     { session } = useAuthentication();
-  const delegate = useCan({
-      resource: { type: 'composite', id: 'oa.reimbursement' },
-      action: 'delegate',
-    }).can,
-    pick = useCan({ resource: { type: 'user', id: '*' }, action: 'read' }).can;
   const [record, setRecord] = useState(detail?.record),
     [draftId, setDraftId] = useState<string>(),
-    [applicant, setApplicant] = useState<{ id: string; name: string }>(),
     [discard, setDiscard] = useState(false),
     [discardConfirmed, setDiscardConfirmed] = useState(false),
     [busy, setBusy] = useState(false),
@@ -678,47 +666,6 @@ export function ReimbursementForm({
           }}
         >
           <FieldGroup inert={submission.submitUnknown || undefined}>
-            {delegate && pick && !record ? (
-              <Controller
-                name='applicantId'
-                control={form.control}
-                render={({ field }) => (
-                  <Field>
-                    <FieldLabel htmlFor='reimbursement-applicant'>
-                      {f('applicant')}
-                    </FieldLabel>
-                    <UserPicker
-                      id='reimbursement-applicant'
-                      value={field.value}
-                      knownUsers={
-                        session?.user
-                          ? [{ id: session.user.id, name: session.user.name }]
-                          : []
-                      }
-                      onChange={(id, user) => {
-                        setApplicant(user ?? undefined);
-                        field.onChange(id);
-                      }}
-                      disabled={interactionLocked}
-                    />
-                  </Field>
-                )}
-              />
-            ) : (
-              <FieldDescription>
-                {f('applicant')}:{' '}
-                <UserName
-                  name={
-                    detail?.users.find((u) => u.id === target)?.name ??
-                    (applicant?.id === target ? applicant.name : undefined) ??
-                    (session?.user.id === target
-                      ? session.user.name
-                      : undefined) ??
-                    '—'
-                  }
-                />
-              </FieldDescription>
-            )}
             {(['reason', 'overrunReason'] as const).map((name) => (
               <Field key={name} data-invalid={!!form.formState.errors[name]}>
                 <FieldLabel htmlFor={`reimbursement-${name}`}>
@@ -802,109 +749,123 @@ export function ReimbursementForm({
                       {!access.editable ? (
                         <FieldDescription>{f('locked')}</FieldDescription>
                       ) : null}
-                      <Controller
-                        name={`lines.${index}.category`}
-                        control={form.control}
-                        render={({ field, fieldState }) => (
-                          <Field data-invalid={fieldState.invalid}>
-                            <FieldLabel htmlFor={`line-${line.id}-category`}>
-                              {f('category')} *
-                            </FieldLabel>
-                            <Select
-                              items={categories}
-                              value={field.value}
-                              onValueChange={field.onChange}
-                              disabled={disabled || !optionsReady}
-                            >
-                              <SelectTrigger
-                                id={`line-${line.id}-category`}
-                                className='w-full'
+                      <div className='grid gap-4 sm:grid-cols-2'>
+                        <Controller
+                          name={`lines.${index}.category`}
+                          control={form.control}
+                          render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                              <FieldLabel htmlFor={`line-${line.id}-category`}>
+                                {f('category')} *
+                              </FieldLabel>
+                              <Select
+                                items={categories}
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                disabled={disabled || !optionsReady}
                               >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
-                                {categories.map((c) => (
-                                  <SelectItem key={c.value} value={c.value}>
-                                    {c.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FieldDescription>
-                              {f('aggregateHint')}
-                            </FieldDescription>
-                            <FieldError errors={[fieldState.error]} />
-                          </Field>
-                        )}
-                      />
-                      <Controller
-                        name={`lines.${index}.date`}
-                        control={form.control}
-                        render={({ field, fieldState }) => (
-                          <Field data-invalid={fieldState.invalid}>
-                            <FieldLabel htmlFor={`line-${line.id}-date`}>
-                              {f('date')} *
-                            </FieldLabel>
-                            <DatePicker
-                              id={`line-${line.id}-date`}
-                              value={
-                                field.value ? parseISO(field.value) : undefined
-                              }
-                              onChange={(d) =>
-                                field.onChange(d ? format(d, 'yyyy-MM-dd') : '')
-                              }
-                              disabled={disabled}
-                              locale={
-                                i18n.language.startsWith('zh') ? zhCN : enUS
-                              }
-                            />
-                            <FieldError errors={[fieldState.error]} />
-                          </Field>
-                        )}
-                      />
-                      {(
-                        [
-                          'amount',
-                          'invoiceNumber',
-                          'standardExceptionReason',
-                        ] as const
-                      ).map((name) => (
-                        <Field
-                          key={name}
-                          data-invalid={
-                            !!form.formState.errors.lines?.[index]?.[name]
-                          }
-                        >
-                          <FieldLabel htmlFor={`line-${line.id}-${name}`}>
-                            {f(name === 'invoiceNumber' ? 'invoice' : name)}
-                            {name !== 'standardExceptionReason' ? ' *' : ''}
-                          </FieldLabel>
-                          {name === 'standardExceptionReason' ? (
-                            <Textarea
-                              id={`line-${line.id}-${name}`}
-                              {...form.register(`lines.${index}.${name}`)}
-                              disabled={disabled}
-                            />
-                          ) : (
-                            <Input
-                              id={`line-${line.id}-${name}`}
-                              inputMode={
-                                name === 'amount' ? 'decimal' : undefined
-                              }
-                              {...form.register(`lines.${index}.${name}`)}
-                              disabled={disabled}
-                              aria-invalid={
-                                !!form.formState.errors.lines?.[index]?.[name]
-                              }
-                            />
+                                <SelectTrigger
+                                  id={`line-${line.id}-category`}
+                                  className='w-full'
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
+                                  {categories.map((c) => (
+                                    <SelectItem key={c.value} value={c.value}>
+                                      {c.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FieldDescription>
+                                {f('aggregateHint')}
+                              </FieldDescription>
+                              <FieldError errors={[fieldState.error]} />
+                            </Field>
                           )}
-                          <FieldError
-                            errors={[
-                              form.formState.errors.lines?.[index]?.[name],
-                            ]}
-                          />
-                        </Field>
-                      ))}
+                        />
+                        <Controller
+                          name={`lines.${index}.date`}
+                          control={form.control}
+                          render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                              <FieldLabel htmlFor={`line-${line.id}-date`}>
+                                {f('date')} *
+                              </FieldLabel>
+                              <DatePicker
+                                id={`line-${line.id}-date`}
+                                className='w-full'
+                                value={
+                                  field.value
+                                    ? parseISO(field.value)
+                                    : undefined
+                                }
+                                onChange={(d) =>
+                                  field.onChange(
+                                    d ? format(d, 'yyyy-MM-dd') : '',
+                                  )
+                                }
+                                disabled={disabled}
+                                locale={
+                                  i18n.language.startsWith('zh') ? zhCN : enUS
+                                }
+                              />
+                              <FieldError errors={[fieldState.error]} />
+                            </Field>
+                          )}
+                        />
+                      </div>
+                      <div className='grid gap-4 sm:grid-cols-2'>
+                        {(
+                          [
+                            'amount',
+                            'invoiceNumber',
+                            'standardExceptionReason',
+                          ] as const
+                        ).map((name) => (
+                          <Field
+                            key={name}
+                            className={
+                              name === 'standardExceptionReason'
+                                ? 'sm:col-span-2'
+                                : undefined
+                            }
+                            data-invalid={
+                              !!form.formState.errors.lines?.[index]?.[name]
+                            }
+                          >
+                            <FieldLabel htmlFor={`line-${line.id}-${name}`}>
+                              {f(name === 'invoiceNumber' ? 'invoice' : name)}
+                              {name !== 'standardExceptionReason' ? ' *' : ''}
+                            </FieldLabel>
+                            {name === 'standardExceptionReason' ? (
+                              <Textarea
+                                id={`line-${line.id}-${name}`}
+                                {...form.register(`lines.${index}.${name}`)}
+                                disabled={disabled}
+                              />
+                            ) : (
+                              <Input
+                                id={`line-${line.id}-${name}`}
+                                inputMode={
+                                  name === 'amount' ? 'decimal' : undefined
+                                }
+                                {...form.register(`lines.${index}.${name}`)}
+                                disabled={disabled}
+                                aria-invalid={
+                                  !!form.formState.errors.lines?.[index]?.[name]
+                                }
+                              />
+                            )}
+                            <FieldError
+                              errors={[
+                                form.formState.errors.lines?.[index]?.[name],
+                              ]}
+                            />
+                          </Field>
+                        ))}
+                      </div>
                       <Controller
                         name={`lines.${index}.attachmentIds`}
                         control={form.control}

@@ -798,7 +798,7 @@ it.each([
     serve();
     open('/mine/newAssetRequest', translatedRuntime);
     const trigger = await screen.findByRole('combobox', {
-      name: `${resources.assetRequests.operationLabel} *`,
+      name: resources.assetRequests.operationLabel,
     });
     expect(trigger).toHaveTextContent(resources.assetRequests.operations.use);
     const user = userEvent.setup();

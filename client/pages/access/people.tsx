@@ -51,7 +51,7 @@ export default function PeoplePage() {
         header: t('access.name'),
         cell: ({ row }) => (
           <Link
-            className='font-medium text-primary hover:underline'
+            className='font-medium underline-offset-4 hover:underline'
             to={`${encodeURIComponent(row.original.id)}/sources${location.search}`}
           >
             <UserName name={row.original.name} />

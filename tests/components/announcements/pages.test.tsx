@@ -172,11 +172,11 @@ it('sends URL search/status/pagination and keeps one toolbar initiation', async 
 it('validates draft, guards dirty cancellation and saves latest version preserving query/hash', async () => {
   const u = userEvent.setup();
   show('/announcements/a1/edit?mode=mine&q=Security#source');
-  const input = await screen.findByLabelText('Title *');
+  const input = await screen.findByLabelText(/^Title/);
   await u.clear(input);
   await u.type(input, 'Updated policy');
   await u.click(screen.getByRole('button', { name: 'Cancel' }));
-  await screen.findByText('Discard changes — Updated policy');
+  await screen.findByText('Discard changes to announcement "Updated policy"?');
   await u.click(screen.getByRole('button', { name: 'Cancel' }));
   await u.click(screen.getByRole('button', { name: 'Save draft' }));
   await waitFor(() => expect(observed.pathname).toBe('/announcements/a1'));
@@ -198,8 +198,8 @@ it('validates draft, guards dirty cancellation and saves latest version preservi
 it('requires explicit audience and a nonblank body before creating', async () => {
   const u = userEvent.setup();
   show('/announcements/new');
-  await u.type(await screen.findByLabelText('Title *'), 'New policy');
-  await u.type(screen.getByLabelText('Body *'), '   ');
+  await u.type(await screen.findByLabelText(/^Title/), 'New policy');
+  await u.type(screen.getByLabelText(/^Body/), '   ');
   await u.click(screen.getByRole('button', { name: 'Save draft' }));
   expect(await screen.findByText('This field is required')).toBeTruthy();
   expect(
@@ -279,7 +279,7 @@ it('confirms only own effective receipt and sends no actor or version input', as
 it('CAS conflict preserves draft and blocks another write until an explicit replacement reload', async () => {
   const u = userEvent.setup();
   show('/announcements/a1/edit');
-  const title = await screen.findByLabelText('Title *');
+  const title = await screen.findByLabelText(/^Title/);
   await u.clear(title);
   await u.type(title, 'Unsaved input');
   state.request.mockImplementation(async (input) => {
@@ -295,7 +295,7 @@ it('CAS conflict preserves draft and blocks another write until an explicit repl
   await screen.findByText(
     'The record changed; load the latest content before retrying',
   );
-  expect((screen.getByLabelText('Title *') as HTMLInputElement).value).toBe(
+  expect((screen.getByLabelText(/^Title/) as HTMLInputElement).value).toBe(
     'Unsaved input',
   );
   expect(
@@ -307,7 +307,7 @@ it('CAS conflict preserves draft and blocks another write until an explicit repl
 it('authorization changes abort pending writes and cannot restore private input', async () => {
   const u = userEvent.setup(),
     view = show('/announcements/a1/edit?mode=mine#source');
-  const title = await screen.findByLabelText('Title *');
+  const title = await screen.findByLabelText(/^Title/);
   await u.clear(title);
   await u.type(title, 'Private draft');
   let resolve!: (v: unknown) => void;
@@ -330,7 +330,7 @@ it('authorization changes abort pending writes and cannot restore private input'
   state.revision++;
   state.can = false;
   view.rerender(tree('/announcements/a1/edit?mode=mine#source'));
-  await waitFor(() => expect(screen.queryByLabelText('Title *')).toBeNull());
+  await waitFor(() => expect(screen.queryByLabelText(/^Title/)).toBeNull());
   expect(signal.aborted).toBe(true);
   await act(async () => resolve({ data: row }));
   expect(observed.pathname).toBe('/announcements/a1/edit');
@@ -393,7 +393,7 @@ it('attachment metadata and upload use protected parent header, then reload owne
 it('denied writes clear private draft input and never expose raw diagnostics', async () => {
   const u = userEvent.setup();
   show('/announcements/a1/edit');
-  const title = await screen.findByLabelText('Title *');
+  const title = await screen.findByLabelText(/^Title/);
   await u.clear(title);
   await u.type(title, 'Secret input');
   state.request.mockImplementation(async (input) => {
@@ -413,7 +413,7 @@ it('denied writes clear private draft input and never expose raw diagnostics', a
 it('expired sessions replace the form with sign-in recovery', async () => {
   const u = userEvent.setup();
   show('/announcements/a1/edit');
-  await screen.findByLabelText('Title *');
+  await screen.findByLabelText(/^Title/);
   state.request.mockImplementation(async (input) => {
     if (input.method === 'PATCH')
       throw new ApiClientError('private session detail', {
@@ -424,13 +424,13 @@ it('expired sessions replace the form with sign-in recovery', async () => {
     return response(input);
   });
   await u.click(screen.getByRole('button', { name: 'Save draft' }));
-  await waitFor(() => expect(screen.queryByLabelText('Title *')).toBeNull());
+  await waitFor(() => expect(screen.queryByLabelText(/^Title/)).toBeNull());
   expect(screen.queryByText('private session detail')).toBeNull();
 });
 it('same-payload network retry preserves requestId and a changed payload gets a new key', async () => {
   const u = userEvent.setup();
   show('/announcements/a1/edit');
-  await screen.findByLabelText('Title *');
+  await screen.findByLabelText(/^Title/);
   state.request.mockImplementation(async (input) => {
     if (input.method === 'PATCH') throw new Error('offline');
     return response(input);
@@ -445,7 +445,7 @@ it('same-payload network retry preserves requestId and a changed payload gets a 
   );
   const calls = state.request.mock.calls.filter(([v]) => v.method === 'PATCH');
   expect(calls[0][0].json.requestId).toBe(calls[1][0].json.requestId);
-  await u.type(screen.getByLabelText('Body *'), ' changed');
+  await u.type(screen.getByLabelText(/^Body/), ' changed');
   await u.click(screen.getByRole('button', { name: 'Save draft' }));
   await waitFor(() =>
     expect(
@@ -483,4 +483,26 @@ it('pending tab reads only own pending contract and retains the source link', as
   expect(
     state.request.mock.calls.some(([v]) => v.path === 'announcements'),
   ).toBe(false);
+});
+
+it('publishes from one routed confirmation and keeps the source detail URL', async () => {
+  show('/announcements/a1/actions/publish?mode=mine#source');
+  expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+  const user = userEvent.setup();
+  const button = await screen.findByRole('button', {
+    name: 'Publish',
+    exact: true,
+  });
+  await waitFor(() => expect(button).toBeEnabled());
+  await user.click(button);
+  await waitFor(() => expect(observed.pathname).toBe('/announcements/a1'));
+  expect(
+    state.request.mock.calls.filter(
+      ([request]) =>
+        request.method === 'POST' &&
+        request.path === 'announcements/a1/publish',
+    ),
+  ).toHaveLength(1);
+  expect(observed.search).toBe('?mode=mine');
+  expect(observed.hash).toBe('#source');
 });

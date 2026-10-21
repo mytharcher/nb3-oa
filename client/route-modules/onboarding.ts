@@ -4,7 +4,7 @@ const resource = { type: 'composite', id: 'oa.onboarding' } as const;
 export default defineAppRoutes([
   {
     name: 'onboardings',
-    parent: 'oa-organization',
+    parent: 'oa-hr',
     path: '/onboardings',
     auth: 'required',
     authz: { resource, action: 'view' },

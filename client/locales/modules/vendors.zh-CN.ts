@@ -1,8 +1,10 @@
 export default {
   vendors: {
+    saved: '已保存供应商“{{name}}”',
+
     title: '供应商',
     description: '采购维护手工供应商；已批采购单保留当时的供应商事实。',
-    new: '新增供应商',
+    new: '新建供应商',
     edit: '编辑供应商',
     view: '供应商详情',
     refresh: '刷新',

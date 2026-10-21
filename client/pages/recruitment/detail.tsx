@@ -165,9 +165,8 @@ export default function RecruitmentDetail() {
         </>
       }
     >
-      {r.error ? (
-        <ErrorState error={r.error} retry={reload} />
-      ) : r.loading ? (
+      {r.error ? <ErrorState error={r.error} retry={reload} /> : null}
+      {r.loading && !detail ? (
         <Loading />
       ) : detail ? (
         <div className='flex flex-col gap-6'>
@@ -210,7 +209,21 @@ export default function RecruitmentDetail() {
                         ? (detail.identities.grade?.name ?? '—')
                         : key === 'kind'
                           ? t(`recruitment.kinds.${detail.record.kind}`)
-                          : String(detail.record[key] ?? '—')}
+                          : key === 'expectedStartDate' &&
+                              detail.record.expectedStartDate
+                            ? new Intl.DateTimeFormat(i18n.language, {
+                                dateStyle: 'medium',
+                                timeZone: 'UTC',
+                              }).format(
+                                new Date(
+                                  `${detail.record.expectedStartDate}T00:00:00Z`,
+                                ),
+                              )
+                            : key === 'quantity'
+                              ? new Intl.NumberFormat(i18n.language).format(
+                                  detail.record.quantity,
+                                )
+                              : String(detail.record[key] ?? '—')}
                 </dd>
               </div>
             ))}

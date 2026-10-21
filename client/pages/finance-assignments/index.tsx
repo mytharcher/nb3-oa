@@ -27,7 +27,7 @@ import {
   DropdownMenuItem,
 } from '#components/ui/dropdown-menu';
 import { useUrlSearch } from '#hooks/use-url-search';
-import { TruncatedText } from '../platform/shared/truncated-text.js';
+import { TruncatedText } from '#components/truncated-text';
 import { SETTINGS, type Assignment, type Page } from './types.js';
 import { useFinanceResource } from './resource.js';
 import { FinanceError, FinanceSkeleton } from './states.js';
@@ -62,7 +62,7 @@ export default function FinanceAssignments() {
   }, [r.data?.meta.page, page, updateParams, r.data]);
   const link = (path: string) => ({ pathname: path, search: location.search });
   const create = canUpdate ? (
-    <Button render={<Link to={link('new')} />}>
+    <Button nativeButton={false} render={<Link to={link('new')} />}>
       <Plus data-icon='inline-start' />
       {t('financeAssignments.new')}
     </Button>
@@ -118,6 +118,7 @@ export default function FinanceAssignments() {
           <DropdownMenuTrigger
             render={
               <Button
+                nativeButton={false}
                 variant='ghost'
                 size='icon-sm'
                 aria-label={t('financeAssignments.rowActions', {

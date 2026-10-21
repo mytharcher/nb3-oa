@@ -4,10 +4,20 @@ import { useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
+import {
+  ApiClientError,
+  useApiClient,
+  useToaster,
+  useNavigationGuard,
+} from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { useOutletContext, useParams } from 'react-router';
-import { RouteDialog } from '#components/route-dialog';
+import {
+  useOutletContext,
+  useParams,
+  useLocation,
+  useNavigate,
+} from 'react-router';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import {
   Field,
@@ -64,12 +74,29 @@ export default function BookingAction() {
     workingRef.current = v;
     setBusy(v);
   };
+  if (action === 'confirm' || action === 'checkIn') {
+    return (
+      <BookingConfirmation
+        action={action}
+        ready={ready}
+        booking={r.data?.data}
+        loading={r.loading || a.loading || o.loading}
+        error={r.error ?? a.error ?? o.error}
+        reload={() => {
+          r.reload();
+          a.reload();
+          o.reload();
+        }}
+        saved={parent.onSaved}
+      />
+    );
+  }
   return (
-    <RouteDialog
+    <RouteDrawer
       title={t(
         valid ? `meetingRooms.actions.${action}` : 'meetingRooms.bookingDetail',
       )}
-      className='sm:max-w-md'
+      className='sm:max-w-2xl'
       beforeClose={() => !workingRef.current}
       footer={
         <ActionFooter
@@ -100,7 +127,7 @@ export default function BookingAction() {
           </AlertDescription>
         </Alert>
       )}
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 function ActionFooter({
@@ -304,6 +331,7 @@ function ActionBody({
             <AlertDialogTitle>
               {t('meetingRooms.confirmAction', {
                 action: t(`meetingRooms.actions.${action}`),
+                name: booking.title,
               })}
             </AlertDialogTitle>
             <AlertDialogDescription>
@@ -327,5 +355,131 @@ function ActionBody({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+function BookingConfirmation({
+  action,
+  ready,
+  booking,
+  loading,
+  error,
+  reload,
+  saved,
+}: {
+  action: string;
+  ready: boolean;
+  booking?: Booking;
+  loading: boolean;
+  error: unknown;
+  reload: () => void;
+  saved: () => void;
+}) {
+  const { t } = useTranslation(),
+    api = useApiClient(),
+    toast = useToaster(),
+    location = useLocation(),
+    navigate = useNavigate();
+  const [busy, setBusy] = useState(false),
+    [failure, setFailure] = useState<unknown>();
+  const [requestId] = useState(() => createRequestKey());
+  const busyRef = useRef(false);
+  useNavigationGuard(() => !busyRef.current);
+  const close = () =>
+    navigate(
+      { pathname: '..', search: location.search, hash: location.hash },
+      { replace: true },
+    );
+  async function perform() {
+    if (!ready || !booking || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setFailure(undefined);
+    try {
+      await api.request({
+        path: `meetingBookings/${encodeURIComponent(booking.id)}/${action}`,
+        method: 'POST',
+        json: { requestId, expectedVersion: booking.version },
+      });
+      toast.show({
+        type: 'success',
+        title: t('meetingRooms.actionSuccess', {
+          name: booking.title,
+          action: t(`meetingRooms.actions.${action}`),
+        }),
+      });
+      saved();
+      busyRef.current = false;
+      setBusy(false);
+      await close();
+    } catch (error) {
+      setFailure(error);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }
+  return (
+    <AlertDialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !busyRef.current) void close();
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {t('meetingRooms.confirmAction', {
+              action: t(`meetingRooms.actions.${action}`),
+              name: booking?.title ?? t('meetingRooms.bookingDetail'),
+            })}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {t('meetingRooms.confirmDescription', {
+              name: booking?.title ?? t('meetingRooms.bookingDetail'),
+              count: 1,
+            })}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {loading ? (
+          <Loading />
+        ) : error || failure ? (
+          <MeetingError
+            error={error ?? failure}
+            retry={() => {
+              setFailure(undefined);
+              reload();
+            }}
+          />
+        ) : !ready ? (
+          <Alert>
+            <AlertDescription>
+              {t('meetingRooms.errors.unavailable')}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <AlertDialogFooter>
+          <Button
+            variant='outline'
+            disabled={busy}
+            onClick={() => {
+              void close();
+            }}
+          >
+            {t('meetingRooms.cancel')}
+          </Button>
+          <AlertDialogAction
+            disabled={!ready || busy}
+            onClick={(event) => {
+              event.preventDefault();
+              void perform();
+            }}
+          >
+            {busy ? <Spinner /> : null}
+            {t(`meetingRooms.actions.${action}`)}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

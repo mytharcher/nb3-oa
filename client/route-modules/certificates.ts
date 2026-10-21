@@ -66,7 +66,7 @@ export function certificateViewChildren(
 export default defineAppRoutes([
   {
     name: 'oa-certificates',
-    parent: 'oa-organization',
+    parent: 'oa-hr',
     path: '/certificates',
     auth: 'required',
     authz: permission('view'),

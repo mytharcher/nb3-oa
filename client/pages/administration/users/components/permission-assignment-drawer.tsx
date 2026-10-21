@@ -59,7 +59,7 @@ export function PermissionAssignmentDrawer({
         if (!open) close();
       }}
     >
-      <DialogContent className='top-0 right-0 left-auto flex h-dvh max-h-dvh w-full max-w-full translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-y-0 border-r-0 p-0 sm:max-w-xl'>
+      <DialogContent className='top-0 right-0 left-auto flex h-dvh max-h-dvh w-full max-w-full translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-y-0 border-r-0 p-0 sm:max-w-2xl'>
         <DialogHeader className='shrink-0 border-b p-6 pr-14'>
           <DialogTitle>
             {t('assignment.title')} · <UserName name={user.name} />
@@ -80,7 +80,7 @@ export function PermissionAssignmentDrawer({
             setSelected(value);
           }}
         />
-        <footer className='shrink-0 space-y-3 border-t p-6'>
+        <footer className='shrink-0 flex flex-col gap-3 border-t p-6'>
           {error && (
             <p role='alert' className='text-sm text-destructive'>
               {t('assignment.failed')}

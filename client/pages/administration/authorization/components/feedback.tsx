@@ -1,4 +1,4 @@
-import { ApiClientError } from '@nocobase/app-client';
+import { AuthorizationFormError } from './validation-error.js';
 import type { ReactElement } from 'react';
 
 import type { Translate } from '../i18n.js';
@@ -18,6 +18,6 @@ export function ErrorBox({ value }: { value: string }): ReactElement {
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function errorMessage(t: Translate, error: unknown): string {
-  if (error instanceof ApiClientError) return t('errors.requestFailed');
-  return error instanceof Error ? error.message : t('errors.requestFailed');
+  if (error instanceof AuthorizationFormError) return t(error.key);
+  return t('errors.requestFailed');
 }

@@ -1,3 +1,5 @@
+import { readSealRelatedNames } from './related-names.js';
+import { contractLedgerServiceToken } from '../../providers/contracts/contract.js';
 import { LifecycleError } from '@nocobase/lifecycle';
 import { ApprovalError } from '@nocobase/app-plugin-approval/server';
 import { Hono, type Context } from 'hono';
@@ -194,14 +196,42 @@ export default [
     router.get(
       '/sealRequests',
       listDoc('listSealRequests', 'List visible seal requests', S.Request),
+      apiValidator('query', S.RequestQuery),
       async (c) => {
         const rows = await requests.list(
           actor(c),
           await policy(c, 'oa.sealRequests', 'view', 'sealRequests'),
         );
+        const query = c.req.valid('query');
+        const text = query.search.toLocaleLowerCase();
+        const visible = (await Promise.all(rows.map(dto))).filter(
+          (row) =>
+            (!query.status || row.status === query.status) &&
+            (!text ||
+              [row.number, row.purpose, row.applicant.name].some((value) =>
+                value?.toLocaleLowerCase().includes(text),
+              )),
+        );
+        visible.sort((a, b) => {
+          const value =
+            query.sort === 'copies'
+              ? a.copies - b.copies
+              : Date.parse(a.createdAt) - Date.parse(b.createdAt);
+          return (
+            (query.direction === 'asc' ? value : -value) ||
+            a.id.localeCompare(b.id)
+          );
+        });
         return c.json({
-          data: await Promise.all(rows.map(dto)),
-          meta: { total: rows.length },
+          data: visible.slice(
+            (query.page - 1) * query.pageSize,
+            query.page * query.pageSize,
+          ),
+          meta: {
+            total: visible.length,
+            page: query.page,
+            pageSize: query.pageSize,
+          },
         });
       },
     );
@@ -237,8 +267,49 @@ export default [
           actor(c),
           await policy(c, 'oa.sealRequests', 'view', 'sealRequests'),
         );
+        const optionalPolicy = async (
+          resource: string,
+          action: string,
+          collection: string,
+        ) => {
+          try {
+            return await policy(c, resource, action, collection);
+          } catch (error) {
+            if (error instanceof SealError && error.code === 'ACCESS_DENIED')
+              return undefined;
+            throw error;
+          }
+        };
+        const [contract, seal] = await Promise.all([
+          detail.record.contractId
+            ? optionalPolicy('oa.contract', 'ledger', 'contracts')
+            : undefined,
+          detail.record.sealId
+            ? optionalPolicy('oa.seals', 'view', 'seals')
+            : undefined,
+        ]);
+        let registrationAccess;
+        if (detail.record.ledgerId) {
+          try {
+            registrationAccess = await ledgerAccess(c);
+          } catch (error) {
+            if (!(error instanceof SealError) || error.code !== 'ACCESS_DENIED')
+              throw error;
+          }
+        }
+        const relatedNames = await readSealRelatedNames(
+          detail.record,
+          actor(c),
+          db.connection(),
+          {
+            contracts: container.resolve(contractLedgerServiceToken),
+            seals: ledger,
+          },
+          { contract, seal, ledger: registrationAccess },
+        );
         return c.json({
           data: {
+            relatedNames,
             record: await dto(detail.record),
             tasks: await Promise.all(
               detail.tasks
@@ -379,6 +450,25 @@ export default [
         });
       },
     );
+    router.get(
+      '/sealRequests/:id/files',
+      doc(
+        'listSealFiles',
+        'Read private current-view attachment metadata',
+        S.File.array(),
+      ),
+      apiValidator('param', S.Params),
+      async (c) => {
+        c.header('cache-control', 'private, no-store');
+        return c.json({
+          data: await requests.files(
+            actor(c),
+            c.req.valid('param').id,
+            await policy(c, 'oa.sealRequests', 'view', 'sealRequests'),
+          ),
+        });
+      },
+    );
     router.post(
       '/sealRequests/:id/files',
       doc('uploadSealFile', 'Upload a private draft attachment', S.File),
@@ -466,7 +556,14 @@ export default [
       },
     );
     async function ledgerAccess(c: Context<Env>) {
+      let seals: RepositoryPolicy | undefined;
+      try {
+        seals = await policy(c, 'oa.seals', 'view', 'seals');
+      } catch (error) {
+        if (!(error instanceof SealError)) throw error;
+      }
       return {
+        seals,
         ledger: await policy(c, 'oa.sealLedger', 'view', 'sealLedger'),
         receipts: await policy(c, 'oa.sealLedger', 'view', 'sealReceipts'),
         requests: await policy(c, 'oa.sealRequests', 'view', 'sealRequests'),

@@ -69,6 +69,15 @@ export function nonApprovalViewChildren(
       componentLoader: () => import('../pages/work-items/detail.js'),
       children: [
         {
+          name: `${owner}-work-item-edit`,
+          path: 'edit',
+          authz: {
+            resource: { type: 'composite', id: 'oa.workItems' },
+            action: 'edit',
+          },
+          componentLoader: () => import('../pages/work-items/form.js'),
+        },
+        {
           name: `${owner}-work-item-action`,
           path: 'actions/:action',
           componentLoader: () => import('../pages/work-items/form.js'),
@@ -174,7 +183,7 @@ const routes: readonly AppClientRouteContribution[] = [
     {
       name: 'oa-approval-delegations',
       auth: 'required',
-      parent: 'oa-office',
+      parent: 'oa-personal',
       path: '/approvalDelegations',
       authz: {
         resource: { type: 'settings', id: 'oa.approvalDelegations' },
@@ -183,7 +192,7 @@ const routes: readonly AppClientRouteContribution[] = [
       navigation: {
         title: 'approvals.navigation.delegations',
         icon: UserRoundCheck,
-        order: 10,
+        order: 130,
       },
       componentLoader: () => import('../pages/approval-delegations/index.js'),
       children: [

@@ -94,17 +94,44 @@ export function createOnboardingService(d: {
           .repository<Onboarding>('onboardings')
           .withPolicy(viewPolicy),
         filtered = query.status ? { filter: { status: query.status } } : {};
-      const total = await repository.count(filtered);
-      const rows = await repository.findMany({
+      let total = await repository.count(filtered);
+      let rows = await repository.findMany({
         ...filtered,
-        offset: (query.page - 1) * query.pageSize,
-        limit: query.pageSize,
-        sort: (s) => [s.field('hireDate').desc(), s.field('id').asc()],
+        ...(!query.q
+          ? { offset: (query.page - 1) * query.pageSize, limit: query.pageSize }
+          : {}),
+        sort: (s) => [
+          query.desc === false
+            ? s.field('hireDate').asc()
+            : s.field('hireDate').desc(),
+          s.field('id').asc(),
+        ],
       });
       if (
         rows.some((row) => ONBOARDING_FIELDS.some((field) => !(field in row)))
       )
         throw new OnboardingError('ONBOARDING_FORBIDDEN');
+      if (query.q) {
+        const names = new Map<string, string>();
+        const ids = [...new Set(rows.map((row) => String(row.userId)))];
+        for (let offset = 0; offset < ids.length; offset += 100) {
+          const users = await d.users.withConnection(tx).list({
+            userIds: ids.slice(offset, offset + 100),
+            pageSize: 100,
+            kind: 'all',
+          });
+          for (const user of users.items) names.set(user.id, user.name);
+        }
+        const needle = query.q.toLocaleLowerCase();
+        rows = rows.filter((row) =>
+          names.get(String(row.userId))?.toLocaleLowerCase().includes(needle),
+        );
+        total = rows.length;
+        rows = rows.slice(
+          (query.page - 1) * query.pageSize,
+          query.page * query.pageSize,
+        );
+      }
       return {
         items: rows.map(
           (row) =>

@@ -1,3 +1,4 @@
+import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { Link, Outlet, useLocation } from 'react-router';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
@@ -11,6 +12,7 @@ import { DataTable } from '#components/data-table';
 import { Badge } from '#components/ui/badge';
 import { Button } from '#components/ui/button';
 import { useSealResource } from './resource.js';
+import type { Options } from './types.js';
 import { SealError } from './states.js';
 export interface SealInstance {
   id: string;
@@ -21,9 +23,10 @@ export interface SealInstance {
   version: number;
 }
 export default function Instances() {
-  const { t } = useTranslation(),
+  const { t, i18n } = useTranslation(),
     location = useLocation();
   const r = useSealResource<{ data: SealInstance[] }>('seals');
+  const options = useSealResource<{ data: Options }>('sealBrowser/options');
   const manage = useCan({
     resource: { type: 'composite', id: 'oa.seals' },
     action: 'manage',
@@ -41,7 +44,15 @@ export default function Instances() {
       accessorKey: 'sealType',
       header: t('seals.sealType'),
       cell: ({ row }) => (
-        <Badge variant='outline'>{row.original.sealType}</Badge>
+        <Badge variant='outline'>
+          {options.data?.data.sealTypes?.find(
+            (type) => type.code === row.original.sealType,
+          )?.label[i18n.language] ??
+            options.data?.data.sealTypes?.find(
+              (type) => type.code === row.original.sealType,
+            )?.label['en-US'] ??
+            t('seals.unavailable')}
+        </Badge>
       ),
     },
     {
@@ -53,12 +64,13 @@ export default function Instances() {
         </Badge>
       ),
     },
-    { accessorKey: 'version', header: t('seals.instanceVersion') },
     ...(allowed
       ? [
           {
             id: 'edit',
-            header: t('seals.editInstance'),
+            header: () => (
+              <span className='sr-only'>{t('seals.editInstance')}</span>
+            ),
             cell: ({ row }: { row: { original: SealInstance } }) => (
               <Button
                 variant='ghost'
@@ -106,10 +118,12 @@ export default function Instances() {
         <DataTable
           columns={columns}
           data={r.data.data}
-          emptyMessage={t('seals.emptyInstances')}
+          emptyMessage={
+            <ApplicationTableEmpty title={t('seals.emptyInstances')} />
+          }
         />
       ) : null}
-      <Outlet context={{ reload: r.invalidate }} />
+      <Outlet context={{ reload: r.reload }} />
     </PageContainer>
   );
 }

@@ -26,10 +26,11 @@ import {
   type Detail,
   type Capabilities,
   type Source,
+  type SealFile,
 } from './types.js';
 export default function SealDetail() {
   const { sealRequestId } = useParams(),
-    { t } = useTranslation(),
+    { t, i18n } = useTranslation(),
     location = useLocation(),
     parent = useOutletContext<Source>(),
     r = useSealResource<{ data: Detail }>(
@@ -40,6 +41,11 @@ export default function SealDetail() {
     ),
     d = r.data?.data,
     cap = c.data?.data,
+    files = useSealResource<{ data: SealFile[] }>(
+      sealRequestId
+        ? `sealRequests/${encodeURIComponent(sealRequestId)}/files`
+        : null,
+    ),
     link = (pathname: string) => ({
       pathname,
       search: location.search,
@@ -76,10 +82,15 @@ export default function SealDetail() {
       ]
     : [];
   const ready = !r.loading && !c.loading && !r.error && !c.error,
-    primary = ops[0],
+    primary = ops.find((operation) =>
+      ['submit', 'approve', 'complete', 'retry', 'actualReturn'].includes(
+        operation.name,
+      ),
+    ),
     reload = () => {
-      r.invalidate();
-      c.invalidate();
+      r.reload();
+      c.reload();
+      files.reload();
       parent?.reload();
     };
   return (
@@ -105,20 +116,22 @@ export default function SealDetail() {
               {t(`seals.actions.${primary.name}`)}
             </Button>
           ) : null}
-          {ready && ops.length > 1 ? (
+          {ready && ops.some((operation) => operation !== primary) ? (
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant='outline' />}>
                 {t('seals.moreActions')}
               </DropdownMenuTrigger>
               <DropdownMenuContent align='end'>
-                {ops.slice(1).map((o) => (
-                  <DropdownMenuItem
-                    key={o.path}
-                    render={<Link to={link(o.path)} />}
-                  >
-                    {t(`seals.actions.${o.name}`)}
-                  </DropdownMenuItem>
-                ))}
+                {ops
+                  .filter((operation) => operation !== primary)
+                  .map((o) => (
+                    <DropdownMenuItem
+                      key={o.path}
+                      render={<Link to={link(o.path)} />}
+                    >
+                      {t(`seals.actions.${o.name}`)}
+                    </DropdownMenuItem>
+                  ))}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
@@ -135,7 +148,15 @@ export default function SealDetail() {
         </div>
       }
     >
-      {r.error || c.error ? <SealError error={r.error ?? c.error} /> : null}
+      {r.error || c.error ? (
+        <SealError
+          error={r.error ?? c.error}
+          retry={() => {
+            r.reload();
+            c.reload();
+          }}
+        />
+      ) : null}
       {r.loading && !d ? <SealSkeleton /> : null}
       {d ? (
         <div className='flex flex-col gap-6'>
@@ -162,7 +183,19 @@ export default function SealDetail() {
               const v =
                 field === 'applicant'
                   ? d.record.applicant.name
-                  : d.record[field as keyof typeof d.record];
+                  : field === 'contractId' && d.record.contractId
+                    ? (d.relatedNames?.contractName ??
+                      t('seals.relatedUnavailable'))
+                    : field === 'sealId' && d.record.sealId
+                      ? (d.relatedNames?.sealName ??
+                        t('seals.relatedUnavailable'))
+                      : field === 'ledgerId' && d.record.ledgerId
+                        ? d.relatedNames?.registrationSourceNumber
+                          ? t('seals.registrationSource', {
+                              number: d.relatedNames.registrationSourceNumber,
+                            })
+                          : t('seals.relatedUnavailable')
+                        : d.record[field as keyof typeof d.record];
               return (
                 <div key={field}>
                   <dt className='text-muted-foreground'>
@@ -175,9 +208,22 @@ export default function SealDetail() {
                         ? t(v ? 'seals.yes' : 'seals.no')
                         : field === 'sealType' && typeof v === 'string'
                           ? t(`seals.types.${v}`)
-                          : typeof v === 'string' || typeof v === 'number'
-                            ? String(v)
-                            : '—'}
+                          : [
+                                'returnDueAt',
+                                'sealedAt',
+                                'borrowedAt',
+                                'returnedAt',
+                              ].includes(field) && typeof v === 'string'
+                            ? new Intl.DateTimeFormat(i18n.language, {
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                                timeZone: cap?.timeZone ?? 'UTC',
+                              }).format(new Date(v))
+                            : typeof v === 'number'
+                              ? new Intl.NumberFormat(i18n.language).format(v)
+                              : typeof v === 'string'
+                                ? v
+                                : '—'}
                   </dd>
                 </div>
               );
@@ -187,8 +233,16 @@ export default function SealDetail() {
           {d.record.fileIds.length ? (
             <section>
               <h3 className='font-medium'>{t('seals.files')}</h3>
+              {files.error ? (
+                <SealError error={files.error} retry={files.reload} />
+              ) : null}
               {d.record.fileIds.map((id) => (
-                <FileDownload key={id} id={id} requestId={d.record.id} />
+                <FileDownload
+                  key={id}
+                  id={id}
+                  requestId={d.record.id}
+                  file={files.data?.data.find((file) => file.id === id)}
+                />
               ))}
             </section>
           ) : null}
@@ -203,7 +257,13 @@ export default function SealDetail() {
                   <UserName name={a.actor.name} /> ·{' '}
                   {t(`seals.actions.${a.name}`)}
                 </span>
-                <span>{a.createdAt}</span>
+                <span>
+                  {new Intl.DateTimeFormat(i18n.language, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                    timeZone: cap?.timeZone ?? 'UTC',
+                  }).format(new Date(a.createdAt))}
+                </span>
               </div>
             ))}
           </section>
@@ -223,7 +283,15 @@ export default function SealDetail() {
 }
 import { useState } from 'react';
 import { useApiClient } from '@nocobase/app-client';
-function FileDownload({ id, requestId }: { id: string; requestId: string }) {
+function FileDownload({
+  id,
+  requestId,
+  file,
+}: {
+  id: string;
+  requestId: string;
+  file?: SealFile;
+}) {
   const api = useApiClient(),
     { t } = useTranslation(),
     [error, setError] = useState<unknown>(),
@@ -232,7 +300,7 @@ function FileDownload({ id, requestId }: { id: string; requestId: string }) {
     <div className='flex flex-col gap-2'>
       <Button
         variant='outline'
-        disabled={busy}
+        disabled={busy || !file}
         onClick={() => {
           void (async () => {
             setBusy(true);
@@ -254,10 +322,12 @@ function FileDownload({ id, requestId }: { id: string; requestId: string }) {
                 }
                 chunks.push(new Uint8Array(value));
               }
-              const url = URL.createObjectURL(new Blob(chunks)),
+              const url = URL.createObjectURL(
+                  new Blob(chunks, { type: file?.mimeType }),
+                ),
                 a = document.createElement('a');
               a.href = url;
-              a.download = id;
+              a.download = file?.filename ?? '';
               a.click();
               URL.revokeObjectURL(url);
             } catch (e) {
@@ -268,7 +338,7 @@ function FileDownload({ id, requestId }: { id: string; requestId: string }) {
           })();
         }}
       >
-        {t('seals.download')} · {id}
+        {t('seals.download')} · {file?.filename ?? t('seals.files')}
       </Button>
       {error ? <SealError error={error} /> : null}
     </div>

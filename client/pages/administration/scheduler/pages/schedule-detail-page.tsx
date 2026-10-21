@@ -1,3 +1,11 @@
+import { LoadFailure } from '../../components/load-failure.js';
+import { responseStatus } from '../../components/response-status.js';
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
+import { ApplicationToolbar } from '#components/application-toolbar';
+import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
+import { ApplicationTableEmpty } from '#components/application-table-empty';
+import { FieldsSkeleton } from '#pages/platform/shared/states';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import { scheduleTitle } from './schedule-title.js';
 import { ResponsiveTable as Table } from '#components/responsive-table';
 import { EmptyState } from '../components/empty-state.js';
@@ -13,13 +21,9 @@ import {
 } from '#components/ui/table';
 import { RecordDetailDrawer } from '#components/record-detail-drawer';
 
-import {
-  ApiClientError,
-  apiClientToken,
-  useService,
-} from '@nocobase/app-client';
+import { apiClientToken, useService } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { CircleAlert } from 'lucide-react';
+import { ArrowUpDown, CircleAlert } from 'lucide-react';
 import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 
@@ -32,12 +36,6 @@ const SCHEDULER_NS = '@nocobase/app-plugin-scheduler';
 /** The detail page shows the newest occurrences only, as many as one page may hold. */
 const OCCURRENCE_PAGE_SIZE = 100;
 
-/** An unknown schedule id is a state the page renders, not an error to report. */
-function isScheduleNotFound(cause: unknown): boolean {
-  return (
-    cause instanceof ApiClientError && cause.reason === 'SCHEDULE_NOT_FOUND'
-  );
-}
 type TargetState = 'ready' | 'disabled' | 'missing' | 'invalid';
 type ViewStatus = 'active' | 'paused' | 'inactive' | 'targetIssue';
 type Translate = (
@@ -103,14 +101,24 @@ export default function ScheduleDetailPage(): ReactElement {
   const api = useService(apiClientToken);
   const { i18n, t } = useTranslation(SCHEDULER_NS);
   const { scheduleId = '' } = useParams();
+  const [actionError, setActionError] = useState(false);
+  const [savedName, setSavedName] = useState<string>();
   const [item, setItem] = useState<ScheduleItem>();
   const [occurrences, setOccurrences] = useState<readonly OccurrenceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [occurrencesLoading, setOccurrencesLoading] = useState(true);
   const [loadedScheduleId, setLoadedScheduleId] = useState<string>();
   const [loadedOccurrencesId, setLoadedOccurrencesId] = useState<string>();
-  const [error, setError] = useState<string>();
-  const [occurrencesError, setOccurrencesError] = useState<string>();
+  const [error, setError] = useState<unknown>();
+  const [occurrencesError, setOccurrencesError] = useState<unknown>();
+  const [revision, setRevision] = useState(0);
+  const refresh = () => {
+    setLoading(true);
+    setOccurrencesLoading(true);
+    setError(undefined);
+    setOccurrencesError(undefined);
+    setRevision((value) => value + 1);
+  };
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
@@ -122,18 +130,17 @@ export default function ScheduleDetailPage(): ReactElement {
         signal: controller.signal,
       })
       .then((response) => {
+        if (controller.signal.aborted) return;
         setError(undefined);
         setItem(response.data);
       })
       .catch((cause: unknown) => {
         if (controller.signal.aborted) return;
-        if (isScheduleNotFound(cause)) {
-          setError(undefined);
+        setError(cause);
+        if ([401, 403, 404].includes(responseStatus(cause) ?? 0)) {
           setItem(undefined);
-        } else
-          setError(
-            cause instanceof Error ? cause.message : t('errors.loadSchedules'),
-          );
+          setOccurrences([]);
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -161,15 +168,9 @@ export default function ScheduleDetailPage(): ReactElement {
           occurrenceTimer = setTimeout(() => void loadOccurrences(), 2_000);
       } catch (cause) {
         if (controller.signal.aborted) return;
-        if (isScheduleNotFound(cause)) {
-          setOccurrencesError(undefined);
+        setOccurrencesError(cause);
+        if ([401, 403, 404].includes(responseStatus(cause) ?? 0))
           setOccurrences([]);
-        } else
-          setOccurrencesError(
-            cause instanceof Error
-              ? cause.message
-              : t('errors.loadOccurrences'),
-          );
       } finally {
         if (!controller.signal.aborted) {
           setLoadedOccurrencesId(scheduleId);
@@ -182,7 +183,7 @@ export default function ScheduleDetailPage(): ReactElement {
       controller.abort();
       if (occurrenceTimer) clearTimeout(occurrenceTimer);
     };
-  }, [api, scheduleId, t]);
+  }, [api, scheduleId, t, revision]);
 
   const scheduleLoading = loading || loadedScheduleId !== scheduleId;
   const triggersLoading =
@@ -193,7 +194,11 @@ export default function ScheduleDetailPage(): ReactElement {
 
   return (
     <RecordDetailDrawer
-      title={item ? scheduleTitle(item, t) : t('page.title')}
+      title={
+        item && loadedScheduleId === scheduleId
+          ? scheduleTitle(item, t)
+          : t('page.title')
+      }
       description={item?.description}
       footer={
         item && !scheduleLoading ? (
@@ -206,6 +211,8 @@ export default function ScheduleDetailPage(): ReactElement {
                 : t('page.actions.enable')
             }
             onChange={(enabled) => {
+              setActionError(false);
+              setSavedName(undefined);
               setItem({ ...item, enabled });
               setUpdating(true);
               void api
@@ -213,8 +220,14 @@ export default function ScheduleDetailPage(): ReactElement {
                   method: 'POST',
                   path: `scheduler/schedules/${encodeURIComponent(item.id)}/${enabled ? 'enable' : 'disable'}`,
                 })
-                .then((response) => setItem(response.data))
-                .catch(() => setItem(item))
+                .then((response) => {
+                  setItem(response.data);
+                  setSavedName(scheduleTitle(response.data, t));
+                })
+                .catch(() => {
+                  setItem(item);
+                  setActionError(true);
+                })
                 .finally(() => setUpdating(false));
             }}
           />
@@ -222,15 +235,40 @@ export default function ScheduleDetailPage(): ReactElement {
       }
       beforeClose={() => !updating}
     >
+      <ApplicationToolbar
+        actions={
+          <ApplicationRefreshButton
+            label={t('page.refresh')}
+            loading={scheduleLoading || triggersLoading}
+            onClick={refresh}
+          />
+        }
+      />
+      {actionError ? (
+        <Alert variant='destructive'>
+          <AlertDescription>{t('errors.toggleFailed')}</AlertDescription>
+        </Alert>
+      ) : null}
+      {savedName ? (
+        <p role='status' className='text-sm text-muted-foreground'>
+          {t('page.saved', { name: savedName })}
+        </p>
+      ) : null}
       {currentError ? (
-        <div className='flex gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive'>
-          <CircleAlert className='size-5 shrink-0' />
-          {currentError}
-        </div>
-      ) : scheduleLoading ? (
-        <PageSection>
-          <EmptyState>{t('page.details.loading')}</EmptyState>
-        </PageSection>
+        <LoadFailure
+          error={currentError}
+          message={t(
+            responseStatus(currentError) === 403
+              ? 'errors.forbidden'
+              : responseStatus(currentError) === 404
+                ? 'errors.notFound'
+                : 'errors.loadSchedules',
+          )}
+          retryLabel={t('page.retry')}
+          onRetry={refresh}
+        />
+      ) : scheduleLoading && (!item || loadedScheduleId !== scheduleId) ? (
+        <FieldsSkeleton />
       ) : !item ? (
         <PageSection>
           <EmptyState>{t('page.details.notFound')}</EmptyState>
@@ -243,6 +281,7 @@ export default function ScheduleDetailPage(): ReactElement {
           occurrencesLoading={triggersLoading}
           language={i18n.resolvedLanguage ?? i18n.language}
           t={t}
+          onRetry={refresh}
         />
       )}
     </RecordDetailDrawer>
@@ -254,13 +293,15 @@ function Details({
   occurrences,
   occurrencesError,
   occurrencesLoading,
+  onRetry,
   language,
   t,
 }: {
   readonly item: ScheduleItem;
   readonly occurrences: readonly OccurrenceItem[];
-  readonly occurrencesError?: string;
+  readonly occurrencesError?: unknown;
   readonly occurrencesLoading: boolean;
+  readonly onRetry: () => void;
   readonly language: string;
   readonly t: Translate;
 }): ReactElement {
@@ -281,6 +322,7 @@ function Details({
       <Overview item={item} language={language} t={t} />
       <Triggers
         error={occurrencesError}
+        onRetry={onRetry}
         items={occurrences}
         loading={occurrencesLoading}
         t={t}
@@ -300,8 +342,10 @@ function Overview({
 }): ReactElement {
   return (
     <div className='grid min-w-0 items-start gap-5 xl:grid-cols-2'>
-      <PageSection className='p-5'>
-        <h2 className='mb-2 font-semibold'>{t('page.details.schedule')}</h2>
+      <PageSection className='p-4'>
+        <h2 className='mb-2 text-base font-medium'>
+          {t('page.details.schedule')}
+        </h2>
         <dl>
           <DefinitionRow
             label={t('page.details.frequency')}
@@ -348,8 +392,10 @@ function Overview({
           ) : null}
         </dl>
       </PageSection>
-      <PageSection className='p-5'>
-        <h2 className='mb-2 font-semibold'>{t('page.details.target')}</h2>
+      <PageSection className='p-4'>
+        <h2 className='mb-2 text-base font-medium'>
+          {t('page.details.target')}
+        </h2>
         <dl>
           <DefinitionRow
             label={t('page.details.targetName')}
@@ -375,34 +421,67 @@ function Overview({
 
 function Triggers({
   error,
+  onRetry,
   items,
   loading,
   t,
 }: {
-  readonly error?: string;
+  readonly error?: unknown;
+  readonly onRetry: () => void;
   readonly items: readonly OccurrenceItem[];
   readonly loading: boolean;
   readonly t: Translate;
 }): ReactElement {
+  const [sort, setSort] = useState<'startedAt' | 'duration'>('startedAt');
+  const [descending, setDescending] = useState(true);
   const pageSize = 10;
   const [page, setPage] = useState(1);
   const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
   const currentPage = Math.min(page, pageCount);
-  const pageItems = items.slice(
+  const sorted = [...items].sort((a, b) => {
+    const value = (item: OccurrenceItem) =>
+      sort === 'startedAt'
+        ? Date.parse(item.startedAt)
+        : item.finishedAt
+          ? Date.parse(item.finishedAt) - Date.parse(item.startedAt)
+          : null;
+    const left = value(a),
+      right = value(b);
+    if (left === null) return right === null ? 0 : 1;
+    if (right === null) return -1;
+    return (left - right) * (descending ? -1 : 1);
+  });
+  const pageItems = sorted.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize,
   );
   return (
     <PageSection>
-      <h2 className='border-b border-border p-4 font-semibold'>
+      {items.length >= OCCURRENCE_PAGE_SIZE ? (
+        <p className='p-4 text-sm text-muted-foreground'>
+          {t('page.limitNotice', { count: OCCURRENCE_PAGE_SIZE })}
+        </p>
+      ) : null}
+      <h2 className='border-b border-border p-4 text-base font-medium'>
         {t('page.details.triggers')}
       </h2>
       {error ? (
-        <p className='p-4 text-sm text-destructive'>{error}</p>
-      ) : loading ? (
-        <EmptyState>{t('page.triggersLoading')}</EmptyState>
+        <LoadFailure
+          error={error}
+          message={t(
+            responseStatus(error) === 403
+              ? 'errors.forbidden'
+              : responseStatus(error) === 404
+                ? 'errors.notFound'
+                : 'errors.loadOccurrences',
+          )}
+          retryLabel={t('page.retry')}
+          onRetry={onRetry}
+        />
+      ) : loading && items.length === 0 ? (
+        <ApplicationTableSkeleton columns={4} />
       ) : items.length === 0 ? (
-        <EmptyState>{t('page.triggersEmpty')}</EmptyState>
+        <ApplicationTableEmpty title={t('page.triggersEmpty')} />
       ) : (
         <>
           <Table
@@ -414,7 +493,26 @@ function Triggers({
                 {(['startedAt', 'duration', 'status', 'target'] as const).map(
                   (column) => (
                     <TableHead key={column}>
-                      {t(`page.triggerColumns.${column}`)}
+                      {column === 'startedAt' || column === 'duration' ? (
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={() => {
+                            if (sort === column)
+                              setDescending((value) => !value);
+                            else {
+                              setSort(column);
+                              setDescending(true);
+                            }
+                            setPage(1);
+                          }}
+                        >
+                          {t(`page.triggerColumns.${column}`)}
+                          <ArrowUpDown />
+                        </Button>
+                      ) : (
+                        t(`page.triggerColumns.${column}`)
+                      )}
                     </TableHead>
                   ),
                 )}
@@ -472,6 +570,7 @@ function Triggers({
               </span>
               <div className='flex gap-2'>
                 <Button
+                  variant='outline'
                   disabled={currentPage === 1}
                   onClick={() => setPage((value) => Math.max(1, value - 1))}
                   size='sm'
@@ -479,6 +578,7 @@ function Triggers({
                   {t('page.pagination.previous')}
                 </Button>
                 <Button
+                  variant='outline'
                   disabled={currentPage === pageCount}
                   onClick={() =>
                     setPage((value) => Math.min(pageCount, value + 1))

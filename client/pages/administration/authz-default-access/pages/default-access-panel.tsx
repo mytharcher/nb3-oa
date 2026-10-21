@@ -1,3 +1,5 @@
+import { AuthorizationFormError } from '../../authorization/components/validation-error.js';
+import { useToaster } from '@nocobase/app-client';
 import { ResponsiveTable as Table } from '#components/responsive-table';
 import {
   findResource,
@@ -80,6 +82,7 @@ export function DefaultAccessPanel({
     [authz],
   );
   const t = useAuthorizationTranslation();
+  const toaster = useToaster();
   const settings = { type: 'settings', id: 'authorization.default-access' };
   const { can: canCreate } = useCan({ resource: settings, action: 'create' });
   const { can: canUpdate } = useCan({ resource: settings, action: 'update' });
@@ -249,8 +252,15 @@ export function DefaultAccessPanel({
         !clear &&
         draft.actions.some((item) => incompleteSelection(item.selection))
       )
-        throw new Error(t('databasePolicy.conditionRequired'));
+        throw new AuthorizationFormError('databasePolicy.conditionRequired');
       await persist(draft, actions);
+      toaster.show({
+        type: 'success',
+        title: t(clear ? 'feedback.deleted' : 'feedback.saved', {
+          name: draft.label,
+        }),
+      });
+      setConfirmClear(false);
       close();
       await load();
     } catch (cause) {
@@ -303,7 +313,7 @@ export function DefaultAccessPanel({
         <div className='flex min-w-0 flex-col gap-3 sm:min-h-[60vh] sm:flex-row lg:min-h-0 lg:flex-1'>
           <nav
             aria-label={t('editors.resourceGroup')}
-            className='flex max-w-full shrink-0 gap-1 overflow-x-auto rounded-lg border bg-card p-2 sm:block sm:w-40 sm:space-y-1 lg:overflow-y-auto'
+            className='flex max-w-full shrink-0 gap-1 overflow-x-auto rounded-lg border bg-card p-2 sm:block sm:w-40 sm:flex flex-col gap-1 lg:overflow-y-auto'
           >
             {sections.map((item) => (
               <button
@@ -311,7 +321,7 @@ export function DefaultAccessPanel({
                 aria-current={
                   item.value === subsection?.value ? 'page' : undefined
                 }
-                className='flex min-h-[44px] shrink-0 items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm whitespace-nowrap sm:w-full hover:bg-muted aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary aria-[current=page]:font-medium'
+                className='flex min-h-11 shrink-0 items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm whitespace-nowrap sm:w-full hover:bg-muted aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary aria-[current=page]:font-medium'
                 onClick={() => {
                   setParams(
                     (current) => {
@@ -332,7 +342,7 @@ export function DefaultAccessPanel({
               </button>
             ))}
           </nav>
-          <div className='min-w-0 flex-1 space-y-3 lg:flex lg:min-h-0 lg:flex-col'>
+          <div className='min-w-0 flex-1 flex flex-col gap-3 lg:flex lg:min-h-0 lg:flex-col'>
             <FilterBar>
               <SearchField
                 label={t('permissionSets.picker.searchResources')}
@@ -376,11 +386,11 @@ export function DefaultAccessPanel({
               <div className='min-w-0 lg:min-h-0'>
                 <Table
                   containerClassName='[&>[data-slot=table-container]]:max-h-[65vh] [&>[data-slot=table-container]]:overflow-auto lg:[&>[data-slot=table-container]]:max-h-none'
-                  className='min-w-[36rem] table-fixed'
+                  className='min-w-[36rem] table-auto'
                 >
                   <TableHeader className='sticky top-0 z-10 bg-card'>
                     <TableRow>
-                      <TableHead className='w-[32%] px-5 py-3'>
+                      <TableHead className='px-5 py-3'>
                         {t('common.resource')}
                       </TableHead>
                       {compositeSection ? (
@@ -689,7 +699,10 @@ export function DefaultAccessPanel({
                             ),
                       });
                     return (
-                      <section key={action.value} className='space-y-4'>
+                      <section
+                        key={action.value}
+                        className='flex flex-col gap-4'
+                      >
                         <label className='flex flex-wrap items-center justify-between gap-3 font-medium'>
                           {action.label}
                           <SelectField
@@ -756,11 +769,14 @@ export function DefaultAccessPanel({
           </fieldset>
           <ConfirmDialog
             open={confirmClear}
-            title={t('defaultAccess.confirmDeleteTitle')}
+            busy={busy}
+            error={error}
+            title={t('defaultAccess.confirmDeleteTitle', {
+              resource: draft.label,
+            })}
             confirmLabel={t('ruleWorkspace.clearDefaults')}
             onCancel={() => setConfirmClear(false)}
             onConfirm={() => {
-              setConfirmClear(false);
               void save(true);
             }}
           >

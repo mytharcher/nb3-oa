@@ -64,3 +64,42 @@ describe('scheduler list', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+it('restores a failed schedule toggle and explains the failure without backend details', async () => {
+  api.request.mockReset();
+  const item = {
+    id: 's1',
+    key: 'oa.departure.daily-execution',
+    title: 'Departure execution',
+    cron: '30 0 * * *',
+    timezone: 'Asia/Shanghai',
+    enabled: true,
+    lifecycleState: 'active',
+    scheduleStatus: 'active',
+    targetState: 'ready',
+    runCount: 0,
+    targetType: 'app.departure-execution',
+  };
+  api.request.mockImplementation(({ method }: { method?: string }) =>
+    method === 'POST'
+      ? Promise.reject(new Error('private toggle detail'))
+      : Promise.resolve({ data: [item], meta: { total: 1 } }),
+  );
+  render(
+    <TestI18nProvider runtime={runtime} namespace={ns}>
+      <MemoryRouter>
+        <SchedulesPage />
+      </MemoryRouter>
+    </TestI18nProvider>,
+  );
+  const { default: userEvent } = await import('@testing-library/user-event');
+  await userEvent.click(
+    await screen.findByRole('switch', { name: scheduler.page.actions.disable }),
+  );
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent(scheduler.errors.toggleFailed);
+  expect(alert).not.toHaveTextContent('private toggle detail');
+  expect(
+    screen.getByRole('switch', { name: scheduler.page.actions.disable }),
+  ).toHaveAttribute('aria-checked', 'true');
+});

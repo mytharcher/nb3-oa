@@ -1,3 +1,5 @@
+import { useRouteFormCloseGuard } from '#hooks/use-route-form-close-guard';
+import { FormActions } from '#components/form-actions';
 import { createRequestKey } from '#lib/request-key';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -56,7 +58,6 @@ import { statusOf, fieldViolationsOf } from '../platform/shared/errors.js';
 import {
   ACCEPT,
   MAX_BYTES,
-  selectWidth,
   type Detail,
   type Options,
   type FileMetadata,
@@ -86,10 +87,7 @@ function Load() {
     o = options.data?.data,
     d = detail.data?.data;
   return (
-    <RouteFormPage
-      presentation='page'
-      title={t(documentId ? 'knowledge.edit' : 'knowledge.new')}
-    >
+    <RouteFormPage title={t(documentId ? 'knowledge.edit' : 'knowledge.new')}>
       <PageContainer className='max-w-4xl'>
         <BackButton />
         <PageHeader
@@ -164,7 +162,8 @@ function Fields({
   });
   const form = useForm({
     resolver: zodResolver(schema),
-    mode: 'onBlur',
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
     defaultValues: {
       title: detail?.document.title ?? '',
       folderId: detail?.document.folderId ?? 'root',
@@ -244,6 +243,7 @@ function Fields({
     kind = useWatch({ control: form.control, name: 'kind' }),
     departments = useWatch({ control: form.control, name: 'departmentIds' }),
     dutyRoles = useWatch({ control: form.control, name: 'dutyRoleCodes' });
+  useRouteFormCloseGuard(guard.beforeClose);
   const cancel = async () => {
     if (await guard.beforeClose())
       void navigate(
@@ -295,6 +295,7 @@ function Fields({
   return (
     <>
       <form
+        id='knowledge-document-form'
         className='flex flex-col gap-6'
         onChange={guard.markUnsaved}
         onSubmit={(event) => {
@@ -332,7 +333,7 @@ function Fields({
               parent.reload();
               toaster.show({
                 type: 'success',
-                title: t('knowledge.published'),
+                title: t('knowledge.published', { name: v.title }),
               });
               void navigate(
                 { pathname: '..', search: location.search },
@@ -342,10 +343,29 @@ function Fields({
           })(event);
         }}
       >
+        {command.error ? (
+          <>
+            <KnowledgeError error={command.error} />
+            {statusOf(command.error) === 409 && detail ? (
+              <Button
+                variant='outline'
+                className='w-fit'
+                type='button'
+                disabled={busy}
+                onClick={() => setCas(true)}
+              >
+                {t('knowledge.loadLatest')}
+              </Button>
+            ) : null}
+          </>
+        ) : null}
         <FieldGroup>
           <Field data-invalid={!!form.formState.errors.title}>
             <FieldLabel htmlFor='knowledge-title'>
-              {t('knowledge.titleField')} *
+              {t('knowledge.titleField')}{' '}
+              <span aria-hidden='true' className='text-destructive'>
+                *
+              </span>
             </FieldLabel>
             <Input
               id='knowledge-title'
@@ -385,7 +405,7 @@ function Fields({
                             ?.title ?? t('knowledge.restrictedOption'))}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className={selectWidth}>
+                  <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                     <SelectGroup>
                       <SelectItem value='root'>
                         {t('knowledge.unfiled')}
@@ -444,7 +464,10 @@ function Fields({
           <FieldDescription>{t('knowledge.audienceHint')}</FieldDescription>
           <Field>
             <FieldLabel htmlFor='knowledge-kind'>
-              {t('knowledge.kind')} *
+              {t('knowledge.kind')}{' '}
+              <span aria-hidden='true' className='text-destructive'>
+                *
+              </span>
             </FieldLabel>
             <Controller
               control={form.control}
@@ -464,7 +487,7 @@ function Fields({
                       {t(`knowledge.kinds.${field.value}`)}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className={selectWidth}>
+                  <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                     <SelectGroup>
                       {(['markdown', 'file'] as const).map((k) => (
                         <SelectItem key={k} value={k}>
@@ -498,7 +521,10 @@ function Fields({
           ) : (
             <Field>
               <FieldLabel htmlFor='knowledge-file'>
-                {t('knowledge.file')} *
+                {t('knowledge.file')}{' '}
+                <span aria-hidden='true' className='text-destructive'>
+                  *
+                </span>
               </FieldLabel>
               <Input
                 id='knowledge-file'
@@ -525,6 +551,7 @@ function Fields({
                 <p>{t('knowledge.retainFile')}</p>
               ) : null}
               <Button
+                variant='outline'
                 className='w-fit'
                 type='button'
                 disabled={busy || !file || !!uploaded}
@@ -554,23 +581,8 @@ function Fields({
             </Field>
           )}
         </FieldGroup>
-        {command.error ? (
-          <>
-            <KnowledgeError error={command.error} />
-            {statusOf(command.error) === 409 && detail ? (
-              <Button
-                className='w-fit'
-                type='button'
-                variant='outline'
-                disabled={busy}
-                onClick={() => setCas(true)}
-              >
-                {t('knowledge.loadLatest')}
-              </Button>
-            ) : null}
-          </>
-        ) : null}
-        <div className='flex flex-wrap gap-2'>
+
+        <FormActions>
           <Button
             type='button'
             variant='outline'
@@ -581,6 +593,7 @@ function Fields({
           </Button>
           <Button
             type='submit'
+            form='knowledge-document-form'
             disabled={
               busy ||
               (kind === 'file' && !uploaded && (!!file || !latest?.fileId))
@@ -588,7 +601,7 @@ function Fields({
           >
             {t(busy ? 'knowledge.saving' : 'knowledge.publishVersion')}
           </Button>
-        </div>
+        </FormActions>
       </form>
       <KnowledgeDiscard
         guard={guard}
@@ -601,9 +614,11 @@ function Fields({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t('knowledge.loadLatest')} —{' '}
-              {detail?.document.title ??
-                (form.getValues('title') || t('knowledge.new'))}
+              {t('knowledge.reloadNamed', {
+                name:
+                  detail?.document.title ??
+                  (form.getValues('title') || t('knowledge.new')),
+              })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t('knowledge.replaceDraft')}
@@ -647,6 +662,8 @@ function Audience({
 }) {
   const { t } = useTranslation(),
     [search, setSearch] = useState(''),
+    [draftSearch, setDraftSearch] = useState(''),
+    [composing, setComposing] = useState(false),
     [page, setPage] = useState(1),
     r = useKnowledgeResource<{ data: Options }>('knowledge/formOptions', {
       ...(documentId ? { documentId } : {}),
@@ -654,9 +671,28 @@ function Audience({
       search,
       page: String(page),
     }),
-    items = [...selected, ...(r.data?.data.audience.items ?? [])].filter(
-      (v, i, a) => a.findIndex((x) => x.id === v.id) === i,
-    );
+    [cache, setCache] = useState<{
+      identity: string;
+      data?: { data: Options };
+      items: Options['selected']['departments'];
+    }>({ identity: '', items: [] });
+  const identity = JSON.stringify([documentId, kind]);
+  if (r.data && cache.data !== r.data) {
+    setCache({ identity, data: r.data, items: r.data.data.audience.items });
+  }
+  const items = [
+    ...selected,
+    ...(r.data?.data.audience.items ??
+      (cache.identity === identity ? cache.items : [])),
+  ].filter((v, i, a) => a.findIndex((x) => x.id === v.id) === i);
+  useEffect(() => {
+    if (composing) return;
+    const timer = window.setTimeout(() => {
+      setSearch(draftSearch);
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [draftSearch, composing]);
   return (
     <fieldset
       id={`knowledge-audience-${name}`}
@@ -673,15 +709,20 @@ function Audience({
         aria-label={t(
           `knowledge.${kind === 'department' ? 'searchDepartments' : 'searchDutyRoles'}`,
         )}
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setPage(1);
+        placeholder={t(
+          `knowledge.${kind === 'department' ? 'searchDepartments' : 'searchDutyRoles'}`,
+        )}
+        value={draftSearch}
+        onCompositionStart={() => setComposing(true)}
+        onCompositionEnd={(e) => {
+          setDraftSearch(e.currentTarget.value);
+          setComposing(false);
         }}
+        onChange={(e) => setDraftSearch(e.target.value)}
       />
       {r.error ? (
         <KnowledgeError error={r.error} retry={r.reload} />
-      ) : r.loading ? (
+      ) : r.loading && !items.length ? (
         <KnowledgeSkeleton />
       ) : items.length ? (
         items.map((item) => (

@@ -161,7 +161,13 @@ function Body({ pending }: { pending: (v: boolean) => void }) {
     pending(false);
     if (result) {
       parent.reload();
-      toast.show({ type: 'success', title: t('certificates.saved') });
+      toast.show({
+        type: 'success',
+        title: t('certificates.savedRecord', {
+          name:
+            r.data?.data.record.applicant.name ?? t('approvals.unknownPerson'),
+        }),
+      });
       await close();
     }
   }

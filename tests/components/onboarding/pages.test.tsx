@@ -177,17 +177,25 @@ beforeEach(() => {
               ? { data: [] }
               : path === 'requisitions'
                 ? { data: [] }
-                : path === 'directory'
-                  ? { data: [] }
-                  : { data: detail },
+                : path.endsWith('/options') && path !== 'onboardings/options'
+                  ? {
+                      data: [
+                        { id: 'd', title: 'Engineering' },
+                        { id: 'p', title: 'Developer' },
+                        { id: 'g', title: 'Grade A' },
+                      ],
+                    }
+                  : path === 'directory'
+                    ? { data: [] }
+                    : { data: detail },
   );
 });
 it('keeps initiation available on an empty list and uses real status pagination query', async () => {
   mount(<List />, '/onboardings?status=cancelled&page=2');
   expect(
-    await screen.findByRole('button', { name: 'Create onboarding' }),
+    await screen.findByRole('button', { name: 'New onboarding' }),
   ).toBeInTheDocument();
-  await screen.findByText('No onboarding records');
+  await screen.findByText('No onboarding records match your filters');
   expect(api.request).toHaveBeenCalledWith(
     expect.objectContaining({
       path: 'onboardings',
@@ -264,15 +272,21 @@ it('unknown outcome freezes editing and retries identical command', async () => 
   const writes = api.request.mock.calls.filter(([r]) => r.method);
   expect(writes[0][0].json).toEqual(writes[1][0].json);
 });
-it('stale conflict clears bank input and prevents an obsolete command retry', async () => {
+it('stale conflict preserves bank input and prevents an obsolete command retry', async () => {
+  let attempts = 0;
   api.request.mockImplementation(async ({ method }: { method?: string }) => {
-    if (method)
+    if (method && attempts++ === 0)
       throw new ApiClientError('stale', {
         status: 409,
         method: 'POST',
         url: 'onboardings/o1/tasks/o1:finance/actions',
       });
-    return { data: { ...detail, tasks: [task('finance')] } };
+    return {
+      data: {
+        ...detail,
+        tasks: [{ ...task('finance'), version: attempts ? 8 : 3 }],
+      },
+    };
   });
   mount(<Action />, '/onboardings/o1/tasks/o1%3Afinance/complete');
   await screen.findByLabelText(fieldLabel('Bank account'));
@@ -288,11 +302,33 @@ it('stale conflict clears bank input and prevents an obsolete command retry', as
     });
   fireEvent.submit(document.querySelector('form')!);
   await waitFor(() =>
-    expect(screen.getByLabelText(fieldLabel('Bank account'))).toHaveValue(''),
+    expect(screen.getByLabelText(fieldLabel('Bank account'))).toHaveValue(
+      'secret-account',
+    ),
   );
   expect(
     screen.getByRole('button', { name: 'Complete', exact: true }),
   ).toBeDisabled();
+  await userEvent.click(
+    await screen.findByRole('button', { name: 'Load latest' }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Complete', exact: true }),
+    ).toBeEnabled(),
+  );
+  expect(screen.getByLabelText(fieldLabel('Bank account'))).toHaveValue(
+    'secret-account',
+  );
+  fireEvent.submit(document.querySelector('form')!);
+  await waitFor(() =>
+    expect(api.request.mock.calls.filter(([r]) => r.method)).toHaveLength(2),
+  );
+  const writes = api.request.mock.calls.filter(([r]) => r.method);
+  expect(writes[0][0].json.expectedVersion).toBe(3);
+  expect(writes[1][0].json.expectedVersion).toBe(8);
+  expect(writes[1][0].json.requestId).not.toBe(writes[0][0].json.requestId);
+  expect(writes[1][0].json.facts.bankAccount).toBe('secret-account');
 });
 it('authorization revision drops unsaved private task fields', async () => {
   api.request.mockResolvedValue({
@@ -369,13 +405,21 @@ it('creates from a real current recruiting allocation with immutable version and
                     },
                   ],
                 }
-              : path === 'directory'
+              : path.endsWith('/options') && path !== 'onboardings/options'
                 ? {
                     data: [
-                      { id: 'mentor-1', name: 'Actual mentor', code: 'M-1' },
+                      { id: 'd', title: 'Engineering' },
+                      { id: 'p', title: 'Developer' },
+                      { id: 'g', title: 'Grade A' },
                     ],
                   }
-                : { data: detail },
+                : path === 'directory'
+                  ? {
+                      data: [
+                        { id: 'mentor-1', name: 'Actual mentor', code: 'M-1' },
+                      ],
+                    }
+                  : { data: detail },
   );
   mount(<Form />, '/onboardings/new');
   const user = userEvent.setup();
@@ -386,7 +430,11 @@ it('creates from a real current recruiting allocation with immutable version and
   expect(
     screen.queryByRole('option', { name: /closed/ }),
   ).not.toBeInTheDocument();
-  await user.click(await screen.findByRole('option', { name: /allocation-1/ }));
+  await user.click(
+    await screen.findByRole('option', {
+      name: /Engineering.*Developer.*Grade A/,
+    }),
+  );
   for (const [label, value] of [
     ['Employee name', 'Synthetic hire'],
     ['Account email', 'synthetic@example.test'],
@@ -403,7 +451,7 @@ it('creates from a real current recruiting allocation with immutable version and
     });
   await user.click(screen.getByLabelText(fieldLabel('Mentor employee')));
   await user.click(
-    await screen.findByRole('option', { name: 'Actual mentor (M-1)' }),
+    await screen.findByRole('option', { name: /Actual mentor.*M-1/ }),
   );
   fireEvent.submit(document.querySelector('form')!);
   await waitFor(() =>
@@ -515,7 +563,7 @@ it('cancellation requires a named destructive confirmation before its current-ve
     'New employee',
   );
   const buttons = screen.getAllByRole('button', {
-    name: 'Cancel onboarding',
+    name: 'Confirm',
     exact: true,
   });
   fireEvent.click(buttons[buttons.length - 1]);

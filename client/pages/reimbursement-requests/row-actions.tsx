@@ -1,3 +1,4 @@
+import { Spinner } from '#components/ui/spinner';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -56,6 +57,12 @@ export function ReimbursementRowActions({
           <DropdownMenuItem render={<Link to={link(record.id)} />}>
             {t('reimbursementRequests.details')}
           </DropdownMenuItem>
+          {resource.loading ? (
+            <DropdownMenuItem disabled>
+              <Spinner data-icon='inline-start' />
+              {t('reimbursementRequests.edit')}
+            </DropdownMenuItem>
+          ) : null}
           {editable ? (
             <DropdownMenuItem render={<Link to={link(`edit/${record.id}`)} />}>
               {t('reimbursementRequests.edit')}

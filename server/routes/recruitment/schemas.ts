@@ -226,7 +226,9 @@ export const ListQuery = z.strictObject({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   q: z.string().max(100).optional(),
   status: z.string().max(64).optional(),
-  orderBy: z.enum(['createdAt', 'statusChangedAt']).default('createdAt'),
+  orderBy: z
+    .enum(['createdAt', 'statusChangedAt', 'quantity'])
+    .default('createdAt'),
   desc: z
     .enum(['true', 'false'])
     .default('true')

@@ -1,4 +1,8 @@
 export default {
+  recordName: '“{{name}}”的人事异动',
+  namedAction: '{{action}}“{{name}}”？',
+  savedRecord: '已保存“{{name}}”的人事异动',
+
   businessErrors: {
     TRANSFER_INVALID_DATE: '请选择有效的人事变动生效日期。',
     TRANSFER_NO_CHANGE: '尚未修改业务内容，请修改至少一项允许变更的字段。',

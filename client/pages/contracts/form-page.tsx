@@ -679,73 +679,80 @@ function Form({ actorId }: { actorId: string }) {
                       </FieldError>
                     )}
                   </Field>
-                  <Field>
-                    <FieldLabel htmlFor='contract-counterpartyKind'>
-                      {t('contracts.counterpartyKind')} *
-                    </FieldLabel>
-                    <Choice
-                      id='contract-counterpartyKind'
-                      label={t('contracts.counterpartyKind')}
-                      value={values.counterparty.kind}
-                      disabled={frozen}
-                      items={['customer', 'vendor'].map((v) => ({
-                        value: v,
-                        label: t(`contracts.${v}`),
-                      }))}
-                      onChange={(kind) =>
-                        change(
-                          'counterparty',
-                          kind === 'vendor'
-                            ? { kind: 'vendor', id: '', name: '', category: '' }
-                            : { kind: 'customer', name: '' },
-                        )
-                      }
-                    />
-                  </Field>
-                  <Field data-invalid={!!errors.counterparty}>
-                    <FieldLabel htmlFor='contract-counterparty'>
-                      {t('contracts.counterparty')} *
-                    </FieldLabel>
-                    {values.counterparty.kind === 'vendor' ? (
+                  <div className='grid gap-4 sm:grid-cols-[8rem_1fr]'>
+                    <Field>
+                      <FieldLabel htmlFor='contract-counterpartyKind'>
+                        {t('contracts.counterpartyKind')} *
+                      </FieldLabel>
                       <Choice
-                        id='contract-counterparty'
-                        label={t('contracts.counterparty')}
+                        id='contract-counterpartyKind'
+                        label={t('contracts.counterpartyKind')}
+                        value={values.counterparty.kind}
                         disabled={frozen}
-                        invalid={!!errors.counterparty}
-                        value={values.counterparty.id}
-                        items={(options.data?.vendors ?? []).map((v) => ({
-                          value: v.id,
-                          label: v.name,
+                        items={['customer', 'vendor'].map((v) => ({
+                          value: v,
+                          label: t(`contracts.${v}`),
                         }))}
-                        onChange={(id) => {
-                          const v = options.data?.vendors.find(
-                            (v) => v.id === id,
-                          );
-                          if (v)
-                            change('counterparty', { kind: 'vendor', ...v });
-                        }}
-                      />
-                    ) : (
-                      <Input
-                        id='contract-counterparty'
-                        disabled={frozen}
-                        aria-invalid={!!errors.counterparty}
-                        maxLength={255}
-                        value={values.counterparty.name}
-                        onChange={(e) =>
-                          change('counterparty', {
-                            kind: 'customer',
-                            name: e.target.value,
-                          })
+                        onChange={(kind) =>
+                          change(
+                            'counterparty',
+                            kind === 'vendor'
+                              ? {
+                                  kind: 'vendor',
+                                  id: '',
+                                  name: '',
+                                  category: '',
+                                }
+                              : { kind: 'customer', name: '' },
+                          )
                         }
                       />
-                    )}
-                    {errors.counterparty && (
-                      <FieldError>
-                        {t(`contracts.${errors.counterparty}`)}
-                      </FieldError>
-                    )}
-                  </Field>
+                    </Field>
+                    <Field data-invalid={!!errors.counterparty}>
+                      <FieldLabel htmlFor='contract-counterparty'>
+                        {t('contracts.counterparty')} *
+                      </FieldLabel>
+                      {values.counterparty.kind === 'vendor' ? (
+                        <Choice
+                          id='contract-counterparty'
+                          label={t('contracts.counterparty')}
+                          disabled={frozen}
+                          invalid={!!errors.counterparty}
+                          value={values.counterparty.id}
+                          items={(options.data?.vendors ?? []).map((v) => ({
+                            value: v.id,
+                            label: v.name,
+                          }))}
+                          onChange={(id) => {
+                            const v = options.data?.vendors.find(
+                              (v) => v.id === id,
+                            );
+                            if (v)
+                              change('counterparty', { kind: 'vendor', ...v });
+                          }}
+                        />
+                      ) : (
+                        <Input
+                          id='contract-counterparty'
+                          disabled={frozen}
+                          aria-invalid={!!errors.counterparty}
+                          maxLength={255}
+                          value={values.counterparty.name}
+                          onChange={(e) =>
+                            change('counterparty', {
+                              kind: 'customer',
+                              name: e.target.value,
+                            })
+                          }
+                        />
+                      )}
+                      {errors.counterparty && (
+                        <FieldError>
+                          {t(`contracts.${errors.counterparty}`)}
+                        </FieldError>
+                      )}
+                    </Field>
+                  </div>
                   <Field data-invalid={!!errors.amountCents}>
                     <FieldLabel htmlFor='contract-amountCents'>
                       {t('contracts.amountCents')} *

@@ -1,5 +1,7 @@
 export default {
   budgets: {
+    create: 'Create',
+
     title: 'Budget management',
     description:
       'Finance records annual budgets and audited manual changes; reserved and used funds come from business documents.',

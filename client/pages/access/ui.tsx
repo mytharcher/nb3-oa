@@ -33,6 +33,7 @@ export function AccessTabs(): ReactElement {
       <Button
         variant={pathname.includes('/people') ? 'ghost' : 'secondary'}
         nativeButton={false}
+        aria-current={!pathname.includes('/people') ? 'page' : undefined}
         render={<Link to='/access/roles' />}
       >
         {t('access.roles')}
@@ -41,6 +42,7 @@ export function AccessTabs(): ReactElement {
         <Button
           variant={pathname.includes('/people') ? 'secondary' : 'ghost'}
           nativeButton={false}
+          aria-current={pathname.includes('/people') ? 'page' : undefined}
           render={<Link to='/access/people' />}
         >
           {t('access.people')}
@@ -52,7 +54,11 @@ export function AccessTabs(): ReactElement {
 export function Loading(): ReactElement {
   const { t } = useTranslation();
   return (
-    <div aria-label={t('access.loading')} className='flex flex-col gap-4'>
+    <div
+      role='status'
+      aria-label={t('access.loading')}
+      className='flex flex-col gap-4'
+    >
       {[0, 1, 2].map((key) => (
         <Skeleton key={key} className='h-12 w-full' />
       ))}

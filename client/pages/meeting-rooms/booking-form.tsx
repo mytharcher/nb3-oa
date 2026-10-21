@@ -193,8 +193,8 @@ function FormBody({
             .regex(/^\d{2}:\d{2}$/, t('meetingRooms.validation.time')),
           frequency: z.enum(['none', 'daily', 'weekly']),
           count: z
-            .number()
-            .int()
+            .number({ error: t('meetingRooms.validation.count') })
+            .int(t('meetingRooms.validation.count'))
             .min(1, t('meetingRooms.validation.count'))
             .max(52, t('meetingRooms.validation.count')),
         })
@@ -450,7 +450,7 @@ function FormBody({
                           placeholder={t('meetingRooms.selectRoom')}
                         />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                         <SelectGroup>
                           {roomItems.map((item) => (
                             <SelectItem key={item.value} value={item.value}>
@@ -516,62 +516,64 @@ function FormBody({
           <FieldSet>
             <FieldLegend>{t('meetingRooms.form.time')}</FieldLegend>
             <FieldGroup>
-              <Controller
-                name='date'
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor='booking-date'>
-                      {t('meetingRooms.fields.date')}
-                      <span aria-hidden='true' className='text-destructive'>
-                        *
-                      </span>
-                    </FieldLabel>
-                    <DatePicker
-                      id='booking-date'
-                      value={
-                        field.value
-                          ? new Date(`${field.value}T12:00:00`)
-                          : undefined
-                      }
-                      onChange={(date) =>
-                        field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
-                      }
-                      onBlur={field.onBlur}
-                      invalid={fieldState.invalid}
-                      disabled={busy || future}
-                      className='w-full sm:w-60'
-                    />
-                    <FieldError errors={[fieldState.error]} />
-                  </Field>
-                )}
-              />
-              {(['startTime', 'endTime'] as const).map((name) => (
+              <div className='grid gap-4 sm:grid-cols-[minmax(0,1fr)_8rem_8rem]'>
                 <Controller
-                  key={name}
-                  name={name}
+                  name='date'
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor={`booking-${name}`}>
-                        {t(`meetingRooms.fields.${name}`)}
+                      <FieldLabel htmlFor='booking-date'>
+                        {t('meetingRooms.fields.date')}
                         <span aria-hidden='true' className='text-destructive'>
                           *
                         </span>
                       </FieldLabel>
-                      <Input
-                        {...field}
-                        id={`booking-${name}`}
-                        type='time'
-                        aria-invalid={fieldState.invalid}
-                        aria-required='true'
-                        disabled={busy}
+                      <DatePicker
+                        id='booking-date'
+                        value={
+                          field.value
+                            ? new Date(`${field.value}T12:00:00`)
+                            : undefined
+                        }
+                        onChange={(date) =>
+                          field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
+                        }
+                        onBlur={field.onBlur}
+                        invalid={fieldState.invalid}
+                        disabled={busy || future}
+                        className='w-full'
                       />
                       <FieldError errors={[fieldState.error]} />
                     </Field>
                   )}
                 />
-              ))}
+                {(['startTime', 'endTime'] as const).map((name) => (
+                  <Controller
+                    key={name}
+                    name={name}
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor={`booking-${name}`}>
+                          {t(`meetingRooms.fields.${name}`)}
+                          <span aria-hidden='true' className='text-destructive'>
+                            *
+                          </span>
+                        </FieldLabel>
+                        <Input
+                          {...field}
+                          id={`booking-${name}`}
+                          type='time'
+                          aria-invalid={fieldState.invalid}
+                          aria-required='true'
+                          disabled={busy}
+                        />
+                        <FieldError errors={[fieldState.error]} />
+                      </Field>
+                    )}
+                  />
+                ))}
+              </div>
               <Availability
                 roomId={values.roomId ?? ''}
                 date={values.date ?? ''}
@@ -583,72 +585,80 @@ function FormBody({
             <FieldSet>
               <FieldLegend>{t('meetingRooms.form.repeat')}</FieldLegend>
               <FieldGroup>
-                <Controller
-                  name='frequency'
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor='booking-frequency'>
-                        {t('meetingRooms.fields.recurrence')}
-                      </FieldLabel>
-                      <Select
-                        items={frequencyItems}
-                        value={field.value}
-                        onValueChange={(v) => {
-                          if (v) field.onChange(v);
-                        }}
-                      >
-                        <SelectTrigger
-                          id='booking-frequency'
-                          ref={field.ref}
-                          onBlur={field.onBlur}
-                          disabled={busy}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            {frequencyItems.map((item) => (
-                              <SelectItem key={item.value} value={item.value}>
-                                {item.label}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                      <FieldError errors={[fieldState.error]} />
-                    </Field>
-                  )}
-                />
-                {(values.frequency ?? 'none') !== 'none' ? (
+                <div className='grid gap-4 sm:grid-cols-2'>
                   <Controller
-                    name='count'
+                    name='frequency'
                     control={form.control}
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor='booking-count'>
-                          {t('meetingRooms.fields.count')}
-                          <span aria-hidden='true' className='text-destructive'>
-                            *
-                          </span>
+                        <FieldLabel htmlFor='booking-frequency'>
+                          {t('meetingRooms.fields.recurrence')}
                         </FieldLabel>
-                        <Input
-                          id='booking-count'
-                          type='number'
-                          ref={field.ref}
-                          onBlur={field.onBlur}
+                        <Select
+                          items={frequencyItems}
                           value={field.value}
-                          onChange={(e) =>
-                            field.onChange(Number(e.target.value))
-                          }
-                          aria-invalid={fieldState.invalid}
-                          disabled={busy}
-                        />
+                          onValueChange={(v) => {
+                            if (v) field.onChange(v);
+                          }}
+                        >
+                          <SelectTrigger
+                            id='booking-frequency'
+                            ref={field.ref}
+                            onBlur={field.onBlur}
+                            disabled={busy}
+                            className='w-full'
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
+                            <SelectGroup>
+                              {frequencyItems.map((item) => (
+                                <SelectItem key={item.value} value={item.value}>
+                                  {item.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
                         <FieldError errors={[fieldState.error]} />
                       </Field>
                     )}
                   />
-                ) : null}
+                  {(values.frequency ?? 'none') !== 'none' ? (
+                    <Controller
+                      name='count'
+                      control={form.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel htmlFor='booking-count'>
+                            {t('meetingRooms.fields.count')}
+                            <span
+                              aria-hidden='true'
+                              className='text-destructive'
+                            >
+                              *
+                            </span>
+                          </FieldLabel>
+                          <Input
+                            id='booking-count'
+                            type='number'
+                            ref={field.ref}
+                            onBlur={field.onBlur}
+                            value={
+                              Number.isFinite(field.value) ? field.value : ''
+                            }
+                            onChange={(e) =>
+                              field.onChange(e.target.valueAsNumber)
+                            }
+                            aria-invalid={fieldState.invalid}
+                            disabled={busy}
+                          />
+                          <FieldError errors={[fieldState.error]} />
+                        </Field>
+                      )}
+                    />
+                  ) : null}
+                </div>
               </FieldGroup>
             </FieldSet>
           ) : booking.seriesId ? (
@@ -693,6 +703,7 @@ function FormBody({
               {t('meetingRooms.keepEditing')}
             </AlertDialogCancel>
             <AlertDialogAction
+              variant='destructive'
               onClick={() => {
                 savedRef.current = true;
                 void goBack();

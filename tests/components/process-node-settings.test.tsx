@@ -10,6 +10,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router';
@@ -148,7 +149,7 @@ it('validates a node rule, saves through the existing service and preserves the 
   expect(input).toHaveValue('3');
   expect(screen.getByRole('dialog')).toHaveAttribute(
     'data-presentation',
-    'dialog',
+    'drawer',
   );
   await userEvent.clear(input);
   await userEvent.type(input, '2.3');
@@ -374,4 +375,36 @@ it('preserves vendor drafts when refreshing after a conflict fails', async () =>
   await screen.findByText(enUS.processManagement.loadFailed);
   expect(reason).toHaveValue('Retained draft');
   expect(reason).toBeInTheDocument();
+});
+
+it('guards node parameter dismissal and preserves the origin after discarding', async () => {
+  const { router } = show();
+  const input = await screen.findByLabelText(/New value/);
+  await userEvent.clear(input);
+  await userEvent.type(input, '4.5');
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Close', exact: true }),
+  );
+  await userEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'Continue editing',
+    }),
+  );
+  expect(input).toHaveValue('4.5');
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Cancel', exact: true }),
+  );
+  await userEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'Discard changes',
+    }),
+  );
+  await waitFor(() =>
+    expect(router.state.location.pathname).toBe('/definitions/oa.leave'),
+  );
+  expect(router.state.location.search).toBe('?search=keep');
+  expect(router.state.location.hash).toBe('#diagram');
+  expect(
+    api.request.mock.calls.some(([request]) => request.method === 'POST'),
+  ).toBe(false);
 });

@@ -57,7 +57,17 @@ const { resource, offers } = vi.hoisted(() => ({
   offers: [{ key: 'urge-key', name: 'urge', target: { runId: 'run-1' } }],
 }));
 vi.mock('../../../client/pages/approvals/use-resource.js', () => ({
-  useResource: () => resource,
+  useResource: (path: string) =>
+    path === 'reimbursementRequests/options'
+      ? {
+          ...resource,
+          data: {
+            categories: [
+              { code: 'hotel-saved', label: { 'en-US': 'Saved lodging' } },
+            ],
+          },
+        }
+      : resource,
 }));
 vi.mock('@nocobase/app-plugin-authentication/client', () => ({
   useAuthentication: () => ({ session: { user: { id: 'owner' } } }),
@@ -127,5 +137,5 @@ it('links lifecycle offers to the real record and retains urge and frozen standa
   ).toBe('/reimbursementRequests/r1/action/forcePayException/r1?view=all');
   expect(screen.getByRole('button', { name: /Urge|Remind/i })).toBeTruthy();
   expect(screen.getByText('GRADE-SAVED')).toBeTruthy();
-  expect(screen.getByText('hotel-saved')).toBeTruthy();
+  expect(screen.getByText('Saved lodging')).toBeTruthy();
 });

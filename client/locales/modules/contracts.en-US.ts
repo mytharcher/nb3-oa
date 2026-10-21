@@ -21,7 +21,7 @@ export default {
     counterparty: 'Counterparty',
     counterpartyKind: 'Counterparty type',
     customer: 'Customer',
-    vendor: 'Qualified supplier',
+    vendor: 'Qualified vendor',
     amountCents: 'Contract amount (yuan)',
     startsOn: 'Start date',
     endsOn: 'End date',
@@ -220,7 +220,7 @@ export default {
       CONTRACT_STORED_ID_INVALID:
         'A stored contract identity is invalid. Contact an administrator.',
       CONTRACT_SUPPLIER_INVALID:
-        'The supplier must be active and have approved qualification. Refresh its qualification before approval.',
+        'The vendor must be active and have approved qualification. Refresh its qualification before approval.',
       CONTRACT_TARGET_MISMATCH:
         'The approval target belongs to another contract request.',
       CONTRACT_TEXT_INVALID:

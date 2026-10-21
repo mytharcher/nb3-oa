@@ -1,5 +1,11 @@
 export default {
   financeAssignments: {
+    create: '创建',
+
+    saved: '已保存“{{name}}”的财务分工',
+    saveFailed: '财务分工未能保存，请检查输入后重试。',
+    disableTitle: '停用“{{name}}”的财务分工？',
+
     loadLatest: '加载最新配置',
     latestSummary: '最新配置：{{name}} / {{status}}。当前输入保持不变。',
     adoptVersion: '确认以此版本提交当前修改',

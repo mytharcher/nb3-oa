@@ -4,7 +4,7 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useOutletContext } from 'react-router';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { Button } from '#components/ui/button';
 import { Field, FieldLabel } from '#components/ui/field';
@@ -37,7 +37,8 @@ export default function PrintDialog() {
   const workingRef = useRef(false);
   const [state, setState] = useState({ ready: false, busy: false });
   return (
-    <RouteDialog
+    <RouteDrawer
+      className='sm:max-w-2xl'
       title={t('templatePrintUI.printTitle')}
       description={t('templatePrintUI.printHint')}
       beforeClose={() => !workingRef.current}
@@ -48,7 +49,7 @@ export default function PrintDialog() {
         workingRef={workingRef}
         onState={setState}
       />
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 function Body({
@@ -217,7 +218,10 @@ function Body({
         <>
           <Field>
             <FieldLabel htmlFor='print-template-choice'>
-              {t('templatePrintUI.template')} *
+              {t('templatePrintUI.template')}{' '}
+              <span aria-hidden='true' className='text-destructive'>
+                *
+              </span>
             </FieldLabel>
             <Select
               items={

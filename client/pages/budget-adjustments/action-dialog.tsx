@@ -550,7 +550,7 @@ function ActionForm({
                     <SelectTrigger id='approval-mode'>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                       <SelectGroup>
                         {modes.map((v) => (
                           <SelectItem key={v} value={v}>

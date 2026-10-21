@@ -4,6 +4,11 @@ const enUS = {
   authorization: { title: 'Schedules', read: 'Read' },
   nav: { automation: 'Automation', schedules: 'Scheduled tasks' },
   page: {
+    refresh: 'Refresh',
+    retry: 'Retry',
+    clearFilters: 'Clear filters',
+    saved: 'Updated schedule "{{name}}"',
+    limitNotice: 'Only the newest {{count}} triggers are shown.',
     scheduleNames: {
       annualLeave: 'Annual leave automatic accrual',
       assetBorrow: 'Borrowed asset return reminders',
@@ -15,6 +20,7 @@ const enUS = {
       loan: 'Loan repayment reminders',
     },
     title: 'Scheduled tasks',
+    description: 'Monitor scheduled tasks and manage when they run.',
     filters: {
       searchLabel: 'Search schedules',
       searchPlaceholder: 'Search name, target type, or schedule…',
@@ -120,6 +126,9 @@ const enUS = {
     unavailable: '—',
   },
   errors: {
+    forbidden: 'Access has been removed. Contact an administrator.',
+    notFound: 'These records are unavailable. Return to the workbench.',
+    toggleFailed: 'Could not change the schedule. Please try again.',
     loadSchedules: 'Unable to load scheduled tasks.',
     loadOccurrences: 'Unable to load triggers.',
   },

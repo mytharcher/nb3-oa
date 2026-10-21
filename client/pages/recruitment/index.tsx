@@ -50,9 +50,11 @@ export default function RecruitmentList() {
       ? search.searchParams.get('status')!
       : '',
     orderBy =
-      search.searchParams.get('orderBy') === 'statusChangedAt'
-        ? 'statusChangedAt'
-        : 'createdAt',
+      search.searchParams.get('orderBy') === 'quantity'
+        ? 'quantity'
+        : search.searchParams.get('orderBy') === 'statusChangedAt'
+          ? 'statusChangedAt'
+          : 'createdAt',
     desc = search.searchParams.get('desc') !== 'false';
   const r = useRecruitmentResource<{
     data: ListRow[];
@@ -112,9 +114,13 @@ export default function RecruitmentList() {
     },
     {
       id: 'quantity',
-      enableSorting: false,
-      header: () => (
-        <div className='text-right'>{t('recruitment.fields.quantity')}</div>
+      accessorKey: 'quantity',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          className='justify-end'
+          title={t('recruitment.fields.quantity')}
+        />
       ),
       cell: ({ row }) => (
         <div className='text-right tabular-nums'>
@@ -217,9 +223,8 @@ export default function RecruitmentList() {
           </Button>
         ) : null}
       </ApplicationToolbar>
-      {r.error ? (
-        <ErrorState error={r.error} retry={r.reload} />
-      ) : r.loading ? (
+      {r.error ? <ErrorState error={r.error} retry={r.reload} /> : null}
+      {r.loading && !r.data ? (
         <ApplicationTableSkeleton columns={columns.length} />
       ) : r.data ? (
         <DataTableServer

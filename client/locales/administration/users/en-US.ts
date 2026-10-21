@@ -4,6 +4,7 @@ const enUS = {
   'common.close': 'Close',
   nav: { users: 'User management' },
   assignment: {
+    saved: 'Updated permissions for "{{name}}"',
     inspect: 'Check effective permissions',
     keepEditing: 'Keep editing',
     discardChanges: 'Discard changes',
@@ -21,7 +22,18 @@ const enUS = {
     failed: 'Could not save. Please try again.',
     discard: 'Discard unsaved changes?',
   },
+  sessions: {
+    title: 'Revoke sessions for "{{name}}"?',
+    description: 'The user will need to sign in again on every device.',
+    confirm: 'Revoke',
+    success: 'Revoked sessions for "{{name}}"',
+  },
   page: {
+    noMatches: 'No users match your filters.',
+    clearFilters: 'Clear filters',
+    emptyDescription:
+      'Create users here or ask an administrator to add an account.',
+    retry: 'Retry',
     loading: 'Loading',
     title: 'Users',
     description:
@@ -46,15 +58,20 @@ const enUS = {
     columns: { user: 'User', status: 'Status', actions: 'Actions' },
     actions: {
       menuFor: 'Actions for {{name}}',
-      edit: 'Edit profile',
+      edit: 'Edit',
       resetPassword: 'Reset password',
       revokeSessions: 'Revoke sessions',
-      enable: 'Enable account',
-      delete: 'Delete user',
-      disable: 'Disable account',
+      enable: 'Enable',
+      delete: 'Delete',
+      disable: 'Disable',
     },
   },
   form: {
+    roleRequired: 'Choose a value for {{name}}.',
+    nameRequired: 'Enter a name.',
+    emailInvalid: 'Enter a valid email address.',
+    passwordRequired: 'Enter a password.',
+    saved: 'Saved user "{{name}}"',
     addTitle: 'Add user',
     editTitle: 'Edit user',
     addDescription: 'Create an account and assign permissions.',
@@ -65,9 +82,10 @@ const enUS = {
     password: 'Password',
     cancel: 'Cancel',
     save: 'Save',
-    create: 'Create user',
+    create: 'Create',
   },
   password: {
+    saved: 'Reset password for "{{name}}"',
     title: 'Reset password',
     description:
       'Set a new password for {{name}}. All sessions will be revoked.',
@@ -75,6 +93,8 @@ const enUS = {
     submit: 'Reset password',
   },
   state: {
+    enabled: 'Enabled user "{{name}}"',
+    disabled: 'Disabled user "{{name}}"',
     enableTitle: 'Enable "{{name}}"?',
     disableTitle: 'Disable "{{name}}"?',
     enableDescription: '{{name}} will be able to sign in again.',
@@ -87,7 +107,7 @@ const enUS = {
     title: 'Delete user "{{name}}"?',
     description:
       'All sessions and API Keys of {{name}} will be revoked. Historical activity will be retained. This action cannot be undone.',
-    success: 'User deleted.',
+    success: 'Deleted user "{{name}}"',
   },
   invite: {
     open: 'Invite users',
@@ -162,6 +182,9 @@ const enUS = {
     },
   },
   errors: {
+    loadFailed: 'Could not load users. Please try again.',
+    loadForbidden: 'You can no longer view users. Contact an administrator.',
+    loadNotFound: 'User management is unavailable. Return to the workbench.',
     SELF_DELETE_NOT_ALLOWED: 'You cannot delete your own account.',
     LAST_ASSIGNMENT:
       'This user is the last one holding a permission set that must stay assigned.',

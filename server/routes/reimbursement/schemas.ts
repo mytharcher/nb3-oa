@@ -115,6 +115,7 @@ export const ReimbursementRecord = ReimbursementInput.extend({
   createdAt: z.string(),
 });
 export const Detail = z.strictObject({
+  loanName: z.string().nullable(),
   timeZone: z.string(),
   record: ReimbursementRecord,
   users: z.array(User),

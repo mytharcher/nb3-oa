@@ -53,18 +53,20 @@ export default function ProcessList() {
   );
   const search = useUrlSearch({ param: 'search', resetParams: ['page'] });
   const query = Object.fromEntries(
-    [...search.searchParams].filter(([key]) =>
-      [
-        'search',
-        'kind',
-        'status',
-        'from',
-        'to',
-        'page',
-        'pageSize',
-        'orderBy',
-        'direction',
-      ].includes(key),
+    [...search.searchParams].filter(
+      ([key]) =>
+        [
+          'search',
+          'kind',
+          'status',
+          'from',
+          'to',
+          'page',
+          'pageSize',
+          'orderBy',
+          'direction',
+        ].includes(key) &&
+        (!definitions || !['kind', 'status', 'from', 'to'].includes(key)),
     ),
   );
   query.locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US';
@@ -97,7 +99,7 @@ export default function ProcessList() {
       return (
         <TruncatedText text={label}>
           <Link
-            className='text-primary underline-offset-4 hover:underline'
+            className='font-medium underline-offset-4 hover:underline'
             to={{
               pathname: 'id' in row ? `${row.kind}/${row.id}` : row.kind,
               search: location.search,
@@ -259,7 +261,20 @@ export default function ProcessList() {
                 <Link
                   to={{
                     pathname: `../${tab}`,
-                    search: location.search,
+                    search: (() => {
+                      const params = new URLSearchParams(location.search);
+                      for (const key of [
+                        'kind',
+                        'status',
+                        'from',
+                        'to',
+                        'page',
+                        'orderBy',
+                        'direction',
+                      ])
+                        params.delete(key);
+                      return params.toString();
+                    })(),
                     hash: location.hash,
                   }}
                 />

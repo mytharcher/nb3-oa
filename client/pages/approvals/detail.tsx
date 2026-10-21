@@ -1,3 +1,4 @@
+import { approvalStatusTone } from './status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
 import { StatusBadge } from '#components/status-badge';
 import { UserName } from '#components/user-name';
@@ -234,15 +235,7 @@ export default function LeaveDetailPage() {
     <RecordDetailDrawer
       headerStatus={
         record ? (
-          <StatusBadge
-            tone={
-              ['approved', 'completed', 'issued', 'active'].includes(
-                record.status,
-              )
-                ? 'success'
-                : 'neutral'
-            }
-          >
+          <StatusBadge tone={approvalStatusTone(record.status, 'oa.leave')}>
             {t(`approvals.states.${record.status}`)}
           </StatusBadge>
         ) : null
@@ -317,6 +310,25 @@ export default function LeaveDetailPage() {
                     {t('approvals.terminate')}
                   </Button>
                 ) : null
+              ) : action.allowed &&
+                !(action.name === 'submit' && submissionBlocked) ? (
+                <Button
+                  key={action.name}
+                  variant={action.name === 'submit' ? 'default' : 'outline'}
+                  disabled={
+                    pending ||
+                    !action.allowed ||
+                    resource.loading ||
+                    (action.name === 'submit' && submissionBlocked)
+                  }
+                  onClick={() => {
+                    setWriteError(undefined);
+                    setRequestKey(createRequestId());
+                    setConfirm(action.name);
+                  }}
+                >
+                  {t(`approvals.${action.name}`)}
+                </Button>
               ) : (
                 <Tooltip key={action.name}>
                   <TooltipTrigger
@@ -350,7 +362,9 @@ export default function LeaveDetailPage() {
                           ? t(`approvals.${action.name}`)
                           : action.blockers
                               .map((v) =>
-                                t(v.message, { defaultValue: v.message }),
+                                t(v.message, {
+                                  defaultValue: t('approvals.unavailable'),
+                                }),
                               )
                               .join(' · ') || t('approvals.unavailable')}
                   </TooltipContent>
@@ -380,7 +394,7 @@ export default function LeaveDetailPage() {
       }
       beforeClose={() => !pending}
     >
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         {resource.error ? (
           <ErrorState error={resource.error} retry={resource.reload} />
         ) : null}

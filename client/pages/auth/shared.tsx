@@ -60,13 +60,13 @@ function BrandPanel(): ReactElement {
   ];
 
   return (
-    <div className='relative grid h-full place-items-center overflow-hidden bg-(--auth-brand-background) p-12 text-white'>
+    <div className='relative grid h-full place-items-center overflow-hidden bg-(--auth-brand-background) p-12 text-(--auth-brand-foreground)'>
       <div className='pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,color-mix(in_srgb,var(--primary)_22%,transparent),transparent_65%)]' />
       <div className='relative w-full max-w-xl'>
-        <p className='text-xs font-semibold tracking-[0.16em] text-(--auth-brand-highlight) uppercase'>
+        <p className='text-xs font-semibold tracking-widest text-(--auth-brand-highlight) uppercase'>
           {t('auth.platform')}
         </p>
-        <h2 className='mt-4 text-5xl leading-[1.05] font-semibold tracking-[-0.045em]'>
+        <h2 className='mt-4 text-5xl leading-none font-semibold tracking-tight'>
           <span className='block whitespace-nowrap'>
             {t('auth.marketingTitleFirst')}
           </span>
@@ -77,8 +77,8 @@ function BrandPanel(): ReactElement {
         <p className='mt-5 text-sm leading-6 text-(--auth-brand-muted)'>
           {t('auth.marketingDescription')}
         </p>
-        <div className='mt-8 overflow-hidden rounded-2xl border border-white/10 bg-white/5 text-white shadow-lg backdrop-blur-sm'>
-          <div className='space-y-5 p-6'>
+        <div className='mt-8 overflow-hidden rounded-2xl border border-(--auth-brand-border) bg-(--auth-brand-surface) text-(--auth-brand-foreground) shadow-lg backdrop-blur-sm'>
+          <div className='flex flex-col gap-5 p-6'>
             {features.map(({ description, icon: Icon, id, title }) => (
               <div className='flex gap-4' key={id}>
                 <span className='grid size-11 shrink-0 place-items-center rounded-xl bg-(--auth-brand-highlight)/10 text-(--auth-brand-highlight)'>
@@ -93,7 +93,7 @@ function BrandPanel(): ReactElement {
               </div>
             ))}
           </div>
-          <div className='flex items-center gap-3 border-t border-white/10 bg-white/3 px-6 py-4 text-sm font-medium text-(--auth-brand-muted)'>
+          <div className='flex items-center gap-3 border-t border-(--auth-brand-border) bg-(--auth-brand-footer) px-6 py-4 text-sm font-medium text-(--auth-brand-muted)'>
             <Blocks aria-hidden='true' className='size-4' />
             <span>{t('auth.marketingFooter')}</span>
           </div>

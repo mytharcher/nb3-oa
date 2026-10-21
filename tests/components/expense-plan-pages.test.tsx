@@ -447,30 +447,6 @@ it('keeps insufficient submit feedback focused inside the confirmation dialog', 
   ).toBeInTheDocument();
 });
 
-it('hides the HR actor department when submitting for another applicant and never accepts a chosen account', async () => {
-  serve();
-  open();
-  const user = await fill();
-  await user.type(screen.getByLabelText('Applicant'), 'bob');
-  expect(
-    screen.getByText(expense.expensePlans.proxyDepartment),
-  ).toBeInTheDocument();
-  expect(
-    screen.queryByText(/Current primary department:/),
-  ).not.toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: 'Save draft' }));
-  await waitFor(() =>
-    expect(api.request.mock.calls.some(([r]) => r.method === 'POST')).toBe(
-      true,
-    ),
-  );
-  const write = api.request.mock.calls.find(
-    ([r]) => r.method === 'POST',
-  )![0] as Request;
-  expect(write.json).toMatchObject({ applicantId: 'bob', amountCents: 29 });
-  expect(write.json).not.toHaveProperty('departmentId');
-  expect(write.json).not.toHaveProperty('year');
-});
 it('shows approved quota and persisted same-person merge without claiming reimbursement completion', async () => {
   const d = {
     ...detail({

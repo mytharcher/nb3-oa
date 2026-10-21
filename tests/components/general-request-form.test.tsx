@@ -116,10 +116,12 @@ it('locks creation when the response is uncertain', async () => {
   );
   expect(api.request).toHaveBeenCalledTimes(1);
 });
-it('rejects the proxy applicant as an extra reviewer before writing', async () => {
+it('rejects the applicant as an extra reviewer before writing', async () => {
   open();
   const user = await fill();
-  await user.type(screen.getByLabelText('Applicant'), 'reviewer');
+  const approver = screen.getByLabelText(/Additional approver 1/);
+  await user.clear(approver);
+  await user.type(approver, 'alice');
   await user.click(screen.getByRole('button', { name: /Save draft/ }));
   await waitFor(() =>
     expect(

@@ -657,103 +657,114 @@ function Form({ actorId }: { actorId: string }) {
                 />
                 {errors.vendorId && <FieldError>{errors.vendorId}</FieldError>}
               </Field>
-              {fields.map((key) => (
-                <Field key={key} data-invalid={!!errors[key]}>
-                  <FieldLabel htmlFor={`qualification-${key}`}>
-                    {t(`vendorQualifications.fields.${key}`)}
-                    {key === 'reason' || key === 'name' ? ' *' : ''}
-                  </FieldLabel>
-                  {['reason', 'cases'].includes(key) ? (
-                    <Textarea
-                      id={`qualification-${key}`}
-                      value={values[key]}
-                      disabled={disabled}
-                      maxLength={key === 'cases' ? 10000 : 4000}
-                      onChange={(event) => update(key, event.target.value)}
-                    />
-                  ) : (
-                    <Input
-                      id={`qualification-${key}`}
-                      value={values[key]}
-                      disabled={disabled}
-                      maxLength={key === 'contactPhone' ? 64 : 255}
-                      onChange={(event) => update(key, event.target.value)}
-                    />
-                  )}{' '}
-                  {errors[key] && <FieldError>{errors[key]}</FieldError>}
-                </Field>
-              ))}
+              <div className='grid gap-4 sm:grid-cols-3'>
+                {fields.map((key) => (
+                  <Field
+                    key={key}
+                    data-invalid={!!errors[key]}
+                    className={
+                      key.startsWith('contact') ? undefined : 'sm:col-span-3'
+                    }
+                  >
+                    <FieldLabel htmlFor={`qualification-${key}`}>
+                      {t(`vendorQualifications.fields.${key}`)}
+                      {key === 'reason' || key === 'name' ? ' *' : ''}
+                    </FieldLabel>
+                    {['reason', 'cases'].includes(key) ? (
+                      <Textarea
+                        id={`qualification-${key}`}
+                        value={values[key]}
+                        disabled={disabled}
+                        maxLength={key === 'cases' ? 10000 : 4000}
+                        onChange={(event) => update(key, event.target.value)}
+                      />
+                    ) : (
+                      <Input
+                        id={`qualification-${key}`}
+                        value={values[key]}
+                        disabled={disabled}
+                        maxLength={key === 'contactPhone' ? 64 : 255}
+                        onChange={(event) => update(key, event.target.value)}
+                      />
+                    )}{' '}
+                    {errors[key] && <FieldError>{errors[key]}</FieldError>}
+                  </Field>
+                ))}
+              </div>
               {values.operation === 'qualify' && (
                 <>
-                  <Field data-invalid={!!errors.category}>
-                    <FieldLabel htmlFor='qualification-category'>
-                      {t('vendorQualifications.fields.category')} *
-                    </FieldLabel>
-                    <Choice
-                      id='qualification-category'
-                      label={t('vendorQualifications.fields.category')}
-                      value={values.category}
-                      items={categoryItems}
-                      disabled={disabled}
-                      onChange={(v) => update('category', v)}
-                    />
-                    {errors.category && (
-                      <FieldError>{errors.category}</FieldError>
-                    )}
-                  </Field>
-                  <Field data-invalid={!!errors.quoteCents}>
-                    <FieldLabel htmlFor='qualification-quoteCents'>
-                      {t('vendorQualifications.fields.quoteCents')}
-                    </FieldLabel>
-                    <AmountInput
-                      id='qualification-quoteCents'
-                      unit={t('vendorQualifications.amountUnit')}
-                      value={quote}
-                      disabled={disabled}
-                      onChange={(value) => {
-                        setQuote(value);
-                        setDirty(true);
-                        if (errors.quoteCents)
-                          setErrors((e) => ({
-                            ...e,
-                            quoteCents:
-                              centsOf(value) === null
-                                ? t('vendorQualifications.errors.amount')
-                                : '',
-                          }));
-                      }}
-                    />
-                    {errors.quoteCents && (
-                      <FieldError>{errors.quoteCents}</FieldError>
-                    )}
-                  </Field>
-                  <Field data-invalid={!!errors.qualificationExpiry}>
-                    <FieldLabel htmlFor='qualification-expiry'>
-                      {t('vendorQualifications.fields.qualificationExpiry')} *
-                    </FieldLabel>
-                    <DatePicker
-                      id='qualification-expiry'
-                      invalid={!!errors.qualificationExpiry}
-                      disabled={disabled}
-                      value={
-                        values.qualificationExpiry
-                          ? parseISO(values.qualificationExpiry)
-                          : undefined
-                      }
-                      onChange={(date) =>
-                        update(
-                          'qualificationExpiry',
-                          date ? format(date, 'yyyy-MM-dd') : null,
-                        )
-                      }
-                    />
-                    {errors.qualificationExpiry && (
-                      <FieldError>{errors.qualificationExpiry}</FieldError>
-                    )}
-                    <FieldDescription>
-                      {t('vendorQualifications.errors.expiry')}
-                    </FieldDescription>
-                  </Field>
+                  <div className='grid gap-4 sm:grid-cols-3'>
+                    <Field data-invalid={!!errors.category}>
+                      <FieldLabel htmlFor='qualification-category'>
+                        {t('vendorQualifications.fields.category')} *
+                      </FieldLabel>
+                      <Choice
+                        id='qualification-category'
+                        label={t('vendorQualifications.fields.category')}
+                        value={values.category}
+                        items={categoryItems}
+                        disabled={disabled}
+                        onChange={(v) => update('category', v)}
+                      />
+                      {errors.category && (
+                        <FieldError>{errors.category}</FieldError>
+                      )}
+                    </Field>
+                    <Field data-invalid={!!errors.quoteCents}>
+                      <FieldLabel htmlFor='qualification-quoteCents'>
+                        {t('vendorQualifications.fields.quoteCents')}
+                      </FieldLabel>
+                      <AmountInput
+                        id='qualification-quoteCents'
+                        unit={t('vendorQualifications.amountUnit')}
+                        value={quote}
+                        disabled={disabled}
+                        onChange={(value) => {
+                          setQuote(value);
+                          setDirty(true);
+                          if (errors.quoteCents)
+                            setErrors((e) => ({
+                              ...e,
+                              quoteCents:
+                                centsOf(value) === null
+                                  ? t('vendorQualifications.errors.amount')
+                                  : '',
+                            }));
+                        }}
+                      />
+                      {errors.quoteCents && (
+                        <FieldError>{errors.quoteCents}</FieldError>
+                      )}
+                    </Field>
+                    <Field data-invalid={!!errors.qualificationExpiry}>
+                      <FieldLabel htmlFor='qualification-expiry'>
+                        {t('vendorQualifications.fields.qualificationExpiry')} *
+                      </FieldLabel>
+                      <DatePicker
+                        id='qualification-expiry'
+                        className='w-full'
+                        invalid={!!errors.qualificationExpiry}
+                        disabled={disabled}
+                        value={
+                          values.qualificationExpiry
+                            ? parseISO(values.qualificationExpiry)
+                            : undefined
+                        }
+                        onChange={(date) =>
+                          update(
+                            'qualificationExpiry',
+                            date ? format(date, 'yyyy-MM-dd') : null,
+                          )
+                        }
+                      />
+                      {errors.qualificationExpiry && (
+                        <FieldError>{errors.qualificationExpiry}</FieldError>
+                      )}
+                      <FieldDescription>
+                        {t('vendorQualifications.errors.expiry')}
+                      </FieldDescription>
+                    </Field>
+                  </div>
                   <QualificationAttachmentEditor
                     invalid={!!errors.attachments}
                     id='qualification-evidence'

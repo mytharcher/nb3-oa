@@ -13,6 +13,7 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { ApprovalRecipientPicker } from '#components/approval-recipient-picker';
+import { Spinner } from '#components/ui/spinner';
 import { Button } from '#components/ui/button';
 import { Field, FieldGroup, FieldLabel } from '#components/ui/field';
 import { Textarea } from '#components/ui/textarea';
@@ -64,6 +65,7 @@ function ActionFrame({ action, taskId }: { action: string; taskId: string }) {
     `${text.name(detail?.record.kind ?? '')} · ${detail?.record.recordLabel ?? ''}`;
   return (
     <RouteDrawer
+      className='sm:max-w-2xl'
       title={t(
         action === 'appoint'
           ? 'processManagement.appointTitle'
@@ -156,22 +158,19 @@ export function ActionForm({
     },
     [api, path, action, taskId],
   );
-  useEffect(
-    () => onBlocked(!options || !to || Boolean(writeError)),
-    [options, to, writeError, onBlocked],
-  );
+  useEffect(() => onBlocked(!options), [options, to, writeError, onBlocked]);
   async function submit() {
     setValidated(true);
+    if (!reason.trim()) {
+      reasonRef.current?.focus();
+      return;
+    }
     if (!to) {
       personRef.current?.focus();
       return;
     }
     if ((options?.places?.length ?? 0) > 1 && !place) {
       placeRef.current?.focus();
-      return;
-    }
-    if (!reason.trim()) {
-      reasonRef.current?.focus();
       return;
     }
     if (!options || busy || ((options.places?.length ?? 0) > 1 && !place))
@@ -254,7 +253,7 @@ export function ActionForm({
       <FieldGroup>
         <Field data-invalid={validated && !reason.trim()}>
           <FieldLabel htmlFor={`${id}-reason`}>
-            {t('reimbursementRequests.actionForm.comment')} *
+            {t('processManagement.managementReason')} *
           </FieldLabel>
           <Textarea
             ref={reasonRef}
@@ -352,12 +351,11 @@ function ActionFooter({
         {t('processManagement.cancel')}
       </Button>
       <Button type='submit' form={formId} disabled={busy || blocked}>
+        {busy ? <Spinner data-icon='inline-start' /> : null}
         {t(
-          busy
-            ? 'processManagement.loading'
-            : action === 'appoint'
-              ? 'processManagement.appoint'
-              : 'processManagement.reassign',
+          action === 'appoint'
+            ? 'processManagement.appoint'
+            : 'processManagement.reassign',
         )}
       </Button>
     </div>

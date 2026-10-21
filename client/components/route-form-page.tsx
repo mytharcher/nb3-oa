@@ -1,22 +1,15 @@
 import { RouteFormCloseGuardContext } from '#hooks/use-route-form-close-guard';
-import {
-  useContext,
-  useRef,
-  useState,
-  type ReactElement,
-  type ReactNode,
-} from 'react';
+import { useRef, useState, type ReactElement, type ReactNode } from 'react';
 import {
   DrawerFormContext,
   DrawerFormFooterContext,
 } from './drawer-form-context.js';
-import { RouteChildPage } from './route-child-page.js';
+import { cn } from 'cn';
 import { RouteDrawer } from './route-drawer.js';
-import { RouteOverlayContext } from './use-route-overlay.js';
 
 export interface RouteFormPageProps {
   readonly title: ReactNode;
-  readonly presentation?: 'drawer' | 'page';
+  readonly className?: string;
   readonly children?: ReactNode;
   readonly printable?: boolean;
   readonly beforeClose?: () => boolean | Promise<boolean>;
@@ -24,12 +17,12 @@ export interface RouteFormPageProps {
 
 /**
  * OA request forms use the same drawer at workbench, list and detail entries.
- * Configuration forms may retain a covering page at their root entry.
+ * Configuration and business forms share the same right-side presentation.
  * Existing navigation guards protect close; actions keep their React ownership.
  */
 export function RouteFormPage({
   title,
-  presentation = 'drawer',
+  className,
   printable = false,
   beforeClose,
   children,
@@ -37,10 +30,7 @@ export function RouteFormPage({
   const closeGuardRef = useRef<(() => boolean | Promise<boolean>) | undefined>(
     undefined,
   );
-  const parentOverlay = useContext(RouteOverlayContext);
   const [footerTarget, setFooterTarget] = useState<HTMLDivElement | null>(null);
-  if (presentation === 'page' && !parentOverlay)
-    return <RouteChildPage>{children}</RouteChildPage>;
   return (
     <RouteDrawer
       beforeClose={() =>
@@ -48,7 +38,7 @@ export function RouteFormPage({
       }
       printable={printable}
       title={title}
-      className='text-sm sm:max-w-2xl'
+      className={cn('text-sm sm:max-w-2xl', className)}
       footer={<div ref={setFooterTarget} className='contents' />}
     >
       <RouteFormCloseGuardContext.Provider value={closeGuardRef}>

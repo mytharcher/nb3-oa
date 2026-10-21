@@ -57,7 +57,7 @@ export function FilterEditor({
           items: node.items.map((item, i) => (i === index ? next : item)),
         });
       return (
-        <div className='min-w-0 space-y-3 rounded-md border bg-muted/10 p-3'>
+        <div className='min-w-0 flex flex-col gap-3 rounded-md border bg-muted/10 p-3'>
           <div className='flex flex-wrap items-center gap-2'>
             <SelectField
               aria-label={t('filterEditor.logic')}
@@ -116,7 +116,7 @@ export function FilterEditor({
               </Button>
             ) : null}
           </div>
-          <div className='space-y-2'>
+          <div className='flex flex-col gap-2'>
             {node.items.map((item, index) => (
               // AST nodes have no UI ids; these controlled inputs follow their tree position.
               // eslint-disable-next-line @eslint-react/no-array-index-key
@@ -158,7 +158,7 @@ export function FilterEditor({
       (node.value !== null && typeof node.value === 'object')
     )
       return (
-        <div className='space-y-2 rounded-md border p-3'>
+        <div className='flex flex-col gap-2 rounded-md border p-3'>
           <p className='text-xs text-muted-foreground'>
             {t('filterEditor.unsupported')}
           </p>
@@ -309,7 +309,7 @@ export function CustomFilterEditor({
     });
   if (!filter)
     return (
-      <div className='space-y-2'>
+      <div className='flex flex-col gap-2'>
         <p className='text-sm text-muted-foreground'>
           {t('filterEditor.invalid')}
         </p>

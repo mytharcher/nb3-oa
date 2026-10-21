@@ -1,3 +1,4 @@
+import { FormActions } from '#components/form-actions';
 import { useRouteFormCloseGuard } from '#hooks/use-route-form-close-guard';
 import { useCallback, useState, useRef } from 'react';
 import {
@@ -56,7 +57,7 @@ export default function EditPage() {
     ),
   );
   return (
-    <RouteFormPage presentation='page' title={drawerTitle('access.edit')}>
+    <RouteFormPage className='sm:max-w-4xl' title={drawerTitle('access.edit')}>
       {state.error || catalog.error ? (
         <ErrorState
           error={state.error ?? catalog.error}
@@ -89,7 +90,7 @@ function EditorForm({
   options: AuthorizationOptions;
   reloadSnapshot: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const api = useApiClient();
   const client = useAuthorizationClient();
   const toaster = useToaster();
@@ -241,10 +242,16 @@ function EditorForm({
         <ErrorState error={impact.error} retry={impact.reload} />
       ) : (
         <p className='text-sm text-muted-foreground'>
-          {t('access.impact')}: {impact.data?.join('、') || t('access.loading')}
+          {t('access.labelValue', {
+            label: t('access.impact'),
+            value:
+              impact.data?.join(i18n.language.startsWith('zh') ? '、' : ', ') ||
+              t('access.loading'),
+          })}
         </p>
       )}
       <Input
+        aria-label={t('access.searchActions')}
         placeholder={t('access.searchActions')}
         value={query}
         onChange={(event) => setQuery(event.target.value)}
@@ -301,7 +308,7 @@ function EditorForm({
                     {visible.filter(({ resource: item }) =>
                       keys.has(resourceKey(item.type, item.value)),
                     )[index - 1]?.module !== module ? (
-                      <h2 className='text-lg font-semibold'>{module}</h2>
+                      <h2 className='text-base font-medium'>{module}</h2>
                     ) : null}
                     <PermissionEditor
                       readOnly={busy || protectedSet}
@@ -359,8 +366,14 @@ function EditorForm({
                         <div key={row.id} className='flex flex-col gap-3'>
                           {resource.dataScopes![row.action].map((scope) => (
                             <Field key={scope.key}>
-                              <FieldLabel>
-                                {row.label} · {scope.label} *
+                              <FieldLabel htmlFor={`${row.id}-${scope.key}`}>
+                                {row.label} · {scope.label}
+                                <span
+                                  aria-hidden='true'
+                                  className='text-destructive'
+                                >
+                                  *
+                                </span>
                               </FieldLabel>
                               <Select
                                 items={scope.options}
@@ -383,7 +396,10 @@ function EditorForm({
                                     );
                                 }}
                               >
-                                <SelectTrigger>
+                                <SelectTrigger
+                                  id={`${row.id}-${scope.key}`}
+                                  aria-required='true'
+                                >
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
@@ -423,7 +439,7 @@ function EditorForm({
           description={t('access.protectedHelp')}
         />
       ) : null}
-      <div className='flex justify-end gap-2'>
+      <FormActions>
         <Button
           variant='outline'
           disabled={busy}
@@ -444,10 +460,11 @@ function EditorForm({
           {busy ? <Spinner /> : null}
           {t('access.save')}
         </Button>
-      </div>
+      </FormActions>
       <ConfirmDialog
         open={confirm}
         title={t('access.confirmTitle', { name })}
+        variant='default'
         confirmLabel={t('access.save')}
         cancelLabel={t('access.cancel')}
         busy={busy}
@@ -461,7 +478,7 @@ function EditorForm({
               (row) =>
                 `${row.enabled ? '+' : '−'} ${row.resource.label} · ${row.label}`,
             )
-            .join('；')}
+            .join(i18n.language.startsWith('zh') ? '；' : '; ')}
         </span>
       </ConfirmDialog>
       <ConfirmDialog

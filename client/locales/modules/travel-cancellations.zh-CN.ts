@@ -1,5 +1,10 @@
 export default {
   travelCancellation: {
+    fieldInvalid: '请检查{{field}}。',
+
+    sourceUnavailable: '来源差旅信息不可用',
+    exceptionReason: '异常原因',
+    exception: '退订异常',
     businessErrors: {
       TRAVEL_CANCELLATION_REASON_REQUIRED: '请填写取消出差的原因。',
       TRAVEL_CANCELLATION_ALREADY_PENDING:

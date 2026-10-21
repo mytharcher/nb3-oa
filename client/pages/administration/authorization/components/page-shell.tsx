@@ -1,9 +1,11 @@
-import { LoaderCircle } from 'lucide-react';
+import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import type { ReactElement, ReactNode } from 'react';
 
 import { useAuthorizationTranslation } from '../i18n.js';
 import { Button } from '#components/ui/button';
 import { Card } from '#components/ui/card';
+import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 
 /** The chrome every Authorization settings page renders inside. */
@@ -25,29 +27,19 @@ export function PermissionsPage({
   children: ReactNode;
 }): ReactElement {
   return (
-    <div
-      className={`min-h-[calc(100svh-4rem)] bg-background p-5 sm:p-8 ${fill ? 'lg:flex lg:h-full lg:min-h-[36rem] lg:flex-col' : ''}`}
+    <PageContainer
+      className={
+        fill ? 'lg:flex lg:h-full lg:min-h-[36rem] lg:flex-col' : undefined
+      }
     >
-      <div
-        className={`min-w-0 space-y-5 ${fill ? 'lg:flex lg:min-h-0 lg:flex-1 lg:flex-col' : ''}`}
-      >
-        <PageHeader title={title} description={description} />
-        {children}
-      </div>
-    </div>
+      <PageHeader title={title} description={description} />
+      {children}
+    </PageContainer>
   );
 }
 
 export function PageLoading(): ReactElement {
-  const t = useAuthorizationTranslation();
-  return (
-    <Card className='grid min-h-64 place-items-center'>
-      <div className='flex items-center gap-2 text-sm text-muted-foreground'>
-        <LoaderCircle className='size-4 animate-spin' />
-        {t('common.loading')}
-      </div>
-    </Card>
-  );
+  return <ApplicationTableSkeleton />;
 }
 
 export function PageError({
@@ -55,20 +47,20 @@ export function PageError({
   onRetry,
 }: {
   message?: string;
-  onRetry: () => void;
+  onRetry?: () => void;
 }): ReactElement {
   const t = useAuthorizationTranslation();
   return (
-    <Card className='grid min-h-64 place-items-center p-6 text-center'>
-      <div className='space-y-3'>
-        <p className='text-sm text-muted-foreground'>
-          {message ?? t('page.loadFailed')}
-        </p>
-        <Button onClick={onRetry} variant='outline'>
-          {t('common.retry')}
-        </Button>
+    <Alert variant='destructive'>
+      <div className='flex flex-col gap-3'>
+        <AlertDescription>{message ?? t('page.loadFailed')}</AlertDescription>
+        {onRetry ? (
+          <Button onClick={onRetry} variant='outline'>
+            {t('common.retry')}
+          </Button>
+        ) : null}
       </div>
-    </Card>
+    </Alert>
   );
 }
 

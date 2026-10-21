@@ -1,3 +1,4 @@
+import { FieldsSkeleton } from '../platform/shared/states.js';
 import { useEffect, useContext } from 'react';
 import { ApiClientError } from '@nocobase/app-client';
 import { ProcessListContext } from './resource.js';
@@ -24,15 +25,16 @@ import {
   CardDescription,
   CardContent,
 } from '#components/ui/card';
-import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
 import { useProcessResource } from './resource.js';
 import { EmptyList, Failure, Refresh, State } from './shared.js';
 import { ProcessGraph } from './graph.js';
 import { useNodeSettings } from './use-node-settings.js';
+import { ProcessParameters } from './parameters.js';
 import {
   rulesForNode,
   hasVendorNodeSettings,
   committeeVersionForNode,
+  parameterInputId,
 } from './node-settings.js';
 import type {
   DefinitionDto,
@@ -124,11 +126,11 @@ export default function ProcessDefinitionPage() {
           </div>
         )}
         {!data && resource.loading ? (
-          <ApplicationTableSkeleton />
+          <FieldsSkeleton />
         ) : (
           data && (
             <>
-              <div className='grid items-stretch gap-6 lg:grid-cols-2'>
+              <div className='grid items-stretch gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'>
                 <Card className='min-w-0'>
                   <CardHeader>
                     <CardTitle>
@@ -142,8 +144,20 @@ export default function ProcessDefinitionPage() {
                   <CardContent>
                     <ProcessGraph
                       definition
+                      kind={kind}
                       configurableNodes={configurableNodes}
                       onConfigure={(node) => {
+                        // Thresholds are edited in the parameters form; committee settings keep their dialog.
+                        const key = rulesForNode(kind, node)[0];
+                        const input =
+                          key && !hasVendorNodeSettings(kind, node)
+                            ? document.getElementById(parameterInputId(key))
+                            : null;
+                        if (input) {
+                          input.scrollIntoView({ block: 'center' });
+                          input.focus({ preventScroll: true });
+                          return;
+                        }
                         void navigate({
                           pathname: `${pagePath}/nodes/${encodeURIComponent(node)}/settings`,
                           search: location.search,
@@ -186,99 +200,22 @@ export default function ProcessDefinitionPage() {
                     </section>
                   </CardContent>
                 </Card>
-                {/* Let the graph determine the desktop row height, not the rules. */}
+                {/* Let the graph determine the desktop row height, not the parameters. */}
                 <Card className='min-h-0 min-w-0 lg:[contain:size]'>
                   <CardHeader className='shrink-0'>
-                    <CardTitle>{t('processManagement.rules')}</CardTitle>
-                    <CardDescription className='text-xs'>
-                      {t('processManagement.dynamicPeople')}
+                    <CardTitle>
+                      {t('processManagement.parameters.title')}
+                    </CardTitle>
+                    <CardDescription>
+                      {t('processManagement.parameters.description')}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className='max-h-96 min-h-0 flex-1 overflow-y-auto overscroll-contain text-xs leading-5 lg:max-h-none'>
-                    <div className='flex flex-col gap-4'>
-                      {data.states.map((state) => {
-                        const stage = data.stages.find(
-                          (item) => item.name === state.name,
-                        );
-                        const transitions = data.transitions.filter((edge) =>
-                          edge.from.includes(state.name),
-                        );
-                        if (!stage && !transitions.length) return null;
-                        return (
-                          <section
-                            key={state.name}
-                            className='flex flex-col gap-1.5'
-                          >
-                            <h3 className='text-sm font-medium'>
-                              <State value={state.name} />
-                            </h3>
-                            {stage && (
-                              <div className='flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground'>
-                                <span>
-                                  {t('processManagement.policy')}:{' '}
-                                  {t(
-                                    `processManagement.policies.${stage.policy}`,
-                                    { defaultValue: stage.policy },
-                                  )}
-                                </span>
-                                <span>
-                                  {t('processManagement.peopleSource')}:{' '}
-                                  {t(
-                                    `processManagement.peopleSources.${stage.peopleSource}`,
-                                  )}
-                                </span>
-                                <span>
-                                  {t('processManagement.coveredCount', {
-                                    count: stage.covered.length,
-                                  })}
-                                </span>
-                              </div>
-                            )}
-                            <ul className='flex flex-col gap-1 text-xs'>
-                              {transitions.flatMap((edge) =>
-                                // Editable state unions describe content edits, not cross-state changes.
-                                edge.to
-                                  .filter(
-                                    (to) =>
-                                      edge.name !== 'edit' || to === state.name,
-                                  )
-                                  .map((to) => (
-                                    <li
-                                      key={`${edge.name}:${to}`}
-                                      className='flex flex-wrap items-baseline gap-2'
-                                    >
-                                      <span>
-                                        {text.transition(edge.name)} →{' '}
-                                        {text.state(to)}
-                                      </span>
-                                      <span className='text-xs text-muted-foreground'>
-                                        {t(
-                                          edge.manual
-                                            ? 'processManagement.manual'
-                                            : 'processManagement.automatic',
-                                        )}
-                                      </span>
-                                      {edge.conditions[to] && (
-                                        <span className='text-muted-foreground'>
-                                          {t(
-                                            `processManagement.branchConditions.${edge.conditions[to]}`,
-                                          )}
-                                        </span>
-                                      )}
-                                    </li>
-                                  )),
-                              )}
-                            </ul>
-                          </section>
-                        );
-                      })}
-                    </div>
-                    <p className='mt-4 text-xs text-muted-foreground'>
-                      {t('processManagement.frozenCount', {
-                        count: data.frozen.length,
-                      })}
-                    </p>
-                  </CardContent>
+                  <ProcessParameters
+                    kind={kind}
+                    states={data.states.map((state) => state.name)}
+                    settings={settings}
+                    onSaved={resource.reload}
+                  />
                 </Card>
               </div>
               <Card>
@@ -292,9 +229,7 @@ export default function ProcessDefinitionPage() {
                   {Boolean(recent.error) && (
                     <Failure error={recent.error} retry={recent.reload} />
                   )}
-                  {recent.loading && !recent.data && (
-                    <ApplicationTableSkeleton />
-                  )}
+                  {recent.loading && !recent.data && <FieldsSkeleton />}
                   <ul className='flex flex-col gap-2'>
                     {recent.data?.data.map((record) => (
                       <li key={record.id}>

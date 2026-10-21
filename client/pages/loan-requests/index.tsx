@@ -1,3 +1,4 @@
+import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { approvalStatusTone } from '../approvals/status-tone.js';
 import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { ApplicationSearch } from '#components/application-search';
@@ -42,7 +43,7 @@ import { useUrlSearch } from '#hooks/use-url-search';
 
 import { ErrorState } from './states.js';
 import { useLoanResource } from './resource.js';
-import { amountText } from './money.js';
+import { formatCents } from '#lib/money';
 import type { LoanRequestRecord } from './types.js';
 const states = [
   'draft',
@@ -60,7 +61,7 @@ const states = [
   'terminated',
 ];
 export default function LoansPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const { searchParams, updateParams, inputProps, clear } = useUrlSearch({
     param: 'search',
@@ -158,12 +159,13 @@ export default function LoansPage() {
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
+          className='justify-end'
           title={t('loanRequests.amount')}
         />
       ),
       cell: ({ row }) => (
         <span className='block text-right tabular-nums'>
-          {amountText(row.original.amountCents)}
+          {formatCents(row.original.amountCents, i18n.language)}
         </span>
       ),
     },
@@ -175,6 +177,26 @@ export default function LoansPage() {
           title={t('loanRequests.dueDate')}
         />
       ),
+      cell: ({ row }) =>
+        new Intl.DateTimeFormat(i18n.language, {
+          dateStyle: 'medium',
+          timeZone: 'UTC',
+        }).format(new Date(`${row.original.dueDate}T12:00:00Z`)),
+    },
+    {
+      accessorKey: 'createdAt',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t('approvals.createdAt')}
+        />
+      ),
+      cell: ({ row }) =>
+        Number.isFinite(Date.parse(row.original.createdAt))
+          ? new Intl.DateTimeFormat(i18n.language, {
+              dateStyle: 'medium',
+            }).format(new Date(row.original.createdAt))
+          : '—',
     },
     {
       id: 'status',
@@ -194,9 +216,11 @@ export default function LoansPage() {
           <DropdownMenuTrigger
             render={
               <Button
-                size='icon'
+                size='icon-sm'
                 variant='ghost'
-                aria-label={t('loanRequests.more')}
+                aria-label={t('loanRequests.rowActions', {
+                  name: row.original.number ?? t('approvals.draft'),
+                })}
               />
             }
           >
@@ -225,7 +249,7 @@ export default function LoansPage() {
     <PageContainer>
       <PageHeader
         title={t('loanRequests.title')}
-        description={t('loanRequests.emptyHint')}
+        description={t('loanRequests.description')}
       />
       <ApplicationToolbar
         actions={
@@ -357,7 +381,19 @@ export default function LoansPage() {
           pageSizeOptions={[10, 20, 50, 100]}
           emptyMessage={
             searchParams.get('search') || status !== 'all' ? (
-              t('loanRequests.filteredEmpty')
+              <ApplicationTableEmpty
+                title={t('loanRequests.filteredEmpty')}
+                clearFilters={{
+                  label: t('loanRequests.clear'),
+                  onClick: () => {
+                    clear((p) => {
+                      p.delete('status');
+                      p.delete('page');
+                    });
+                    document.getElementById('loan-search')?.focus();
+                  },
+                }}
+              />
             ) : (
               <Empty className='min-h-48'>
                 <EmptyHeader>

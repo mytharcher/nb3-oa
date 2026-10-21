@@ -1,4 +1,8 @@
 export default {
+  recordName: 'Personnel change for "{{name}}"',
+  namedAction: '{{action}} for "{{name}}"?',
+  savedRecord: 'Saved personnel change for "{{name}}"',
+
   businessErrors: {
     TRANSFER_INVALID_DATE:
       'Select a valid effective date for the personnel change.',

@@ -1,9 +1,11 @@
 export default {
   vendors: {
+    saved: 'Saved vendor "{{name}}"',
+
     title: 'Vendors',
     description:
       'Procurement maintains manual vendors. Approved orders retain their recorded vendor facts.',
-    new: 'Add vendor',
+    new: 'New vendor',
     edit: 'Edit vendor',
     view: 'Vendor details',
     refresh: 'Refresh',

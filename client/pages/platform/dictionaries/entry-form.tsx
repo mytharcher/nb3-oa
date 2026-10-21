@@ -1,3 +1,4 @@
+import { useDrawerFormGuard } from '#hooks/use-drawer-form-guard';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useApiClient, useToaster } from '@nocobase/app-client';
 import { useLocale, useTranslation } from '@nocobase/i18n/client';
@@ -157,6 +158,11 @@ export function EntryForm({
     },
   });
 
+  const drawerGuard = useDrawerFormGuard(
+    form.formState.isDirty,
+    form.formState.isSubmitting,
+  );
+
   const submit = form.handleSubmit(async (values) => {
     const extraValues = values.extra as Record<string, string | boolean>;
     const extra = definition.extraFields.length
@@ -249,6 +255,7 @@ export function EntryForm({
             name: labelOf(saved, locale),
           }),
     });
+    drawerGuard.markSaved();
     onSubmitted(saved);
   });
 
@@ -256,6 +263,7 @@ export function EntryForm({
 
   return (
     <form id={formId} noValidate onSubmit={(event) => void submit(event)}>
+      {drawerGuard.confirmation}
       <FieldGroup>
         {rootError?.type === 'sessionExpired' ? (
           <SessionExpiredAlert />
@@ -331,6 +339,9 @@ export function EntryForm({
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor={`${formId}-sortOrder`}>
                 {t('platform.dictionaries.fields.sortOrder')}
+                <span aria-hidden='true' className='text-destructive'>
+                  *
+                </span>
               </FieldLabel>
               <Input
                 {...field}
@@ -409,7 +420,12 @@ function ExtraFieldInput({
   if (definition.type === 'enum')
     return (
       <Field data-invalid={error ? true : undefined}>
-        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+        <FieldLabel htmlFor={id}>
+          {label}
+          <span aria-hidden='true' className='text-destructive'>
+            *
+          </span>
+        </FieldLabel>
         <Select
           value={typeof value === 'string' ? value : ''}
           onValueChange={onChange}
@@ -444,7 +460,12 @@ function ExtraFieldInput({
     return (
       <Field orientation='horizontal' data-invalid={error ? true : undefined}>
         <FieldContent>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <FieldLabel htmlFor={id}>
+            {label}
+            <span aria-hidden='true' className='text-destructive'>
+              *
+            </span>
+          </FieldLabel>
           <FieldError errors={[error]} />
         </FieldContent>
         <Switch

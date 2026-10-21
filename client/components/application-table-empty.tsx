@@ -1,4 +1,5 @@
 import { useTranslation } from '@nocobase/i18n/client';
+import { Inbox, SearchX } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '#components/ui/button';
 import {
@@ -6,15 +7,21 @@ import {
   EmptyHeader,
   EmptyTitle,
   EmptyDescription,
+  EmptyMedia,
+  EmptyContent,
 } from '#components/ui/empty';
 
-/** Render inside the existing table; creation stays in its toolbar. */
+/** Shared empty surface; the owner supplies permission-aware creation or filter actions. */
 export function ApplicationTableEmpty({
   title,
   description,
   clearFilters,
+  action,
+  icon,
 }: {
   readonly title: ReactNode;
+  readonly action?: ReactNode;
+  readonly icon?: ReactNode;
   readonly description?: ReactNode;
   readonly clearFilters?: {
     readonly label: string;
@@ -23,8 +30,11 @@ export function ApplicationTableEmpty({
 }) {
   const { t } = useTranslation();
   return (
-    <Empty className='min-h-28 gap-2 p-4'>
+    <Empty className='min-h-48 gap-4 border border-dashed p-6'>
       <EmptyHeader>
+        <EmptyMedia variant='icon'>
+          {icon ?? (clearFilters ? <SearchX /> : <Inbox />)}
+        </EmptyMedia>
         <EmptyTitle>{title}</EmptyTitle>
         {!clearFilters || description ? (
           <EmptyDescription className='max-w-md'>
@@ -32,6 +42,7 @@ export function ApplicationTableEmpty({
           </EmptyDescription>
         ) : null}
       </EmptyHeader>
+      {action ? <EmptyContent>{action}</EmptyContent> : null}
       {clearFilters ? (
         <Button
           type='button'

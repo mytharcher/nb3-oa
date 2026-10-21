@@ -1,3 +1,4 @@
+import { approvalStatusTone } from '../approvals/status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
 import { amountText } from './money.js';
 import { TravelAttachments } from './attachments.js';
@@ -245,15 +246,7 @@ export default function TravelDetailPage() {
     <RecordDetailDrawer
       headerStatus={
         record ? (
-          <StatusBadge
-            tone={
-              record.status === 'completed'
-                ? 'success'
-                : ['rejected', 'terminated'].includes(record.status)
-                  ? 'warning'
-                  : 'neutral'
-            }
-          >
+          <StatusBadge tone={approvalStatusTone(record.status, 'oa.travel')}>
             {t(
               [
                 'manager',
@@ -264,7 +257,11 @@ export default function TravelDetailPage() {
                 'booking',
               ].includes(record.status)
                 ? `travel.stages.${record.status}`
-                : `approvals.states.${record.status}`,
+                : ['completed', 'cancelled', 'exception'].includes(
+                      record.status,
+                    )
+                  ? `travel.states.${record.status}`
+                  : `approvals.states.${record.status}`,
             )}
           </StatusBadge>
         ) : null
@@ -288,8 +285,13 @@ export default function TravelDetailPage() {
                 render={
                   <Link
                     to={{
-                      pathname: '/loanRequests/new',
-                      search: `?travelId=${encodeURIComponent(record.id)}&amount=${encodeURIComponent(amountText(record.amountCents))}`,
+                      pathname: `${location.pathname}/newLoan`,
+                      search: (() => {
+                        const query = new URLSearchParams(location.search);
+                        query.set('travelId', record.id);
+                        query.set('amount', amountText(record.amountCents));
+                        return `?${query}`;
+                      })(),
                     }}
                   />
                 }
@@ -310,7 +312,7 @@ export default function TravelDetailPage() {
                   <Link
                     to={{
                       pathname: `${location.pathname.slice(0, location.pathname.lastIndexOf('/travel/'))}/newTravelCancellation`,
-                      search: `?sourceId=${encodeURIComponent(record.id)}`,
+                      search: `?${new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(location.search)), sourceId: record.id })}`,
                     }}
                   />
                 }
@@ -427,7 +429,7 @@ export default function TravelDetailPage() {
       }
       beforeClose={() => !pending}
     >
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         {resource.error ? (
           <ErrorState error={resource.error} retry={resource.reload} />
         ) : null}
@@ -497,7 +499,11 @@ export default function TravelDetailPage() {
                 {t(
                   confirm === 'withdraw'
                     ? 'approvals.confirmWithdraw'
-                    : 'approvals.confirmSubmit',
+                    : confirm === 'retryBooking'
+                      ? 'travel.confirmRetryBooking'
+                      : confirm === 'reviseTrip'
+                        ? 'travel.confirmReviseTrip'
+                        : 'approvals.confirmSubmit',
                 )}
               </AlertDialogDescription>
             </AlertDialogHeader>

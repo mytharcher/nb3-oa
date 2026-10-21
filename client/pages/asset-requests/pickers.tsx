@@ -88,7 +88,7 @@ export function AssetPicker({
         <SelectTrigger id={id}>
           <SelectValue placeholder={t('assetRequests.selectAsset')} />
         </SelectTrigger>
-        <SelectContent className='w-auto min-w-(--anchor-width)'>
+        <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
           <SelectGroup>
             {r.data?.data.map((a) => (
               <SelectItem key={a.id} value={a.id}>
@@ -194,7 +194,7 @@ export function RecipientPicker({
             ) : undefined}
           </SelectValue>
         </SelectTrigger>
-        <SelectContent className='w-auto min-w-(--anchor-width)'>
+        <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
           <SelectGroup>
             {r.data?.data.people.map((p) => (
               <SelectItem key={p.id} value={p.id}>

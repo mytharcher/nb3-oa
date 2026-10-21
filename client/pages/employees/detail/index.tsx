@@ -160,10 +160,25 @@ function EmployeePageContent({
     setGone(true);
     reloadOwner();
   }, [reloadOwner]);
+  const onSourceChanged = useCallback(() => {
+    setSaved(undefined);
+    setReloadCount((count) => count + 1);
+    reloadOwner();
+  }, [reloadOwner]);
+  const sourceBasePath = `${pagePath.pathname}/${currentTab?.path ?? 'basic'}`;
   const outletContext = useMemo<EmployeePageOutletContext | undefined>(
     () =>
-      employee === undefined ? undefined : { employee, onSaved, onNotFound },
-    [employee, onSaved, onNotFound],
+      employee === undefined
+        ? undefined
+        : {
+            employee,
+            onSaved,
+            onNotFound,
+            basePath: sourceBasePath,
+            reload: onSourceChanged,
+            onSourceChanged,
+          },
+    [employee, onSaved, onNotFound, sourceBasePath, onSourceChanged],
   );
 
   const notFoundRef = useRef<HTMLDivElement>(null);
@@ -272,7 +287,7 @@ function EmployeePageContent({
         hash: location.hash,
       }}
     >
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         {body}
         {outletContext ? (
           <div className={notFound ? 'hidden' : 'contents'}>

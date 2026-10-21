@@ -530,7 +530,10 @@ function RequestForm({
               render={({ field }) => (
                 <Field>
                   <FieldLabel htmlFor='asset-operation'>
-                    {t('assetRequests.operationLabel')} *
+                    {t('assetRequests.operationLabel')}{' '}
+                    <span aria-hidden='true' className='text-destructive'>
+                      *
+                    </span>
                   </FieldLabel>
                   <Select
                     value={field.value}
@@ -566,93 +569,108 @@ function RequestForm({
                 </Field>
               )}
             />
-            {operation !== 'scrap' ? (
-              <Controller
-                name='category'
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor='asset-category'>
-                      {t('assetRequests.category')} *
-                    </FieldLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={locked}
-                      items={options?.categories.map((c) => ({
-                        value: c.code,
-                        label: c.title,
-                      }))}
-                    >
-                      <SelectTrigger
-                        id='asset-category'
-                        aria-invalid={fieldState.invalid}
+            <div className='grid gap-4 sm:grid-cols-[minmax(0,1fr)_8rem]'>
+              {operation !== 'scrap' ? (
+                <Controller
+                  name='category'
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor='asset-category'>
+                        {t('assetRequests.category')}{' '}
+                        <span aria-hidden='true' className='text-destructive'>
+                          *
+                        </span>
+                      </FieldLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={locked}
+                        items={options?.categories.map((c) => ({
+                          value: c.code,
+                          label: c.title,
+                        }))}
                       >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
-                        <SelectGroup>
-                          {(
-                            options?.categories ??
-                            (field.value
-                              ? [{ code: field.value, title: field.value }]
-                              : [])
-                          ).map((c) => (
-                            <SelectItem key={c.code} value={c.code}>
-                              {c.title}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    <FieldError errors={[fieldState.error]} />
-                  </Field>
-                )}
-              />
-            ) : (
-              <Controller
-                name='assetIds'
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor='asset-selection'>
-                      {t('assetRequests.asset')} *
-                    </FieldLabel>
-                    <AssetPicker
-                      id='asset-selection'
-                      onDenied={onDenied}
-                      requestId={draftId}
-                      value={field.value[0] ?? ''}
-                      onChange={(id) => field.onChange(id ? [id] : [])}
-                      disabled={locked}
-                    />
-                    <FieldError errors={[fieldState.error]} />
-                  </Field>
-                )}
-              />
-            )}
-            <Field data-invalid={!!form.formState.errors.quantity}>
-              <FieldLabel htmlFor='asset-quantity'>
-                {t('assetRequests.quantity')} *
-              </FieldLabel>
-              <Input
-                id='asset-quantity'
-                type='number'
-                min={1}
-                max={100}
-                readOnly={operation === 'scrap'}
-                {...form.register('quantity', {
-                  valueAsNumber: true,
-                  validate: (v) =>
-                    (Number.isInteger(v) && v >= 1 && v <= 100) ||
-                    t('assetRequests.quantityInvalid'),
-                })}
-              />
-              <FieldError errors={[form.formState.errors.quantity]} />
-            </Field>
+                        <SelectTrigger
+                          id='asset-category'
+                          aria-invalid={fieldState.invalid}
+                          className='w-full'
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
+                          <SelectGroup>
+                            {(
+                              options?.categories ??
+                              (field.value
+                                ? [{ code: field.value, title: field.value }]
+                                : [])
+                            ).map((c) => (
+                              <SelectItem key={c.code} value={c.code}>
+                                {c.title}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FieldError errors={[fieldState.error]} />
+                    </Field>
+                  )}
+                />
+              ) : (
+                <Controller
+                  name='assetIds'
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor='asset-selection'>
+                        {t('assetRequests.asset')}{' '}
+                        <span aria-hidden='true' className='text-destructive'>
+                          *
+                        </span>
+                      </FieldLabel>
+                      <AssetPicker
+                        id='asset-selection'
+                        onDenied={onDenied}
+                        requestId={draftId}
+                        value={field.value[0] ?? ''}
+                        onChange={(id) => field.onChange(id ? [id] : [])}
+                        disabled={locked}
+                      />
+                      <FieldError errors={[fieldState.error]} />
+                    </Field>
+                  )}
+                />
+              )}
+              <Field data-invalid={!!form.formState.errors.quantity}>
+                <FieldLabel htmlFor='asset-quantity'>
+                  {t('assetRequests.quantity')}{' '}
+                  <span aria-hidden='true' className='text-destructive'>
+                    *
+                  </span>
+                </FieldLabel>
+                <Input
+                  id='asset-quantity'
+                  type='number'
+                  min={1}
+                  max={100}
+                  readOnly={operation === 'scrap'}
+                  {...form.register('quantity', {
+                    valueAsNumber: true,
+                    validate: (v) =>
+                      (Number.isInteger(v) && v >= 1 && v <= 100) ||
+                      t('assetRequests.quantityInvalid'),
+                  })}
+                />
+                <FieldError errors={[form.formState.errors.quantity]} />
+              </Field>
+            </div>
             <Field data-invalid={!!form.formState.errors.purpose}>
               <FieldLabel htmlFor='asset-purpose'>
-                {t('assetRequests.purpose')} *
+                {t('assetRequests.purpose')}{' '}
+                <span aria-hidden='true' className='text-destructive'>
+                  *
+                </span>
               </FieldLabel>
               <Textarea
                 id='asset-purpose'
@@ -672,7 +690,10 @@ function RequestForm({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor='asset-return-date'>
-                      {t('assetRequests.borrowDueDate')} *
+                      {t('assetRequests.borrowDueDate')}{' '}
+                      <span aria-hidden='true' className='text-destructive'>
+                        *
+                      </span>
                     </FieldLabel>
                     <DatePicker
                       id='asset-return-date'
@@ -692,7 +713,10 @@ function RequestForm({
               <>
                 <Field data-invalid={!!form.formState.errors.scrapReason}>
                   <FieldLabel htmlFor='asset-scrap-reason'>
-                    {t('assetRequests.scrapReason')} *
+                    {t('assetRequests.scrapReason')}{' '}
+                    <span aria-hidden='true' className='text-destructive'>
+                      *
+                    </span>
                   </FieldLabel>
                   <Textarea
                     id='asset-scrap-reason'
@@ -707,7 +731,10 @@ function RequestForm({
                 </Field>
                 <Field data-invalid={!!form.formState.errors.photos}>
                   <FieldLabel htmlFor='asset-photos'>
-                    {t('assetRequests.photos')} *
+                    {t('assetRequests.photos')}{' '}
+                    <span aria-hidden='true' className='text-destructive'>
+                      *
+                    </span>
                   </FieldLabel>
                   <Photos
                     requestId={draftId}

@@ -781,49 +781,77 @@ export function DepartureForm({
             )}
           />
         ) : null}
-        <Controller
-          control={form.control}
-          name='departureType'
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor='departure-type'>
-                {t('departureRequests.departureType')}{' '}
-                <span aria-hidden='true' className='text-destructive'>
-                  *
-                </span>
-              </FieldLabel>
-              <Select
-                value={field.value || null}
-                items={types.map((type) => ({
-                  value: type.code,
-                  label: typeLabel(type.label, i18n.language, type.code),
-                }))}
-                disabled={disabled || !!record?.sourceProbationId}
-                onValueChange={(value) => field.onChange(value ?? '')}
-              >
-                <SelectTrigger
-                  id='departure-type'
-                  ref={field.ref}
-                  onBlur={field.onBlur}
-                  aria-invalid={fieldState.invalid || undefined}
-                  className='w-full'
+        <div className='grid gap-4 sm:grid-cols-2'>
+          <Controller
+            control={form.control}
+            name='departureType'
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor='departure-type'>
+                  {t('departureRequests.departureType')}{' '}
+                  <span aria-hidden='true' className='text-destructive'>
+                    *
+                  </span>
+                </FieldLabel>
+                <Select
+                  value={field.value || null}
+                  items={types.map((type) => ({
+                    value: type.code,
+                    label: typeLabel(type.label, i18n.language, type.code),
+                  }))}
+                  disabled={disabled || !!record?.sourceProbationId}
+                  onValueChange={(value) => field.onChange(value ?? '')}
                 >
-                  <SelectValue placeholder={f('chooseType')} />
-                </SelectTrigger>
-                <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
-                  <SelectGroup>
-                    {types.map((type) => (
-                      <SelectItem key={type.code} value={type.code}>
-                        {typeLabel(type.label, i18n.language, type.code)}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <FieldError errors={[fieldState.error]} />
-            </Field>
-          )}
-        />
+                  <SelectTrigger
+                    id='departure-type'
+                    ref={field.ref}
+                    onBlur={field.onBlur}
+                    aria-invalid={fieldState.invalid || undefined}
+                    className='w-full'
+                  >
+                    <SelectValue placeholder={f('chooseType')} />
+                  </SelectTrigger>
+                  <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
+                    <SelectGroup>
+                      {types.map((type) => (
+                        <SelectItem key={type.code} value={type.code}>
+                          {typeLabel(type.label, i18n.language, type.code)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
+          <Controller
+            control={form.control}
+            name='expectedLastWorkingDay'
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor='departure-date'>
+                  {t('departureRequests.expectedLastWorkingDay')}
+                </FieldLabel>
+                <div ref={(node) => field.ref(node?.querySelector('button'))}>
+                  <DatePicker
+                    id='departure-date'
+                    className='w-full'
+                    value={field.value ? parseISO(field.value) : undefined}
+                    onChange={(date) =>
+                      field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
+                    }
+                    onBlur={field.onBlur}
+                    invalid={fieldState.invalid}
+                    disabled={disabled}
+                  />
+                </div>
+                <FieldDescription>{f('dateHelp')}</FieldDescription>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
+        </div>
         <Controller
           control={form.control}
           name='reason'
@@ -842,31 +870,6 @@ export function DepartureForm({
                 aria-required='true'
                 aria-invalid={fieldState.invalid || undefined}
               />
-              <FieldError errors={[fieldState.error]} />
-            </Field>
-          )}
-        />
-        <Controller
-          control={form.control}
-          name='expectedLastWorkingDay'
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor='departure-date'>
-                {t('departureRequests.expectedLastWorkingDay')}
-              </FieldLabel>
-              <div ref={(node) => field.ref(node?.querySelector('button'))}>
-                <DatePicker
-                  id='departure-date'
-                  value={field.value ? parseISO(field.value) : undefined}
-                  onChange={(date) =>
-                    field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
-                  }
-                  onBlur={field.onBlur}
-                  invalid={fieldState.invalid}
-                  disabled={disabled}
-                />
-              </div>
-              <FieldDescription>{f('dateHelp')}</FieldDescription>
               <FieldError errors={[fieldState.error]} />
             </Field>
           )}

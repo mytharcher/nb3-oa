@@ -26,7 +26,7 @@ import { Blank, ErrorState, Loading, Refresh } from './ui.js';
 
 export default function PersonDetail() {
   const { userId = '' } = useParams();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const client = useAuthorizationClient();
   const location = useLocation();
   const parent = useOutletContext<{ reload: () => void }>();
@@ -149,7 +149,7 @@ export default function PersonDetail() {
       description={t('access.personHelp')}
       footer={<Refresh busy={data.busy || decisions.busy} reload={reload} />}
     >
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         <nav className='flex gap-2'>
           <Button
             variant={tab === 'sources' ? 'secondary' : 'ghost'}
@@ -229,33 +229,17 @@ export default function PersonDetail() {
                                 data.data!.sourceNames[
                                   `${source.type}:${source.id}`
                                 ];
-                              const canNavigate =
-                                !direct &&
-                                known &&
-                                [
-                                  'org.dutyRole',
-                                  'org.department',
-                                  'org.position',
-                                  'authenticated',
-                                  'org.reportingManager',
-                                  'org.departmentHead',
-                                ].includes(source.type);
                               const label = direct
                                 ? t('access.direct')
                                 : (known ?? t('access.inherited'));
                               return (
                                 <span key={`${source.type}:${source.id}`}>
-                                  {index ? '、' : ''}
-                                  {canNavigate ? (
-                                    <Link
-                                      className='text-primary hover:underline'
-                                      to={`/access/roles/${encodeURIComponent(source.type)}/${encodeURIComponent(source.id)}/permissions${location.search}`}
-                                    >
-                                      {label}
-                                    </Link>
-                                  ) : (
-                                    label
-                                  )}
+                                  {index
+                                    ? i18n.language.startsWith('zh')
+                                      ? '、'
+                                      : ', '
+                                    : ''}
+                                  {label}
                                 </span>
                               );
                             })
@@ -271,7 +255,7 @@ export default function PersonDetail() {
                 retry={decisions.reload}
               />
             ) : null}
-            {decisions.busy ? (
+            {decisions.busy && !decisions.data ? (
               <Loading />
             ) : decisions.data ? (
               <Card>
@@ -416,14 +400,26 @@ export default function PersonDetail() {
                                 ) : null}
                                 {sourceTitles.length ? (
                                   <p className='text-sm text-muted-foreground sm:col-span-3'>
-                                    {t('access.source')}:{' '}
-                                    {sourceTitles.join('、')}
+                                    {t('access.labelValue', {
+                                      label: t('access.source'),
+                                      value: sourceTitles.join(
+                                        i18n.language.startsWith('zh')
+                                          ? '、'
+                                          : ', ',
+                                      ),
+                                    })}
                                   </p>
                                 ) : null}
                                 {scopes.length ? (
                                   <p className='text-sm text-muted-foreground sm:col-span-3'>
-                                    {t('access.configuredScopes')}:{' '}
-                                    {[...new Set(scopes)].join('、')}
+                                    {t('access.labelValue', {
+                                      label: t('access.configuredScopes'),
+                                      value: [...new Set(scopes)].join(
+                                        i18n.language.startsWith('zh')
+                                          ? '、'
+                                          : ', ',
+                                      ),
+                                    })}
                                   </p>
                                 ) : null}
                               </div>

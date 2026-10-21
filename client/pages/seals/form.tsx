@@ -1,3 +1,4 @@
+import { Spinner } from '#components/ui/spinner';
 import { createRequestKey } from '#lib/request-key';
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useOutletContext } from 'react-router';
@@ -12,6 +13,7 @@ import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { DateTimePicker } from '#components/date-time-picker';
 import { Button } from '#components/ui/button';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import { Input } from '#components/ui/input';
 import { Textarea } from '#components/ui/textarea';
 import {
@@ -53,6 +55,7 @@ import type {
   Capabilities,
   Source,
   SealRequest,
+  SealFile,
 } from './types.js';
 export default function SealForm() {
   const { session } = useAuthentication(),
@@ -114,6 +117,7 @@ function Overlay() {
           <AlertDialogFooter>
             <AlertDialogCancel>{t('seals.cancel')}</AlertDialogCancel>
             <AlertDialogAction
+              variant='destructive'
               onClick={() => {
                 dirtyRef.current = false;
                 resolveRef.current?.(true);
@@ -145,6 +149,7 @@ function Footer({ busy }: { busy: boolean }) {
         variant='outline'
         disabled={busy}
       >
+        {busy ? <Spinner data-icon='inline-start' /> : null}
         {t('seals.saveDraft')}
       </Button>
       <Button
@@ -154,6 +159,7 @@ function Footer({ busy }: { busy: boolean }) {
         value='submit'
         disabled={busy}
       >
+        {busy ? <Spinner data-icon='inline-start' /> : null}
         {t('seals.submit')}
       </Button>
     </>
@@ -172,6 +178,7 @@ function Body({
   savedRef: React.RefObject<boolean>;
   onBusy: (v: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const o = useSealResource<{ data: Options }>('sealBrowser/options'),
     r = useSealResource<{ data: Detail }>(
       id ? `sealRequests/${encodeURIComponent(id)}` : null,
@@ -180,7 +187,14 @@ function Body({
       id ? `sealBrowser/requests/${encodeURIComponent(id)}/capabilities` : null,
     );
   return o.error || r.error || c.error ? (
-    <SealError error={o.error ?? r.error ?? c.error} />
+    <SealError
+      error={o.error ?? r.error ?? c.error}
+      retry={() => {
+        o.reload();
+        r.reload();
+        c.reload();
+      }}
+    />
   ) : o.loading || r.loading || c.loading ? (
     <SealSkeleton />
   ) : o.data && (!id || c.data?.data.transitions.includes('edit')) ? (
@@ -194,7 +208,9 @@ function Body({
       onBusy={onBusy}
     />
   ) : (
-    <SealError error={{}} />
+    <Alert>
+      <AlertDescription>{t('seals.noLongerEditable')}</AlertDescription>
+    </Alert>
   );
 }
 function Fields({
@@ -223,12 +239,22 @@ function Fields({
     [uploading, setUploading] = useState(false),
     [error, setError] = useState<unknown>(),
     uploadRef = useRef<{ file: File; key: string } | null>(null);
+  const existingFiles = useSealResource<{ data: SealFile[] }>(
+    draft?.id ? `sealRequests/${encodeURIComponent(draft.id)}/files` : null,
+  );
+  const [uploadedNames, setUploadedNames] = useState<Record<string, string>>(
+    {},
+  );
   const [validationNow] = useState(() => Date.now());
   const schema = z
     .object({
       contractId: z.string(),
       sealType: z.string().min(1, t('seals.required')),
-      copies: z.number().int().min(1).max(10000),
+      copies: z
+        .number({ error: t('seals.required') })
+        .int(t('seals.required'))
+        .min(1, t('seals.required'))
+        .max(10000, t('seals.required')),
       external: z.boolean(),
       returnDueAt: z.string(),
       purpose: z.string().trim().min(1, t('seals.required')).max(5000),
@@ -303,11 +329,15 @@ function Fields({
       const data = new FormData();
       data.set('file', file);
       data.set('requestKey', uploadRef.current.key);
-      const result = await api.request<{ data: { id: string } }>({
+      const result = await api.request<{ data: SealFile }>({
         method: 'POST',
         path: `sealRequests/${current.id}/files`,
         body: data,
       });
+      setUploadedNames((old) => ({
+        ...old,
+        [result.data.id]: result.data.filename,
+      }));
       setFiles((old) => [...old, result.data.id]);
       uploadRef.current = null;
       parent?.reload();
@@ -344,7 +374,12 @@ function Fields({
             busyRef.current = false;
             form.reset(values);
             parent?.reload();
-            toast.show({ type: 'success', title: t('seals.saved') });
+            toast.show({
+              type: 'success',
+              title: t('seals.requestSaved', {
+                name: saved.number ?? t('seals.draft'),
+              }),
+            });
             try {
               await close();
             } finally {
@@ -379,7 +414,7 @@ function Fields({
                 <SelectTrigger id='seal-type'>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                   <SelectGroup>
                     {options.sealTypes.map((v) => (
                       <SelectItem key={v.code} value={v.code}>
@@ -411,7 +446,7 @@ function Fields({
                 <SelectTrigger id='seal-contract'>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                   <SelectGroup>
                     <SelectItem value='none'>
                       {t('seals.fileSource')}
@@ -506,9 +541,20 @@ function Fields({
               if (f) void upload(f);
             }}
           />
+          {existingFiles.error ? (
+            <SealError
+              error={existingFiles.error}
+              retry={existingFiles.reload}
+            />
+          ) : null}
           {files.map((id) => (
             <div key={id} className='flex items-center justify-between gap-2'>
-              <span className='truncate'>{id}</span>
+              <span className='break-words'>
+                {uploadedNames[id] ??
+                  existingFiles.data?.data.find((file) => file.id === id)
+                    ?.filename ??
+                  t('seals.files')}
+              </span>
               <Button
                 type='button'
                 variant='ghost'

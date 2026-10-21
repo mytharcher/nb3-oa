@@ -1,3 +1,5 @@
+import { useRouteFormCloseGuard } from '#hooks/use-route-form-close-guard';
+import { FormActions } from '#components/form-actions';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useFieldArray, useForm, type Path } from 'react-hook-form';
 import { z } from 'zod';
@@ -12,7 +14,6 @@ import {
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useNavigate, useOutletContext, useParams } from 'react-router';
-import { BackButton } from '#components/back-button';
 import { RouteFormPage } from '#components/route-form-page';
 import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
@@ -167,11 +168,9 @@ export default function ShiftFormPage() {
   };
   return (
     <RouteFormPage
-      presentation='page'
       title={t(`attendanceManagement.${shiftId ? 'edit' : 'create'}`)}
     >
       <PageContainer>
-        <BackButton to={{ pathname: source.basePath, search: source.search }} />
         <PageHeader
           title={t(`attendanceManagement.${shiftId ? 'edit' : 'create'}`)}
         />
@@ -246,6 +245,12 @@ function ShiftForm({
     setConfirm('discard');
     return false;
   });
+  useRouteFormCloseGuard(() => {
+    if (busyRef.current) return false;
+    if (!dirty || savedRef.current || leaveRef.current) return true;
+    setConfirm('discard');
+    return false;
+  });
   useEffect(() => {
     if (!dirty && !busy) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -291,7 +296,10 @@ function ShiftForm({
       busyRef.current = false;
       form.reset(values);
       source.onShiftSaved(saved.data);
-      toaster.show({ title: t('attendanceManagement.saved'), type: 'success' });
+      toaster.show({
+        title: t('attendanceManagement.savedShift', { name: values.name }),
+        type: 'success',
+      });
       returnTo();
     } catch (failure) {
       setError(failure);
@@ -440,6 +448,8 @@ function ShiftForm({
                             </FieldLabel>
                             {name === 'start' || name === 'end' ? (
                               <Input
+                                type='time'
+                                step={60}
                                 {...field}
                                 value={String(field.value)}
                                 id={`${formId}-${index}-${name}`}
@@ -539,7 +549,7 @@ function ShiftForm({
             )}
           />
         </fieldset>
-        <div className='flex flex-wrap justify-end gap-2'>
+        <FormActions>
           <Button
             type='button'
             variant='outline'
@@ -548,11 +558,15 @@ function ShiftForm({
           >
             {t('attendanceManagement.cancel')}
           </Button>
-          <Button type='submit' disabled={busy || terminal}>
+          <Button
+            type='submit'
+            form='attendance-shift-form'
+            disabled={busy || terminal}
+          >
             {busy ? <Spinner data-icon='inline-start' /> : null}
             {t(`attendanceManagement.${busy ? 'saving' : 'save'}`)}
           </Button>
-        </div>
+        </FormActions>
       </form>
       <AlertDialog
         open={!!confirm}

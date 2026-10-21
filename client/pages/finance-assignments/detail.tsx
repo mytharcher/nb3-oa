@@ -36,6 +36,7 @@ export default function Detail() {
         <>
           {p.can && !p.isPending && !p.error ? (
             <Button
+              nativeButton={false}
               disabled={r.loading || !row}
               render={
                 <Link to={{ pathname: 'edit', search: location.search }} />
@@ -58,7 +59,7 @@ export default function Detail() {
           <FinanceSkeleton />
         ) : null
       ) : (
-        <dl className='grid grid-cols-1 gap-4'>
+        <dl className='grid grid-cols-1 gap-4 sm:grid-cols-[8rem_1fr] [&>div]:contents'>
           <div>
             <dt className='text-sm text-muted-foreground'>
               {t('financeAssignments.department')}

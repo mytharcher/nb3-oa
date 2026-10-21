@@ -1,5 +1,6 @@
 export default {
   expensePlans: {
+    relatedUnavailable: 'Related record unavailable',
     businessErrors: {
       EXPENSE_PLAN_DEPARTMENT_REQUIRED:
         'The applicant needs an active primary department. Ask HR to update the employee record.',
@@ -24,8 +25,6 @@ export default {
     department: 'Submitted primary department',
     primaryDepartment:
       'Current primary department: {{department}}. It is checked again at submission.',
-    proxyDepartment:
-      "The applicant's active primary department is determined at submission.",
     departmentMissing: 'Not configured',
     departmentPending: 'Determined at submission',
     departmentUnavailable: 'Department is currently unavailable',

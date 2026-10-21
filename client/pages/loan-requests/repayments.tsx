@@ -1,3 +1,5 @@
+import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
+import { FieldsSkeleton } from '../platform/shared/states.js';
 import { MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
@@ -7,9 +9,9 @@ import {
   DropdownMenuItem,
 } from '#components/ui/dropdown-menu';
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
-import { useApiClient, ApiClientError } from '@nocobase/app-client';
+import { useApiClient, useToaster, ApiClientError } from '@nocobase/app-client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { DataTable } from '#components/data-table';
@@ -29,7 +31,7 @@ import {
 import { useResource } from '../approvals/use-resource.js';
 import { createRequestId } from '../approvals/request-id.js';
 import { ErrorState } from './states.js';
-import { amountText } from './money.js';
+import { formatCents } from '#lib/money';
 import type { LoanRequestRecord } from './types.js';
 export interface Repayment {
   id: string;
@@ -45,8 +47,9 @@ export function LoanFinancialSections({
   record: LoanRequestRecord;
   reload: () => void;
 }) {
-  const { t } = useTranslation(),
+  const { t, i18n } = useTranslation(),
     api = useApiClient(),
+    toast = useToaster(),
     { session } = useAuthentication();
   const payment = useCan({
       resource: { type: 'composite', id: 'oa.loan' },
@@ -60,6 +63,7 @@ export function LoanFinancialSections({
       resource: { type: 'composite', id: 'oa.loan' },
       action: 'confirmRepayment',
     });
+  const location = useLocation();
   const [showBank, setShowBank] = useState(false);
   const bank = useResource<{
     bankName: string;
@@ -108,6 +112,15 @@ export function LoanFinancialSections({
           requestKey: command.key,
         },
       });
+      toast.show({
+        type: 'success',
+        title: t(
+          command.operation === 'confirm'
+            ? 'loanRequests.repaymentConfirmed'
+            : 'loanRequests.repaymentCancelled',
+          { receipt: command.row.reference },
+        ),
+      });
       setCommand(null);
       repayments.reload();
       reload();
@@ -125,7 +138,11 @@ export function LoanFinancialSections({
     {
       accessorKey: 'cents',
       header: t('loanRequests.amount'),
-      cell: ({ row }) => amountText(row.original.cents),
+      cell: ({ row }) => (
+        <span className='block text-right tabular-nums'>
+          {formatCents(row.original.cents, i18n.language)}
+        </span>
+      ),
     },
     {
       accessorKey: 'state',
@@ -155,10 +172,12 @@ export function LoanFinancialSections({
               <DropdownMenuTrigger
                 render={
                   <Button
-                    size='icon'
+                    size='icon-sm'
                     variant='ghost'
                     disabled={busy}
-                    aria-label={t('loanRequests.more')}
+                    aria-label={t('loanRequests.rowActions', {
+                      name: row.original.reference,
+                    })}
                   />
                 }
               >
@@ -237,13 +256,11 @@ export function LoanFinancialSections({
                 </div>
               ))}
             </dl>
+          ) : bank.loading ? (
+            <FieldsSkeleton />
           ) : (
             <p className='text-sm text-muted-foreground'>
-              {t(
-                bank.loading
-                  ? 'loanRequests.loadingBank'
-                  : 'loanRequests.bankNotSnapshot',
-              )}
+              {t('loanRequests.bankNotSnapshot')}
             </p>
           )
         ) : null}
@@ -253,7 +270,15 @@ export function LoanFinancialSections({
           <div className='flex items-center justify-between gap-3'>
             <h2 className='font-medium'>{t('loanRequests.repayment')}</h2>
             {cash.can && !invalidRepayments && !repayments.error ? (
-              <Button variant='outline' render={<Link to='repayment' />}>
+              <Button
+                variant='outline'
+                nativeButton={false}
+                render={
+                  <Link
+                    to={{ pathname: 'repayment', search: location.search }}
+                  />
+                }
+              >
                 {t('loanRequests.recordCash')}
               </Button>
             ) : null}
@@ -273,9 +298,7 @@ export function LoanFinancialSections({
               emptyMessage={t('loanRequests.noRepayments')}
             />
           ) : (
-            <p className='text-sm text-muted-foreground'>
-              {t('loanRequests.loading')}
-            </p>
+            <ApplicationTableSkeleton columns={4} />
           )}
         </section>
       ) : null}
@@ -290,8 +313,9 @@ export function LoanFinancialSections({
             <AlertDialogTitle>
               {t(
                 command?.operation === 'confirm'
-                  ? 'loanRequests.confirmRepayment'
-                  : 'loanRequests.cancelRepayment',
+                  ? 'loanRequests.confirmRepaymentTitle'
+                  : 'loanRequests.cancelRepaymentTitle',
+                { receipt: command?.row.reference },
               )}
             </AlertDialogTitle>
             <AlertDialogDescription>
@@ -301,25 +325,39 @@ export function LoanFinancialSections({
                   : 'loanRequests.cancelCashWarning',
                 {
                   receipt: command?.row.reference,
-                  amount: command ? amountText(command.row.cents) : '',
+                  amount: command
+                    ? formatCents(command.row.cents, i18n.language)
+                    : '',
                 },
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error ? (
-            <ErrorState error={error} retry={() => setError(undefined)} />
+            <ErrorState
+              error={error}
+              retry={() => {
+                void perform();
+              }}
+            />
           ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>
               {t('approvals.cancel')}
             </AlertDialogCancel>
             <Button
+              variant={
+                command?.operation === 'cancel' ? 'destructive' : 'default'
+              }
               disabled={busy}
               onClick={() => {
                 void perform();
               }}
             >
-              {t('loanRequests.confirm')}
+              {t(
+                command?.operation === 'cancel'
+                  ? 'loanRequests.cancelRepayment'
+                  : 'loanRequests.confirmRepayment',
+              )}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -248,7 +248,15 @@ function Body({
       parent.reload();
       setUncertain(false);
       onBusy(false);
-      toaster.show({ type: 'success', title: t('recruitment.saved') });
+      toaster.show({
+        type: 'success',
+        title: t('recruitment.savedRecord', {
+          name:
+            detail.identities.position?.name ??
+            detail.identities.department?.name ??
+            t('recruitment.detail'),
+        }),
+      });
       await close();
     } catch (cause) {
       if (signal.aborted) return;
@@ -439,7 +447,10 @@ function Body({
         open={confirm}
         title={t('recruitment.confirmAction', {
           action: t(`recruitment.actions.${operation}`),
-          id: detail.record.id,
+          id:
+            detail.identities.position?.name ??
+            detail.identities.department?.name ??
+            t('recruitment.detail'),
         })}
         description={t('recruitment.actionConsequence')}
         confirm={t(`recruitment.actions.${operation}`)}

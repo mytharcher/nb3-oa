@@ -1,3 +1,4 @@
+import { useDrawerFormGuard } from '#hooks/use-drawer-form-guard';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -9,7 +10,7 @@ import { useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
 
 import { DatePicker } from '#components/date-picker';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { SessionExpiredAlert } from '#components/session-expired-alert';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import {
@@ -55,7 +56,7 @@ function DayDialog({
 }: {
   readonly date: string | undefined;
 }): ReactElement {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const handleSubmitting = (value: boolean): void => {
@@ -104,21 +105,28 @@ function DayDialog({
   }
 
   return (
-    <RouteDialog
+    <RouteDrawer
       title={
         editing
-          ? t('platform.calendar.days.editTitle', { date })
+          ? t('platform.calendar.days.editTitle', {
+              date: date
+                ? new Intl.DateTimeFormat(i18n.language, {
+                    dateStyle: 'medium',
+                    timeZone: 'UTC',
+                  }).format(new Date(`${date}T00:00:00Z`))
+                : '',
+            })
           : t('platform.calendar.days.addTitle')
       }
       description={
         editing ? undefined : t('platform.calendar.days.addDescription')
       }
-      className='sm:max-w-md'
+      className='sm:max-w-2xl'
       beforeClose={() => !submittingRef.current}
       footer={footer}
     >
       {body}
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 
@@ -129,7 +137,7 @@ function DayForm({
   readonly day: CalendarDay | undefined;
   readonly onSubmittingChange: (submitting: boolean) => void;
 }): ReactElement {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const api = useApiClient();
   const toaster = useToaster();
   const { close } = useRouteOverlay();
@@ -165,6 +173,11 @@ function DayForm({
     label: t(`platform.calendar.kinds.${value}`),
   }));
 
+  const drawerGuard = useDrawerFormGuard(
+    form.formState.isDirty,
+    form.formState.isSubmitting,
+  );
+
   const submit = form.handleSubmit(async (values) => {
     // The schema refused an empty date; editing keeps the day's own date.
     const date = format(values.date ?? new Date(), 'yyyy-MM-dd');
@@ -191,9 +204,15 @@ function DayForm({
     }
     toaster.show({
       type: 'success',
-      title: t('platform.calendar.days.saved', { date }),
+      title: t('platform.calendar.days.saved', {
+        date: new Intl.DateTimeFormat(i18n.language, {
+          dateStyle: 'medium',
+          timeZone: 'UTC',
+        }).format(new Date(`${date}T00:00:00Z`)),
+      }),
     });
     reload();
+    drawerGuard.markSaved();
     void close();
   });
 
@@ -201,6 +220,7 @@ function DayForm({
 
   return (
     <form id={FORM_ID} noValidate onSubmit={(event) => void submit(event)}>
+      {drawerGuard.confirmation}
       <FieldGroup>
         {rootError?.type === 'sessionExpired' ? (
           <SessionExpiredAlert />

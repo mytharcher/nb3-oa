@@ -93,6 +93,7 @@ export const LoanRequestRecord = z.object({
   createdAt: z.string(),
 });
 export const Detail = z.strictObject({
+  travelName: z.string().nullable(),
   timeZone: z.string(),
   department: z.strictObject({ id: z.string(), title: z.string() }).nullable(),
   loan: z.json().nullable(),

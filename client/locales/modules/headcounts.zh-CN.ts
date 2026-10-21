@@ -1,5 +1,9 @@
 export default {
   headcounts: {
+    technicalDetails: '技术信息',
+    copyId: '复制内部标识',
+    copyFailed: '内部标识复制失败。',
+
     name: '{{department}} / {{position}} / {{year}}',
     createSubmit: '创建',
     idCopied: '账户标识已复制',

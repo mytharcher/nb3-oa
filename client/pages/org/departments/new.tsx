@@ -2,7 +2,7 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { type ReactElement, useRef, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 
 import { DepartmentForm } from './department-form.js';
@@ -25,7 +25,8 @@ export default function NewDepartmentPage(): ReactElement {
     setSubmitting(value);
   };
   return (
-    <RouteDialog
+    <RouteDrawer
+      className='sm:max-w-2xl'
       title={
         departmentId
           ? t('org.departments.createChild')
@@ -45,7 +46,7 @@ export default function NewDepartmentPage(): ReactElement {
         {...(departmentId ? { parentId: departmentId } : {})}
         onSubmittingChange={handleSubmittingChange}
       />
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 

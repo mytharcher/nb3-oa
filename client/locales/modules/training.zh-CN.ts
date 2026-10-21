@@ -1,5 +1,10 @@
 export default {
   training: {
+    actionForm: {
+      title: '{{action}}培训申请“{{name}}”',
+      completed: '已{{action}}培训申请“{{name}}”',
+      saved: '已保存培训申请“{{name}}”',
+    },
     businessErrors: {
       TRAINING_INVALID_INPUT:
         '请补齐培训名称、培训机构和申请原因，并输入有效的非负费用。',

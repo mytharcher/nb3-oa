@@ -465,7 +465,12 @@ function ActionForm({
               }
             />,
           ] as const,
-          [t('leaveCancellations.original'), detail.record.originalLeaveId],
+          [
+            t('leaveCancellations.original'),
+            detail.record.baseline?.originalNumber
+              ? String(detail.record.baseline.originalNumber)
+              : '—',
+          ],
           [
             t('leaveCancellations.mode'),
             t(
@@ -586,7 +591,7 @@ function ActionForm({
                     <SelectTrigger id='approval-mode'>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                       <SelectGroup>
                         {modes.map((v) => (
                           <SelectItem key={v} value={v}>

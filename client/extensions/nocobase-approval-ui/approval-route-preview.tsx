@@ -44,7 +44,12 @@ function Stop({
           muted && 'border-dashed border-muted-foreground',
         )}
       />
-      <div className={cn('min-w-0 flex-1 space-y-1', muted && 'opacity-60')}>
+      <div
+        className={cn(
+          'min-w-0 flex-1 flex flex-col gap-1',
+          muted && 'opacity-60',
+        )}
+      >
         <div className='flex flex-wrap items-center gap-1.5'>
           <span className='text-sm font-medium'>{title}</span>
           {trigger ? (
@@ -125,7 +130,7 @@ export function ApprovalRoutePreview({
             aria-hidden='true'
             className='absolute top-0 bottom-0 left-1.5 w-px -translate-x-1/2 bg-border'
           />
-          <div className='ml-6 min-w-0 flex-1 space-y-2 rounded-lg border border-dashed p-3'>
+          <div className='ml-6 min-w-0 flex-1 flex flex-col gap-2 rounded-lg border border-dashed p-3'>
             <span className='flex items-center gap-1 text-xs text-muted-foreground'>
               <GitFork className='size-3' />
               {t('approvalUi.preview.parallel', {
@@ -195,7 +200,10 @@ export function ApprovalRoutePreview({
   const skipped = preview?.stops.filter((step) => !step.included) ?? [];
   return (
     <section
-      className={cn('space-y-3 rounded-xl border bg-muted/30 p-4', className)}
+      className={cn(
+        'flex flex-col gap-3 rounded-xl border bg-muted/30 p-4',
+        className,
+      )}
     >
       <h3 className='text-sm font-semibold'>
         {t('approvalUi.preview.title', { defaultValue: 'Who will decide' })}

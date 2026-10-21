@@ -12,6 +12,9 @@ import {
   useResolvedPath,
   useSearchParams,
 } from 'react-router';
+import { ApplicationSearch } from '#components/application-search';
+import { useUrlSearch } from '#hooks/use-url-search';
+import { DataTableColumnHeader } from '#components/data-table';
 import { Plus } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { PageContainer } from '#components/page-container';
@@ -25,13 +28,15 @@ import { Failure } from '../work-items/states.js';
 import { useOnboardingResource } from './resource.js';
 import { resource, type RecordDto } from './types.js';
 export default function List() {
-  const { t } = useTranslation(),
+  const { t, i18n } = useTranslation(),
     location = useLocation(),
     basePath = useResolvedPath('.').pathname,
     [params, setParams] = useSearchParams();
   const view = useCan({ resource, action: 'view' }),
     create = useCan({ resource, action: 'create' }),
     allowed = view.can && !view.isPending && !view.error;
+  const search = useUrlSearch({ resetParams: ['page'] });
+  const desc = params.get('desc') !== 'false';
   const status = ['handling', 'completed', 'cancelled'].includes(
     params.get('status') ?? '',
   )
@@ -48,6 +53,8 @@ export default function List() {
     page: String(page),
     pageSize: String(pageSize),
     ...(status === 'all' ? {} : { status }),
+    ...(search.search ? { q: search.search } : {}),
+    ...(desc ? {} : { desc: 'false' }),
   });
   const columns: ColumnDef<RecordDto>[] = [
     {
@@ -66,7 +73,20 @@ export default function List() {
         </Link>
       ),
     },
-    { accessorKey: 'hireDate', header: t('onboarding.fields.hireDate') },
+    {
+      accessorKey: 'hireDate',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t('onboarding.fields.hireDate')}
+        />
+      ),
+      cell: ({ row }) =>
+        new Intl.DateTimeFormat(i18n.language, {
+          dateStyle: 'medium',
+          timeZone: 'UTC',
+        }).format(new Date(`${row.original.hireDate}T00:00:00Z`)),
+    },
     {
       id: 'creator',
       header: t('onboarding.creator'),
@@ -98,11 +118,6 @@ export default function List() {
             <ApplicationToolbar
               actions={
                 <>
-                  <ApplicationRefreshButton
-                    label={t('onboarding.refresh')}
-                    loading={r.loading}
-                    onClick={r.reload}
-                  />
                   {create.can && !create.isPending && !create.error ? (
                     <Button
                       nativeButton={false}
@@ -120,9 +135,19 @@ export default function List() {
                       {t('onboarding.new')}
                     </Button>
                   ) : null}
+
+                  <ApplicationRefreshButton
+                    label={t('onboarding.refresh')}
+                    loading={r.loading}
+                    onClick={r.reload}
+                  />
                 </>
               }
             >
+              <ApplicationSearch
+                placeholder={t('onboarding.employeeSearch')}
+                {...search.inputProps}
+              />
               <OptionSelect
                 value={status}
                 options={['all', 'handling', 'completed', 'cancelled'].map(
@@ -139,6 +164,20 @@ export default function List() {
                   })
                 }
               />
+              {status !== 'all' || search.search ? (
+                <Button
+                  variant='ghost'
+                  onClick={() =>
+                    setParams((p) => {
+                      p.delete('status');
+                      p.delete('page');
+                      return p;
+                    })
+                  }
+                >
+                  {t('onboarding.clear')}
+                </Button>
+              ) : null}
             </ApplicationToolbar>
             {r.loading && !r.data ? (
               <ApplicationTableSkeleton columns={4} />
@@ -159,16 +198,32 @@ export default function List() {
                     return old;
                   })
                 }
+                sorting={[{ id: 'hireDate', desc }]}
+                onSortingChange={(sorting) =>
+                  setParams((p) => {
+                    p.set(
+                      'desc',
+                      sorting[0]?.desc === false ? 'false' : 'true',
+                    );
+                    p.delete('page');
+                    return p;
+                  })
+                }
                 emptyMessage={
                   <ApplicationTableEmpty
-                    title={t('onboarding.empty')}
+                    title={t(
+                      status === 'all'
+                        ? 'onboarding.empty'
+                        : 'onboarding.noMatches',
+                    )}
                     clearFilters={
-                      status
+                      status !== 'all' || search.search
                         ? {
                             label: t('onboarding.clear'),
                             onClick: () =>
                               setParams((p) => {
                                 p.delete('status');
+                                p.delete('q');
                                 p.delete('page');
                                 return p;
                               }),

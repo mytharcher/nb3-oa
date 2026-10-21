@@ -9,7 +9,7 @@ export default {
       description:
         'Sharing rules widen access, opening specific records or a reusable record scope to the people you choose.',
     },
-    search: 'Search sharing rules',
+    search: 'Search by rule name, key or resource',
     create: 'New sharing rule',
     ruleHeader: 'Rule',
     recordsSharedHeader: 'Records shared',
@@ -37,7 +37,7 @@ export default {
     noRecords: 'No records found.',
     deleteRule: 'Delete rule',
     save: 'Save sharing rule',
-    confirmDeleteTitle: 'Delete this sharing rule?',
+    confirmDeleteTitle: 'Delete rule "{{title}}"?',
     confirmDeleteBody:
       'Delete sharing rule “{{title}}”. Access provided by other permission sets and sharing rules remains available.',
   },

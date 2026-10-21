@@ -1,3 +1,5 @@
+import { useRouteFormCloseGuard } from '#hooks/use-route-form-close-guard';
+import { FormActions } from '#components/form-actions';
 import { createRequestKey } from '#lib/request-key';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -116,7 +118,10 @@ export default function PublishSalaryGrade() {
   };
   const error = current.error ?? grades.error;
   return (
-    <RouteFormPage presentation='page' title={drawerTitle('jobGrades.publish')}>
+    <RouteFormPage
+      className='sm:max-w-4xl'
+      title={drawerTitle('jobGrades.publish')}
+    >
       <PageContainer>
         <PageHeader
           title={t('jobGrades.publish')}
@@ -223,6 +228,12 @@ function PublicationForm({
     unknown = !!pending;
   const locked = busy || unknown || conflict || storageFailed || !!denied;
   useNavigationGuard(() => {
+    if (busyRef.current || pending) return false;
+    if (savedRef.current || leaveRef.current || !dirty) return true;
+    setConfirm('discard');
+    return false;
+  });
+  useRouteFormCloseGuard(() => {
     if (busyRef.current || pending) return false;
     if (savedRef.current || leaveRef.current || !dirty) return true;
     setConfirm('discard');
@@ -420,6 +431,7 @@ function PublicationForm({
         </Alert>
       ) : null}
       <form
+        id='salary-publication-form'
         ref={formRef}
         onSubmit={(e) => {
           e.preventDefault();
@@ -598,7 +610,7 @@ function PublicationForm({
           <FieldDescription>{t('jobGrades.reasonHint')}</FieldDescription>
           {fieldError('reason')}
         </Field>
-        <div className='flex flex-wrap justify-end gap-2'>
+        <FormActions>
           <Button
             type='button'
             variant='outline'
@@ -607,11 +619,15 @@ function PublicationForm({
           >
             {t('jobGrades.cancel')}
           </Button>
-          <Button type='submit' disabled={locked || !grades.length}>
+          <Button
+            type='submit'
+            form='salary-publication-form'
+            disabled={locked || !grades.length}
+          >
             {busy ? <Spinner data-icon='inline-start' /> : null}
             {t(busy ? 'jobGrades.publishing' : 'jobGrades.publish')}
           </Button>
-        </div>
+        </FormActions>
       </form>
       <AlertDialog
         open={!!confirm}
@@ -639,6 +655,7 @@ function PublicationForm({
           <AlertDialogFooter>
             <AlertDialogCancel>{t('jobGrades.stay')}</AlertDialogCancel>
             <Button
+              variant={confirm === 'replace' ? 'default' : 'destructive'}
               onClick={() => {
                 if (confirm === 'replace') {
                   setConfirm(null);

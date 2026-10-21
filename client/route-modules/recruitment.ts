@@ -10,7 +10,7 @@ const policy = (action: string, id = 'oa.recruitment') => ({
 export default defineAppRoutes([
   {
     name: 'oa-recruitment-requests',
-    parent: 'oa-organization',
+    parent: 'oa-hr',
     path: '/recruitment-requests',
     auth: 'required',
     authz: policy('view'),
@@ -58,7 +58,7 @@ export default defineAppRoutes([
   },
   {
     name: 'oa-requisitions',
-    parent: 'oa-organization',
+    parent: 'oa-hr',
     path: '/requisitions',
     auth: 'required',
     authz: policy('view', 'oa.requisitions'),

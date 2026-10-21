@@ -1,5 +1,6 @@
 export default {
   expensePlans: {
+    relatedUnavailable: '关联记录不可用',
     businessErrors: {
       EXPENSE_PLAN_DEPARTMENT_REQUIRED:
         '申请人没有有效主部门，请联系人力资源完善员工档案。',
@@ -21,7 +22,6 @@ export default {
     budgetYear: '提交时预算年度',
     department: '提交时主部门',
     primaryDepartment: '当前主部门：{{department}}；提交时重新核验。',
-    proxyDepartment: '按申请人提交时的有效主部门申请预算。',
     departmentMissing: '未配置',
     departmentPending: '提交时确定',
     departmentUnavailable: '原主部门目前不可用',

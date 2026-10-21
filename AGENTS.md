@@ -68,6 +68,7 @@ Register new modules in `server/providers/index.ts`, `server/routes/index.ts`, `
 - Call other modules through public service tokens, not their implementations or plugin internal tables. Commit business writes, audits, and related changes in the same transaction. Use platform services for working days, rule snapshots, and document numbers.
 - Published migrations are immutable; add new migrations for changes. Do not edit generated collections. Register permission seeds in the main application only after their providers and actions are registered.
 - Declare menus through route `navigation` and fetch data with `useApiClient`. Reuse existing tables, pickers, and layouts; follow the [shared table design](docs/designs/oa/table-presentation-design.md). Add shadcn primitives through the CLI; do not edit generated files.
+- Business create, edit, and input-bearing action forms use right-side drawers, including complex applications. Keep headers and actions fixed with a scrolling body; retain AlertDialog confirmations and read-only pages. This application convention overrides the generic Skill's field-count container selection. See [form drawer design](docs/designs/oa/unified-form-drawers-design.md).
 - Put user-visible copy in locale files. Frontend request identifiers use `createRequestKey` from `#lib/request-key`; do not use `crypto.randomUUID`, to support intranet HTTP origins.
 - Keep tests in `tests/`. Database tests use isolated environments, never business databases; do not switch to SQLite to bypass failures. Preserve existing application adapters and review their owning designs and records during upgrades.
 
@@ -82,4 +83,4 @@ Start at [docs/README.md](docs/README.md). Find and update the existing owning d
 
 Find current status, source reviews, module gaps, and development plans through the [documentation index](docs/README.md). The owning module design defines its business contracts.
 
-The route-level denied and load-failure surfaces use user-facing generic messages rather than internal route/package identifiers; denied pages link back to the workbench. This application shell presentation is customized in `client/routing/client-route.tsx`; preserve it during template upgrades. See [page experience](docs/designs/oa/page-experience-design.md).
+The route-level denied and load-failure surfaces use user-facing generic messages rather than internal route/package identifiers; denied pages link back to the workbench. This application shell presentation is customized in `client/routing/client-route.tsx`; load failures use a destructive Alert with an outline retry action. Preserve it during template upgrades. See [page experience](docs/designs/oa/page-experience-design.md).

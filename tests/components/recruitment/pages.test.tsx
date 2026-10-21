@@ -345,6 +345,10 @@ it('uncertain action retries retain the exact version, command identity and body
   };
   let attempts = 0;
   serve((r) => {
+    if (r.path === 'departments/options')
+      return { data: [{ id: 'd', title: 'Engineering' }] };
+    if (r.path === 'positions/options')
+      return { data: [{ id: 'p', title: 'Developer' }] };
     if (r.method) {
       attempts++;
       if (attempts === 1) throw new Error('Network lost');
@@ -496,6 +500,10 @@ it('requisition close confirms the remaining-allocation consequence and freezes 
   };
   let attempts = 0;
   serve((r) => {
+    if (r.path === 'departments/options')
+      return { data: [{ id: 'd', title: 'Engineering' }] };
+    if (r.path === 'positions/options')
+      return { data: [{ id: 'p', title: 'Developer' }] };
     if (r.method) {
       attempts++;
       if (attempts === 1) throw new Error('Unknown response');
@@ -516,6 +524,10 @@ it('requisition close confirms the remaining-allocation consequence and freezes 
       'Only remaining unconsumed recruitment allocation is released. Consumed employee history remains.',
     ),
   ).toBeVisible();
+  expect(screen.getByRole('alertdialog')).toHaveTextContent(
+    '2026 / Engineering / Developer',
+  );
+  expect(screen.getByRole('alertdialog')).not.toHaveTextContent('req1');
   await userEvent.click(
     (await screen.findByRole('alertdialog')).querySelector(
       'button:last-child',

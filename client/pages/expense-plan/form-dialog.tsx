@@ -1,3 +1,4 @@
+import { formatCents } from '#lib/money';
 import {
   useRequestFormSubmission,
   preventComposingSubmit,
@@ -10,7 +11,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useOutletContext, useParams } from 'react-router';
@@ -21,7 +21,6 @@ import { DatePicker } from '#components/date-picker';
 import { format, parseISO } from 'date-fns';
 import { parseAmountCents, amountText } from './money.js';
 import { subjectLabel, type ExpenseOptions } from './options.js';
-import { UserPicker } from '#components/user-picker';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
 import { Textarea } from '#components/ui/textarea';
@@ -81,13 +80,9 @@ export default function ExpensePlanFormDialog() {
     resource: { type: 'composite', id: 'oa.expensePlan' },
     action: 'submit',
   }).can;
-  const canDelegate = useCan({
-    resource: { type: 'composite', id: 'oa.expensePlan' },
-    action: 'delegate',
-  }).can;
   const allowed = requestId
     ? resource.data?.view.available.some((a) => a.name === 'edit' && a.allowed)
-    : canSubmit || canDelegate;
+    : canSubmit;
   useEffect(() => {
     if (
       resource.error instanceof ApiClientError &&
@@ -227,16 +222,7 @@ function ExpensePlanForm({
   const api = useApiClient();
   const toaster = useToaster();
   const { close } = useRouteOverlay();
-  const { session } = useAuthentication();
   const parent = useOutletContext<SourceContext & Partial<DetailContext>>();
-  const delegate = useCan({
-    resource: { type: 'composite', id: 'oa.expensePlan' },
-    action: 'delegate',
-  }).can;
-  const pick = useCan({
-    resource: { type: 'user', id: '*' },
-    action: 'read',
-  }).can;
   const options = useResource<ExpenseOptions>('expensePlans/options');
   const [error, setError] = useState<unknown>();
   const [uncertain, setUncertain] = useState(false);
@@ -266,7 +252,6 @@ function ExpensePlanForm({
   const schema = useMemo(
     () =>
       z.object({
-        applicantId: z.string(),
         matterType: z.string().min(1, t('approvals.required')),
         subject: z.string().min(1, t('approvals.required')),
         amount: z
@@ -302,7 +287,6 @@ function ExpensePlanForm({
     mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: {
-      applicantId: '',
       matterType: detail?.record.matterType ?? '',
       subject: detail?.record.subject ?? '',
       amount: detail ? amountText(detail.record.amountCents) : '',
@@ -311,7 +295,6 @@ function ExpensePlanForm({
       reason: detail?.record.reason ?? '',
     },
   });
-  const applicantId = useWatch({ control: form.control, name: 'applicantId' });
   const eventDate = useWatch({ control: form.control, name: 'eventDate' });
   useEffect(
     () => onDirty(form.formState.isDirty),
@@ -342,7 +325,7 @@ function ExpensePlanForm({
     runningRef.current = true;
     onBusy(true);
     setError(undefined);
-    const { applicantId, amount, ...fields } = values;
+    const { amount, ...fields } = values;
     const input = {
       ...fields,
       amountCents: parseAmountCents(amount)!,
@@ -356,7 +339,7 @@ function ExpensePlanForm({
     try {
       const draftRequestId = attemptRef.current.requestId;
       const savedRecord = await submission.save(
-        { input, applicantId },
+        { input },
         detail?.record,
         async (current) => {
           const result = await api.request<{
@@ -375,12 +358,6 @@ function ExpensePlanForm({
                 }
               : {
                   ...input,
-                  ...(delegate &&
-                  pick &&
-                  applicantId &&
-                  applicantId !== session?.user.id
-                    ? { applicantId }
-                    : {}),
                 },
           });
           return result.data.record;
@@ -533,108 +510,114 @@ function ExpensePlanForm({
         }
       >
         <FieldGroup inert={submission.submitUnknown || undefined}>
-          {delegate && pick && !detail ? (
+          <FieldDescription>
+            {t('expensePlans.primaryDepartment', {
+              department:
+                options.data?.department?.title ??
+                t('expensePlans.departmentMissing'),
+            })}
+          </FieldDescription>
+          <div className='grid gap-4 sm:grid-cols-2'>
+            {(['matterType', 'subject'] as const).map((name) => (
+              <Controller
+                key={name}
+                name={name}
+                control={form.control}
+                render={({ field, fieldState }) => {
+                  const choices =
+                    (name === 'matterType'
+                      ? options.data?.matterTypes
+                      : options.data?.subjects
+                    )?.filter(
+                      (entry) => entry.active || entry.code === field.value,
+                    ) ?? [];
+                  return (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor={`expensePlans-${name}`}>
+                        {t(`expensePlans.${name}`)} *
+                      </FieldLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={
+                          busy ||
+                          locked ||
+                          !allowed ||
+                          !options.data ||
+                          !!options.error
+                        }
+                        items={choices.map((entry) => ({
+                          value: entry.code,
+                          label: subjectLabel(entry, entry.code, i18n.language),
+                        }))}
+                      >
+                        <SelectTrigger
+                          className='h-auto min-h-9 w-full'
+                          id={`expensePlans-${name}`}
+                          aria-invalid={fieldState.invalid}
+                        >
+                          <SelectValue className='whitespace-normal break-words text-left' />
+                        </SelectTrigger>
+                        <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
+                          <SelectGroup>
+                            {choices.map((entry) => (
+                              <SelectItem
+                                key={entry.code}
+                                value={entry.code}
+                                disabled={!entry.active}
+                              >
+                                <span className='break-words'>
+                                  {subjectLabel(
+                                    entry,
+                                    entry.code,
+                                    i18n.language,
+                                  )}
+                                  {entry.active
+                                    ? ''
+                                    : ` (${t('expensePlans.disabled')})`}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FieldError errors={[fieldState.error]} />
+                      {choices.find((entry) => entry.code === field.value)
+                        ?.active === false ? (
+                        <FieldDescription>
+                          {t('expensePlans.subjectInactive')}
+                        </FieldDescription>
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              />
+            ))}
+          </div>
+          <div className='grid gap-4 sm:grid-cols-2'>
             <Controller
-              name='applicantId'
+              name='eventDate'
               control={form.control}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel htmlFor='expensePlans-applicant'>
-                    {t('approvals.applicant')}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor='expensePlans-eventDate'>
+                    {t('expensePlans.eventDate')} *
                   </FieldLabel>
-                  <UserPicker
-                    id='expensePlans-applicant'
-                    value={field.value}
-                    onChange={field.onChange}
-                    disabled={
-                      busy || locked || !allowed || !!submission.current.current
+                  <DatePicker
+                    id='expensePlans-eventDate'
+                    className='w-full'
+                    value={field.value ? parseISO(field.value) : undefined}
+                    onChange={(date) =>
+                      field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
                     }
+                    onBlur={field.onBlur}
+                    invalid={fieldState.invalid}
+                    disabled={busy || locked || !allowed}
                   />
+                  <FieldError errors={[fieldState.error]} />
                 </Field>
               )}
             />
-          ) : null}
-          <FieldDescription>
-            {applicantId && applicantId !== session?.user.id
-              ? t('expensePlans.proxyDepartment')
-              : t('expensePlans.primaryDepartment', {
-                  department:
-                    options.data?.department?.title ??
-                    t('expensePlans.departmentMissing'),
-                })}
-          </FieldDescription>
-          {(['matterType', 'subject'] as const).map((name) => (
-            <Controller
-              key={name}
-              name={name}
-              control={form.control}
-              render={({ field, fieldState }) => {
-                const choices =
-                  (name === 'matterType'
-                    ? options.data?.matterTypes
-                    : options.data?.subjects
-                  )?.filter(
-                    (entry) => entry.active || entry.code === field.value,
-                  ) ?? [];
-                return (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor={`expensePlans-${name}`}>
-                      {t(`expensePlans.${name}`)} *
-                    </FieldLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={
-                        busy ||
-                        locked ||
-                        !allowed ||
-                        !options.data ||
-                        !!options.error
-                      }
-                      items={choices.map((entry) => ({
-                        value: entry.code,
-                        label: subjectLabel(entry, entry.code, i18n.language),
-                      }))}
-                    >
-                      <SelectTrigger
-                        className='h-auto min-h-9'
-                        id={`expensePlans-${name}`}
-                        aria-invalid={fieldState.invalid}
-                      >
-                        <SelectValue className='whitespace-normal break-words text-left' />
-                      </SelectTrigger>
-                      <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
-                        <SelectGroup>
-                          {choices.map((entry) => (
-                            <SelectItem
-                              key={entry.code}
-                              value={entry.code}
-                              disabled={!entry.active}
-                            >
-                              <span className='break-words'>
-                                {subjectLabel(entry, entry.code, i18n.language)}
-                                {entry.active
-                                  ? ''
-                                  : ` (${t('expensePlans.disabled')})`}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    <FieldError errors={[fieldState.error]} />
-                    {choices.find((entry) => entry.code === field.value)
-                      ?.active === false ? (
-                      <FieldDescription>
-                        {t('expensePlans.subjectInactive')}
-                      </FieldDescription>
-                    ) : null}
-                  </Field>
-                );
-              }}
-            />
-          ))}
-          <div className='grid gap-4 sm:grid-cols-2'>
             <Field data-invalid={!!form.formState.errors.participants}>
               <FieldLabel htmlFor='expensePlans-participants'>
                 {t('expensePlans.participants')} *
@@ -651,28 +634,6 @@ function ExpensePlanForm({
               />
               <FieldError errors={[form.formState.errors.participants]} />
             </Field>
-            <Controller
-              name='eventDate'
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor='expensePlans-eventDate'>
-                    {t('expensePlans.eventDate')} *
-                  </FieldLabel>
-                  <DatePicker
-                    id='expensePlans-eventDate'
-                    value={field.value ? parseISO(field.value) : undefined}
-                    onChange={(date) =>
-                      field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
-                    }
-                    onBlur={field.onBlur}
-                    invalid={fieldState.invalid}
-                    disabled={busy || locked || !allowed}
-                  />
-                  <FieldError errors={[fieldState.error]} />
-                </Field>
-              )}
-            />
           </div>
           <FieldDescription>
             {t('expensePlans.year', {
@@ -705,7 +666,7 @@ function ExpensePlanForm({
                     detail.record.heldAccount.subject,
                     i18n.language,
                   ),
-                  amount: amountText(detail.record.heldCents),
+                  amount: formatCents(detail.record.heldCents, i18n.language),
                 })}
               </AlertDescription>
             </Alert>

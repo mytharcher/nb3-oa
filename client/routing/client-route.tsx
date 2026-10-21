@@ -12,6 +12,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { requestActionDefinitions } from '#components/request-action-definitions';
 import { RouteDrawer } from '#components/route-drawer';
 import { Loading } from '#components/loading';
+import { Alert, AlertTitle, AlertDescription } from '#components/ui/alert';
 import { Button } from '#components/ui/button';
 
 export interface ClientRouteProps {
@@ -96,7 +97,7 @@ function ClientPageDenied(): ReactElement {
 
   return (
     <section className='grid min-h-[calc(100svh-4rem)] place-items-center px-6'>
-      <section className='w-full max-w-lg space-y-3 text-center'>
+      <section className='w-full max-w-lg flex flex-col gap-3 text-center'>
         <h1 className='text-xl font-semibold'>
           {t('status.denied', { defaultValue: 'Access denied' })}
         </h1>
@@ -130,19 +131,22 @@ function ClientPageError(): ReactElement {
 
   return (
     <section className='grid min-h-[calc(100svh-4rem)] place-items-center px-6'>
-      <section className='w-full max-w-lg space-y-4 text-center'>
-        <h1 className='text-xl font-semibold'>
+      {/* Shell-owned failure presentation cannot be supplied by individual routes. */}
+      <Alert variant='destructive' className='w-full max-w-lg'>
+        <AlertTitle>
           {t('status.pageFailed', { defaultValue: 'Unable to load page' })}
-        </h1>
-        <p className='text-sm text-muted-foreground'>
-          {t('status.routeFailedDescription', {
-            defaultValue: 'This page could not be loaded. Please try again.',
-          })}
-        </p>
-        <Button onClick={() => window.location.reload()}>
-          {t('status.retry', { defaultValue: 'Retry' })}
-        </Button>
-      </section>
+        </AlertTitle>
+        <AlertDescription>
+          <p>
+            {t('status.routeFailedDescription', {
+              defaultValue: 'This page could not be loaded. Please try again.',
+            })}
+          </p>
+          <Button variant='outline' onClick={() => window.location.reload()}>
+            {t('status.retry', { defaultValue: 'Retry' })}
+          </Button>
+        </AlertDescription>
+      </Alert>
     </section>
   );
 }

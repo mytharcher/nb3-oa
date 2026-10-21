@@ -1,6 +1,6 @@
 import { UserName } from '#components/user-name';
 import { useTranslation } from '@nocobase/i18n/client';
-import { amountText } from './money.js';
+import { formatCents } from '#lib/money';
 import type { LoanRequestRecord, LoanRequestDetail } from './types.js';
 export function LoanFacts({
   record,
@@ -27,10 +27,15 @@ export function LoanFacts({
     [t('loanRequests.department'), detail?.department?.title ?? '—'],
     [
       t('loanRequests.amount'),
-      `${amountText(record.amountCents)} ${t('loanRequests.yuan')}`,
+      `${formatCents(record.amountCents, i18n.language)} ${t('loanRequests.yuan')}`,
     ],
     [t('loanRequests.dueDate'), date(record.dueDate)],
-    [t('loanRequests.travel'), record.travelId ?? '—'],
+    [
+      t('loanRequests.travel'),
+      record.travelId
+        ? (detail?.travelName ?? t('loanRequests.relatedUnavailable'))
+        : '—',
+    ],
     [t('approvals.reason'), record.reason],
   ];
   return (
@@ -57,15 +62,23 @@ export function LoanFacts({
       </dl>
       {record.heldCents > 0 ? (
         <p className='text-sm text-muted-foreground'>
-          {t('loanRequests.inflight', { amount: amountText(record.heldCents) })}
+          {t('loanRequests.inflight', {
+            amount: formatCents(record.heldCents, i18n.language),
+          })}
         </p>
       ) : null}
       {record.quotaSnapshot ? (
         <p className='text-sm text-muted-foreground'>
           {t('loanRequests.quotaFact', {
-            debt: amountText(record.quotaSnapshot.outstandingCents),
-            inflight: amountText(record.quotaSnapshot.inflightCents),
-            total: amountText(record.quotaSnapshot.totalCents),
+            debt: formatCents(
+              record.quotaSnapshot.outstandingCents,
+              i18n.language,
+            ),
+            inflight: formatCents(
+              record.quotaSnapshot.inflightCents,
+              i18n.language,
+            ),
+            total: formatCents(record.quotaSnapshot.totalCents, i18n.language),
           })}
         </p>
       ) : null}
@@ -76,16 +89,19 @@ export function LoanFacts({
             {[
               [
                 t('loanRequests.principal'),
-                amountText(detail.loan.principalCents),
+                formatCents(detail.loan.principalCents, i18n.language),
               ],
-              [t('loanRequests.repaid'), amountText(detail.loan.repaidCents)],
+              [
+                t('loanRequests.repaid'),
+                formatCents(detail.loan.repaidCents, i18n.language),
+              ],
               [
                 t('loanRequests.outstanding'),
-                amountText(detail.loan.outstandingCents),
+                formatCents(detail.loan.outstandingCents, i18n.language),
               ],
               [
                 t('loanRequests.pendingRepayment'),
-                amountText(detail.loan.heldCents),
+                formatCents(detail.loan.heldCents, i18n.language),
               ],
               [
                 t('loanRequests.dueDate'),

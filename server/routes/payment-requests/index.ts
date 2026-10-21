@@ -367,14 +367,33 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         Detail,
       ),
       apiValidator('param', Params),
-      async (c) =>
-        c.json({
-          data: await service.detail(
-            c.req.valid('param').id,
-            c.get('auth')!.user.id,
-            await readPolicy(c),
-          ),
-        }),
+      async (c) => {
+        const detail = await service.detail(
+          c.req.valid('param').id,
+          c.get('auth')!.user.id,
+          await readPolicy(c),
+        );
+        const names = detail.record.contractId
+          ? await app.container
+              .resolve(
+                (await import('../../providers/contracts/contract.js'))
+                  .contractLedgerServiceToken,
+              )
+              .names(
+                [detail.record.contractId],
+                await contractSourcePolicy(c),
+                db.connection(),
+              )
+          : new Map<string, string>();
+        return c.json({
+          data: {
+            ...detail,
+            contractName: detail.record.contractId
+              ? (names.get(detail.record.contractId) ?? null)
+              : null,
+          },
+        });
+      },
     );
     router.post(
       '/paymentRequests/:id/transition',

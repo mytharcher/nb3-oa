@@ -225,6 +225,24 @@ export const CreateRuleVersionInput = z.strictObject({
   note: z.string().trim().max(500).nullable().optional(),
 });
 
+export const CreateRuleVersionsInput = z.strictObject({
+  changes: z
+    .array(
+      z.strictObject({
+        key: z.string().min(1),
+        // Validated against the key's type by the service, as for a single version.
+        value: z.unknown(),
+      }),
+    )
+    .min(1)
+    .max(50),
+  effectiveFrom: z.iso.datetime({ offset: true }).optional().meta({
+    description:
+      'When every version takes effect; now when omitted. Never in the past.',
+  }),
+  note: z.string().trim().max(500).nullable().optional(),
+});
+
 // Sequences
 
 export const SequenceSchema: z.ZodType<SequenceView> = z

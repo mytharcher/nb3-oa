@@ -17,9 +17,11 @@ import type { ReactNode } from 'react';
 export function FinanceError({
   error,
   retry,
+  context,
 }: {
   error: unknown;
-  retry: () => void;
+  retry?: () => void;
+  context?: 'save';
 }) {
   const { t } = useTranslation();
   if (error instanceof ApiClientError && error.status === 401)
@@ -39,9 +41,13 @@ export function FinanceError({
   return (
     <Alert variant='destructive'>
       <AlertDescription>
-        {t(`financeAssignments.error.${key}`)}
+        {t(
+          context === 'save' && key === 'failed'
+            ? 'financeAssignments.saveFailed'
+            : `financeAssignments.error.${key}`,
+        )}
       </AlertDescription>
-      {key === 'failed' ? (
+      {key === 'failed' && retry ? (
         <AlertAction>
           <Button variant='outline' onClick={retry}>
             {t('financeAssignments.retry')}

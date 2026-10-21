@@ -220,6 +220,54 @@ describe('OA access pages', () => {
     expect(screen.getByText('Member access unavailable')).toBeInTheDocument();
     expect(screen.queryByText('No members assigned')).not.toBeInTheDocument();
   });
+  it('labels every dynamic scope as required and localizes label punctuation', async () => {
+    client.loadOptions.mockResolvedValue({
+      ...catalog,
+      sections: catalog.sections.map((section) => ({
+        ...section,
+        subsections: section.subsections.map((subsection) => ({
+          ...subsection,
+          resources: subsection.resources.map((resource) => ({
+            ...resource,
+            dataScopes: {
+              update: [
+                {
+                  key: 'region',
+                  title: 'Region',
+                  collection: 'budgets',
+                  fields: [],
+                  recordAccess: [],
+                },
+                {
+                  key: 'department',
+                  title: 'Department',
+                  collection: 'budgets',
+                  fields: [],
+                  recordAccess: [],
+                },
+              ],
+            },
+          })),
+        })),
+      })),
+    });
+    mount('edit', 'zh');
+    await userEvent.click(
+      await screen.findByRole('switch', { name: /Adjust allocation/ }),
+    );
+    for (const scope of ['Region', 'Department']) {
+      expect(
+        screen.getByRole('combobox', { name: `Adjust allocation · ${scope}` }),
+      ).toHaveAttribute('aria-required', 'true');
+    }
+    expect(
+      screen.getByText(`${zhCN.access.impact}：HR specialist`),
+    ).toBeInTheDocument();
+    expect(
+      api.request.mock.calls.some(([input]) => input.method === 'PUT'),
+    ).toBe(false);
+  });
+
   it('requires a change confirmation and submits only the selected business operation', async () => {
     mount('edit');
     const user = userEvent.setup();
@@ -466,9 +514,8 @@ describe('Person permission sources', () => {
       })),
     );
     mountPerson();
-    expect(
-      await screen.findByRole('link', { name: 'HR specialist' }),
-    ).toHaveAttribute('href', '/access/roles/org.dutyRole/hr/permissions');
+    expect(await screen.findByText('HR specialist')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'HR specialist' })).toBeNull();
     await waitFor(() =>
       expect(screen.getAllByText(enUS.access.conditional)).toHaveLength(2),
     );

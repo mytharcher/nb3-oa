@@ -1,5 +1,15 @@
 export default {
   recruitment: {
+    identityUnavailable: 'Organization name unavailable',
+    catalogRequired:
+      'Load the department and position names before closing this allocation.',
+    preciseAllocationName:
+      '{{year}} / {{department}} / {{position}} recruitment allocation',
+
+    savedRecord: 'Saved recruitment for "{{name}}"',
+
+    allocationName: '{{year}} recruitment allocation',
+
     yearInvalid: 'Enter a whole year between 1900 and 9999.',
     businessErrors: {
       RECRUITMENT_INVALID_QUANTITY:

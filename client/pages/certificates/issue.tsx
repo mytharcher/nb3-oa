@@ -328,7 +328,12 @@ function Fields({
       if (result) {
         report({ busy: false, step, ready: false });
         parent.reload();
-        toast.show({ type: 'success', title: t('certificates.issued') });
+        toast.show({
+          type: 'success',
+          title: t('certificates.issuedRecord', {
+            name: detail.record.applicant.name,
+          }),
+        });
         await close();
       }
     }
@@ -451,7 +456,7 @@ function Fields({
         </FieldGroup>
       ) : (
         <section className='flex flex-col gap-2 rounded-lg border p-4'>
-          <h3 className='font-semibold'>{t(`certificates.${step}`)}</h3>
+          <h3 className='text-base font-medium'>{t(`certificates.${step}`)}</h3>
           <p className='text-sm'>
             {preparation.number} · {preparation.issueDate}
           </p>

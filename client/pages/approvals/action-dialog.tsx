@@ -95,11 +95,7 @@ export default function ApprovalActionDialog() {
         action: t(`approvals.${actionName}`),
         name,
       })}
-      className={
-        ['appoint', 'reassign'].includes(actionName)
-          ? undefined
-          : 'sm:max-w-2xl'
-      }
+      className='sm:max-w-2xl'
       beforeClose={() => {
         if (busyRef.current) return false;
         if (!dirtyRef.current) return true;
@@ -565,7 +561,7 @@ function ActionForm({
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                       <SelectGroup>
                         {['before', 'alongside'].map((mode) => (
                           <SelectItem key={mode} value={mode}>

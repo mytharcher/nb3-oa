@@ -1,12 +1,63 @@
 export default {
   flowDiagram: {
+    escapeHint: 'Press Esc to exit',
+    controls: 'Diagram controls',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    fitView: 'Fit view',
+    fullscreen: 'Fullscreen',
+    exitFullscreen: 'Exit fullscreen',
+    minimap: 'Minimap',
+
     empty: 'No states to display.',
     loading: 'Laying out diagram…',
-    failed: 'Unable to lay out diagram. Read the process rules.',
+    failed:
+      'Unable to lay out diagram. See the process parameters and the recent executions.',
     nodeHelp: 'Process state. Pan and zoom to explore.',
     edgeHelp: 'Process transition',
   },
   processManagement: {
+    managementReason: 'Reason',
+    normalDescription:
+      'Shows the main business path; conditions determine the branches.',
+    revealHint:
+      'Hover over a step to show its returns and other exits, then hover over an exit for details.',
+    graphLegend: 'Diagram legend',
+    otherExits: 'Other exits',
+    exitNext: 'Then it can:',
+    exitEnds: 'The process ends here.',
+    nodeTypes: {
+      start: 'Start',
+      approval: 'Approval',
+      work: 'Work step',
+      success: 'Completed',
+      negative: 'Ended',
+      exception: 'Return or exception',
+    },
+    rulesCount_one: '{{count}} rule',
+    rulesCount_other: '{{count}} rules',
+    notReached: 'Not reached yet',
+    parameters: {
+      title: 'Workflow parameters',
+      description:
+        'Thresholds this process reads at each step. Each value is set once and applies to every step listed beside it.',
+      none: 'This process has no adjustable parameters.',
+      onNodes:
+        'This process is configured on its steps. Use the settings button on a step in the diagram.',
+      forbidden:
+        'You do not have permission to view this process’s parameters.',
+      readOnly: 'You can view these parameters but not change them.',
+      changed: 'Changed',
+      scheduled: 'Changes to {{value}} on {{date}}.',
+      orderViolated:
+        'Out of order with a related parameter: a lower threshold may not exceed a higher one. Adjust both here and save them together.',
+      discard: 'Discard changes',
+      save_zero: 'Save',
+      save_one: 'Save 1 change',
+      save_other: 'Save {{count}} changes',
+      saved_one: '1 parameter saved',
+      saved_other: '{{count}} parameters saved',
+    },
     nodeSettings: {
       edit: 'Edit parameters',
       editNamed: 'Edit parameters for {{name}}',
@@ -272,8 +323,6 @@ export default {
     },
 
     conditional: 'Business conditions apply',
-    normalDescription:
-      'Main approval and fulfillment path. See Process rules for people, operations and conditions at each step.',
     transitionUnknown: 'Action: {{name}}',
     transitionNames: {
       edit: 'Edit content',
@@ -356,8 +405,6 @@ export default {
     to: 'To',
     initial: 'Initial',
     final: 'Final',
-    manual: 'User action',
-    automatic: 'Automatic transition',
     transitions: 'State transitions',
     definitionDetails: 'Stages and transitions',
     viewExecutions: 'View all records',
@@ -419,10 +466,6 @@ export default {
     business: 'Business content',
     businessRestricted:
       'Business content, attachments and private fields need separate access',
-    rules: 'Process rules',
-    policy: 'Decision policy',
-    peopleSource: 'People source',
-    dynamicPeople: 'Resolved at submission under the source business rules',
     guardedBranch: 'Branch selected under source business conditions',
     frozen: 'Frozen fields',
     covered: 'Covered fields',
@@ -532,20 +575,6 @@ export default {
     },
     otherStage: 'Other stage ({{name}})',
     otherEvent: 'Process event ({{name}})',
-    coveredCount: 'Covers {{count}} business fields',
-    frozenCount: '{{count}} business fields frozen on submission',
-    policies: {
-      all: 'All / single approval',
-      any: 'Any approval',
-      first: 'First response',
-      threshold: 'Threshold vote',
-      sequential: 'Sequential',
-    },
-    peopleSources: {
-      dynamic: 'Resolved at submission under the source business rules',
-      pools: 'Role / candidate pools',
-      subjects: 'Per-subject reviewers',
-    },
     events: {
       approve: 'Approved',
       reject: 'Rejected',

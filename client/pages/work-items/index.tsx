@@ -1,3 +1,4 @@
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { StatusBadge } from '#components/status-badge';
 import { statusTone } from './status-tone.js';
@@ -8,18 +9,13 @@ import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { Link, Outlet, useLocation, useResolvedPath } from 'react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { ApplicationToolbar } from '#components/application-toolbar';
 import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
 import { DataTableServer, DataTableColumnHeader } from '#components/data-table';
 import { Button } from '#components/ui/button';
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from '#components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger } from '#components/ui/tabs';
 import { useUrlSearch } from '#hooks/use-url-search';
 import { OptionSelect } from './select.js';
@@ -79,6 +75,7 @@ export default function WorkItemsPage() {
   const columns: ColumnDef<Item>[] = [
     {
       accessorKey: 'title',
+      enableSorting: false,
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -122,6 +119,7 @@ export default function WorkItemsPage() {
     },
     {
       accessorKey: 'status',
+      enableSorting: false,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('workItems.status')} />
       ),
@@ -185,27 +183,14 @@ export default function WorkItemsPage() {
             <ApplicationToolbar
               actions={
                 <>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Button
-                          variant='outline'
-                          size='icon'
-                          aria-label={t('workItems.refresh')}
-                          disabled={r.loading}
-                          onClick={() => {
-                            r.reload();
-                            ctx.reload();
-                          }}
-                        />
-                      }
-                    >
-                      <RefreshCw
-                        className={r.loading ? 'animate-spin' : undefined}
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent>{t('workItems.refresh')}</TooltipContent>
-                  </Tooltip>
+                  <ApplicationRefreshButton
+                    label={t('workItems.refresh')}
+                    loading={r.loading}
+                    onClick={() => {
+                      r.reload();
+                      ctx.reload();
+                    }}
+                  />
                   {create.can && !create.isPending && !create.error ? (
                     <Button
                       nativeButton={false}

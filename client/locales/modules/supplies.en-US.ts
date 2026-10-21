@@ -1,5 +1,7 @@
 export default {
   supplies: {
+    namedRowActions: 'Actions for {{name}}',
+
     businessErrors: {
       SUPPLY_REQUIRED_FIELDS: 'Add at least one item and enter its purpose.',
       SUPPLY_ITEM_UNAVAILABLE:

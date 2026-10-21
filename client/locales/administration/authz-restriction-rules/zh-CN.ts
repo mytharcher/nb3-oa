@@ -9,7 +9,7 @@ export default {
       description: '限制指定用户可访问的记录范围，本身不授予权限。',
     },
     notice: '限制规则仅限制已有权限，不授予新的权限。',
-    search: '搜索限制规则',
+    search: '按规则名称、标识或资源搜索',
     create: '新建限制规则',
     ruleHeader: '规则',
     appliesToHeader: '适用于',
@@ -31,7 +31,7 @@ export default {
     accessDescription: '为每个操作分别设置记录范围的上限。',
     deleteRule: '删除规则',
     save: '保存限制规则',
-    confirmDeleteTitle: '确定删除该限制规则吗？',
+    confirmDeleteTitle: '删除规则“{{title}}”？',
     confirmDeleteBody:
       '删除限制规则“{{title}}”。实际访问范围由剩余权限集和规则决定。',
   },

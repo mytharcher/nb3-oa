@@ -1,10 +1,42 @@
+import { useFormDiscardGuard } from '#hooks/use-form-discard-guard';
+import {
+  FormDrawerContent,
+  FormDrawerHeader,
+  FormDrawerBody,
+  FormDrawerFooter,
+} from '#components/form-drawer';
+import { LoadFailure } from '../../components/load-failure.js';
+import { responseStatus } from '../../components/response-status.js';
+import { useToaster } from '@nocobase/app-client';
+import { ApplicationSearch } from '#components/application-search';
+import { ApplicationTableEmpty } from '#components/application-table-empty';
+import { ApplicationTableSkeleton } from '#components/application-table-skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '#components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '#components/ui/tooltip';
 import { ApplicationToolbar } from '#components/application-toolbar';
 import { ResponsiveTable as Table } from '#components/responsive-table';
 import { PageContainer } from '../components/page-container.js';
 import { Spinner } from '#components/ui/spinner';
 import { PageHeader } from '../components/page-header.js';
 import { useTranslation } from '@nocobase/i18n/client';
-import { Check, Copy, Plus, Trash2 } from 'lucide-react';
+import {
+  Check,
+  Copy,
+  Plus,
+  Trash2,
+  MoreHorizontal,
+  ArrowUpDown,
+} from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -18,14 +50,7 @@ import { useAuthenticationClient } from '@nocobase/app-plugin-authentication/cli
 import type { ApiKeySummary } from '../api-keys-client.js';
 import { Badge } from '#components/ui/badge';
 import { Button } from '#components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '#components/ui/dialog';
+import { Dialog, DialogDescription, DialogTitle } from '#components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +61,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '#components/ui/alert-dialog';
+import { Alert, AlertDescription } from '#components/ui/alert';
 import { Input } from '#components/ui/input';
 import { Label } from '#components/ui/label';
 import {
@@ -63,10 +89,15 @@ import {
 export default function ApiKeysPage(): ReactElement {
   const { t, i18n } = useTranslation('@nocobase/app-plugin-api-keys');
   const auth = useAuthenticationClient();
+  const toaster = useToaster();
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<'lastRequest' | 'expiresAt'>('lastRequest');
+  const [descending, setDescending] = useState(true);
   const [keys, setKeys] = useState<readonly ApiKeySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<unknown>();
+  const [mutationError, setMutationError] = useState<string>();
   const [creating, setCreating] = useState(false);
   const [revoking, setRevoking] = useState<ApiKeySummary>();
   // Held only until the reveal dialog closes. The server never returns it again.
@@ -77,14 +108,19 @@ export default function ApiKeysPage(): ReactElement {
     setError(undefined);
     try {
       const { data, error: reason } = await auth.apiKey.list();
-      if (reason) throw new Error(reason.message);
+      if (reason)
+        throw Object.assign(
+          new Error('API key list request failed', { cause: reason }),
+          { status: responseStatus(reason) },
+        );
       setKeys(data?.apiKeys ?? []);
-    } catch (reason) {
-      setError(readError(reason, t('errors.loadFailed')));
+    } catch (cause) {
+      setError(cause);
+      if ([401, 403, 404].includes(responseStatus(cause) ?? 0)) setKeys([]);
     } finally {
       setLoading(false);
     }
-  }, [auth, t]);
+  }, [auth]);
 
   useEffect(() => {
     // Loading the list is what this page mounts to do; `load` sets its
@@ -98,7 +134,7 @@ export default function ApiKeysPage(): ReactElement {
     expiry: ApiKeyExpiryChoice,
   ): Promise<void> => {
     setBusy(true);
-    setError(undefined);
+    setMutationError(undefined);
     try {
       const expiresIn = expiryChoiceToSeconds(expiry);
       const { data, error: reason } = await auth.apiKey.create({
@@ -110,8 +146,8 @@ export default function ApiKeysPage(): ReactElement {
       setCreating(false);
       setIssued({ name, key: data.key });
       await load();
-    } catch (reason) {
-      setError(readError(reason, t('errors.createFailed')));
+    } catch {
+      setMutationError(t('errors.createFailed'));
     } finally {
       setBusy(false);
     }
@@ -119,14 +155,18 @@ export default function ApiKeysPage(): ReactElement {
 
   const revoke = async (key: ApiKeySummary): Promise<void> => {
     setBusy(true);
-    setError(undefined);
+    setMutationError(undefined);
     try {
       const { error: reason } = await auth.apiKey.delete({ keyId: key.id });
       if (reason) throw new Error(reason.message);
+      toaster.show({
+        type: 'success',
+        title: t('revoke.success', { name: key.name ?? t('page.unnamed') }),
+      });
       setRevoking(undefined);
       await load();
-    } catch (reason) {
-      setError(readError(reason, t('errors.revokeFailed')));
+    } catch {
+      setMutationError(t('errors.revokeFailed'));
     } finally {
       setBusy(false);
     }
@@ -135,61 +175,116 @@ export default function ApiKeysPage(): ReactElement {
   const formatDate = (value: Date | string | null): string =>
     value ? new Date(value).toLocaleString(i18n.language) : t('page.never');
 
+  const visible = keys
+    .filter(
+      (key) =>
+        !search.trim() ||
+        (key.name ?? '')
+          .toLocaleLowerCase()
+          .includes(search.trim().toLocaleLowerCase()),
+    )
+    .sort((a, b) => {
+      const left = a[sort] ? new Date(a[sort]).getTime() : null;
+      const right = b[sort] ? new Date(b[sort]).getTime() : null;
+      if (left === null) return right === null ? 0 : 1;
+      if (right === null) return -1;
+      return (left - right) * (descending ? -1 : 1);
+    });
   return (
     <PageContainer>
       <PageHeader title={t('page.title')} description={t('page.description')} />
       <ApplicationToolbar
         actions={
-          <Button onClick={() => setCreating(true)}>
+          <Button
+            onClick={() => {
+              setMutationError(undefined);
+              setCreating(true);
+            }}
+          >
             <Plus /> {t('page.add')}
           </Button>
         }
-      />
+      >
+        <ApplicationSearch
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          aria-label={t('page.search')}
+          placeholder={t('page.search')}
+        />
+      </ApplicationToolbar>
 
       {error ? (
-        <div className='rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive'>
-          {error}
-        </div>
+        <LoadFailure
+          error={error}
+          message={t(
+            responseStatus(error) === 403
+              ? 'errors.forbidden'
+              : responseStatus(error) === 404
+                ? 'errors.notFound'
+                : 'errors.loadFailed',
+          )}
+          retryLabel={t('page.retry')}
+          onRetry={() => void load()}
+        />
       ) : null}
 
-      <div className='overflow-hidden rounded-xl border bg-card'>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('page.columns.name')}</TableHead>
-              <TableHead>{t('page.columns.key')}</TableHead>
-              <TableHead>{t('page.columns.status')}</TableHead>
-              <TableHead>{t('page.columns.lastUsed')}</TableHead>
-              <TableHead>{t('page.columns.expires')}</TableHead>
-              <TableHead className='w-14'>
-                <span className='sr-only'>{t('page.columns.actions')}</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
+      {loading && keys.length === 0 ? (
+        <ApplicationTableSkeleton />
+      ) : error && keys.length === 0 ? null : visible.length === 0 ? (
+        <ApplicationTableEmpty
+          title={t(search ? 'page.noResults' : 'page.empty')}
+          clearFilters={
+            search
+              ? { label: t('page.clear'), onClick: () => setSearch('') }
+              : undefined
+          }
+        />
+      ) : (
+        <div className='overflow-hidden rounded-xl border bg-card'>
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className='h-32 text-center text-muted-foreground'
-                >
-                  <Spinner
-                    className='mx-auto size-5'
-                    aria-label={t('page.loading')}
-                  />
-                </TableCell>
+                <TableHead>{t('page.columns.name')}</TableHead>
+                <TableHead>{t('page.columns.key')}</TableHead>
+                <TableHead>{t('page.columns.status')}</TableHead>
+                {(['lastRequest', 'expiresAt'] as const).map((field) => (
+                  <TableHead
+                    key={field}
+                    aria-sort={
+                      sort === field
+                        ? descending
+                          ? 'descending'
+                          : 'ascending'
+                        : 'none'
+                    }
+                  >
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={() => {
+                        if (sort === field) setDescending((value) => !value);
+                        else {
+                          setSort(field);
+                          setDescending(true);
+                        }
+                      }}
+                    >
+                      {t(
+                        field === 'lastRequest'
+                          ? 'page.columns.lastUsed'
+                          : 'page.columns.expires',
+                      )}
+                      <ArrowUpDown />
+                    </Button>
+                  </TableHead>
+                ))}
+                <TableHead className='w-14'>
+                  <span className='sr-only'>{t('page.columns.actions')}</span>
+                </TableHead>
               </TableRow>
-            ) : keys.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className='h-32 text-center text-muted-foreground'
-                >
-                  {t('page.empty')}
-                </TableCell>
-              </TableRow>
-            ) : (
-              keys.map((key) => (
+            </TableHeader>
+            <TableBody>
+              {visible.map((key) => (
                 <TableRow key={key.id}>
                   <TableCell className='font-medium'>
                     {key.name ?? t('page.unnamed')}
@@ -221,25 +316,49 @@ export default function ApiKeysPage(): ReactElement {
                     {formatDate(key.expiresAt)}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant='ghost'
-                      size='icon-sm'
-                      aria-label={t('page.actions.revoke')}
-                      onClick={() => setRevoking(key)}
-                    >
-                      <Trash2 />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant='ghost'
+                            size='icon-sm'
+                            aria-label={t('page.actions.menu', {
+                              name: key.name ?? t('page.unnamed'),
+                            })}
+                          />
+                        }
+                      >
+                        <MoreHorizontal />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align='end'
+                        className='w-auto min-w-40'
+                      >
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant='destructive'
+                          onClick={() => {
+                            setMutationError(undefined);
+                            setRevoking(key);
+                          }}
+                        >
+                          <Trash2 />
+                          {t('page.actions.revoke')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       <CreateKeyDialog
         open={creating}
         busy={busy}
+        error={mutationError}
         onOpenChange={setCreating}
         onSubmit={create}
       />
@@ -247,6 +366,7 @@ export default function ApiKeysPage(): ReactElement {
       <RevokeKeyDialog
         target={revoking}
         busy={busy}
+        error={mutationError}
         onCancel={() => setRevoking(undefined)}
         onConfirm={revoke}
       />
@@ -257,11 +377,13 @@ export default function ApiKeysPage(): ReactElement {
 function CreateKeyDialog({
   open,
   busy,
+  error,
   onOpenChange,
   onSubmit,
 }: {
   readonly open: boolean;
   readonly busy: boolean;
+  readonly error?: string;
   readonly onOpenChange: (open: boolean) => void;
   readonly onSubmit: (
     name: string,
@@ -270,72 +392,112 @@ function CreateKeyDialog({
 }): ReactElement {
   const { t } = useTranslation('@nocobase/app-plugin-api-keys');
   const [name, setName] = useState('');
+  const [validated, setValidated] = useState(false);
   const [expiry, setExpiry] = useState<ApiKeyExpiryChoice>('90');
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
+    setValidated(true);
+    if (!name.trim()) {
+      document.getElementById('api-key-name')?.focus();
+      return;
+    }
     void onSubmit(name.trim(), expiry);
+  };
+
+  const guard = useFormDiscardGuard(!!name || expiry !== '90', busy);
+  const close = () => {
+    void guard.requestClose(() => {
+      setName('');
+      setExpiry('90');
+      onOpenChange(false);
+    });
   };
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) {
-          setName('');
-          setExpiry('90');
-        }
-        onOpenChange(next);
+        if (!next) close();
+        else onOpenChange(next);
       }}
     >
-      <DialogContent>
-        <form onSubmit={submit} className='space-y-4'>
-          <DialogHeader>
+      <FormDrawerContent>
+        <form onSubmit={submit} noValidate className='flex flex-col gap-4'>
+          <FormDrawerHeader>
             <DialogTitle>{t('form.title')}</DialogTitle>
             <DialogDescription>{t('form.description')}</DialogDescription>
-          </DialogHeader>
-          <div className='space-y-2'>
-            <Label htmlFor='api-key-name'>{t('form.name')}</Label>
-            <Input
-              id='api-key-name'
-              value={name}
-              required
-              maxLength={32}
-              placeholder={t('form.namePlaceholder')}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </div>
-          <div className='space-y-2'>
-            <Label>{t('form.expiry')}</Label>
-            <Select
-              items={API_KEY_EXPIRY_CHOICES.map((choice) => ({
-                value: choice,
-                label: t(`form.expiryChoices.${choice}`),
-              }))}
-              value={expiry}
-              onValueChange={(value) => setExpiry(value as ApiKeyExpiryChoice)}
-            >
-              <SelectTrigger className='w-full'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
-                {API_KEY_EXPIRY_CHOICES.map((choice) => (
-                  <SelectItem key={choice} value={choice}>
-                    {t(`form.expiryChoices.${choice}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
+          </FormDrawerHeader>
+          <FormDrawerBody>
+            <div className='flex flex-col gap-2'>
+              <Label htmlFor='api-key-name'>
+                {t('form.name')}
+                <span aria-hidden='true' className='text-destructive'>
+                  *
+                </span>
+              </Label>
+              <Input
+                id='api-key-name'
+                value={name}
+                aria-required='true'
+                aria-invalid={validated && !name.trim()}
+                aria-describedby={
+                  validated && !name.trim() ? 'api-key-name-error' : undefined
+                }
+                maxLength={32}
+                placeholder={t('form.namePlaceholder')}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </div>
+            {validated && !name.trim() ? (
+              <p
+                id='api-key-name-error'
+                role='alert'
+                className='text-sm text-destructive'
+              >
+                {t('errors.nameRequired')}
+              </p>
+            ) : null}
+            <div className='flex flex-col gap-2'>
+              <Label>{t('form.expiry')}</Label>
+              <Select
+                items={API_KEY_EXPIRY_CHOICES.map((choice) => ({
+                  value: choice,
+                  label: t(`form.expiryChoices.${choice}`),
+                }))}
+                value={expiry}
+                onValueChange={(value) =>
+                  setExpiry(value as ApiKeyExpiryChoice)
+                }
+              >
+                <SelectTrigger className='w-full'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
+                  {API_KEY_EXPIRY_CHOICES.map((choice) => (
+                    <SelectItem key={choice} value={choice}>
+                      {t(`form.expiryChoices.${choice}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {error ? (
+              <Alert variant='destructive'>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+          </FormDrawerBody>
+          <FormDrawerFooter>
             <Button
               type='button'
               variant='outline'
-              onClick={() => onOpenChange(false)}
+              disabled={busy}
+              onClick={close}
             >
               {t('form.cancel')}
             </Button>
-            <Button type='submit' disabled={busy || name.trim().length === 0}>
+            <Button type='submit' disabled={busy}>
               {busy ? (
                 <Spinner
                   data-icon='inline-start'
@@ -344,9 +506,10 @@ function CreateKeyDialog({
               ) : null}
               {t('form.create')}
             </Button>
-          </DialogFooter>
+          </FormDrawerFooter>
         </form>
-      </DialogContent>
+      </FormDrawerContent>
+      {guard.confirmation}
     </Dialog>
   );
 }
@@ -360,6 +523,7 @@ function RevealKeyDialog({
 }): ReactElement {
   const { t } = useTranslation('@nocobase/app-plugin-api-keys');
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   useEffect(() => {
     if (!copied) return undefined;
@@ -377,38 +541,54 @@ function RevealKeyDialog({
         }
       }}
     >
-      <DialogContent>
-        <DialogHeader>
+      <FormDrawerContent>
+        <FormDrawerHeader>
           <DialogTitle>{t('reveal.title')}</DialogTitle>
           <DialogDescription>
             {t('reveal.description', { name: issued?.name ?? '' })}
           </DialogDescription>
-        </DialogHeader>
-        <div className='mt-4 flex items-center gap-2 rounded-lg border bg-muted/40 p-3'>
-          <code className='flex-1 font-mono text-xs break-all'>
-            {issued?.key}
-          </code>
-          <Button
-            variant='outline'
-            size='icon-sm'
-            aria-label={t('reveal.copy')}
-            onClick={() => {
-              if (!issued) return;
-              void navigator.clipboard
-                .writeText(issued.key)
-                .then(() => setCopied(true));
-            }}
-          >
-            {copied ? <Check /> : <Copy />}
-          </Button>
-        </div>
-        <p className='mt-3 text-sm text-muted-foreground'>
-          {t('reveal.usage')}
-        </p>
-        <DialogFooter>
+        </FormDrawerHeader>
+        <FormDrawerBody>
+          <div className='mt-4 flex items-center gap-2 rounded-lg border bg-muted/40 p-3'>
+            <code className='flex-1 font-mono text-xs break-all'>
+              {issued?.key}
+            </code>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant='outline'
+                    size='icon-sm'
+                    aria-label={t('reveal.copy')}
+                    onClick={() => {
+                      if (!issued) return;
+                      setCopyFailed(false);
+                      void Promise.resolve()
+                        .then(() => navigator.clipboard.writeText(issued.key))
+                        .then(() => setCopied(true))
+                        .catch(() => setCopyFailed(true));
+                    }}
+                  />
+                }
+              >
+                {copied ? <Check /> : <Copy />}
+              </TooltipTrigger>
+              <TooltipContent>{t('reveal.copy')}</TooltipContent>
+            </Tooltip>
+          </div>
+          {copyFailed ? (
+            <Alert variant='destructive'>
+              <AlertDescription>{t('errors.copyFailed')}</AlertDescription>
+            </Alert>
+          ) : null}
+          <p className='mt-3 text-sm text-muted-foreground'>
+            {t('reveal.usage')}
+          </p>
+        </FormDrawerBody>
+        <FormDrawerFooter>
           <Button onClick={onClose}>{t('reveal.done')}</Button>
-        </DialogFooter>
-      </DialogContent>
+        </FormDrawerFooter>
+      </FormDrawerContent>
     </Dialog>
   );
 }
@@ -416,11 +596,13 @@ function RevealKeyDialog({
 function RevokeKeyDialog({
   target,
   busy,
+  error,
   onCancel,
   onConfirm,
 }: {
   readonly target: ApiKeySummary | undefined;
   readonly busy: boolean;
+  readonly error?: string;
   readonly onCancel: () => void;
   readonly onConfirm: (key: ApiKeySummary) => Promise<void>;
 }): ReactElement {
@@ -444,6 +626,11 @@ function RevokeKeyDialog({
             })}
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {error ? (
+          <Alert variant='destructive'>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={busy}>
             {t('revoke.cancel')}
@@ -451,7 +638,8 @@ function RevokeKeyDialog({
           <AlertDialogAction
             variant='destructive'
             disabled={busy}
-            onClick={() => {
+            onClick={(event) => {
+              event.preventDefault();
               if (target) void onConfirm(target);
             }}
           >
@@ -467,9 +655,4 @@ function RevokeKeyDialog({
       </AlertDialogContent>
     </AlertDialog>
   );
-}
-
-function readError(value: unknown, fallback: string): string {
-  if (value instanceof Error && value.message) return value.message;
-  return fallback;
 }

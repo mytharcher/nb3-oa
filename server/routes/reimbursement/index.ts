@@ -1,3 +1,4 @@
+import { loanRequestServiceToken } from '../../providers/loan-requests/contract.js';
 import { ReimbursementAttachmentError } from '../../providers/reimbursement/attachments.js';
 import attachmentRoutes from './attachments.js';
 import {
@@ -375,14 +376,28 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         Detail,
       ),
       apiValidator('param', ReimbursementParams),
-      async (c) =>
-        c.json({
-          data: await service.detail(
-            c.req.valid('param').id,
-            c.get('auth')!.user.id,
-            await readPolicy(c),
-          ),
-        }),
+      async (c) => {
+        const detail = await service.detail(
+          c.req.valid('param').id,
+          c.get('auth')!.user.id,
+          await readPolicy(c),
+        );
+        let loanName: string | null = null;
+        if (detail.record.loanId) {
+          const decision = await c.get('authz').authorize({
+            resource: { type: 'composite', id: 'oa.loan' },
+            action: 'view',
+          });
+          const policy =
+            decision.effect === 'deny'
+              ? undefined
+              : decision.conditions?.database?.loanRequests;
+          loanName = await app.container
+            .resolve(loanRequestServiceToken)
+            .nameForLedger(detail.record.loanId, policy || undefined);
+        }
+        return c.json({ data: { ...detail, loanName } });
+      },
     );
     router.post(
       '/reimbursementRequests/:id/transition',

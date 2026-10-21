@@ -20,6 +20,7 @@ import { SessionExpiredAlert } from '#components/session-expired-alert';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
+import { Skeleton } from '#components/ui/skeleton';
 import { Label } from '#components/ui/label';
 import { Checkbox } from '#components/ui/checkbox';
 import {
@@ -57,7 +58,15 @@ export default function AttendanceImportPage() {
         description={t('attendanceImport.description')}
       />
       {permission.isPending ? (
-        <p role='status'>{t('attendanceImport.parsing')}</p>
+        <div
+          role='status'
+          aria-label={t('approvals.loading')}
+          className='flex flex-col gap-4'
+        >
+          <Skeleton className='h-6 w-1/3' />
+          <Skeleton className='h-10 w-full' />
+          <Skeleton className='h-10 w-24' />
+        </div>
       ) : !allowed ? (
         <Alert variant='destructive'>
           <AlertDescription>{t('attendanceImport.denied')}</AlertDescription>

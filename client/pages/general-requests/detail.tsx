@@ -1,3 +1,4 @@
+import { approvalStatusTone } from '../approvals/status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
 import { UserName } from '#components/user-name';
 import { GeneralAttachments } from './attachments.js';
@@ -211,13 +212,7 @@ export default function GeneralRequestDetailPage() {
       headerStatus={
         record ? (
           <StatusBadge
-            tone={
-              record.status === 'approved'
-                ? 'success'
-                : ['rejected', 'terminated'].includes(record.status)
-                  ? 'warning'
-                  : 'neutral'
-            }
+            tone={approvalStatusTone(record.status, 'oa.generalRequest')}
           >
             {record.status === 'extra'
               ? t('general.extraStage')
@@ -297,7 +292,7 @@ export default function GeneralRequestDetailPage() {
                     {action.allowed
                       ? t(`approvals.${action.name}`)
                       : action.blockers
-                          .map((v) => t(v.message, { defaultValue: v.message }))
+                          .map(() => t('approvals.unavailable'))
                           .join(' · ') || t('approvals.unavailable')}
                   </TooltipContent>
                 </Tooltip>

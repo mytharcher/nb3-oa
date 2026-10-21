@@ -1,5 +1,9 @@
 export default {
   headcounts: {
+    technicalDetails: 'Technical details',
+    copyId: 'Copy internal ID',
+    copyFailed: 'Could not copy the internal ID.',
+
     name: '{{department}} / {{position}} / {{year}}',
     createSubmit: 'Create',
     idCopied: 'Account ID copied',
@@ -8,7 +12,7 @@ export default {
       'Annual capacity and actual employee occupancy. Initialize an account before recruitment.',
     account: 'Annual headcount',
     state: 'Initialization status',
-    create: 'Create annual headcount',
+    create: 'New annual headcount',
     adjust: 'Adjust limit',
     alreadyInitialized:
       'This account is already initialized. Its actual occupancy cannot be recounted here.',

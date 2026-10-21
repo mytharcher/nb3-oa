@@ -117,6 +117,8 @@ export interface OnboardingService {
       page: number;
       pageSize: number;
       status?: 'handling' | 'completed' | 'cancelled';
+      q?: string;
+      desc?: boolean;
     },
     tx: DatabaseConnection,
     viewPolicy: RepositoryPolicy,

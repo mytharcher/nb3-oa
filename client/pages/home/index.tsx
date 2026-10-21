@@ -1,3 +1,4 @@
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { approvalStatusTone } from '../approvals/status-tone.js';
 import { PersonalCards } from './personal-cards.js';
 import { UserName } from '#components/user-name';
@@ -12,17 +13,31 @@ import {
   approvalBusiness,
   formatApprovalPeriodValue,
 } from '../approvals/business-metadata.js';
+import { cn } from 'cn';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { ClipboardCheck, RefreshCw, Plus, Info } from 'lucide-react';
-import { GroupedRequestActions as RequestActions } from './request-groups.js';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ClipboardCheck, Info, TriangleAlert } from 'lucide-react';
+import { FavoriteRequestActions } from '#components/request-actions';
+import {
+  byUrgency,
+  dueState,
+  kindPresentation,
+  relativeTime,
+} from './record-presentation.js';
+import {
+  createElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Link, Outlet, useLocation, useResolvedPath } from 'react-router';
 import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { StatusBadge } from '#components/status-badge';
-import { Alert, AlertDescription } from '#components/ui/alert';
+import { Alert, AlertAction, AlertDescription } from '#components/ui/alert';
 import { Button } from '#components/ui/button';
 import {
   Card,
@@ -221,29 +236,49 @@ export default function HomePage() {
       outingView.can)
   )
     return <Workbench />;
+  return <PersonalWorkbench />;
+}
+
+// Personal record access is independent of the approval-center page grant.
+function PersonalWorkbench() {
+  const { t } = useTranslation();
+  const location = useLocation();
+  const [revision, setRevision] = useState(0);
+  const reload = useCallback(() => setRevision((value) => value + 1), []);
+  const context = useMemo(
+    () => ({
+      reload,
+      onSaved: reload,
+      basePath: '/',
+      search: location.search,
+    }),
+    [reload, location.search],
+  );
   return (
-    <PageContainer className='space-y-4'>
+    <PageContainer className='flex flex-col gap-4'>
       <PageHeader
         title={t('workbench.title')}
         description={t('workbench.description')}
       />
-      <PersonalCards />
+      <PersonalCards key={revision} />
       <Alert role='status'>
         <AlertDescription>{t('workbench.noAccess')}</AlertDescription>
       </Alert>
+      <Outlet context={context} />
     </PageContainer>
   );
 }
 
 function Workbench() {
   const { session } = useAuthentication();
-  const pending = useCenterResource({ view: 'pending', pageSize: '6' });
+  // The fullest page the endpoint serves, so the list can lead with the earliest deadline and count overdue
+  // items; the server orders an ascending due date with undated items first, which buries the urgent ones.
+  const pending = useCenterResource({ view: 'pending', pageSize: '100' });
   const mine = useCenterResource({
     view: 'mine',
     pageSize: '5',
     homeSummary: 'true',
   });
-  const requestSectionRef = useRef<HTMLElement>(null);
   const optionsReady = pending.settled && mine.settled;
   // Give the two primary summaries the first read wave. Once enabled, metadata
   // stays enabled on refresh; another identity/revision must settle its own reads.
@@ -446,85 +481,75 @@ function Workbench() {
   const refreshRef = useRef<HTMLButtonElement>(null);
   const { reload: reloadPending } = pending;
   const { reload: reloadMine } = mine;
+  // The clock behind deadlines, relative times and the greeting: ticks each minute and on refresh.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
   const reload = useCallback(() => {
+    setNow(new Date());
     setPersonalRevision((revision) => revision + 1);
     reloadPending();
     reloadMine();
   }, [reloadPending, reloadMine]);
   const context = useMemo(
-    () => ({ reload, basePath: base.pathname, search: location.search }),
+    () => ({
+      reload,
+      onSaved: reload,
+      basePath: base.pathname,
+      search: location.search,
+    }),
     [reload, base.pathname, location.search],
   );
   const loading = pending.loading || mine.loading;
-  const revisions = (revisionRows.data ?? []).filter(
-    (r) => r.applicantId === session?.user.id,
-  );
-  const attention = [
-    ...(revisionRows.error
-      ? []
-      : revisions.map((r) => ({
-          record: r,
-          next: 'nextRevision',
-          priority: 0,
-        }))),
-    ...(pending.error
-      ? []
-      : (pending.data ?? []).map((r) => ({
-          record: r,
-          next:
-            r.kind === 'oa.workItem'
-              ? 'nextWorkItem'
-              : r.kind === 'oa.announcementReceipt'
-                ? 'nextAnnouncement'
-                : r.status === 'dispatch'
-                  ? 'nextDispatch'
-                  : r.status === 'issuing'
-                    ? 'nextIssue'
-                    : 'nextHandling',
-          priority: 1,
-        }))),
-  ].sort(
-    (a, b) =>
-      a.priority - b.priority ||
-      (a.record.createdAt ?? '').localeCompare(b.record.createdAt ?? ''),
-  );
-  const unique = attention
+  const pendingRows = pending.error ? [] : (pending.data ?? []);
+  const unique = pendingRows
     .filter(
-      (item, index) =>
-        attention.findIndex(
-          (other) =>
-            other.record.id === item.record.id &&
-            other.record.kind === item.record.kind,
+      (record, index) =>
+        pendingRows.findIndex(
+          (other) => other.id === record.id && other.kind === record.kind,
         ) === index,
     )
+    .sort(byUrgency)
     .slice(0, 6);
+  const overdue = pendingRows.filter(
+    (record) => dueState(record.dueAt, now) === 'overdue',
+  ).length;
+  // Exact while every pending item is loaded; otherwise a lower bound, shown as "n+".
+  const overdueComplete =
+    pending.meta !== undefined && pendingRows.length >= pending.meta.total;
+  const revisionCount = revisionRows.error
+    ? 0
+    : (mine.meta?.counts.revisions ?? 0);
   const recent =
     mine.meta?.attention?.submitted ??
     (mine.data ?? []).filter((r) => r.status !== 'draft').slice(0, 5);
-  const metricLinks: Record<string, string> = {
-    pending: '/approvals/todo',
-    revision: '/approvals/mine?category=revisions',
-    drafts: '/approvals/mine?category=drafts',
-    inProgress: '/approvals/mine?category=inProgress',
-  };
+  const number = new Intl.NumberFormat(i18n.language);
   const metrics = [
-    { key: 'pending', value: pending.meta?.total, error: pending.error },
     {
-      key: 'revision',
-      value: mine.meta?.counts.revisions,
-      error: mine.error,
+      key: 'pending',
+      value: pending.meta?.total,
+      error: pending.error,
+      to: '/approvals/todo',
+      tone: 'primary',
     },
     {
-      key: 'drafts',
-      value: mine.meta?.counts.drafts,
-      error: mine.error,
+      key: 'overdue',
+      value: pending.meta ? overdue : undefined,
+      suffix: overdueComplete ? '' : '+',
+      error: pending.error,
+      to: '/approvals/todo',
+      tone: 'destructive',
     },
     {
       key: 'inProgress',
       value: mine.meta?.counts.inProgress,
       error: mine.error,
+      to: '/approvals/mine?category=inProgress',
+      tone: 'primary',
     },
-  ];
+  ] as const;
   const transferPermission = useCan({
     resource: { type: 'composite', id: 'oa.transfer' },
     action: 'submit',
@@ -634,56 +659,95 @@ function Workbench() {
     reload();
     refreshRef.current?.focus();
   };
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+  const userName = session?.user.name?.trim();
+  const today = new Intl.DateTimeFormat(i18n.language, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(now);
+  const summary =
+    pending.meta === undefined
+      ? today
+      : [
+          today,
+          t('workbench.summaryPending', { count: pending.meta.total }),
+          overdue
+            ? t('workbench.summaryOverdue', {
+                count: overdue,
+                suffix: overdueComplete ? '' : '+',
+              })
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+  const settled = !pending.loading && !mine.loading;
+  // One welcome panel instead of two empty cards when there is nothing at all to show.
+  const nothingYet =
+    settled &&
+    !pending.error &&
+    !mine.error &&
+    !unique.length &&
+    !recent.length &&
+    !revisionCount;
   return (
-    <PageContainer className='space-y-4'>
+    <PageContainer className='flex flex-col gap-4'>
       <PageHeader
         title={
           <span ref={titleRef} tabIndex={-1}>
-            {t('workbench.title')}
+            {userName
+              ? t(`workbench.greeting.${greeting}`, { name: userName })
+              : t('workbench.title')}
           </span>
         }
-        description={t('workbench.description')}
+        description={summary}
         actions={
-          <>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    ref={refreshRef}
-                    variant='outline'
-                    size='icon'
-                    aria-label={t('approvals.refresh')}
-                    disabled={loading}
-                    onClick={reload}
-                  />
-                }
-              >
-                <RefreshCw className={loading ? 'animate-spin' : undefined} />
-              </TooltipTrigger>
-              <TooltipContent>{t('approvals.refresh')}</TooltipContent>
-            </Tooltip>
-            {canSubmit ? (
-              <Button
-                onClick={() => {
-                  requestSectionRef.current?.scrollIntoView({
-                    block: 'start',
-                    behavior: 'smooth',
-                  });
-                  requestSectionRef.current?.focus({ preventScroll: true });
-                }}
-              >
-                <Plus data-icon='inline-start' />
-                {t('workbench.newRequest')}
-              </Button>
-            ) : null}
-          </>
+          <ApplicationRefreshButton
+            ref={refreshRef}
+            label={t('workbench.refresh')}
+            loading={loading}
+            onClick={reload}
+          />
         }
       />
-      <PersonalCards key={personalRevision} />
-      <div className='grid grid-cols-2 gap-4 xl:grid-cols-4'>
+      {revisionCount > 0 ? (
+        <Alert
+          role='status'
+          className='border-(--status-warning)/25 bg-(--status-warning-background) text-(--status-warning)'
+        >
+          <TriangleAlert aria-hidden='true' />
+          <AlertDescription className='text-(--status-warning)'>
+            {t('workbench.revisionBanner', { count: revisionCount })}
+          </AlertDescription>
+          <AlertAction>
+            <Button
+              variant='outline'
+              size='sm'
+              nativeButton={false}
+              render={<Link to='/approvals/mine?category=revisions' />}
+            >
+              {t('workbench.reviewRevisions')}
+            </Button>
+          </AlertAction>
+        </Alert>
+      ) : null}
+      {revisionRows.error ? (
+        <ErrorState context='query' error={revisionRows.error} retry={retry} />
+      ) : null}
+      <div className='grid grid-cols-3 gap-3 sm:gap-4'>
         {metrics.map((metric) => {
+          const active = !metric.error && (metric.value ?? 0) > 0;
           const content = (
-            <Card className='h-full transition-colors group-hover:bg-muted/50'>
+            <Card
+              className={cn(
+                'h-full border-l-4 border-l-transparent transition-colors group-hover:bg-muted/50',
+                active &&
+                  (metric.tone === 'destructive'
+                    ? 'border-l-destructive'
+                    : 'border-l-primary'),
+              )}
+            >
               <CardHeader>
                 <CardDescription>
                   {t(`workbench.${metric.key}`)}
@@ -700,8 +764,18 @@ function Workbench() {
                     aria-label={t('workbench.loading')}
                   />
                 ) : (
-                  <span className='text-3xl font-semibold tabular-nums'>
-                    {new Intl.NumberFormat(i18n.language).format(metric.value)}
+                  <span
+                    className={cn(
+                      'text-2xl font-semibold tabular-nums sm:text-3xl',
+                      !active
+                        ? 'text-muted-foreground'
+                        : metric.tone === 'destructive'
+                          ? 'text-destructive'
+                          : 'text-foreground',
+                    )}
+                  >
+                    {number.format(metric.value)}
+                    {'suffix' in metric ? metric.suffix : ''}
                   </span>
                 )}
               </CardContent>
@@ -712,7 +786,7 @@ function Workbench() {
           ) : (
             <Link
               key={metric.key}
-              to={metricLinks[metric.key]}
+              to={metric.to}
               className='group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring'
               aria-label={`${t(`workbench.${metric.key}`)} ${metric.value}`}
             >
@@ -726,109 +800,138 @@ function Workbench() {
           {t('workbench.refreshing')}
         </p>
       ) : null}
-
-      {revisionRows.error ? (
-        <ErrorState context='query' error={revisionRows.error} retry={retry} />
-      ) : null}
-      <div className='flex flex-col items-stretch gap-4 md:flex-row'>
-        <Card className='min-w-0 flex-1'>
-          <CardHeader>
-            <CardTitle>
-              <div className='flex items-center gap-2'>
-                <h2>{t('workbench.attention')}</h2>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        variant='ghost'
-                        size='icon-sm'
-                        aria-label={t('approvalCenter.scope')}
-                      />
-                    }
-                  >
-                    <Info aria-hidden='true' />
-                  </TooltipTrigger>
-                  <TooltipContent>{t('approvalCenter.scope')}</TooltipContent>
-                </Tooltip>
-              </div>
-            </CardTitle>
-            <CardDescription>
-              {t('workbench.attentionDescription')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className='flex flex-col gap-4'>
-            {pending.error ? (
-              <ErrorState context='query' error={pending.error} retry={retry} />
-            ) : null}
-            {mine.error ? (
-              <ErrorState context='query' error={mine.error} retry={retry} />
-            ) : null}
-            {unique.length ? (
-              <ul className='flex flex-col'>
-                {unique.map(({ record, priority }) => (
-                  <WorkRow
-                    key={`${record.kind}:${record.id}`}
-                    record={record}
-                    showInitiator
-                    showApplicant={priority === 1}
-                    disabled={loading}
-                  />
-                ))}
-              </ul>
-            ) : pending.loading || mine.loading ? (
-              <RowsSkeleton />
-            ) : !pending.error && !mine.error ? (
-              <EmptyCard kind='Attention' canSubmit={canSubmit} />
-            ) : null}
+      {nothingYet ? (
+        <Card>
+          <CardContent>
+            <Empty className='min-h-40'>
+              <EmptyHeader>
+                <EmptyMedia variant='icon'>
+                  <ClipboardCheck />
+                </EmptyMedia>
+                <EmptyTitle>{t('workbench.allClear')}</EmptyTitle>
+                <EmptyDescription>
+                  {t(
+                    canSubmit
+                      ? 'workbench.allClearDescription'
+                      : 'workbench.emptyMineRestricted',
+                  )}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           </CardContent>
           <CardFooter className='mt-auto flex flex-wrap gap-2'>
-            <ListLink to='/approvals/todo' label={t('workbench.viewPending')} />
-            {(mine.meta?.counts.revisions ?? 0) > 0 ? (
+            <ListLink to='/approvals/mine' label={t('workbench.viewMine')} />
+            {(mine.meta?.counts.drafts ?? 0) > 0 ? (
               <ListLink
-                to='/approvals/mine?category=revisions'
-                label={t('workbench.viewRevisions')}
+                to='/approvals/mine?category=drafts'
+                label={t('workbench.viewDraftsCount', {
+                  count: mine.meta?.counts.drafts,
+                })}
               />
             ) : null}
           </CardFooter>
         </Card>
-        <Card className='min-w-0 flex-1'>
-          <CardHeader>
-            <CardTitle>
-              <h2>{t('workbench.mine')}</h2>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {mine.error ? (
-              <ErrorState context='query' error={mine.error} retry={retry} />
-            ) : recent.length ? (
-              <ul className='flex flex-col'>
-                {recent.map((record) => (
-                  <WorkRow
-                    key={`${record.kind}:${record.id}`}
-                    record={record}
-                    disabled={loading}
-                  />
-                ))}
-              </ul>
-            ) : mine.loading ? (
-              <RowsSkeleton />
-            ) : (
-              <EmptyCard kind='Mine' canSubmit={canSubmit} />
-            )}
-          </CardContent>
-          <CardFooter className='mt-auto'>
-            <ListLink to='/approvals/mine' label={t('workbench.viewMine')} />
-          </CardFooter>
-        </Card>
-      </div>
+      ) : (
+        <div className='flex flex-col items-stretch gap-4 md:flex-row'>
+          <Card className='min-w-0 flex-1'>
+            <CardHeader>
+              <CardTitle>
+                <div className='flex items-center gap-2'>
+                  <h2>{t('workbench.attention')}</h2>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant='ghost'
+                          size='icon-sm'
+                          aria-label={t('approvalCenter.scope')}
+                        />
+                      }
+                    >
+                      <Info aria-hidden='true' />
+                    </TooltipTrigger>
+                    <TooltipContent>{t('approvalCenter.scope')}</TooltipContent>
+                  </Tooltip>
+                </div>
+              </CardTitle>
+              <CardDescription>
+                {t('workbench.attentionDescription')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className='flex flex-col gap-4'>
+              {pending.error ? (
+                <ErrorState
+                  context='query'
+                  error={pending.error}
+                  retry={retry}
+                />
+              ) : null}
+              {unique.length ? (
+                <ul className='flex flex-col'>
+                  {unique.map((record) => (
+                    <WorkRow
+                      key={`${record.kind}:${record.id}`}
+                      record={record}
+                      now={now}
+                      showInitiator
+                      showApplicant
+                    />
+                  ))}
+                </ul>
+              ) : pending.loading ? (
+                <RowsSkeleton />
+              ) : !pending.error ? (
+                <EmptyCard kind='Attention' canSubmit={canSubmit} />
+              ) : null}
+            </CardContent>
+            <CardFooter className='mt-auto flex flex-wrap gap-2'>
+              <ListLink
+                to='/approvals/todo'
+                label={t('workbench.viewPending')}
+              />
+            </CardFooter>
+          </Card>
+          <Card className='min-w-0 flex-1'>
+            <CardHeader>
+              <CardTitle>
+                <h2>{t('workbench.mine')}</h2>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {mine.error ? (
+                <ErrorState context='query' error={mine.error} retry={retry} />
+              ) : recent.length ? (
+                <ul className='flex flex-col'>
+                  {recent.map((record) => (
+                    <WorkRow
+                      key={`${record.kind}:${record.id}`}
+                      record={record}
+                      now={now}
+                    />
+                  ))}
+                </ul>
+              ) : mine.loading ? (
+                <RowsSkeleton />
+              ) : (
+                <EmptyCard kind='Mine' canSubmit={canSubmit} />
+              )}
+            </CardContent>
+            <CardFooter className='mt-auto flex flex-wrap gap-2'>
+              <ListLink to='/approvals/mine' label={t('workbench.viewMine')} />
+              {(mine.meta?.counts.drafts ?? 0) > 0 ? (
+                <ListLink
+                  to='/approvals/mine?category=drafts'
+                  label={t('workbench.viewDraftsCount', {
+                    count: mine.meta?.counts.drafts,
+                  })}
+                />
+              ) : null}
+            </CardFooter>
+          </Card>
+        </div>
+      )}
       {canSubmit ? (
-        <section
-          id='request-actions'
-          ref={requestSectionRef}
-          tabIndex={-1}
-          aria-label={t('workbench.newRequest')}
-          className='scroll-mt-6 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring'
-        >
+        <section id='request-actions' aria-label={t('workbench.newRequest')}>
           <NewRequestCard
             vehicle={vehicleCreate}
             recruitment={recruitmentCreate}
@@ -859,6 +962,8 @@ function Workbench() {
           />
         </section>
       ) : null}
+      {/* Reference information follows the work and the request entries. */}
+      <PersonalCards key={personalRevision} />
       <Outlet context={context} />
     </PageContainer>
   );
@@ -868,12 +973,12 @@ function WorkRow({
   record,
   showInitiator = false,
   showApplicant = false,
-  disabled,
+  now,
 }: {
   record: CenterRecord;
   showInitiator?: boolean;
   showApplicant?: boolean;
-  disabled: boolean;
+  now: Date;
 }) {
   const { t, i18n } = useTranslation();
   const location = useLocation();
@@ -909,18 +1014,23 @@ function WorkRow({
     : record.updatedAt
       ? 'workbench.updatedAt'
       : 'workbench.createdAt';
+  const relative = relativeTime(relevantDate ?? '', now, i18n.language);
+  const due = dueState(record.dueAt, now);
+  const kind = kindPresentation(record.kind);
   const linkClass =
     'rounded-sm text-sm font-medium text-foreground underline-offset-4 hover:text-primary hover:underline focus-visible:outline-ring focus-visible:outline-2';
   return (
-    <li className='grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-b border-border py-3 first:pt-0 last:border-0 last:pb-0'>
+    <li className='grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-b border-border py-3 first:pt-0 last:border-0 last:pb-0'>
+      <span
+        aria-hidden='true'
+        className='row-span-2 flex size-8 items-center justify-center rounded-lg bg-muted'
+      >
+        {createElement(kind.icon, { className: cn('size-4', kind.className) })}
+      </span>
       <div className='min-w-0 break-words'>
-        {disabled ? (
-          <span className='text-sm font-medium'>{title}</span>
-        ) : (
-          <Link className={linkClass} to={to}>
-            {title}
-          </Link>
-        )}
+        <Link className={linkClass} to={to}>
+          {title}
+        </Link>
       </div>
       <StatusBadge tone={tone} className='justify-self-end'>
         {approvalStateLabel(record.status, t, record.kind)}
@@ -929,7 +1039,16 @@ function WorkRow({
       title !== business ||
       (record.startDate && record.endDate) ||
       relevantDate ? (
-        <div className='col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground'>
+        <div className='col-span-2 col-start-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground'>
+          {due ? (
+            <StatusBadge tone={due === 'overdue' ? 'destructive' : 'warning'}>
+              {t(
+                due === 'overdue'
+                  ? 'workbench.overdueBadge'
+                  : 'workbench.dueToday',
+              )}
+            </StatusBadge>
+          ) : null}
           {showPerson ? (
             <span className='inline-flex min-w-0 items-center gap-1'>
               <span>
@@ -950,8 +1069,8 @@ function WorkRow({
             </span>
           ) : null}
           {relevantDate ? (
-            <time dateTime={relevantDate}>
-              {t(dateLabel, { date: date(relevantDate) })}
+            <time dateTime={relevantDate} title={date(relevantDate)}>
+              {t(dateLabel, { date: relative ?? date(relevantDate) })}
             </time>
           ) : null}
           {!(record.unit === 'cents' && record.amount !== null) &&
@@ -1048,7 +1167,7 @@ function NewRequestCard({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <RequestActions
+        <FavoriteRequestActions
           available={{
             vehicle,
             recruitment,
@@ -1125,8 +1244,8 @@ function RowsSkeleton() {
 function LoadingCards() {
   return (
     <div className='flex flex-col gap-4'>
-      <div className='grid grid-cols-2 gap-4 xl:grid-cols-4'>
-        {[0, 1, 2, 3].map((key) => (
+      <div className='grid grid-cols-3 gap-3 sm:gap-4'>
+        {[0, 1, 2].map((key) => (
           <Card key={key}>
             <CardContent>
               <RowsSkeleton />
@@ -1134,11 +1253,15 @@ function LoadingCards() {
           </Card>
         ))}
       </div>
-      <Card>
-        <CardContent>
-          <RowsSkeleton />
-        </CardContent>
-      </Card>
+      <div className='grid gap-4 xl:grid-cols-2'>
+        {[0, 1].map((key) => (
+          <Card key={key}>
+            <CardContent>
+              <RowsSkeleton />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

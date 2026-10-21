@@ -1,5 +1,8 @@
 export default {
   knowledge: {
+    discardNamed: '放弃“{{name}}”的修改？',
+    reloadNamed: '重新加载“{{name}}”并放弃本地修改？',
+
     folderTree: '文件夹',
     expandFolder: '展开 {{name}}',
     collapseFolder: '收起 {{name}}',
@@ -55,9 +58,9 @@ export default {
     cancel: '取消',
     saving: '正在保存…',
     publishVersion: '发布版本',
-    published: '版本已发布',
+    published: '已发布“{{name}}”的版本',
     saveFolder: '保存文件夹',
-    folderSaved: '文件夹已保存',
+    folderSaved: '已保存文件夹“{{name}}”',
     newFolder: '新建文件夹',
     editFolder: '修改文件夹',
     noFolders: '暂无文件夹。',

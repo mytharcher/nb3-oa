@@ -1,3 +1,4 @@
+import { formatCents } from '#lib/money';
 export interface Budget {
   id: string;
   departmentId: string;
@@ -39,14 +40,7 @@ export function label(value: Record<string, string>, locale: string) {
 }
 /** Decimal formatting is integer based so the last cent survives even at the safe-integer ceiling. */
 export function money(cents: number, locale: string) {
-  const abs = BigInt(cents < 0 ? -cents : cents);
-  const whole = abs / 100n,
-    fraction = String(abs % 100n).padStart(2, '0');
-  const separator =
-    new Intl.NumberFormat(locale)
-      .formatToParts(1.1)
-      .find((p) => p.type === 'decimal')?.value ?? '.';
-  return `${cents < 0 ? '-' : ''}${new Intl.NumberFormat(locale).format(whole)}${separator}${fraction}`;
+  return formatCents(cents, locale);
 }
 export function amountCents(value: string): number | undefined {
   const match = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());

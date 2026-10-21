@@ -1,5 +1,7 @@
 export default {
   budgets: {
+    create: '创建',
+
     title: '预算管理',
     description:
       '财务录入年度额度与留审计的手工调整，预占和已用由业务单据产生。',

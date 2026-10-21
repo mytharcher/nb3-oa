@@ -1,3 +1,6 @@
+import { useContext, useEffect, useRef } from 'react';
+import { Link, useLocation, useOutletContext } from 'react-router';
+import { RouteOverlayContext } from '#components/use-route-overlay';
 import { useBusinessErrorMessage } from '#hooks/use-business-error-message';
 import { errorKey } from './errors.js';
 import { ApiClientError } from '@nocobase/app-client';
@@ -25,6 +28,23 @@ export function VehicleError({
 }) {
   const businessMessage = useBusinessErrorMessage(error, 'vehicles');
   const { t } = useTranslation();
+  const overlay = useContext(RouteOverlayContext);
+  const location = useLocation();
+  const parent = useOutletContext<{
+    reload?: () => void;
+    onSaved?: () => void;
+  } | null>();
+  const missingRef = useRef<unknown>(null);
+  useEffect(() => {
+    if (
+      error instanceof ApiClientError &&
+      error.status === 404 &&
+      missingRef.current !== error
+    ) {
+      missingRef.current = error;
+      (parent?.onSaved ?? parent?.reload)?.();
+    }
+  }, [error, parent]);
   if (error instanceof ApiClientError && error.status === 401)
     return <SessionExpiredAlert />;
   return (
@@ -32,6 +52,34 @@ export function VehicleError({
       <AlertDescription>
         {businessMessage ?? t(`vehicles.errors.${errorKey(error)}`)}
       </AlertDescription>
+      {error instanceof ApiClientError && [403, 404].includes(error.status) ? (
+        overlay ? (
+          <Button
+            variant='outline'
+            onClick={() => {
+              void overlay.close();
+            }}
+          >
+            {t('vehicles.backToList')}
+          </Button>
+        ) : (
+          <Button
+            variant='outline'
+            nativeButton={false}
+            render={
+              <Link
+                to={{
+                  pathname: '/vehicle-requests',
+                  search: location.search,
+                  hash: location.hash,
+                }}
+              />
+            }
+          >
+            {t('vehicles.backToList')}
+          </Button>
+        )
+      ) : null}
       {(!businessMessage ||
         (error instanceof ApiClientError && error.status === 409)) &&
       !(

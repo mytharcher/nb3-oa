@@ -64,6 +64,7 @@ const platformZhCN: LocaleResource<PlatformLocale> = {
         saved: '已保存时区',
       },
       days: {
+        remove: '移除',
         title: '特殊日期',
         description: '未列出的日期按星期判定：周一至周五为工作日。',
         previousYear: '上一年',
@@ -96,6 +97,10 @@ const platformZhCN: LocaleResource<PlatformLocale> = {
         placeholder: '{{year}}-10-01,休,国庆节\n{{year}}-10-10,班',
         hint: '用逗号或制表符分隔。类型：休 / 节假日、班 / 调休、工作日、休息日（或英文 holiday、adjustedWorkday、workday、weekend）。',
         replace: '替换该年',
+        replacePreview:
+          '根据当前日历，{{year}} 年有 {{count}} 个已有特殊日期不在导入列表中，将被移除。保存前其他人仍可能修改日历。',
+        previewFailed: '无法读取完整年度日历，请重试后再替换。',
+        confirmReplaceTitle: '替换 {{year}} 年的特殊日期？',
         replaceHint: '删除 {{year}} 年中不在列表里的特殊日期。',
         submit: '导入',
         emptyText: '请至少粘贴一天。',

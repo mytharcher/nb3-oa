@@ -1,6 +1,7 @@
 import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { ApplicationToolbar } from '#components/application-toolbar';
+import { TruncatedText } from '#components/truncated-text';
 import { UserName } from '#components/user-name';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
@@ -220,11 +221,12 @@ export default function EmployeesPage(): ReactElement {
   ];
 
   const columns = useMemo<ColumnDef<Employee>[]>(() => {
-    const muted = (value: string | null | undefined): ReactElement => (
-      <span className={value ? 'truncate' : 'text-muted-foreground'}>
-        {value || '—'}
-      </span>
-    );
+    const muted = (value: string | null | undefined): ReactElement =>
+      value ? (
+        <TruncatedText text={value} />
+      ) : (
+        <span className='text-muted-foreground'>—</span>
+      );
     return [
       {
         id: 'name',
@@ -409,12 +411,13 @@ export default function EmployeesPage(): ReactElement {
       <ApplicationToolbar
         actions={
           <>
+            {canManage ? createButton : null}
+
             <ApplicationRefreshButton
               label={t('employees.refresh')}
               loading={loading}
               onClick={reload}
             />
-            {canManage ? createButton : null}
           </>
         }
       >

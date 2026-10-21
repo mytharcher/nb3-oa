@@ -1,7 +1,7 @@
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import type { ReactNode } from 'react';
 import {
   Card,
@@ -32,7 +32,8 @@ export function PersonalCards() {
   });
   if (!session) return null;
   return (
-    <div className='flex flex-col items-stretch gap-4 lg:flex-row'>
+    // Phones swipe through the cards in one row instead of stacking three tall cards.
+    <div className='-mx-4 flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0 lg:gap-4 lg:overflow-visible lg:pb-0 [&>*]:w-[85%] [&>*]:shrink-0 [&>*]:snap-start md:[&>*]:w-[calc(50%-0.375rem)] lg:[&>*]:w-auto lg:[&>*]:shrink'>
       <LeaveCard />
       {meetings.can && !meetings.isPending && !meetings.error ? (
         <MeetingCard
@@ -86,11 +87,9 @@ function SummaryCard({
           children
         )}
       </CardContent>
-      <CardFooter className='mt-auto flex flex-wrap gap-2'>
-        <Button variant='outline' size='sm' disabled={loading} onClick={reload}>
-          {t('approvals.refresh')}
-        </Button>
-        {to ? (
+      {/* The workbench's refresh reloads these cards; failures keep their own retry. */}
+      {to ? (
+        <CardFooter className='mt-auto flex flex-wrap gap-2'>
           <Button
             variant='ghost'
             size='sm'
@@ -99,8 +98,8 @@ function SummaryCard({
           >
             {t('workbench.viewSource')}
           </Button>
-        ) : null}
-      </CardFooter>
+        </CardFooter>
+      ) : null}
     </Card>
   );
 }
@@ -135,7 +134,7 @@ function LeaveCard() {
       reload={reload}
       empty={!balances.data?.length}
     >
-      <ul className='space-y-3'>
+      <ul className='flex flex-col gap-3'>
         {balances.data?.map((row) => (
           <li key={row.leaveType} className='text-sm'>
             <p className='font-medium break-words'>{label(row.leaveType)}</p>
@@ -167,6 +166,7 @@ function MeetingCard({ canNavigate }: { canNavigate: boolean }) {
   const { t, i18n } = useTranslation();
   const resource = useResource<MeetingSummary>('workbench/meetings');
   const data = resource.data;
+  const location = useLocation();
   const time = (value: string) =>
     new Intl.DateTimeFormat(i18n.language, {
       timeZone: data!.timeZone,
@@ -184,16 +184,25 @@ function MeetingCard({ canNavigate }: { canNavigate: boolean }) {
     >
       <p className='mb-3 text-sm text-muted-foreground'>
         {data
-          ? t('workbench.meetingCount', { date: data.date, count: data.total })
+          ? t('workbench.meetingCount', {
+              date: new Intl.DateTimeFormat(i18n.language, {
+                dateStyle: 'medium',
+                timeZone: 'UTC',
+              }).format(new Date(`${data.date}T12:00:00Z`)),
+              count: data.total,
+            })
           : null}
       </p>
-      <ul className='space-y-3'>
+      <ul className='flex flex-col gap-3'>
         {data?.items.map((row) => (
           <li key={row.id} className='text-sm'>
             {canNavigate ? (
               <Link
                 className='text-primary underline-offset-4 hover:underline break-words'
-                to={`/meeting-rooms/booking/${encodeURIComponent(row.id)}`}
+                to={{
+                  pathname: `booking/${encodeURIComponent(row.id)}`,
+                  search: location.search,
+                }}
               >
                 {row.title}
               </Link>
@@ -211,6 +220,7 @@ function MeetingCard({ canNavigate }: { canNavigate: boolean }) {
   );
 }
 function AnnouncementCard() {
+  const location = useLocation();
   const { t } = useTranslation();
   const resource = useResource<{
     count: number;
@@ -235,12 +245,15 @@ function AnnouncementCard() {
           ? t('workbench.receiptCount', { count: resource.data.count })
           : null}
       </p>
-      <ul className='space-y-3'>
+      <ul className='flex flex-col gap-3'>
         {resource.data?.items.slice(0, 5).map((row) => (
           <li key={row.id} className='text-sm'>
             <Link
               className='text-primary underline-offset-4 hover:underline break-words'
-              to={`/announcements/${encodeURIComponent(row.announcementId)}`}
+              to={{
+                pathname: `announcement/${encodeURIComponent(row.announcementId)}`,
+                search: location.search,
+              }}
             >
               {row.title}
             </Link>

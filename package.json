@@ -1,6 +1,6 @@
 {
   "name": "nb3-oa",
-  "displayName": "nb3-oa",
+  "displayName": "NocoOA",
   "version": "1.0.0-beta.56",
   "type": "module",
   "prettier": "@nocobase/dev-config/prettier",

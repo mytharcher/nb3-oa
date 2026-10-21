@@ -1,3 +1,4 @@
+import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { AvailabilitySearch } from './availability-search';
 import { ApplicationSearch } from '#components/application-search';
@@ -5,7 +6,7 @@ import { UserName } from '#components/user-name';
 import { Link, Outlet, useLocation } from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Plus, MoreHorizontal, Eye } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { ApplicationToolbar } from '#components/application-toolbar';
@@ -22,13 +23,6 @@ import {
   SelectItem,
 } from '#components/ui/select';
 import { Badge } from '#components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-} from '#components/ui/dropdown-menu';
 import { useUrlSearch } from '#hooks/use-url-search';
 import { TruncatedText } from '../platform/shared/truncated-text.js';
 import { useMeetingResource } from './resource.js';
@@ -140,7 +134,7 @@ export default function MeetingRooms() {
       cell: ({ row }) => (
         <Link
           to={link(`${rooms ? 'room' : 'booking'}/${row.original.id}`)}
-          className='font-medium text-primary underline-offset-4 hover:underline'
+          className='font-medium underline-offset-4 hover:underline'
         >
           <TruncatedText
             text={
@@ -211,7 +205,12 @@ export default function MeetingRooms() {
             enableSorting: false,
             header: t('meetingRooms.fields.room'),
             cell: ({ row }: { row: { original: Room | Booking } }) => (
-              <RoomName roomId={(row.original as Booking).roomId} />
+              <TruncatedText
+                text={
+                  (row.original as Booking).roomName ??
+                  t('meetingRooms.errors.unavailable')
+                }
+              />
             ),
           },
           {
@@ -237,46 +236,6 @@ export default function MeetingRooms() {
               : `meetingRooms.status.${(row.original as Booking).status}`,
           )}
         </Badge>
-      ),
-    },
-    {
-      id: 'actions',
-      enableSorting: false,
-      enableHiding: false,
-      cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant='ghost'
-                size='icon-sm'
-                aria-label={t('meetingRooms.rowActions', {
-                  name: rooms
-                    ? (row.original as Room).name
-                    : (row.original as Booking).title,
-                })}
-              />
-            }
-          >
-            <MoreHorizontal />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align='end' className='w-auto min-w-40'>
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                render={
-                  <Link
-                    to={link(
-                      `${rooms ? 'room' : 'booking'}/${row.original.id}`,
-                    )}
-                  />
-                }
-              >
-                <Eye />
-                {t('meetingRooms.view')}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
       ),
     },
   ];
@@ -415,27 +374,32 @@ export default function MeetingRooms() {
                 })
               }
               pageSizeOptions={[10, 20, 50, 100]}
-              emptyMessage={t(
-                filtered
-                  ? 'meetingRooms.empty.filtered'
-                  : 'meetingRooms.empty.title',
-              )}
+              emptyMessage={
+                <ApplicationTableEmpty
+                  title={t(
+                    filtered
+                      ? 'meetingRooms.empty.filtered'
+                      : 'meetingRooms.empty.title',
+                  )}
+                  clearFilters={
+                    filtered
+                      ? {
+                          label: t('meetingRooms.clear'),
+                          onClick: () =>
+                            search.clear((params) => {
+                              params.delete('active');
+                              params.delete('page');
+                            }),
+                        }
+                      : undefined
+                  }
+                />
+              }
             />
           )}
         </>
       )}
       <Outlet context={{ onSaved: refresh, options: options.data?.data }} />
     </PageContainer>
-  );
-}
-
-function RoomName({ roomId }: { roomId: string }) {
-  const room = useMeetingResource<{ data: Room }>(
-    `meetingRooms/${encodeURIComponent(roomId)}`,
-  );
-  return room.data ? (
-    <TruncatedText text={room.data.data.name} />
-  ) : (
-    <span>—</span>
   );
 }

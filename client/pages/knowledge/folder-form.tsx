@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useToaster } from '@nocobase/app-client';
-import { RouteDialog } from '#components/route-dialog';
+import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
@@ -41,7 +41,7 @@ import { KnowledgeError, KnowledgeSkeleton } from './states.js';
 import { KnowledgeIdentity } from './identity.js';
 import { KnowledgeDiscard } from './guard.js';
 import { useKnowledgeGuard } from './use-guard.js';
-import { selectWidth, type Folder, type Context } from './types.js';
+import { type Folder, type Context } from './types.js';
 export default function KnowledgeFolderForm() {
   const { folderId } = useParams();
   return (
@@ -60,7 +60,8 @@ function Body() {
     command = useKnowledgeCommand(() => setDirty(false)),
     guard = useKnowledgeGuard(command.busy, dirty);
   return (
-    <RouteDialog
+    <RouteDrawer
+      className='sm:max-w-2xl'
       title={t(`knowledge.${folderId ? 'editFolder' : 'newFolder'}`)}
       beforeClose={guard.beforeClose}
       footer={
@@ -99,7 +100,7 @@ function Body() {
         guard={guard}
         name={existing?.title ?? (draftTitle || t('knowledge.newFolder'))}
       />
-    </RouteDialog>
+    </RouteDrawer>
   );
 }
 function Footer({ busy, current }: { busy: boolean; current: boolean }) {
@@ -148,7 +149,8 @@ function Fields({
   });
   const form = useForm({
     resolver: zodResolver(schema),
-    mode: 'onBlur',
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
     defaultValues: {
       title: existing?.title ?? '',
       parentId: existing?.parentId ?? 'root',
@@ -195,17 +197,35 @@ function Fields({
               parent.reload();
               toast.show({
                 type: 'success',
-                title: t('knowledge.folderSaved'),
+                title: t('knowledge.folderSaved', { name: v.title }),
               });
               await close();
             }
           })(event);
         }}
       >
+        {command.error ? (
+          <>
+            <KnowledgeError error={command.error} />
+            {statusOf(command.error) === 409 && existing ? (
+              <Button
+                type='button'
+                variant='outline'
+                disabled={command.busy}
+                onClick={() => setCas(true)}
+              >
+                {t('knowledge.loadLatest')}
+              </Button>
+            ) : null}
+          </>
+        ) : null}
         <FieldGroup>
           <Field data-invalid={!!form.formState.errors.title}>
             <FieldLabel htmlFor='folder-title'>
-              {t('knowledge.titleField')} *
+              {t('knowledge.titleField')}{' '}
+              <span aria-hidden='true' className='text-destructive'>
+                *
+              </span>
             </FieldLabel>
             <Input
               id='folder-title'
@@ -252,7 +272,7 @@ function Fields({
                           t('knowledge.restrictedOption'))}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className={selectWidth}>
+                  <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                     <SelectGroup>
                       <SelectItem value='root'>
                         {t('knowledge.root')}
@@ -274,29 +294,16 @@ function Fields({
             </FieldError>
           </Field>
         </FieldGroup>
-        {command.error ? (
-          <>
-            <KnowledgeError error={command.error} />
-            {statusOf(command.error) === 409 && existing ? (
-              <Button
-                type='button'
-                variant='outline'
-                disabled={command.busy}
-                onClick={() => setCas(true)}
-              >
-                {t('knowledge.loadLatest')}
-              </Button>
-            ) : null}
-          </>
-        ) : null}
       </form>
       <AlertDialog open={cas} onOpenChange={setCas}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t('knowledge.loadLatest')} —{' '}
-              {existing?.title ??
-                (form.getValues('title') || t('knowledge.newFolder'))}
+              {t('knowledge.reloadNamed', {
+                name:
+                  existing?.title ??
+                  (form.getValues('title') || t('knowledge.newFolder')),
+              })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t('knowledge.replaceDraft')}

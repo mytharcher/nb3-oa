@@ -60,6 +60,7 @@ export interface PaymentRecord extends PaymentInput {
   createdAt: string;
 }
 export interface PaymentDetail {
+  contractName?: string | null;
   record: PaymentRecord;
   users: Person[];
   view: RecordView;

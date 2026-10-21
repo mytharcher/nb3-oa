@@ -218,9 +218,17 @@ export function createKnowledgeService(d: {
       const [field, direction] = (query.orderBy ?? 'updatedAt:desc').split(':');
       rows.sort((a, b) => {
         const left =
-          field === 'title' ? a.title : new Date(a.updatedAt).getTime();
+          field === 'title'
+            ? a.title
+            : field === 'version'
+              ? a.version
+              : new Date(a.updatedAt).getTime();
         const right =
-          field === 'title' ? b.title : new Date(b.updatedAt).getTime();
+          field === 'title'
+            ? b.title
+            : field === 'version'
+              ? b.version
+              : new Date(b.updatedAt).getTime();
         const compare = left < right ? -1 : left > right ? 1 : 0;
         return (
           (direction === 'asc' ? compare : -compare) ||

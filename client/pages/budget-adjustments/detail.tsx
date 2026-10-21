@@ -1,3 +1,4 @@
+import { approvalStatusTone } from '../approvals/status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
 import { BudgetFacts } from './facts.js';
 import { createRequestId } from '../approvals/request-id.js';
@@ -215,13 +216,7 @@ export default function BudgetAdjustmentDetailPage() {
       headerStatus={
         record ? (
           <StatusBadge
-            tone={
-              record.status === 'approved'
-                ? 'success'
-                : ['rejected', 'terminated'].includes(record.status)
-                  ? 'warning'
-                  : 'neutral'
-            }
+            tone={approvalStatusTone(record.status, 'oa.budgetAdjustment')}
           >
             {t(
               ['head', 'finance', 'cfo', 'gm'].includes(record.status)
@@ -246,6 +241,7 @@ export default function BudgetAdjustmentDetailPage() {
                 action.allowed ? (
                   <Button
                     key={action.name}
+                    disabled={pending}
                     variant='outline'
                     render={
                       <Link
@@ -261,6 +257,7 @@ export default function BudgetAdjustmentDetailPage() {
                 action.allowed ? (
                   <Button
                     key={action.name}
+                    disabled={pending}
                     variant='destructive'
                     render={
                       <Link
@@ -303,7 +300,7 @@ export default function BudgetAdjustmentDetailPage() {
                     {action.allowed
                       ? t(`approvals.${action.name}`)
                       : action.blockers
-                          .map((v) => t(v.message, { defaultValue: v.message }))
+                          .map(() => t('approvals.unavailable'))
                           .join(' · ') || t('approvals.unavailable')}
                   </TooltipContent>
                 </Tooltip>

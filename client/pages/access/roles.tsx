@@ -149,7 +149,7 @@ export default function RolesPage() {
         ),
         cell: ({ row }) => (
           <Link
-            className='font-medium text-primary hover:underline'
+            className='font-medium underline-offset-4 hover:underline'
             to={`${encodeURIComponent(row.original.type)}/${encodeURIComponent(row.original.id)}/permissions${location.search}`}
           >
             <TruncatedText text={row.original.title} />
@@ -216,7 +216,7 @@ export default function RolesPage() {
                 ...new Set(
                   sets.flatMap((set) => grantSummary(catalog.options!, set)),
                 ),
-              ].join('、')
+              ].join(i18n.language.startsWith('zh') ? '、' : ', ')
             : '';
           return <TruncatedText text={summary || t('access.none')} />;
         },
@@ -266,7 +266,10 @@ export default function RolesPage() {
             })
           }
         >
-          <SelectTrigger className='w-full sm:w-40'>
+          <SelectTrigger
+            className='w-full sm:w-40'
+            aria-label={t('access.type')}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>

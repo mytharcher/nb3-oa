@@ -209,14 +209,14 @@ it('keeps empty vendor table headers and creation in the shared toolbar, opening
     screen.getByRole('columnheader', { name: 'Code' }),
   ).toBeInTheDocument();
   await screen.findByText('No matching vendors');
-  const create = screen.getByRole('button', { name: 'Add vendor' });
+  const create = screen.getByRole('button', { name: 'New vendor' });
   expect(
     within(
       create.closest('[data-slot=application-actions]') as HTMLElement,
-    ).getByRole('button', { name: 'Add vendor' }),
+    ).getByRole('button', { name: 'New vendor' }),
   ).toBe(create);
   await userEvent.setup().click(create);
-  await screen.findByRole('dialog', { name: 'Add vendor' });
+  await screen.findByRole('dialog', { name: 'New vendor' });
   expect(router.state.location.pathname).toBe('/vendors/new');
   expect(router.state.location.search).toBe('?search=missing');
 });
@@ -225,7 +225,7 @@ it('shows the empty vendor table and explains how to add vendors without grantin
   showList();
   await screen.findByRole('columnheader', { name: 'Name' });
   expect(
-    screen.queryByRole('button', { name: 'Add vendor' }),
+    screen.queryByRole('button', { name: 'New vendor' }),
   ).not.toBeInTheDocument();
   expect(
     screen.getByText(/Ask purchasing to add a vendor/),
@@ -233,8 +233,8 @@ it('shows the empty vendor table and explains how to add vendors without grantin
 });
 it('offers creation even before an empty vendor list finishes loading', async () => {
   showList();
-  const create = screen.getByRole('button', { name: 'Add vendor' });
+  const create = screen.getByRole('button', { name: 'New vendor' });
   expect(create).toBeInTheDocument();
   await screen.findByText('No vendors');
-  expect(screen.getByRole('button', { name: 'Add vendor' })).toBe(create);
+  expect(screen.getByRole('button', { name: 'New vendor' })).toBe(create);
 });

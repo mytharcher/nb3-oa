@@ -10,7 +10,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { format, parseISO } from 'date-fns';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -19,7 +18,6 @@ import { z } from 'zod';
 import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { DatePicker } from '#components/date-picker';
-import { UserPicker } from '#components/user-picker';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
 import { Textarea } from '#components/ui/textarea';
@@ -77,13 +75,9 @@ export default function OvertimeFormDialog() {
     resource: { type: 'composite', id: 'oa.overtime' },
     action: 'submit',
   }).can;
-  const canDelegate = useCan({
-    resource: { type: 'composite', id: 'oa.overtime' },
-    action: 'delegate',
-  }).can;
   const allowed = requestId
     ? resource.data?.view.available.some((a) => a.name === 'edit' && a.allowed)
-    : canSubmit || canDelegate;
+    : canSubmit;
   useEffect(() => {
     if (
       resource.error instanceof ApiClientError &&
@@ -218,16 +212,7 @@ function OvertimeForm({
   const api = useApiClient();
   const toaster = useToaster();
   const { close } = useRouteOverlay();
-  const { session } = useAuthentication();
   const parent = useOutletContext<SourceContext & Partial<DetailContext>>();
-  const delegate = useCan({
-    resource: { type: 'composite', id: 'oa.overtime' },
-    action: 'delegate',
-  }).can;
-  const pick = useCan({
-    resource: { type: 'user', id: '*' },
-    action: 'read',
-  }).can;
   const [error, setError] = useState<unknown>();
   const [uncertain, setUncertain] = useState(false);
   const runningRef = useRef(false);
@@ -238,7 +223,6 @@ function OvertimeForm({
   const schema = useMemo(
     () =>
       z.object({
-        applicantId: z.string(),
         date: z.string().min(1, t('approvals.required')),
         minutes: z
           .number()
@@ -259,7 +243,6 @@ function OvertimeForm({
     mode: 'onSubmit',
     reValidateMode: 'onChange',
     defaultValues: {
-      applicantId: '',
       date: detail?.record.date ?? '',
       minutes: detail?.record.minutes ?? 240,
       settlement: detail?.record.settlement ?? 'compensatory',
@@ -275,7 +258,7 @@ function OvertimeForm({
     runningRef.current = true;
     onBusy(true);
     setError(undefined);
-    const { applicantId, ...input } = values;
+    const input = values;
     const key = JSON.stringify({
       version: detail?.record.lifecycleVersion,
       input,
@@ -285,7 +268,7 @@ function OvertimeForm({
     try {
       const draftRequestId = attemptRef.current.requestId;
       const savedRecord = await submission.save(
-        { input, applicantId },
+        { input },
         detail?.record,
         async (current) => {
           const result = await api.request<{
@@ -302,15 +285,7 @@ function OvertimeForm({
                   requestId: draftRequestId,
                   input,
                 }
-              : {
-                  ...input,
-                  ...(delegate &&
-                  pick &&
-                  applicantId &&
-                  applicantId !== session?.user.id
-                    ? { applicantId }
-                    : {}),
-                },
+              : input,
           });
           return result.data.record;
         },
@@ -404,68 +379,46 @@ function OvertimeForm({
         onSubmit={(event) => void form.handleSubmit(save)(event)}
       >
         <FieldGroup inert={submission.submitUnknown || undefined}>
-          {delegate && pick && !detail ? (
+          <div className='grid gap-4 sm:grid-cols-2'>
             <Controller
-              name='applicantId'
+              name='date'
               control={form.control}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel htmlFor='overtime-applicant'>
-                    {t('approvals.applicant')}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor='overtime-date'>
+                    {t('overtime.date')} *
                   </FieldLabel>
-                  <UserPicker
-                    id='overtime-applicant'
-                    value={field.value}
-                    onChange={field.onChange}
-                    disabled={
-                      busy ||
-                      uncertain ||
-                      !allowed ||
-                      !!submission.current.current
+                  <DatePicker
+                    id='overtime-date'
+                    className='w-full'
+                    value={field.value ? parseISO(field.value) : undefined}
+                    onChange={(v) =>
+                      field.onChange(v ? format(v, 'yyyy-MM-dd') : '')
                     }
+                    invalid={fieldState.invalid}
+                    disabled={busy || uncertain || !allowed}
                   />
+                  <FieldError errors={[fieldState.error]} />
                 </Field>
               )}
             />
-          ) : null}
-          <Controller
-            name='date'
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor='overtime-date'>
-                  {t('overtime.date')} *
-                </FieldLabel>
-                <DatePicker
-                  id='overtime-date'
-                  className='w-full'
-                  value={field.value ? parseISO(field.value) : undefined}
-                  onChange={(v) =>
-                    field.onChange(v ? format(v, 'yyyy-MM-dd') : '')
-                  }
-                  invalid={fieldState.invalid}
-                  disabled={busy || uncertain || !allowed}
-                />
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
-          <Field data-invalid={!!form.formState.errors.minutes}>
-            <FieldLabel htmlFor='overtime-minutes'>
-              {t('overtime.minutes')} *
-            </FieldLabel>
-            <Input
-              id='overtime-minutes'
-              type='number'
-              min={1}
-              max={1440}
-              step={1}
-              {...form.register('minutes', { valueAsNumber: true })}
-              aria-invalid={!!form.formState.errors.minutes}
-              disabled={busy || uncertain || !allowed}
-            />
-            <FieldError errors={[form.formState.errors.minutes]} />
-          </Field>
+            <Field data-invalid={!!form.formState.errors.minutes}>
+              <FieldLabel htmlFor='overtime-minutes'>
+                {t('overtime.minutes')} *
+              </FieldLabel>
+              <Input
+                id='overtime-minutes'
+                type='number'
+                min={1}
+                max={1440}
+                step={1}
+                {...form.register('minutes', { valueAsNumber: true })}
+                aria-invalid={!!form.formState.errors.minutes}
+                disabled={busy || uncertain || !allowed}
+              />
+              <FieldError errors={[form.formState.errors.minutes]} />
+            </Field>
+          </div>
           <Controller
             name='settlement'
             control={form.control}
@@ -486,7 +439,7 @@ function OvertimeForm({
                   <SelectTrigger id='overtime-settlement'>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className='w-auto min-w-(--anchor-width)'>
+                  <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
                     <SelectGroup>
                       {['compensatory', 'pay'].map((v) => (
                         <SelectItem key={v} value={v}>

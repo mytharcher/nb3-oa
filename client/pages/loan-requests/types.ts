@@ -46,6 +46,7 @@ export interface LoanRequestRecord {
   createdAt: string;
 }
 export interface LoanRequestDetail {
+  travelName?: string | null;
   timeZone: string;
   department: { id: string; title: string } | null;
   loan: {

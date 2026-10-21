@@ -2,6 +2,7 @@ import { createRequestKey } from '#lib/request-key';
 import { TransferTarget } from './transfer-target.js';
 import { AttachmentEditor } from './attachments.js';
 import { useState } from 'react';
+import { useApiClient } from '@nocobase/app-client';
 import { useParams } from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
@@ -16,7 +17,11 @@ import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
 import { Textarea } from '#components/ui/textarea';
 import { Failure, Loading } from '../work-items/states.js';
-import { useOnboardingResource, useViewerKey } from './resource.js';
+import {
+  useOnboardingResource,
+  useViewerKey,
+  useMutationBoundary,
+} from './resource.js';
 import { resource, fieldsFor, type Detail } from './types.js';
 import { Command } from './command.js';
 import { ValidationFailure } from './validation.js';
@@ -38,7 +43,7 @@ function Action() {
       (taskId
         ? !!task && task.actions.includes(action as never)
         : action === 'cancel' && d?.canCancel);
-  if (r.loading)
+  if (r.loading && !d)
     return (
       <RouteDrawer title={t(`onboarding.actions.${action}`)}>
         <Loading />
@@ -52,7 +57,7 @@ function Action() {
     );
   return (
     <Fields
-      key={`${task?.version ?? d.record.version}:${action}`}
+      key={`${taskId ?? d.record.id}:${action}`}
       detail={d}
       taskId={taskId}
       action={action}
@@ -60,7 +65,7 @@ function Action() {
   );
 }
 function Fields({
-  detail,
+  detail: initialDetail,
   taskId,
   action,
 }: {
@@ -68,6 +73,9 @@ function Fields({
   taskId?: string;
   action: string;
 }) {
+  const api = useApiClient();
+  const recoveryBoundary = useMutationBoundary();
+  const [detail, setDetail] = useState(initialDetail);
   const { t } = useTranslation(),
     task = detail.tasks.find((v) => v.id === taskId),
     fields = task && action === 'complete' ? fieldsFor(task.kind) : [],
@@ -100,9 +108,32 @@ function Fields({
   return (
     <Command
       title={t(`onboarding.actions.${action}`)}
-      submitLabel={t(`onboarding.actions.${action}`)}
+      submitLabel={t(
+        action === 'cancel' || action === 'reassignMentor'
+          ? 'onboarding.confirmAction'
+          : `onboarding.actions.${action}`,
+      )}
       destructive={action === 'cancel' || action === 'forceComplete'}
       confirmation={`${detail.record.user.name}: ${t(action === 'cancel' ? 'onboarding.cancelNotice' : 'onboarding.forceNotice')}`}
+      confirmationTitle={t('onboarding.namedAction', {
+        action: t(`onboarding.actions.${action}`),
+        name: detail.record.user.name,
+      })}
+      successMessage={t('onboarding.completedAction', {
+        action: t(`onboarding.actions.${action}`),
+        name: detail.record.user.name,
+      })}
+      recover={async () => {
+        const latest = await api.request<{ data: Detail }>({
+          path: `onboardings/${encodeURIComponent(detail.record.id)}`,
+          signal: recoveryBoundary.getSignal(),
+        });
+        const latestTask = latest.data.tasks.find((item) => item.id === taskId);
+        setDetail(latest.data);
+        return taskId
+          ? !!latestTask?.actions.includes(action as never)
+          : action === 'cancel' && latest.data.canCancel;
+      }}
       path={path}
       externalBusy={uploadBusy}
       clear={() => {
@@ -275,7 +306,7 @@ function Fields({
                 {t('onboarding.assetUnitsHelp')}
               </p>
               {assetUnits.map((unit, index) => (
-                <div key={unit.key} className='flex gap-2'>
+                <div key={unit.key} className='flex flex-wrap gap-2'>
                   <Input
                     aria-label={t('onboarding.assetCode')}
                     placeholder={t('onboarding.assetCode')}

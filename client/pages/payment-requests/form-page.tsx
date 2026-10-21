@@ -1,6 +1,5 @@
 import { createPortal } from 'react-dom';
 import { DrawerFormFooterContext } from '#components/drawer-form-context';
-import { UserName } from '#components/user-name';
 import { useRequestFormSubmission } from '#hooks/use-request-form-submission';
 import {
   RequestFormButtons,
@@ -37,7 +36,6 @@ import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
 import { RouteFormPage } from '#components/route-form-page';
 import { StatusBadge } from '#components/status-badge';
-import { UserPicker } from '#components/user-picker';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
 import { Textarea } from '#components/ui/textarea';
@@ -134,7 +132,7 @@ export default function PaymentFormPage() {
                   (resource.data.record.applicantId === session?.user.id
                     ? submit.can
                     : delegate.can)
-                : submit.can || delegate.can)
+                : submit.can)
             }
             reload={() => parent?.reload()}
           />
@@ -184,14 +182,6 @@ export function PaymentForm({
     kind: 'empty' | 'save';
   }>(undefined);
   const draftPromiseRef = useRef<Promise<string>>(undefined);
-  const delegate = useCan({
-    resource: { type: 'composite', id: 'oa.payment' },
-    action: 'delegate',
-  }).can;
-  const userRead = useCan({
-    resource: { type: 'user', id: '*' },
-    action: 'read',
-  }).can;
   const target = values.applicantId ?? session?.user.id ?? '';
   const options = useResource<PaymentOptions>('paymentRequests/options', {
     ...(target ? { applicantId: target } : {}),
@@ -598,63 +588,6 @@ export function PaymentForm({
           <FieldsSkeleton fields={2} />
         ) : null}
         <FieldGroup inert={submission.submitUnknown || undefined}>
-          {delegate && !record ? (
-            <Controller
-              control={form.control}
-              name='applicantId'
-              render={({ field, fieldState }) => (
-                <Field data-invalid={!!fieldState.error}>
-                  <FieldLabel htmlFor='payment-applicant'>
-                    {f('applicantId')} *
-                  </FieldLabel>
-                  <UserPicker
-                    id='payment-applicant'
-                    value={field.value}
-                    disabled={
-                      busy ||
-                      uploading ||
-                      conflict ||
-                      unknown ||
-                      !offered ||
-                      !userRead
-                    }
-                    knownUsers={[
-                      ...(options.data?.applicant
-                        ? [options.data.applicant]
-                        : []),
-                      ...(session?.user
-                        ? [{ id: session.user.id, name: session.user.name }]
-                        : []),
-                    ]}
-                    onChange={(v) => {
-                      field.onChange(v);
-                      form.setValue('purchaseOrderId', '', {
-                        shouldDirty: true,
-                      });
-                      form.setValue('vendorId', '', { shouldDirty: true });
-                    }}
-                    invalid={!!fieldState.error}
-                  />
-                  {!userRead ? (
-                    <FieldDescription>{f('peopleDenied')}</FieldDescription>
-                  ) : null}
-                  <FieldError errors={[fieldState.error]} />
-                </Field>
-              )}
-            />
-          ) : (
-            <p className='text-sm'>
-              {f('applicantId')}:{' '}
-              <UserName
-                name={
-                  options.data?.applicant?.name ??
-                  detail?.users.find((u) => u.id === target)?.name ??
-                  session?.user.name ??
-                  '—'
-                }
-              />
-            </p>
-          )}
           <Field data-invalid={!!form.formState.errors.reason}>
             <FieldLabel htmlFor='payment-reason'>{f('reason')} *</FieldLabel>
             <Textarea
@@ -812,22 +745,24 @@ export function PaymentForm({
                 disabled: !v.active,
               })),
             )}
-          {(['amount', 'invoiceNumber'] as const).map((name) => (
-            <Field key={name} data-invalid={!!form.formState.errors[name]}>
-              <FieldLabel htmlFor={`payment-${name}`}>
-                {f(name)}
-                {' *'}
-              </FieldLabel>
-              <Input
-                id={`payment-${name}`}
-                disabled={locked}
-                inputMode={name === 'amount' ? 'decimal' : undefined}
-                aria-invalid={!!form.formState.errors[name]}
-                {...form.register(name)}
-              />
-              <FieldError errors={[form.formState.errors[name]]} />
-            </Field>
-          ))}
+          <div className='grid gap-4 sm:grid-cols-2'>
+            {(['amount', 'invoiceNumber'] as const).map((name) => (
+              <Field key={name} data-invalid={!!form.formState.errors[name]}>
+                <FieldLabel htmlFor={`payment-${name}`}>
+                  {f(name)}
+                  {' *'}
+                </FieldLabel>
+                <Input
+                  id={`payment-${name}`}
+                  disabled={locked}
+                  inputMode={name === 'amount' ? 'decimal' : undefined}
+                  aria-invalid={!!form.formState.errors[name]}
+                  {...form.register(name)}
+                />
+                <FieldError errors={[form.formState.errors[name]]} />
+              </Field>
+            ))}
+          </div>
           {selectField(
             'paymentMethod',
             (options.data?.paymentMethods ?? []).map((m) => ({

@@ -2,20 +2,20 @@ export default {
   vendorQualifications: {
     amountUnit: 'CNY (yuan), up to 2 decimal places',
     authz: {
-      resource: 'Supplier qualification',
-      view: 'View supplier qualifications',
-      submit: 'Create and edit supplier qualification requests',
-      paymentAccount: 'Read protected supplier bank accounts',
-      updatePaymentAccount: 'Update own draft supplier bank account',
-      manage: 'Configure supplier qualification committee',
+      resource: 'Vendor qualification',
+      view: 'View vendor qualifications',
+      submit: 'Create and edit vendor qualification requests',
+      paymentAccount: 'Read protected vendor bank accounts',
+      updatePaymentAccount: 'Update own draft vendor bank account',
+      manage: 'Configure vendor qualification committee',
     },
     schedule: {
-      title: 'Supplier qualification expiry reminders',
+      title: 'Vendor qualification expiry reminders',
       description:
         'Remind purchasing 30 company calendar days before qualification expiry.',
     },
 
-    title: 'Supplier qualification and removal',
+    title: 'Vendor qualification and removal',
     description:
       'Apply for qualification or removal and follow review progress.',
     new: 'New application',
@@ -24,7 +24,7 @@ export default {
     clearFilters: 'Clear filters',
     view: 'View',
     emptyDescription:
-      'Create a supplier request or ask an administrator for access.',
+      'Create a vendor request or ask an administrator for access.',
     rowActions: 'Actions for "{{name}}"',
     details: 'View details',
     edit: 'Edit',
@@ -43,14 +43,14 @@ export default {
       remove: 'Removal',
     },
     form: {
-      create: 'New supplier request',
-      edit: 'Edit supplier request',
+      create: 'New vendor request',
+      edit: 'Edit vendor request',
     },
     fields: {
       operation: 'Request type',
-      vendor: 'Supplier',
-      name: 'Supplier name',
-      category: 'Supplier category',
+      vendor: 'Vendor',
+      name: 'Vendor name',
+      category: 'Vendor category',
       reason: 'Reason',
       quoteCents: 'Quote',
       cases: 'References',
@@ -63,7 +63,7 @@ export default {
       applicant: 'Applicant',
       createdAt: 'Created',
       status: 'Current stage',
-      sourceVendorVersion: 'Supplier data version',
+      sourceVendorVersion: 'Vendor data version',
       committeeVersion: 'Committee version',
     },
     common: {
@@ -71,9 +71,9 @@ export default {
       save: 'Save',
       refresh: 'Refresh',
       retry: 'Retry',
-      search: 'Search supplier or request number',
+      search: 'Search vendor or request number',
       more: 'More actions',
-      empty: 'No supplier requests',
+      empty: 'No vendor requests',
       noResults: 'No matching requests',
       saving: 'Saving',
       required: 'Required',
@@ -83,12 +83,12 @@ export default {
       searchPeople: 'Search eligible people',
     },
     errors: {
-      category: 'Select an active supplier category.',
+      category: 'Select an active vendor category.',
       evidence: 'Upload or select at least one qualification evidence file.',
       expiry:
         'Select an expiry date later than today in the company time zone.',
       qualificationFacts:
-        'Complete the supplier name, active category and qualification evidence, and select an expiry date later than today in the company time zone.',
+        'Complete the vendor name, active category and qualification evidence, and select an expiry date later than today in the company time zone.',
       missingReturned: '{{name}} is unavailable. Returned to the source.',
       missingUnnamed: 'The application is unavailable. Returned to the source.',
       forbidden: 'Access unavailable. Contact an administrator.',
@@ -97,8 +97,8 @@ export default {
       invalid: 'Check required fields and current business conditions.',
       failed: 'Could not load. Retry.',
       sourceConflict:
-        'Supplier data changed. Ask an approval administrator to restart review.',
-      eligibility: 'No eligible request type or supplier is available.',
+        'Vendor data changed. Ask an approval administrator to restart review.',
+      eligibility: 'No eligible request type or vendor is available.',
       amount:
         'Enter a nonnegative amount with at most two decimals within the safe range.',
       email: 'Enter a valid email address.',
@@ -114,7 +114,7 @@ export default {
       missing: 'Account record missing. Reload before editing.',
     },
     configuration: {
-      title: 'Supplier review configuration',
+      title: 'Vendor review configuration',
       structure: 'Committee structure',
       assignments: 'Fixed seat reviewers',
       removal: 'Removal reviewer',

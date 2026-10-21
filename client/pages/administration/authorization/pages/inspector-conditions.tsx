@@ -48,7 +48,7 @@ function Condition({ value }: { value: unknown }): ReactElement {
   if (node?.kind === 'filter') return <Condition value={node.root} />;
   if (node?.kind === 'group' && Array.isArray(node.items))
     return (
-      <div className='space-y-2 rounded-md border p-3'>
+      <div className='flex flex-col gap-2 rounded-md border p-3'>
         <p className='text-xs font-medium text-muted-foreground'>
           {t(
             node.logic === 'or'
@@ -102,8 +102,8 @@ export function InspectionConditions({
   }));
   if (value.type !== 'database') return <Condition value={value} />;
   return (
-    <div className='space-y-6'>
-      <section className='space-y-3'>
+    <div className='flex flex-col gap-6'>
+      <section className='flex flex-col gap-3'>
         <h3 className='text-sm font-medium'>{t('inspector.recordScope')}</h3>
         {value.scope === true ? (
           <p className='text-sm'>{t('labels.allRecords')}</p>
@@ -120,7 +120,7 @@ export function InspectionConditions({
         />
       ) : null}
       {lists.map((list) => (
-        <section key={list.direction} className='space-y-3'>
+        <section key={list.direction} className='flex flex-col gap-3'>
           <h3 className='text-sm font-medium'>
             {t(
               list.direction === 'input'

@@ -1,5 +1,10 @@
 export default {
   travel: {
+    fieldInvalid: '请检查{{field}}。',
+
+    confirmRetryBooking: '是否为本次已批准的差旅重新订票？',
+    confirmReviseTrip: '是否修订本次行程并重新发起审批？',
+    states: { completed: '已完成', cancelled: '已取消', exception: '订票异常' },
     businessErrors: {
       TRAVEL_ITINERARY_REQUIRED:
         '境外出差须提供行程附件，请先上传或选择附件再提交。',
@@ -22,8 +27,6 @@ export default {
     unable: '无法订票',
     forceComplete: '强制关闭订票',
     retryBooking: '重新订票',
-    standardTargetUnavailable:
-      '当前代理目标权限不允许查询所选员工差旅标准。保存已暂停，不会使用代填人的职级标准替代。',
     standard: '冻结出差标准',
     lodgingPerNight: '住宿标准（元/晚）',
     allowancePerDay: '补助标准（元/天）',

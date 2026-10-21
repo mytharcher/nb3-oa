@@ -53,7 +53,7 @@ export const departureRequestRoutes = defineAppRoutes([
   {
     name: 'oa-departure-requests',
     path: '/departureRequests',
-    parent: 'oa-organization',
+    parent: 'oa-hr',
     auth: 'required',
     authz: {
       resource: { type: 'page', id: 'oa-departure-requests' },

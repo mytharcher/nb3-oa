@@ -224,6 +224,17 @@ const employeesZhCN: LocaleResource<EmployeesLocale> = {
       empty: '还没有薪酬记录。',
     },
     history: {
+      referenceNotice: '关联名称来自当前目录，变更当时的名称未保存。',
+      sources: {
+        onboarding: '入职',
+        departure: '离职',
+        transfer: '人事异动',
+        probation: '转正',
+        other: '其他业务操作',
+      },
+      referenceUnavailable: '历史关联资料不可用',
+      personUnavailable: '历史人员资料不可用',
+      otherField: '其他变更',
       title: '变动记录',
       description: '入职、转正、转岗、离职与数据修正。',
       empty: '还没有变动记录。',

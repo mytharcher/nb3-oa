@@ -1,3 +1,6 @@
+import { useResource } from '../approvals/use-resource.js';
+import type { FormOptions } from './types-form.js';
+import { ErrorState } from './states.js';
 import { UserName } from '#components/user-name';
 import { useTranslation } from '@nocobase/i18n/client';
 import { StatusBadge } from '#components/status-badge';
@@ -14,6 +17,28 @@ export function ReimbursementFacts({
 }) {
   const { t, i18n } = useTranslation();
   const { record } = detail;
+  const options = useResource<FormOptions>('reimbursementRequests/options', {
+    recordId: record.id,
+    applicantId: record.applicantId,
+  });
+  const categoryLabel = (code: string) => {
+    const label = options.data?.categories?.find(
+      (category) => category.code === code,
+    )?.label;
+    return typeof label === 'string'
+      ? label
+      : (label?.[i18n.language] ??
+          label?.['zh-CN'] ??
+          label?.['en-US'] ??
+          t('reimbursementRequests.categoryUnavailable'));
+  };
+  const lineDate = (value: string) =>
+    Number.isFinite(Date.parse(`${value}T12:00:00Z`))
+      ? new Intl.DateTimeFormat(i18n.language, {
+          dateStyle: 'medium',
+          timeZone: 'UTC',
+        }).format(new Date(`${value}T12:00:00Z`))
+      : '—';
   const money = (cents: number) =>
     Number.isSafeInteger(cents) && cents >= 0
       ? moneyLabel(cents, i18n.language)
@@ -38,9 +63,18 @@ export function ReimbursementFacts({
     ],
     [
       t('reimbursementRequests.form.authorization'),
-      record.authorizationId ?? '—',
+      record.authorizationId
+        ? (options.data?.authorizations?.find(
+            (a) => a.id === record.authorizationId,
+          )?.sourceReference ?? t('reimbursementRequests.relatedUnavailable'))
+        : '—',
     ],
-    [t('reimbursementRequests.form.loan'), record.loanId ?? '—'],
+    [
+      t('reimbursementRequests.form.loan'),
+      record.loanId
+        ? (detail.loanName ?? t('reimbursementRequests.relatedUnavailable'))
+        : '—',
+    ],
     [
       t('reimbursementRequests.form.overrunReason'),
       record.overrunReason || '—',
@@ -57,7 +91,13 @@ export function ReimbursementFacts({
   ];
   return (
     <div className='flex flex-col gap-6'>
-      <FrozenStandards snapshot={record.standardSnapshot} />
+      {options.error ? (
+        <ErrorState error={options.error} retry={options.reload} />
+      ) : null}
+      <FrozenStandards
+        snapshot={record.standardSnapshot}
+        categoryLabel={categoryLabel}
+      />
       <dl className='grid gap-3 sm:grid-cols-[9rem_1fr]'>
         {values.map(([label, value]) => (
           <div key={label} className='contents'>
@@ -89,8 +129,11 @@ export function ReimbursementFacts({
                 </h3>
                 <dl className='grid gap-3 sm:grid-cols-[9rem_1fr]'>
                   {[
-                    [t('reimbursementRequests.form.category'), line.category],
-                    [t('reimbursementRequests.form.date'), line.date],
+                    [
+                      t('reimbursementRequests.form.category'),
+                      categoryLabel(line.category),
+                    ],
+                    [t('reimbursementRequests.form.date'), lineDate(line.date)],
                     [
                       t('reimbursementRequests.form.amount'),
                       money(line.amountCents),
@@ -151,10 +194,12 @@ export function ReimbursementFacts({
 
 function FrozenStandards({
   snapshot,
+  categoryLabel,
 }: {
+  categoryLabel: (code: string) => string;
   snapshot: ReimbursementDetail['record']['standardSnapshot'];
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const f = (key: string) => t(`reimbursementRequests.standard.${key}`);
   const raw = snapshot?.standard;
   const standard =
@@ -176,7 +221,7 @@ function FrozenStandards({
   );
   const savedNumber = (key: string) =>
     typeof standard?.[key] === 'number' && Number.isFinite(standard[key])
-      ? String(standard[key])
+      ? new Intl.NumberFormat(i18n.language).format(standard[key])
       : '—';
   return (
     <section className='flex flex-col gap-3'>
@@ -212,7 +257,7 @@ function FrozenStandards({
             {categories.map((category) => (
               <div className='contents' key={category.code}>
                 <dt className='min-w-0 break-words text-muted-foreground'>
-                  {category.code}
+                  {categoryLabel(category.code)}
                 </dt>
                 <dd>{f(`kinds.${category.standardKind}`)}</dd>
               </div>

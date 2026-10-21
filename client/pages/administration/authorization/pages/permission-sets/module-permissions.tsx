@@ -19,6 +19,7 @@ import type { Draft, GrantDraft } from './types.js';
 
 export function ModulePermissions({
   container,
+  errors = {},
   pages,
   label,
   rows,
@@ -33,6 +34,7 @@ export function ModulePermissions({
   onToggle,
 }: {
   container?: RefObject<HTMLDivElement | null>;
+  errors?: Readonly<Record<string, string>>;
   /** Pages show a single access mark per row. */
   pages: boolean;
   label: string;
@@ -144,6 +146,8 @@ export function ModulePermissions({
             key={`item:${item.type}:${item.value}`}
             role='group'
             aria-label={item.label}
+            aria-invalid={Boolean(errors[String(grant.id)])}
+            tabIndex={errors[String(grant.id)] ? -1 : undefined}
             className='items-center gap-3 border-b py-2 pr-4 hover:bg-muted/20'
             style={rowStyle}
           >
@@ -154,6 +158,11 @@ export function ModulePermissions({
               <span className='truncate font-medium' title={item.value}>
                 {item.label}
               </span>
+              {errors[String(grant.id)] ? (
+                <span role='alert' className='text-sm text-destructive'>
+                  {errors[String(grant.id)]}
+                </span>
+              ) : null}
               {!pages && (
                 <span
                   className='truncate text-xs text-muted-foreground'

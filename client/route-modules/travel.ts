@@ -17,6 +17,16 @@ export function travelViewChildren(owner: string): AppClientRouteDefinition[] {
       componentLoader: () => import('../pages/travel/detail.js'),
       children: [
         {
+          name: `${owner}-travel-new-loan`,
+          path: 'newLoan',
+          authz: {
+            resource: { type: 'page', id: 'oa-loan-requests' },
+            action: 'access',
+          },
+          componentLoader: () =>
+            import('../pages/loan-requests/form-dialog.js'),
+        },
+        {
           name: `${owner}-travel-detail-edit`,
           path: 'edit',
           componentLoader: () => import('../pages/travel/form-dialog.js'),

@@ -1,5 +1,23 @@
 export default {
   onboarding: {
+    noPeople: 'No employees match your search',
+    loadLatest: 'Load latest',
+    actionChanged:
+      'This action is no longer available. Your input is retained; close this form and review the updated record.',
+
+    confirmAction: 'Confirm',
+    noMatches: 'No onboarding records match your filters',
+
+    directoryCap: 'Showing the first 100 matches. Refine your search.',
+    organizationLabel: '{{department}} / {{position}} / {{grade}}',
+    historicalPersonUnavailable: 'Historical person unavailable',
+    allocationLabel:
+      '{{department}} / {{position}} / {{grade}} / {{year}} · {{count}} remaining',
+    namedAction: '{{action}} for "{{name}}"?',
+    completedAction: '{{action}} completed for "{{name}}"',
+    createAction: 'Create',
+    created: 'Created onboarding for "{{name}}"',
+
     businessErrors: {
       ONBOARDING_SOURCE_INVALID:
         'The onboarding source or employee details are no longer valid. Refresh and check the source, identity and required details.',
@@ -61,13 +79,13 @@ export default {
     creator: 'Created by',
     status: 'Status',
     refresh: 'Refresh',
-    new: 'Create onboarding',
+    new: 'New onboarding',
     detail: 'Onboarding details',
     empty: 'No onboarding records',
     forced: 'Forced completion',
     dueDate: 'Due date',
     assignee: 'Handled by',
-    bank: 'Payment account',
+    bank: 'Payroll account and social insurance',
     salary: 'Salary',
     save: 'Submit',
     saved: 'Saved',
@@ -100,7 +118,7 @@ export default {
     },
     actions: {
       claim: 'Claim',
-      reassignMentor: 'Reassign department head',
+      reassignMentor: 'Reassign mentor',
       transfer: 'Transfer',
       release: 'Release',
       complete: 'Complete',
@@ -120,12 +138,12 @@ export default {
       password: 'Initial password',
       code: 'Employee code',
       hireDate: 'Hire date',
-      careerStartDate: 'Career start date (optional)',
+      careerStartDate: 'Career start date',
       probationEndDate: 'Probation end date',
       baseSalary: 'Base salary',
       reason: 'Creation reason',
       requisitionId: 'Recruitment allocation',
-      managerId: 'Reporting manager (optional)',
+      managerId: 'Reporting manager',
       accountId: 'Created account',
       deviceReference: 'Device reference',
       workstationRequirement: 'Workstation requirements',

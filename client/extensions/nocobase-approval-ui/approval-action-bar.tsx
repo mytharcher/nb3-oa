@@ -122,7 +122,7 @@ function ActionForm({
   return (
     <form
       aria-label={action.label}
-      className='max-h-[50vh] space-y-3 overflow-y-auto rounded-xl border bg-muted/30 p-4'
+      className='max-h-[50vh] flex flex-col gap-3 overflow-y-auto rounded-xl border bg-muted/30 p-4'
       onSubmit={(event) => {
         event.preventDefault();
         if (blocked) return;
@@ -134,7 +134,7 @@ function ActionForm({
         });
       }}
     >
-      <div className='space-y-1'>
+      <div className='flex flex-col gap-1'>
         <div className='text-sm font-medium'>{action.label}</div>
         {form?.description ? (
           <div className='text-xs text-muted-foreground'>
@@ -271,7 +271,7 @@ export function ApprovalActionBar({
   // The administrator's menu alone says what it holds.
   const adminOnly = menus.length === 1 && menus[0].key === 'admin';
   return (
-    <div className={cn('space-y-3', className)}>
+    <div className={cn('flex flex-col gap-3', className)}>
       {chosen ? (
         <ActionForm
           key={chosen.key}

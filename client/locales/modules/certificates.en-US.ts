@@ -1,5 +1,9 @@
 export default {
   certificates: {
+    savedRecord: 'Saved certificate request for "{{name}}"',
+    issuedRecord: 'Issued certificate for "{{name}}"',
+    submittedRecord: 'Submitted certificate request for "{{name}}"',
+
     businessErrors: {
       CERTIFICATE_ACCESS_DENIED:
         'Certificate operation rejected: access denied',

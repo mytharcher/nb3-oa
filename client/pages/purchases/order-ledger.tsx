@@ -62,7 +62,18 @@ export default function PurchaseOrderLedger() {
             title={t('purchases.orderNumber')}
           />
         ),
-        cell: ({ row }) => <TruncatedText text={row.original.number} />,
+        cell: ({ row }) => (
+          <Link
+            className='font-medium hover:underline'
+            to={{
+              pathname: `order/${row.original.id}`,
+              search: location.search,
+              hash: location.hash,
+            }}
+          >
+            <TruncatedText text={row.original.number} />
+          </Link>
+        ),
       },
       {
         id: 'vendor',
@@ -145,7 +156,7 @@ export default function PurchaseOrderLedger() {
             >
               <MoreHorizontal />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align='end'>
+            <DropdownMenuContent align='end' className='w-auto min-w-40'>
               <DropdownMenuGroup>
                 <DropdownMenuItem
                   render={
@@ -160,7 +171,7 @@ export default function PurchaseOrderLedger() {
         ),
       },
     ],
-    [i18n.language, location.search, resource.data?.timeZone, t],
+    [i18n.language, location.search, location.hash, resource.data?.timeZone, t],
   );
   return (
     <PageContainer>

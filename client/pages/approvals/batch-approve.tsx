@@ -12,6 +12,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
 } from '#components/ui/alert-dialog';
 import { createRequestKey } from '#lib/request-key';
 import { ErrorState } from './states.js';
@@ -120,7 +122,28 @@ export function useBatchApprove(
     id: 'batchSelection',
     enableSorting: false,
     enableHiding: false,
-    header: () => t('approvalCenter.batch.select'),
+    header: () => (
+      <Checkbox
+        aria-label={t('approvalCenter.batch.selectAll')}
+        disabled={blocked || candidates.length === 0}
+        checked={
+          selected.length > 0 &&
+          selected.length === Math.min(candidates.length, 20)
+        }
+        indeterminate={
+          selected.length > 0 &&
+          selected.length < Math.min(candidates.length, 20)
+        }
+        onCheckedChange={(checked) => {
+          setResults(undefined);
+          setError(undefined);
+          setSelection({
+            source,
+            keys: checked ? candidates.slice(0, 20).map(recordKey) : [],
+          });
+        }}
+      />
+    ),
     cell: ({ row }) => {
       const key = recordKey(row.original);
       return candidates.some((v) => recordKey(v) === key) ? (
@@ -195,17 +218,18 @@ export function useBatchApprove(
         </div>
       ) : null}
       {error?.source === identityScope ? (
-        <>
-          <p role='alert'>{t('approvalCenter.batch.unknown')}</p>
-          <ErrorState error={error.value} retry={reload} />
-        </>
+        <ErrorState error={error.value} retry={reload} />
       ) : null}
       {results?.source === identityScope ? (
         <div role='status' className='text-sm'>
           {results.data.map((v) => (
             <p key={recordKey(v)}>
-              {rows?.find((r) => recordKey(r) === recordKey(v))?.number ?? v.id}
-              : {t(`approvalCenter.batch.${v.status}`)}
+              {t('approvalCenter.batch.result', {
+                name:
+                  rows?.find((r) => recordKey(r) === recordKey(v))?.number ??
+                  t('approvalCenter.batch.unnamed'),
+                status: t(`approvalCenter.batch.${v.status}`),
+              })}
             </p>
           ))}
         </div>
@@ -236,14 +260,14 @@ export function useBatchApprove(
               </li>
             ))}
           </ul>
-          <div className='flex justify-end gap-2'>
-            <Button
+          <AlertDialogFooter>
+            <AlertDialogCancel
               variant='outline'
               disabled={busy}
               onClick={() => setConfirmation(undefined)}
             >
               {t('approvalCenter.batch.cancel')}
-            </Button>
+            </AlertDialogCancel>
             <Button disabled={blocked} onClick={() => void perform()}>
               {t(
                 busy
@@ -251,7 +275,7 @@ export function useBatchApprove(
                   : 'approvalCenter.batch.confirm',
               )}
             </Button>
-          </div>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

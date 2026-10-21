@@ -14,13 +14,14 @@ import { beforeEach, it, expect, vi } from 'vitest';
 import enUS from '../../../client/locales/en-US.js';
 import locale from '../../../client/locales/modules/seals.en-US.js';
 import List from '../../../client/pages/seals/index.js';
+import Detail from '../../../client/pages/seals/detail.js';
 import Ledger from '../../../client/pages/seals/ledger.js';
 import Action from '../../../client/pages/seals/action.js';
 import Form from '../../../client/pages/seals/form.js';
 import InstanceForm from '../../../client/pages/seals/instance-form.js';
 import { ApiClientError } from '@nocobase/app-client';
 const { api, reload } = vi.hoisted(() => ({
-  api: { request: vi.fn() },
+  api: { request: vi.fn(), stream: vi.fn() },
   reload: vi.fn(),
 }));
 vi.mock('@nocobase/app-client', async (original) => ({
@@ -65,6 +66,7 @@ function mount(path: string) {
         children: [
           { index: true, element: <List /> },
           { path: ':sealRequestId/edit', element: <Form /> },
+          { path: ':sealRequestId', element: <Detail /> },
           {
             path: ':sealRequestId/actions/:operation/:taskId',
             element: <Action />,
@@ -83,6 +85,7 @@ function mount(path: string) {
 }
 beforeEach(() => {
   api.request.mockReset();
+  api.stream.mockReset();
   reload.mockReset();
 });
 it('formats ledger instants in the company timezone rather than the browser timezone', async () => {
@@ -162,7 +165,9 @@ it('refuses an action URL whose task is absent from the real current offers', as
   await screen.findByText(
     'This record or action is unavailable. Return to the list and refresh.',
   );
-  expect(screen.getByRole('button', { name: 'Confirm action' })).toBeDisabled();
+  expect(
+    screen.getByRole('button', { name: 'Complete actual handling' }),
+  ).toBeDisabled();
   expect(api.request.mock.calls.every(([v]) => v.method !== 'POST')).toBe(true);
 });
 it('claim sends the exact offered task and content hash to the guarded owner action', async () => {
@@ -203,7 +208,7 @@ it('claim sends the exact offered task and content hash to the guarded owner act
   );
   mount('/seal-requests/r1/actions/claim/t1');
   await screen.findByText('SEAL-1');
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm action' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Claim' }));
   await waitFor(() =>
     expect(api.request).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -240,6 +245,7 @@ it('retries a failed submit on the saved draft without writing it again', async 
   let finish!: (v: unknown) => void;
   api.request.mockImplementation(
     ({ path, method }: { path: string; method?: string }) => {
+      if (path.endsWith('/files')) return Promise.resolve({ data: [] });
       if (path === 'sealRequests') return Promise.resolve({ data: [] });
       if (path === 'sealBrowser/options')
         return Promise.resolve({
@@ -360,12 +366,12 @@ it('a 409 action response removes editable input and blocks another command unti
   fireEvent.change(screen.getByRole('textbox'), {
     target: { value: 'confidential draft comment' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm action' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
   await screen.findByText(
     'The operation failed. Check the input or refresh and try again.',
   );
   expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm action' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
   expect(
     api.request.mock.calls.filter(([v]) => v.method === 'POST'),
   ).toHaveLength(1);
@@ -442,7 +448,9 @@ it.each(['2026-10-11T00:01:00+00:00', 'invalid historical timestamp'])(
       screen.getByRole('textbox', { name: 'Actual return time' }),
       { target: { value: '2026-10-11T00:03:00.000Z' } },
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm action' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Complete actual handling' }),
+    );
     if (borrowedAt.startsWith('invalid')) {
       await screen.findByText(
         'Complete required fields and check actual quantities and times.',
@@ -680,4 +688,162 @@ it('disabling an active seal requires a named confirmation before the metadata c
     screen.getByRole('button', { name: 'Disable seal', exact: true }),
   );
   await waitFor(() => expect(writes).toBe(1));
+});
+
+it('labels guarded attachments with original filenames and downloads with their MIME type', async () => {
+  api.request.mockImplementation(async ({ path }: { path: string }) => {
+    if (path.endsWith('/files'))
+      return {
+        data: [
+          {
+            id: 'file-private',
+            filename: '合同.pdf',
+            mimeType: 'application/pdf',
+            ext: 'pdf',
+            size: 3,
+          },
+        ],
+      };
+    if (path.endsWith('/capabilities'))
+      return {
+        data: {
+          transitions: [],
+          taskActions: [],
+          canActualReturn: false,
+          timeZone: 'UTC',
+        },
+      };
+    return {
+      data: {
+        record: {
+          id: 'r1',
+          number: 'SEAL-1',
+          status: 'draft',
+          applicant: { id: 'owner', name: 'Owner' },
+          fileIds: ['file-private'],
+        },
+        actions: [],
+        tasks: [],
+        runs: [],
+      },
+    };
+  });
+  api.stream.mockResolvedValue(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2, 3]));
+        controller.close();
+      },
+    }),
+  );
+  const createUrl = vi.fn((_blob: Blob) => 'blob:private');
+  const revokeUrl = vi.fn();
+  const oldCreate = URL.createObjectURL;
+  const oldRevoke = URL.revokeObjectURL;
+  URL.createObjectURL = createUrl;
+  URL.revokeObjectURL = revokeUrl;
+  let downloaded = '';
+  const click = vi
+    .spyOn(HTMLAnchorElement.prototype, 'click')
+    .mockImplementation(function () {
+      downloaded = this.download;
+    });
+  try {
+    mount('/seal-requests/r1');
+    const download = await screen.findByRole('button', {
+      name: 'Download · 合同.pdf',
+    });
+    expect(screen.queryByText('file-private')).not.toBeInTheDocument();
+    fireEvent.click(download);
+    await waitFor(() => expect(downloaded).toBe('合同.pdf'));
+    expect(createUrl.mock.calls[0]?.[0]).toHaveProperty(
+      'type',
+      'application/pdf',
+    );
+    expect(api.stream).toHaveBeenCalledWith({
+      path: 'sealRequests/r1/files/file-private/content',
+    });
+  } finally {
+    click.mockRestore();
+    URL.createObjectURL = oldCreate;
+    URL.revokeObjectURL = oldRevoke;
+  }
+});
+
+it('renders the server second page directly and sends validated sorting and pagination parameters', async () => {
+  api.request.mockResolvedValue({
+    data: [
+      {
+        id: 'second-page',
+        number: 'PAGE-2-1',
+        purpose: 'Page two',
+        applicant: { id: 'owner', name: 'Owner' },
+        sealType: 'official',
+        copies: 3,
+        status: 'draft',
+        createdAt: '2026-10-20T00:00:00Z',
+      },
+    ],
+    meta: { total: 21, page: 2, pageSize: 10 },
+  });
+  mount('/seal-requests?page=2&pageSize=10&sort=copies&direction=asc');
+  expect(
+    await screen.findByRole('link', { name: 'PAGE-2-1' }),
+  ).toBeInTheDocument();
+  expect(api.request).toHaveBeenCalledWith(
+    expect.objectContaining({
+      path: 'sealRequests',
+      query: expect.objectContaining({
+        page: '2',
+        pageSize: '10',
+        sort: 'copies',
+        direction: 'asc',
+      }),
+    }),
+  );
+});
+
+it('renders permitted related business names and keeps internal identifiers out of facts', async () => {
+  api.request.mockImplementation(async ({ path }: { path: string }) => {
+    if (path.endsWith('/files')) return { data: [] };
+    if (path.endsWith('/capabilities'))
+      return {
+        data: {
+          transitions: [],
+          taskActions: [],
+          canActualReturn: false,
+          timeZone: 'UTC',
+        },
+      };
+    return {
+      data: {
+        record: {
+          id: 'r1',
+          number: 'SEAL-42',
+          status: 'draft',
+          applicant: { id: 'owner', name: 'Owner' },
+          contractId: 'contract-private',
+          sealId: 'seal-private',
+          ledgerId: 'ledger-private',
+          fileIds: [],
+        },
+        relatedNames: {
+          contractName: 'CON-42',
+          sealName: 'Company seal',
+          registrationSourceNumber: 'SEAL-42',
+        },
+        actions: [],
+        tasks: [],
+        runs: [],
+      },
+    };
+  });
+  mount('/seal-requests/r1');
+  expect(await screen.findByText('CON-42')).toBeInTheDocument();
+  expect(screen.getByText('Company seal')).toBeInTheDocument();
+  expect(
+    screen.getByText('Registration for request SEAL-42'),
+  ).toBeInTheDocument();
+  for (const id of ['contract-private', 'seal-private', 'ledger-private'])
+    expect(screen.queryByText(id)).not.toBeInTheDocument();
 });

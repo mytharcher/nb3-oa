@@ -618,7 +618,7 @@ export default function ApprovalList() {
             }
           >
             <Link
-              className='text-primary underline-offset-4 hover:underline'
+              className='font-medium underline-offset-4 hover:underline'
               to={{
                 pathname: `${recordPath(row.original)}/${row.original.id}`,
                 search: location.search,
@@ -828,29 +828,27 @@ export default function ApprovalList() {
       <ApplicationToolbar
         actions={
           <>
-            <>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant='outline'
-                      size='icon'
-                      aria-label={t('approvals.refresh')}
-                      disabled={resource.loading}
-                      onClick={() => {
-                        resource.reload();
-                      }}
-                    />
-                  }
-                >
-                  <RefreshCw
-                    className={resource.loading ? 'animate-spin' : undefined}
-                  />
-                </TooltipTrigger>
-                <TooltipContent>{t('approvals.refresh')}</TooltipContent>
-              </Tooltip>
-            </>
             {canCreate ? create : null}
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant='outline'
+                    size='icon'
+                    aria-label={t('approvals.refresh')}
+                    disabled={resource.loading}
+                    onClick={() => {
+                      resource.reload();
+                    }}
+                  />
+                }
+              >
+                <RefreshCw
+                  className={resource.loading ? 'animate-spin' : undefined}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{t('approvals.refresh')}</TooltipContent>
+            </Tooltip>
           </>
         }
       >
@@ -875,7 +873,7 @@ export default function ApprovalList() {
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
               <SelectGroup>
                 {mineCategories.map((value) => (
                   <SelectItem key={value} value={value}>

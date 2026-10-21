@@ -455,7 +455,10 @@ function AssetRequestActionContent() {
                     data-invalid={!!form.formState.errors.appraisalOpinion}
                   >
                     <FieldLabel htmlFor='asset-appraisal'>
-                      {t('assetRequests.appraisalOpinion')} *
+                      {t('assetRequests.appraisalOpinion')}{' '}
+                      <span aria-hidden='true' className='text-destructive'>
+                        *
+                      </span>
                     </FieldLabel>
                     <Textarea
                       id='asset-appraisal'
@@ -482,7 +485,10 @@ function AssetRequestActionContent() {
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
                         <FieldLabel htmlFor='asset-recipient'>
-                          {t('assetRequests.person')} *
+                          {t('assetRequests.person')}{' '}
+                          <span aria-hidden='true' className='text-destructive'>
+                            *
+                          </span>
                         </FieldLabel>
                         <RecipientPicker
                           id='asset-recipient'
@@ -511,7 +517,10 @@ function AssetRequestActionContent() {
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
                         <FieldLabel htmlFor='asset-signer-mode'>
-                          {t('assetRequests.signerMode')} *
+                          {t('assetRequests.signerMode')}{' '}
+                          <span aria-hidden='true' className='text-destructive'>
+                            *
+                          </span>
                         </FieldLabel>
                         <Select
                           value={field.value}
@@ -544,7 +553,10 @@ function AssetRequestActionContent() {
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
                         <FieldLabel htmlFor='asset-place'>
-                          {t('assetRequests.place')} *
+                          {t('assetRequests.place')}{' '}
+                          <span aria-hidden='true' className='text-destructive'>
+                            *
+                          </span>
                         </FieldLabel>
                         <Select
                           value={field.value}
@@ -580,7 +592,10 @@ function AssetRequestActionContent() {
                         data-invalid={!!form.formState.errors.serials?.[index]}
                       >
                         <FieldLabel htmlFor={`asset-serial-${index}`}>
-                          {t('assetRequests.serialFor', { code: a.code })} *
+                          {t('assetRequests.serialFor', { code: a.code })}{' '}
+                          <span aria-hidden='true' className='text-destructive'>
+                            *
+                          </span>
                         </FieldLabel>
                         <Input
                           id={`asset-serial-${index}`}

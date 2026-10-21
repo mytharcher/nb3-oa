@@ -43,6 +43,7 @@ export interface ExpensePlanDetail {
   timeZone: string;
   department: { id: string; title: string } | null;
   authorization: {
+    sourceReference?: string | null;
     id: string;
     grantedCents: number;
     state: 'open' | 'closed' | 'expired';

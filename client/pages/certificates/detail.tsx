@@ -13,8 +13,9 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { useApiClient } from '@nocobase/app-client';
 import { useAuthorizationRevision } from '@nocobase/app-plugin-authorization/client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
-import { Download, RefreshCw } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { RouteDrawer } from '#components/route-drawer';
+import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { Button } from '#components/ui/button';
 import {
   DropdownMenu,
@@ -101,7 +102,12 @@ function Body({ id }: { id: string }) {
       }
       printable
       printDisabled={!d || r.loading || !!r.error}
-      title={t('certificates.detail')}
+      title={
+        d
+          ? (d.capabilities.issue?.number ??
+            t('certificates.recordName', { name: d.record.applicant.name }))
+          : t('certificates.detail')
+      }
       footer={
         d ? (
           <div className='flex flex-wrap gap-2'>
@@ -170,10 +176,11 @@ function Body({ id }: { id: string }) {
                 ) : null}
               </>
             ) : null}
-            <Button variant='outline' disabled={r.loading} onClick={refreshed}>
-              <RefreshCw />
-              {t('certificates.refresh')}
-            </Button>
+            <ApplicationRefreshButton
+              label={t('certificates.refresh')}
+              onClick={refreshed}
+              loading={r.loading}
+            />
           </div>
         ) : undefined
       }
@@ -183,7 +190,7 @@ function Body({ id }: { id: string }) {
       {d ? (
         <div className='flex flex-col gap-6'>
           <div className='flex flex-wrap items-center justify-between gap-2'>
-            <h2 className='text-lg font-semibold'>
+            <h2 className='text-base font-medium'>
               <UserNameText
                 text={
                   d.capabilities.issue?.number ??
@@ -209,7 +216,17 @@ function Body({ id }: { id: string }) {
                 t(`certificates.deliveries.${d.record.deliveryMethod}`),
               ],
               ['number', d.capabilities.issue?.number ?? '—'],
-              ['issueDate', d.capabilities.issue?.issueDate ?? '—'],
+              [
+                'issueDate',
+                d.capabilities.issue?.issueDate
+                  ? new Intl.DateTimeFormat(i18n.language, {
+                      dateStyle: 'medium',
+                      timeZone: 'UTC',
+                    }).format(
+                      new Date(`${d.capabilities.issue.issueDate}T00:00:00Z`),
+                    )
+                  : '—',
+              ],
             ].map(([label, value]) => (
               <div key={label}>
                 <dt className='text-sm text-muted-foreground'>

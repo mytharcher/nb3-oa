@@ -4,7 +4,7 @@ export default [
   defineAppRoutes([
     {
       name: 'oa-leave-balances',
-      parent: 'oa-organization',
+      parent: 'oa-personal',
       path: '/leaveBalances',
       auth: 'required',
       authz: 'skip',
@@ -19,7 +19,7 @@ export default [
   defineAppRoutes([
     {
       name: 'oa-leave-balance-administration',
-      parent: 'oa-organization',
+      parent: 'oa-hr',
       path: '/leaveBalanceAdministration',
       auth: 'required',
       authz: {

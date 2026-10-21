@@ -2,6 +2,9 @@ import actionCopy from './reimbursement-actions.zh-CN.js';
 import formCopy from './reimbursement-forms.zh-CN.js';
 export default {
   reimbursementRequests: {
+    relatedUnavailable: '关联记录不可用',
+    categoryUnavailable: '分类不可用',
+
     businessErrors: {
       REIMBURSEMENT_INVALID_LINE_AMOUNT:
         '每条报销明细金额须大于零且在支持范围内。',

@@ -1,3 +1,4 @@
+import { useDrawerFormGuard } from '#hooks/use-drawer-form-guard';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -107,6 +108,11 @@ export function DepartmentForm({
     [department],
   );
 
+  const drawerGuard = useDrawerFormGuard(
+    form.formState.isDirty,
+    form.formState.isSubmitting,
+  );
+
   const onSubmit = form.handleSubmit(async (values) => {
     const next = {
       title: values.title,
@@ -174,6 +180,7 @@ export function DepartmentForm({
         ? t('org.departments.saved', { name: saved.title })
         : t('org.departments.created', { name: saved.title }),
     });
+    drawerGuard.markSaved();
     onSubmitted(saved);
   });
 
@@ -181,6 +188,7 @@ export function DepartmentForm({
 
   return (
     <form id={formId} noValidate onSubmit={(event) => void onSubmit(event)}>
+      {drawerGuard.confirmation}
       <FieldGroup>
         {rootError?.type === 'sessionExpired' ? (
           <SessionExpiredAlert />

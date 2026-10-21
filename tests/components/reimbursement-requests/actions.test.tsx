@@ -1,3 +1,19 @@
+vi.mock('../../../client/pages/approvals/use-resource.js', () => ({
+  useResource: () => ({
+    data: {
+      categories: [{ code: 'office', label: { 'en-US': 'Office expense' } }],
+    },
+    loading: false,
+    error: undefined,
+    reload: () => {},
+  }),
+}));
+vi.mock('@nocobase/app-plugin-authentication/client', () => ({
+  useAuthentication: () => ({ session: { user: { id: 'owner' } } }),
+}));
+vi.mock('@nocobase/app-plugin-authorization/client', () => ({
+  useAuthorizationRevision: () => 0,
+}));
 import { ApiClientError } from '@nocobase/app-client';
 import {
   createTestI18nRuntime,

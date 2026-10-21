@@ -71,6 +71,7 @@ const platformEnUS = {
         saved: 'Saved the time zone',
       },
       days: {
+        remove: 'Remove',
         title: 'Special days',
         description:
           'Days not listed follow the week: Monday to Friday are working days.',
@@ -107,6 +108,11 @@ const platformEnUS = {
           '{{year}}-10-01,holiday,National Day\n{{year}}-10-10,adjustedWorkday',
         hint: 'Separate with commas or tabs. Types: holiday, adjustedWorkday, workday, weekend (or 休 / 班).',
         replace: 'Replace the year',
+        replacePreview:
+          'Based on the current calendar, {{count}} existing special days in {{year}} are absent from this import and will be removed. Other users may change the calendar before you save.',
+        previewFailed:
+          'Could not load the complete calendar year. Try again before replacing it.',
+        confirmReplaceTitle: 'Replace the special days of {{year}}?',
         replaceHint:
           'Remove the special days of {{year}} that are not in the list.',
         submit: 'Import',

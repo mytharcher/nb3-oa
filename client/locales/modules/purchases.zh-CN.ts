@@ -34,7 +34,6 @@ export default {
     saved: '已保存采购',
     formDescription:
       '填写采购明细、用途和预估金额。提交后按公司日历当前年度预占本部门预算。',
-    applicantHint: '申请人：{{name}}',
     primaryDepartment: '主部门：{{department}}',
     yearHint: '年度在提交时按公司日历（{{timeZone}}）确定。',
     departmentMissing: '尚未设置主部门',
