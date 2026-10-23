@@ -14,13 +14,16 @@ export default defineMigration({
       c.unique(['subject', 'recordId']);
       c.index(['applicantId', 'category']);
     });
-    await query.table('oaTaskCenterSummaries').insert({
-      subject: 'oa.leave',
-      recordId: 'existing',
-      applicantId: 'applicant',
-      status: 'draft',
-      category: 'drafts',
-    });
+    await query
+      .insertInto('oaTaskCenterSummaries')
+      .values({
+        subject: 'oa.leave',
+        recordId: 'existing',
+        applicantId: 'applicant',
+        status: 'draft',
+        category: 'drafts',
+      })
+      .execute();
   },
   async down({ builder }) {
     await builder.dropCollection('oaTaskCenterSummaries');

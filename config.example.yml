@@ -3,6 +3,9 @@
 # app:
 #   Public origin used for callbacks and redirects in production.
 #   publicOrigin: https://apps.example.com
+#   One-time upgrade input: verify the old writer's time zone before setting it.
+#   OA_LEGACY_TIMESTAMP_TIME_ZONE overrides this value. Never infer it from the company calendar zone.
+#   legacyTimestampTimeZone: UTC
 
 # The language the application starts in, for the browser and the server alike. Which languages it offers follows
 # from the files in client/locales and server/locales, not from configuration.

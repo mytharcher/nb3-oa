@@ -25,7 +25,9 @@ export async function trialSession(
 ): Promise<TrialSession> {
   const origin =
     app.config.get<string>('app.publicOrigin') ?? 'http://localhost';
-  // Application.fetch is the internal handler; the standalone host strips publicBasePath before dispatch.
+  // Samples run inside app.start(). The public host fetch waits for start(), so calling it here deadlocks.
+  // The composed router already contains authentication, authorization and the normal HTTP middleware.
+  // As with host dispatch, paths here do not include publicBasePath.
   const api = `${origin}/api`;
   const scope = currentDemo();
   let cookie = '';
@@ -33,7 +35,7 @@ export async function trialSession(
   const serviceKey = role === 'system' ? scope?.systemKey : undefined;
   if (serviceKey) userId = scope!.identities!.system;
   else {
-    const login = await app.fetch(
+    const login = await app.router.fetch(
       new Request(`${api}/auth/sign-in/email`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', origin },
@@ -61,7 +63,7 @@ export async function trialSession(
     const headers = new Headers({ ...extraHeaders, cookie, origin });
     if (serviceKey) headers.set('x-api-key', serviceKey);
     if (body !== undefined) headers.set('content-type', 'application/json');
-    const response = await app.fetch(
+    const response = await app.router.fetch(
       new Request(`${api}${path}`, {
         method: method ?? (body !== undefined || multipart ? 'POST' : 'GET'),
         headers,
