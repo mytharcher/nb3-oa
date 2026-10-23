@@ -13,6 +13,11 @@ import {
 
 const app: AppConfigFactory<AppIdentityConfig> = defineAppConfig({
   env: {
+    OA_LEGACY_TIMESTAMP_TIME_ZONE: envString('legacyTimestampTimeZone', {
+      description:
+        'Verified historical writer IANA time zone for the one-time migration of existing OA timestamps to timezone-aware instants. Required only when converting populated legacy fields.',
+      required: false,
+    }),
     APP_PUBLIC_ORIGIN: envString('publicOrigin', {
       description:
         'The origin browsers reach the application at, such as https://apps.example.com, for callbacks and redirects.',
