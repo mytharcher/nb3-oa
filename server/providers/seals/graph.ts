@@ -1,6 +1,6 @@
+import { defineAppApproval as defineApproval } from '../approval-runtime/task-center.js';
 import { z } from 'zod';
 import {
-  defineApproval,
   outputsOf,
   approvalState,
   stagesFor,

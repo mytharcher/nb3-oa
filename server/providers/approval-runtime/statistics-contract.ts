@@ -11,6 +11,13 @@ export interface ApprovalStatisticsChange {
 }
 
 export interface ApprovalStatisticsChanges {
+  /** Acquire the selected gates (all by default) before business/delegation writes.
+   * Only actual dependency changes inside work trigger synchronization. */
+  guard<T>(
+    work: (connection: DatabaseConnection) => Promise<T>,
+    connection?: DatabaseConnection,
+    kinds?: 'all' | readonly string[],
+  ): Promise<T>;
   /** Acquire source gates before business locks, then recompute after final writes.
    * An existing transaction must be passed before taking conflicting business locks. */
   change<T>(

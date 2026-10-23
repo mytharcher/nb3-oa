@@ -1,5 +1,4 @@
-import { dictionaryServiceToken } from '../../providers/platform/index.js';
-import { BudgetError } from '../../providers/budgets/service.js';
+import { ApprovalError } from '@nocobase/app-plugin-approval/server';
 import {
   authenticationToken,
   type AuthEnv,
@@ -12,33 +11,34 @@ import type { Application } from '@nocobase/app-server/application';
 import {
   ApiError,
   apiErrorHandler,
-  defineApiRoutes,
-  describeRoute,
-  apiValidator,
-  dataResponse,
   apiErrorResponse,
   apiErrorResponses,
+  apiValidator,
+  dataResponse,
+  defineApiRoutes,
+  describeRoute,
   type AppRouteContribution,
 } from '@nocobase/app-server/router';
-import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
-import { ApprovalError } from '@nocobase/app-plugin-approval/server';
-import { z } from 'zod';
-import { Hono, type Context } from 'hono';
 import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
+import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
+import { Hono, type Context } from 'hono';
+import { z } from 'zod';
 import { BudgetAdjustmentError } from '../../providers/budget-adjustments/errors.js';
 import { budgetAdjustmentServiceToken } from '../../providers/budget-adjustments/index.js';
+import { BudgetError } from '../../providers/budgets/service.js';
+import { dictionaryServiceToken } from '../../providers/platform/index.js';
 import {
   ActionInput,
-  CandidatesResult,
-  CreateBudgetAdjustment,
+  ActionResult,
   BudgetAdjustmentInput,
   BudgetAdjustmentParams,
-  ListQuery,
-  TransitionInput,
-  Result,
+  CandidatesResult,
+  CreateBudgetAdjustment,
   Detail,
   List,
-  ActionResult,
+  ListQuery,
+  Result,
+  TransitionInput,
 } from './schemas.js';
 export const routes: readonly AppRouteContribution<Application>[] = [
   defineApiRoutes<Application>((app) => {
@@ -376,14 +376,14 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         const actorId = c.get('auth')!.user.id;
         let mutationPolicy: RepositoryPolicy | undefined;
         if (['submit', 'edit', 'withdraw'].includes(input.transition)) {
-          const detail = await service.detail(
+          const detail = await service.accessFacts(
             c.req.valid('param').id,
             actorId,
             await readPolicy(c),
           );
           mutationPolicy = await actionPolicy(
             c,
-            detail.record.applicantId === actorId ? 'submit' : 'delegate',
+            detail.applicantId === actorId ? 'submit' : 'delegate',
           );
         }
         if (input.transition === 'edit') {

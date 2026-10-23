@@ -17,6 +17,7 @@ import scheduler from '@nocobase/app-plugin-scheduler/server';
 import file from '@nocobase/app-plugin-file/server';
 import approval from '@nocobase/app-plugin-approval/server';
 import agents from '@nocobase/app-plugin-agents/server';
+import taskCenter from '@nocobase/app-plugin-task-center/server';
 
 const serverPlugins: AppServerPlugins = defineServerPlugins([
   authentication,
@@ -34,6 +35,7 @@ const serverPlugins: AppServerPlugins = defineServerPlugins([
   scheduler,
   approval,
   agents,
+  taskCenter,
 ]);
 
 export default serverPlugins;

@@ -1,64 +1,72 @@
-import { demoNow } from '../demo-data/context.js';
-import { runTaskViewsFor } from '../approval-runtime/task-views.js';
-import {
-  hasApprovalCandidate,
-  createAppApprovalService,
-} from '../approval-runtime/query-service.js';
-import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
-import { AsyncLocalStorage } from 'node:async_hooks';
-import { candidateDirectory } from '../approval-runtime/candidate-directory.js';
-import { createHash, randomUUID } from 'node:crypto';
-import { createServiceToken } from '@nocobase/service-provider';
-import type {
-  DatabaseManager,
-  DatabaseConnection,
-  RepositoryPolicy,
-  RepositoryRecord,
-} from '@nocobase/db';
-import {
-  LifecycleRuntime,
-  type LifecycleStore,
-  type EffectDispatcher,
-  type JsonObject,
-} from '@nocobase/lifecycle';
+import { measureApprovalPhase } from '../approval-runtime/timing.js';
 import {
   isOpenRun,
   type Approval,
   type PerformInput,
 } from '@nocobase/app-plugin-approval/server';
-import type { OrgService, Department } from '../org/contract.js';
+import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
+import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
+import type {
+  DatabaseConnection,
+  DatabaseManager,
+  RepositoryPolicy,
+  RepositoryRecord,
+} from '@nocobase/db';
+import {
+  LifecycleRuntime,
+  type EffectDispatcher,
+  type JsonObject,
+  type LifecycleStore,
+} from '@nocobase/lifecycle';
+import { createServiceToken } from '@nocobase/service-provider';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { createHash, randomUUID } from 'node:crypto';
+import type {
+  ApprovalDirectoryService,
+  OaApprovalDirectory,
+} from '../approval-directory/contract.js';
+import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import { candidateDirectory } from '../approval-runtime/candidate-directory.js';
+import {
+  createAppApprovalService,
+  hasApprovalCandidate,
+} from '../approval-runtime/query-service.js';
+import {
+  approvalReadableScope,
+  memberScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
+import {
+  appLifecycleTransaction,
+  createAppLifecycleStore,
+} from '../approval-runtime/repository-store.js';
+import { registerAppApproval } from '../approval-runtime/task-center.js';
+import { runTaskViewsFor } from '../approval-runtime/task-views.js';
+import type { AuditService } from '../audit/index.js';
+import { demoNow } from '../demo-data/context.js';
 import type { EmployeeService } from '../employees/contract.js';
 import type { HeadcountService } from '../headcounts/contract.js';
 import type {
   SalaryGradeSelection,
   SalaryGradeService,
 } from '../job-grades/contract.js';
-import type { AuditService } from '../audit/index.js';
-import type {
-  OaApprovalDirectory,
-  ApprovalDirectoryService,
-} from '../approval-directory/contract.js';
+import type { Department, OrgService } from '../org/contract.js';
 import type { CalendarService, RuleService } from '../platform/index.js';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
-import { createOaApprovalOperations } from '../approval-directory/operations.js';
-import {
-  appLifecycleTransaction,
-  createAppLifecycleStore,
-} from '../approval-runtime/repository-store.js';
 import {
   createRecruitmentApproval,
   RECRUITMENT_LIFECYCLE,
-  type RecruitmentRecord,
   type RecruitmentApprovalServices,
+  type RecruitmentRecord,
 } from './approval.js';
+import { assertRecruitmentApprovalCheckpoint } from './checkpoint.js';
+import { createRequisitionService } from './requisitions.js';
 import {
   createRecruitmentSubmissionCoordinator,
   RecruitmentSubmissionError,
   type RecruitmentProposal,
   type RecruitmentSubmissionSnapshot,
 } from './submission.js';
-import { assertRecruitmentApprovalCheckpoint } from './checkpoint.js';
-import { createRequisitionService } from './requisitions.js';
 
 export interface RecruitmentInput extends Omit<RecruitmentProposal, 'id'> {
   expectedStartDate: string;
@@ -246,19 +254,19 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
           ) => {
             if (collection !== 'recruitmentRequests')
               return target.updateRecordIf(collection, id, condition, values);
-            const result = await (
-              target.transactionHandle as DatabaseConnection
-            )
-              .repository(collection)
-              .withPolicy(context.getStore()!.policy!)
-              .updateMany({
-                filter: {
-                  id,
-                  [condition.stateField]: condition.state,
-                  [condition.versionField]: condition.version,
-                },
-                values: values as RepositoryRecord,
-              });
+            const result = await measureApprovalPhase('businessWrite', () =>
+              (target.transactionHandle as DatabaseConnection)
+                .repository(collection)
+                .withPolicy(context.getStore()!.policy!)
+                .updateMany({
+                  filter: {
+                    id,
+                    [condition.stateField]: condition.state,
+                    [condition.versionField]: condition.version,
+                  },
+                  values: values as RepositoryRecord,
+                }),
+            );
             return result.updatedCount === 1;
           };
         const value: unknown = Reflect.get(target, key);
@@ -400,7 +408,7 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
   });
   const source = (handle: unknown) =>
     handle ? snapshots.get(handle)! : outside;
-  runtime.register(definition, { services: source });
+  registerAppApproval(d.db, runtime, definition, source);
   const approvals = createAppApprovalService(
     runtime,
     [definition.approval as unknown as Approval<never>],
@@ -601,36 +609,38 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
       );
       return Boolean(reservation?.blocked);
     },
-    async readableIds(actorId: string) {
+    async readableScope(actorId: string): Promise<DatabaseScope> {
       await refresh();
-      return readDirectory.run(outside.directory, async () => {
-        const rows = await d.db
-          .repository<RecruitmentRecord>('recruitmentRequests')
-          .findMany();
-        const result: string[] = [];
-        for (const row of rows) {
-          if (
-            row.applicantId === actorId ||
-            outside.directory.hasRole(actorId, 'approval.admin') ||
-            outside.directory.hasRole(actorId, 'hrbp') ||
-            outside.directory.hasRole(actorId, 'hrDirector') ||
-            outside.directory.hasRole(actorId, 'gm') ||
-            row.snapshot?.executiveId === actorId ||
-            (await d.org.activeChain(row.departmentId))?.some(
-              (dept) => dept.managerId === actorId,
-            ) ||
-            (
-              await approvals.involvementOf(
-                RECRUITMENT_LIFECYCLE,
-                row.id,
-                actorId,
-              )
-            ).length
-          )
-            result.push(row.id);
-        }
-        return result;
+      return approvalReadableScope(actorId, {
+        approvals: approvals,
+        lifecycle: RECRUITMENT_LIFECYCLE,
+        directory: outside.directory,
+        roles: ['approval.admin', 'hrbp', 'hrDirector', 'gm'],
+        ownerFields: ['applicantId'],
+        taskActors: false,
+        org: d.org,
+        department: 'record',
+        extra: async () => {
+          // Snapshot JSON paths are not supported by database authorization scopes.
+          // One narrow projection replaces per-record SDK and organization reads.
+          const rows = await d.db
+            .repository<RecruitmentRecord>('recruitmentRequests')
+            .findMany({ select: (s) => s.fields('id', 'snapshot') });
+          return memberScope(
+            'id',
+            rows
+              .filter((row) => row.snapshot?.executiveId === actorId)
+              .map((row) => row.id),
+          );
+        },
       });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'recruitmentRequests',
+        await this.readableScope(actorId),
+      );
     },
     requisitions,
     initialize: refresh,
@@ -1247,6 +1257,11 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
         position: position ? { id: position.id, name: position.title } : null,
         grade: grade ? { id: grade.id, name: grade.title } : null,
       };
+    },
+    async accessFacts(id: string, _actorId: string, policy: RepositoryPolicy) {
+      await refresh();
+      const record = await read(id, policy);
+      return { applicantId: record.applicantId, status: record.status };
     },
     async detail(
       id: string,

@@ -1,6 +1,4 @@
-import { ContractError } from '../../providers/contracts/errors.js';
-import { Hono, type Context } from 'hono';
-import { z } from 'zod';
+import { ApprovalError } from '@nocobase/app-plugin-approval/server';
 import {
   authenticationToken,
   type AuthEnv,
@@ -11,40 +9,42 @@ import {
 } from '@nocobase/app-plugin-authorization/server';
 import type { Application } from '@nocobase/app-server/application';
 import {
-  defineApiRoutes,
   ApiError,
   apiErrorHandler,
-  apiValidator,
-  describeRoute,
-  dataResponse,
   apiErrorResponses,
+  apiValidator,
+  dataResponse,
+  defineApiRoutes,
+  describeRoute,
   type AppRouteContribution,
 } from '@nocobase/app-server/router';
 import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
 import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
-import { ApprovalError } from '@nocobase/app-plugin-approval/server';
+import { Hono, type Context } from 'hono';
+import { z } from 'zod';
+import { ContractError } from '../../providers/contracts/errors.js';
 import { InvoiceError } from '../../providers/invoices/service.js';
+import { paymentRequestServiceToken } from '../../providers/payment-requests/contract.js';
+import { PaymentRequestError } from '../../providers/payment-requests/errors.js';
+import type { PaymentRequestService } from '../../providers/payment-requests/service.js';
 import { PurchaseOrderError } from '../../providers/purchases/orders.js';
 import { VendorError } from '../../providers/vendors/service.js';
-import { PaymentRequestError } from '../../providers/payment-requests/errors.js';
-import { paymentRequestServiceToken } from '../../providers/payment-requests/contract.js';
-import type { PaymentRequestService } from '../../providers/payment-requests/service.js';
 import { routes as attachments } from './attachments.js';
 import {
-  PaymentRequestInput,
-  CreatePaymentRequest,
-  Params,
-  ListQuery,
-  OptionsQuery,
-  TransitionInput,
   ActionInput,
   CandidatesQuery,
   CandidatesResult,
-  Payee,
   CorrectPayee,
+  CreatePaymentRequest,
+  Detail,
+  ListQuery,
+  OptionsQuery,
+  Params,
+  Payee,
+  PaymentRequestInput,
   Record as RecordSchema,
   Result,
-  Detail,
+  TransitionInput,
 } from './schemas.js';
 type Env = AuthEnv & AuthorizationEnv;
 export const routes: readonly AppRouteContribution<Application>[] = [
@@ -407,9 +407,11 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         const input = c.req.valid('json');
         const actorId = c.get('auth')!.user.id;
         const read = await readPolicy(c);
-        const record = (
-          await service.detail(c.req.valid('param').id, actorId, read)
-        ).record;
+        const record = await service.accessFacts(
+          c.req.valid('param').id,
+          actorId,
+          read,
+        );
         const write = [
           'edit',
           'submit',

@@ -1,5 +1,26 @@
 export default {
   workbench: {
+    summaryTodo_one: '{{count}} 项待办',
+    summaryTodo_other: '{{count}} 项待办',
+    sourcesLabel: '各来源待办',
+    todo: '待办',
+    todoDescription: '需要你处理或确认的事项，最紧急的在前。',
+    openTaskCenter: '进入待办中心',
+    mineRevisions_one: '{{count}} 项申请被退回或出现异常',
+    mineRevisions_other: '{{count}} 项申请被退回或出现异常',
+    quickStart: '快捷发起',
+    quickStartDescription: '常用申请入口，可在“全部申请”中调整。',
+    newWorkItem: '新建工作事项',
+    latestAnnouncements: '最新公告',
+    pinned: '置顶',
+    publishedAt: '发布于 {{date}}',
+    emptyAnnouncements: '暂无公告',
+    emptyAnnouncementsDescription: '新发布的公告会显示在这里。',
+    emptyMineQuickStart: '可在快捷发起中选择申请类型。',
+    rowSource: {
+      approval: '审批',
+      application: '我的申请',
+    },
     refresh: '刷新',
     greeting: {
       morning: '早上好，{{name}}',

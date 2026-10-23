@@ -59,6 +59,7 @@ export default class ApprovalQueryProvider extends ServiceProvider<Application> 
           sdk.runtime,
           sdk.approvals,
           this.changes!,
+          owner.kind,
         ),
       );
     }

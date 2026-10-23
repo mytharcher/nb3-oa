@@ -1,58 +1,66 @@
-import { processDirectorySnapshot } from '../process-management/context.js';
-import { demoNow } from '../demo-data/context.js';
+import { measureApprovalPhase } from '../approval-runtime/timing.js';
 import {
-  hasApprovalCandidate,
-  createAppApprovalService,
-} from '../approval-runtime/query-service.js';
-import { AsyncLocalStorage } from 'node:async_hooks';
-import { candidateDirectory } from '../approval-runtime/candidate-directory.js';
-import { createHash, randomUUID } from 'node:crypto';
+  type Approval,
+  type PerformInput,
+} from '@nocobase/app-plugin-approval/server';
+import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
+import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
 import type {
   DatabaseConnection,
   DatabaseManager,
   RepositoryPolicy,
   RepositoryRecord,
 } from '@nocobase/db';
-import { createServiceToken } from '@nocobase/service-provider';
 import {
   LifecycleRuntime,
-  type LifecycleStore,
   type EffectDispatcher,
   type JsonObject,
+  type LifecycleStore,
 } from '@nocobase/lifecycle';
-import {
-  type Approval,
-  type PerformInput,
-} from '@nocobase/app-plugin-approval/server';
-import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
-import type { EmployeeService } from '../employees/contract.js';
-import type { OrganizationService } from '../org/service.js';
-import type { HeadcountService } from '../headcounts/contract.js';
-import type { SalaryGradeService } from '../job-grades/contract.js';
-import type { CalendarService, RuleService } from '../platform/index.js';
-import type { AuditService } from '../audit/index.js';
+import { createServiceToken } from '@nocobase/service-provider';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { createHash, randomUUID } from 'node:crypto';
 import type { ApprovalDirectoryService } from '../approval-directory/contract.js';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
 import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import { candidateDirectory } from '../approval-runtime/candidate-directory.js';
+import {
+  createAppApprovalService,
+  hasApprovalCandidate,
+} from '../approval-runtime/query-service.js';
+import {
+  approvalReadableScope,
+  memberScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
 import {
   appLifecycleTransaction,
   createAppLifecycleStore,
 } from '../approval-runtime/repository-store.js';
+import { registerAppApproval } from '../approval-runtime/task-center.js';
+import type { AuditService } from '../audit/index.js';
+import { demoNow } from '../demo-data/context.js';
+import type { EmployeeService } from '../employees/contract.js';
+import type { HeadcountService } from '../headcounts/contract.js';
+import type { SalaryGradeService } from '../job-grades/contract.js';
+import type { OrganizationService } from '../org/service.js';
+import type { CalendarService, RuleService } from '../platform/index.js';
+import { processDirectorySnapshot } from '../process-management/context.js';
 import {
   createTransferApproval,
   TRANSFER_LIFECYCLE,
-  type TransferRecord,
   type TransferApprovalServices,
+  type TransferRecord,
 } from './approval.js';
-import {
-  transferPreparation,
-  TransferError,
-  type TransferProposal,
-  type TransferSnapshot,
-  type TransferSalarySnapshot,
-} from './submission.js';
-import { salaryCents } from './salary.js';
 import { transferExecutor } from './execution.js';
+import { salaryCents } from './salary.js';
+import {
+  TransferError,
+  transferPreparation,
+  type TransferProposal,
+  type TransferSalarySnapshot,
+  type TransferSnapshot,
+} from './submission.js';
 export interface TransferDependencies {
   db: DatabaseManager;
   employees: EmployeeService;
@@ -256,19 +264,19 @@ export function createTransferService(d: TransferDependencies) {
           ) => {
             if (collection !== 'transferRequests')
               return target.updateRecordIf(collection, id, condition, values);
-            const result = await (
-              target.transactionHandle as DatabaseConnection
-            )
-              .repository(collection)
-              .withPolicy(context.getStore()!.policies!.write)
-              .updateMany({
-                filter: {
-                  id,
-                  [condition.stateField]: condition.state,
-                  [condition.versionField]: condition.version,
-                },
-                values: values as RepositoryRecord,
-              });
+            const result = await measureApprovalPhase('businessWrite', () =>
+              (target.transactionHandle as DatabaseConnection)
+                .repository(collection)
+                .withPolicy(context.getStore()!.policies!.write)
+                .updateMany({
+                  filter: {
+                    id,
+                    [condition.stateField]: condition.state,
+                    [condition.versionField]: condition.version,
+                  },
+                  values: values as RepositoryRecord,
+                }),
+            );
             return result.updatedCount === 1;
           };
         const value: unknown = Reflect.get(target, key);
@@ -613,7 +621,7 @@ export function createTransferService(d: TransferDependencies) {
     });
   const source = (handle: unknown) =>
     handle ? directories.get(handle)! : outside;
-  runtime.register(definition, { services: source });
+  registerAppApproval(d.db, runtime, definition, source);
   const approvals = createAppApprovalService(
     runtime,
     [definition.approval as unknown as Approval<never>],
@@ -1339,6 +1347,11 @@ export function createTransferService(d: TransferDependencies) {
         };
       });
     },
+    async accessFacts(id: string, _actorId: string, policy: RepositoryPolicy) {
+      await refresh();
+      const record = await read(id, policy);
+      return { applicantId: record.applicantId, status: record.status };
+    },
     async detail(id: string, actorId: string, policy: RepositoryPolicy) {
       await refresh();
       const record = await read(id, policy);
@@ -1594,26 +1607,37 @@ export function createTransferService(d: TransferDependencies) {
       );
       return { items, total: filtered.length };
     },
-    async readableIds(actorId: string) {
+    async readableScope(actorId: string): Promise<DatabaseScope> {
       await refresh();
-      // Only involvementOf is invoked here. Actual SDK answers and all capacity
-      // writers still acquire the coordinated headcount transaction above.
-      return readDirectory.run(outside.directory, async () => {
-        const rows = await d.db
-          .repository<TransferRecord>('transferRequests')
-          .findMany();
-        const ids: string[] = [];
-        for (const row of rows)
-          if (
-            row.applicantId === actorId ||
-            row.snapshot?.userId === actorId ||
-            (await d.org.hasDutyRole(actorId, 'hr')) ||
-            (await approvals.involvementOf(TRANSFER_LIFECYCLE, row.id, actorId))
-              .length
-          )
-            ids.push(row.id);
-        return ids;
+      if (await d.org.hasDutyRole(actorId, 'hr')) return true;
+      return approvalReadableScope(actorId, {
+        approvals: approvals,
+        lifecycle: TRANSFER_LIFECYCLE,
+        directory: outside.directory,
+        roles: [],
+        ownerFields: ['applicantId'],
+        taskActors: false,
+        extra: async () => {
+          // Snapshot JSON paths are not supported by database authorization scopes.
+          // One narrow projection replaces per-record SDK and organization reads.
+          const rows = await d.db
+            .repository<TransferRecord>('transferRequests')
+            .findMany({ select: (s) => s.fields('id', 'snapshot') });
+          return memberScope(
+            'id',
+            rows
+              .filter((row) => row.snapshot?.userId === actorId)
+              .map((row) => row.id),
+          );
+        },
       });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'transferRequests',
+        await this.readableScope(actorId),
+      );
     },
     async maintenance() {
       await refresh();

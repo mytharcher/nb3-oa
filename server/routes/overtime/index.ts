@@ -1,3 +1,4 @@
+import { ApprovalError } from '@nocobase/app-plugin-approval/server';
 import {
   authenticationToken,
   type AuthEnv,
@@ -10,34 +11,33 @@ import type { Application } from '@nocobase/app-server/application';
 import {
   ApiError,
   apiErrorHandler,
-  defineApiRoutes,
-  describeRoute,
-  apiValidator,
-  dataResponse,
   apiErrorResponse,
   apiErrorResponses,
+  apiValidator,
+  dataResponse,
+  defineApiRoutes,
+  describeRoute,
   type AppRouteContribution,
 } from '@nocobase/app-server/router';
-import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
-import { ApprovalError } from '@nocobase/app-plugin-approval/server';
-import { z } from 'zod';
-import { Hono, type Context } from 'hono';
 import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
+import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
+import { Hono, type Context } from 'hono';
+import { z } from 'zod';
 import { LeaveBalanceError } from '../../providers/leave-balances/service.js';
 import { OvertimeError } from '../../providers/overtime/errors.js';
 import { overtimeServiceToken } from '../../providers/overtime/index.js';
 import {
-  ActionInput,
   ActionCandidates,
+  ActionInput,
+  ActionResult,
   CreateOvertime,
-  OvertimeInput,
-  OvertimeParams,
-  ListQuery,
-  TransitionInput,
-  Result,
   Detail,
   List,
-  ActionResult,
+  ListQuery,
+  OvertimeInput,
+  OvertimeParams,
+  Result,
+  TransitionInput,
 } from './schemas.js';
 export const routes: readonly AppRouteContribution<Application>[] = [
   defineApiRoutes<Application>((app) => {
@@ -276,14 +276,14 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         const actorId = c.get('auth')!.user.id;
         let mutationPolicy: RepositoryPolicy | undefined;
         if (['submit', 'edit', 'withdraw'].includes(input.transition)) {
-          const detail = await service.detail(
+          const detail = await service.accessFacts(
             c.req.valid('param').id,
             actorId,
             await readPolicy(c),
           );
           mutationPolicy = await actionPolicy(
             c,
-            detail.record.applicantId === actorId ? 'submit' : 'delegate',
+            detail.applicantId === actorId ? 'submit' : 'delegate',
           );
         }
         if (input.transition === 'edit') {

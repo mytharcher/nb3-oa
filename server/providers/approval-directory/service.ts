@@ -22,6 +22,7 @@ import type {
 import { DelegationError } from './errors.js';
 import type { ApprovalStatisticsChanges } from '../approval-runtime/statistics-contract.js';
 import { candidateDirectory } from '../approval-runtime/candidate-directory.js';
+import { requireDelegationBoundary } from '../approval-runtime/delegation-write-context.js';
 
 const instant = (value: unknown): string =>
   new Date(String(value)).toISOString();
@@ -169,12 +170,8 @@ export function createApprovalDirectoryService({
     // Dependency edits can change their scope. Acquire all installed gates before
     // reading old scope/people and before the directory's account lock.
     const changes = statisticsChanges?.();
-    if (changes)
-      return changes.change(
-        { kinds: 'all', userIds: [], reason: 'delegationChanged' },
-        run,
-        context.connection,
-      );
+    requireDelegationBoundary();
+    if (changes) return changes.guard(run, context.connection);
     return context.connection
       ? run(context.connection)
       : database.transaction(run);

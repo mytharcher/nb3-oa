@@ -1,10 +1,6 @@
-import {
-  createElement,
-  type ComponentType,
-  type ReactElement,
-  type ReactNode,
-} from 'react';
+import { createElement, type ComponentType, type ReactElement } from 'react';
 import { useTranslation } from '@nocobase/i18n/client';
+import { TaskSummaryFields } from '#extensions/nocobase-task-center-ui/index';
 import type { PrototypeTask } from './prototype-data.js';
 
 export interface TaskSummaryProps {
@@ -29,28 +25,6 @@ export function TaskSummary({ task }: TaskSummaryProps): ReactElement | null {
   return renderer ? createElement(renderer, { task }) : null;
 }
 
-function SummaryList({
-  items,
-}: {
-  readonly items: readonly (readonly [string, ReactNode])[];
-}): ReactElement {
-  return (
-    <dl className='mt-2 grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-muted/50 px-3 py-2.5 sm:grid-cols-3'>
-      {items.map(([label, value]) => (
-        <div key={label} className='flex min-w-0 flex-col gap-0.5'>
-          <dt className='text-xs text-muted-foreground'>{label}</dt>
-          <dd
-            className='truncate text-sm'
-            title={typeof value === 'string' ? value : undefined}
-          >
-            {value}
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 function useAmount(): (value: number) => string {
   const { i18n } = useTranslation();
   return (value) =>
@@ -65,7 +39,7 @@ function LeaveSummary({ task }: TaskSummaryProps): ReactElement | null {
   const summary = task.summary;
   if (!summary) return null;
   return (
-    <SummaryList
+    <TaskSummaryFields
       items={[
         [t('taskCenter.summary.leaveType'), summary.type],
         [
@@ -92,7 +66,7 @@ function ReimbursementSummary({ task }: TaskSummaryProps): ReactElement | null {
   const summary = task.summary;
   if (!summary) return null;
   return (
-    <SummaryList
+    <TaskSummaryFields
       items={[
         [t('taskCenter.summary.amount'), amount(Number(summary.amount))],
         [t('taskCenter.summary.category'), summary.category],
@@ -108,7 +82,7 @@ function PurchaseSummary({ task }: TaskSummaryProps): ReactElement | null {
   const summary = task.summary;
   if (!summary) return null;
   return (
-    <SummaryList
+    <TaskSummaryFields
       items={[
         [t('taskCenter.summary.item'), summary.item],
         [t('taskCenter.summary.quantity'), summary.quantity],

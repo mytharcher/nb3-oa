@@ -1,3 +1,4 @@
+import { userTaskServiceToken } from '@nocobase/app-plugin-task-center/server';
 import { probationServiceToken } from '../../../server/providers/probation/contract.js';
 import { createAppTest } from '@nocobase/app-testing/server';
 import { createStandaloneServer } from '../../../server/standalone.js';
@@ -80,6 +81,15 @@ describe('current safe batch approvals through owner public API', () => {
         randomUUID(),
       );
     }
+    const taskIndex =
+      testApp.application.container.resolve(userTaskServiceToken);
+    const beforeIndex = await taskIndex.list(manager.userId, {
+      sourceType: 'approval.task',
+      subject: 'oa.leave',
+      status: 'pending',
+      pageSize: 100,
+    });
+    expect(beforeIndex.data).toHaveLength(20);
     const session = await manager.session();
     const options = await session.fetch(
       '/approvalCenter/batchApproveOptions',
@@ -136,6 +146,22 @@ describe('current safe batch approvals through owner public API', () => {
         index === 1 ? 'unavailable' : 'approved',
       ),
     );
+    const afterCounts = await taskIndex.statistics(manager.userId, {
+      sourceType: 'approval.task',
+      subject: 'oa.leave',
+    });
+    expect(afterCounts).toEqual({ pending: 1, completed: 19, cancelled: 0 });
+    const completedPage = await taskIndex.list(manager.userId, {
+      sourceType: 'approval.task',
+      subject: 'oa.leave',
+      status: 'completed',
+      pageSize: 100,
+    });
+    expect(
+      completedPage.data.every((item) =>
+        beforeIndex.data.some((before) => before.id === item.id),
+      ),
+    ).toBe(true);
     const fullReplay = await session.fetch(
       '/approvalCenter/batchApprove',
       json({

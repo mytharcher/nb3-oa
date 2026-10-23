@@ -1,9 +1,14 @@
+import {
+  reportTitle,
+  reportDescription,
+  type ReportDataset,
+} from './datasets.js';
 import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { StatusBadge } from '#components/status-badge';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useAuthorizationRevision } from '@nocobase/app-plugin-authorization/client';
 import { reportMoney } from './presentation';
-import { useSearchParams } from 'react-router';
+import { Link, Navigate, useSearchParams } from 'react-router';
 import { useUrlSearch } from '#hooks/use-url-search';
 import { ApplicationSearch } from '#components/application-search';
 import { ApplicationToolbar } from '#components/application-toolbar';
@@ -36,15 +41,8 @@ import { PageHeader } from '#components/page-header';
 import { ResponsiveTable } from '#components/responsive-table';
 import { Alert, AlertAction, AlertDescription } from '#components/ui/alert';
 import { Button } from '#components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '#components/ui/card';
+import { Card, CardContent } from '#components/ui/card';
 import { Input } from '#components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '#components/ui/tabs';
 import {
   TableBody,
   TableCell,
@@ -63,12 +61,6 @@ type Result = {
   data: Row[];
   meta: { page: number; pageSize: number; total: number; generatedAt: string };
 };
-const datasets: readonly Dataset[] = [
-  'budget-balances',
-  'contract-ledger',
-  'headcount-balances',
-  'leave-monthly',
-];
 
 function Report({ dataset }: { dataset: Dataset }) {
   const api = useApiClient(),
@@ -357,12 +349,6 @@ function Report({ dataset }: { dataset: Dataset }) {
   }
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t(`reports.datasets.${dataset}.title`)}</CardTitle>
-        <CardDescription>
-          {t(`reports.datasets.${dataset}.description`)}
-        </CardDescription>
-      </CardHeader>
       <CardContent className='flex flex-col gap-4'>
         <ApplicationToolbar
           actions={
@@ -796,14 +782,19 @@ function Report({ dataset }: { dataset: Dataset }) {
   );
 }
 
-export default function ReportsPage() {
+export default function ReportsPage({ dataset }: { dataset?: ReportDataset }) {
   const { session } = useAuthentication();
   const revision = useAuthorizationRevision();
-  return <AuthorizedReportsPage key={`${session?.user.id}:${revision}`} />;
+  return (
+    <AuthorizedReportsPage
+      key={`${session?.user.id}:${revision}:${dataset}`}
+      dataset={dataset}
+    />
+  );
 }
-function AuthorizedReportsPage() {
+function AuthorizedReportsPage({ dataset }: { dataset?: ReportDataset }) {
   const { t } = useTranslation();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const api = useApiClient();
   const [visible, setVisible] = useState<string[]>();
   const [error, setError] = useState<unknown>();
@@ -833,15 +824,27 @@ function AuthorizedReportsPage() {
   }, [api, generation]);
   const requested = params.get('dataset');
   const selected =
-    requested && visible?.includes(requested)
-      ? requested
-      : (visible?.[0] ?? '');
+    dataset ??
+    (requested && visible?.includes(requested) ? requested : visible?.[0]);
+  if (!dataset && selected && visible?.includes(selected)) {
+    const next = new URLSearchParams(params);
+    next.delete('dataset');
+    return (
+      <Navigate
+        replace
+        to={{ pathname: `/reports/${selected}`, search: next.toString() }}
+      />
+    );
+  }
+  const denied = visible && (!selected || !visible.includes(selected));
 
   return (
     <PageContainer>
       <PageHeader
-        title={t('reports.title')}
-        description={t('reports.description')}
+        title={t(dataset ? reportTitle(dataset) : 'reports.title')}
+        description={t(
+          dataset ? reportDescription(dataset) : 'reports.description',
+        )}
       />
       {error instanceof ApiClientError && error.status === 401 ? (
         <SessionExpiredAlert />
@@ -867,68 +870,29 @@ function AuthorizedReportsPage() {
         </Alert>
       ) : !visible ? (
         <ApplicationTableSkeleton columns={5} />
-      ) : !visible.length ? (
+      ) : denied ? (
         <Alert>
           <AlertDescription>{t('reports.forbidden')}</AlertDescription>
+          <AlertAction>
+            <Button
+              variant='outline'
+              nativeButton={false}
+              role='link'
+              render={<Link to='/' />}
+            >
+              {t('navigation.home')}
+            </Button>
+          </AlertAction>
         </Alert>
       ) : null}
-      {visible?.length ? (
-        <Tabs
-          value={selected}
-          onValueChange={(value: string) =>
-            setParams(
-              (old) => {
-                const next = new URLSearchParams(old);
-                next.set('dataset', value);
-                return next;
-              },
-              { replace: true },
-            )
-          }
-        >
-          <TabsList
-            variant='line'
-            className='h-auto max-w-full flex-wrap gap-y-2 group-data-horizontal/tabs:h-auto'
-          >
-            {datasets
-              .filter((dataset) => visible?.includes(dataset))
-              .map((dataset) => (
-                <TabsTrigger
-                  key={dataset}
-                  value={dataset}
-                  className='h-auto min-h-8'
-                >
-                  {t(`reports.datasets.${dataset}.title`)}
-                </TabsTrigger>
-              ))}
-            {visible.includes('leave-approval-efficiency') ? (
-              <TabsTrigger
-                value='leave-approval-efficiency'
-                className='h-auto min-h-8'
-              >
-                {t('reportsEfficiency.title')}
-              </TabsTrigger>
-            ) : null}
-            {visible.includes('expense-summary') ? (
-              <TabsTrigger value='expense-summary' className='h-auto min-h-8'>
-                {t('reportsExpense.title')}
-              </TabsTrigger>
-            ) : null}
-          </TabsList>
-          <TabsContent value='expense-summary'>
-            <ExpenseSummaryReport />
-          </TabsContent>
-          <TabsContent value='leave-approval-efficiency'>
-            <LeaveApprovalEfficiencyReport />
-          </TabsContent>
-          {datasets
-            .filter((dataset) => visible?.includes(dataset))
-            .map((dataset) => (
-              <TabsContent key={dataset} value={dataset}>
-                <Report dataset={dataset} />
-              </TabsContent>
-            ))}
-        </Tabs>
+      {dataset && visible?.includes(dataset) ? (
+        dataset === 'expense-summary' ? (
+          <ExpenseSummaryReport showHeader={false} />
+        ) : dataset === 'leave-approval-efficiency' ? (
+          <LeaveApprovalEfficiencyReport showHeader={false} />
+        ) : (
+          <Report key={dataset} dataset={dataset} />
+        )
       ) : null}
     </PageContainer>
   );

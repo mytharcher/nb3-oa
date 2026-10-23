@@ -143,7 +143,7 @@ const routes: AppClientRouteDefinition[] = [
   },
   {
     name: 'schedules',
-    parent: 'oa-automation',
+    parent: 'oa-system',
     path: '/schedules',
     auth: 'required',
     authz: {

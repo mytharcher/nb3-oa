@@ -60,16 +60,23 @@ type ExpenseResult = {
 const params = ['expenseYear', 'expenseMonth', 'expensePage'] as const;
 
 /** Read-only owner projection; gross cents never allocate whole-request offsets to categories. */
-export function ExpenseSummaryReport() {
+export function ExpenseSummaryReport({
+  showHeader = true,
+}: {
+  showHeader?: boolean;
+}) {
   const { session } = useAuthentication();
   const revision = useAuthorizationRevision();
   // Source permission/account changes drop old rows and abort list/download even when the shared client stays stable.
   return (
-    <ExpenseSummaryContent key={`${session?.user.id ?? ''}:${revision}`} />
+    <ExpenseSummaryContent
+      showHeader={showHeader}
+      key={`${session?.user.id ?? ''}:${revision}`}
+    />
   );
 }
 
-function ExpenseSummaryContent() {
+function ExpenseSummaryContent({ showHeader }: { showHeader: boolean }) {
   const api = useApiClient();
   const toaster = useToaster();
   const { t } = useTranslation();
@@ -315,10 +322,12 @@ function ExpenseSummaryContent() {
   }
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t('reportsExpense.title')}</CardTitle>
-        <CardDescription>{t('reportsExpense.description')}</CardDescription>
-      </CardHeader>
+      {showHeader ? (
+        <CardHeader>
+          <CardTitle>{t('reportsExpense.title')}</CardTitle>
+          <CardDescription>{t('reportsExpense.description')}</CardDescription>
+        </CardHeader>
+      ) : null}
       <CardContent className='flex min-w-0 flex-col gap-4'>
         <ApplicationToolbar
           actions={

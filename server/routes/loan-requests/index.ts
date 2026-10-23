@@ -1,6 +1,4 @@
-import { readLoanTravelName } from './travel-name.js';
-import { travelServiceToken } from '../../providers/travel/contract.js';
-import { LoanLedgerError } from '../../providers/loan-ledger/service.js';
+import { ApprovalError } from '@nocobase/app-plugin-approval/server';
 import {
   authenticationToken,
   type AuthEnv,
@@ -13,37 +11,39 @@ import type { Application } from '@nocobase/app-server/application';
 import {
   ApiError,
   apiErrorHandler,
-  defineApiRoutes,
-  describeRoute,
-  apiValidator,
-  dataResponse,
   apiErrorResponse,
   apiErrorResponses,
+  apiValidator,
+  dataResponse,
+  defineApiRoutes,
+  describeRoute,
   type AppRouteContribution,
 } from '@nocobase/app-server/router';
-import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
-import { ApprovalError } from '@nocobase/app-plugin-approval/server';
-import { z } from 'zod';
-import { Hono, type Context } from 'hono';
 import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
-import { LoanRequestError } from '../../providers/loan-requests/errors.js';
+import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
+import { Hono, type Context } from 'hono';
+import { z } from 'zod';
+import { LoanLedgerError } from '../../providers/loan-ledger/service.js';
 import { loanRequestServiceToken } from '../../providers/loan-requests/contract.js';
+import { LoanRequestError } from '../../providers/loan-requests/errors.js';
 import type { LoanRequestService } from '../../providers/loan-requests/service.js';
+import { travelServiceToken } from '../../providers/travel/contract.js';
 import {
   ActionInput,
+  ActionResult,
   CandidatesQuery,
   CandidatesResult,
   CreateLoanRequest,
-  LoanRequestInput,
-  LoanRequestParams,
-  ListQuery,
-  TransitionInput,
-  Result,
   Detail,
   List,
-  ActionResult,
+  ListQuery,
+  LoanRequestInput,
+  LoanRequestParams,
   RepaymentInput,
+  Result,
+  TransitionInput,
 } from './schemas.js';
+import { readLoanTravelName } from './travel-name.js';
 export const routes: readonly AppRouteContribution<Application>[] = [
   defineApiRoutes<Application>((app) => {
     const router = new Hono<AuthEnv & AuthorizationEnv>();
@@ -418,14 +418,14 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         if (
           ['submit', 'edit', 'withdraw', 'retryCash'].includes(input.transition)
         ) {
-          const detail = await service.detail(
+          const detail = await service.accessFacts(
             c.req.valid('param').id,
             actorId,
             await readPolicy(c),
           );
           mutationPolicy = await actionPolicy(
             c,
-            detail.record.applicantId === actorId ? 'submit' : 'delegate',
+            detail.applicantId === actorId ? 'submit' : 'delegate',
           );
         }
         if (input.transition === 'edit') {

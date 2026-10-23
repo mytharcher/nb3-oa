@@ -48,6 +48,16 @@ export interface DutyRole {
 }
 
 export interface OrgService {
+  /** Departments whose complete active ancestor chain contains this manager. */
+  departmentsManagedBy(
+    userId: string,
+    connection?: DatabaseConnection,
+  ): Promise<readonly string[]>;
+  /** Active primary memberships in the supplied departments; employee status is intentionally irrelevant. */
+  primaryMembersOf(
+    departmentIds: readonly string[],
+    connection?: DatabaseConnection,
+  ): Promise<readonly string[]>;
   /** The user's active primary department, counting only when it and every ancestor are active. */
   primaryDepartmentOf(
     userId: string,

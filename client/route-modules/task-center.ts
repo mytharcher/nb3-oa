@@ -1,7 +1,7 @@
 import { defineAppRoutes } from '@nocobase/app-client/plugins';
+import { viewChildren } from './approvals.js';
 import { ListChecks } from 'lucide-react';
 
-// Prototype of the layered task center; it shows sample data until Task Center data is wired in.
 export default defineAppRoutes([
   {
     name: 'oa-task-center',
@@ -17,5 +17,13 @@ export default defineAppRoutes([
       order: 15,
     },
     componentLoader: () => import('../pages/task-center/index.js'),
+    children: [
+      ...viewChildren('oa-task-center'),
+      {
+        name: 'oa-task-center-target',
+        path: 'task/:taskId',
+        componentLoader: () => import('../pages/task-center/target.js'),
+      },
+    ],
   },
 ]);

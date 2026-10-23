@@ -1,88 +1,96 @@
-import { demoNow } from '../demo-data/context.js';
-import { runTaskViewsFor } from '../approval-runtime/task-views.js';
 import {
-  hasApprovalCandidate,
-  createAppApprovalService,
-} from '../approval-runtime/query-service.js';
-import {
-  appointAction,
-  reassignAction,
-} from '../process-management/actions.js';
-import { processDirectorySnapshot } from '../process-management/context.js';
-import type { ContractLedgerService } from '../contracts/contract.js';
-import { randomUUID, createHash } from 'node:crypto';
-import { AsyncLocalStorage } from 'node:async_hooks';
-import { z } from 'zod';
+  allActivePeople,
+  APPROVAL_COLLECTIONS,
+  approvalState,
+  approve,
+  assignAction,
+  ccAction,
+  claimAction,
+  commentAction,
+  configureAction,
+  defineApprovalAction,
+  isOpenRun,
+  peopleWithRole,
+  readAction,
+  reject,
+  releaseAction,
+  returnTo,
+  stagesFor,
+  transferAction,
+  type Approval,
+  type PerformInput,
+  type TaskRow,
+} from '@nocobase/app-plugin-approval/server';
 import {
   lockUserForAdministration,
   type UserAdministrationService,
 } from '@nocobase/app-plugin-authentication';
-import {
-  approvalState,
-  defineApproval,
-  stagesFor,
-  approve,
-  reject,
-  returnTo,
-  commentAction,
-  readAction,
-  ccAction,
-  defineApprovalAction,
-  allActivePeople,
-  claimAction,
-  releaseAction,
-  assignAction,
-  configureAction,
-  peopleWithRole,
-  transferAction,
-  isOpenRun,
-  APPROVAL_COLLECTIONS,
-  type TaskRow,
-  type Approval,
-  type PerformInput,
-} from '@nocobase/app-plugin-approval/server';
-import {
-  LifecycleRuntime,
-  type JsonObject,
-  type EffectDispatcher,
-} from '@nocobase/lifecycle';
+import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
 import type {
-  DatabaseManager,
   DatabaseConnection,
+  DatabaseManager,
   RepositoryPolicy,
 } from '@nocobase/db';
-import type { OrgService } from '../org/contract.js';
-import type { AuditService } from '../audit/index.js';
-import type { EmployeeService } from '../employees/contract.js';
+import {
+  LifecycleRuntime,
+  type EffectDispatcher,
+  type JsonObject,
+} from '@nocobase/lifecycle';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { createHash, randomUUID } from 'node:crypto';
+import { z } from 'zod';
 import type {
   ApprovalDirectoryService,
   OaApprovalDirectory,
 } from '../approval-directory/contract.js';
+import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import {
+  createAppApprovalService,
+  hasApprovalCandidate,
+} from '../approval-runtime/query-service.js';
+import {
+  approvalReadableScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
+import {
+  defineAppApproval as defineApproval,
+  registerAppApproval,
+} from '../approval-runtime/task-center.js';
+import { runTaskViewsFor } from '../approval-runtime/task-views.js';
+import type { AuditService } from '../audit/index.js';
+import type { ContractLedgerService } from '../contracts/contract.js';
+import { demoNow } from '../demo-data/context.js';
+import type { EmployeeService } from '../employees/contract.js';
+import { exceedsMoneyThreshold } from '../exact-money.js';
+import type { InvoiceService } from '../invoices/contract.js';
+import type { OrgService } from '../org/contract.js';
+import type { DictionaryService } from '../platform/dictionaries.js';
 import type {
   CalendarService,
   RuleService,
   SequenceService,
 } from '../platform/index.js';
-import type { DictionaryService } from '../platform/dictionaries.js';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import {
+  appointAction,
+  reassignAction,
+} from '../process-management/actions.js';
+import { processDirectorySnapshot } from '../process-management/context.js';
 import type { PurchaseOrderService } from '../purchases/contract.js';
 import type { VendorService } from '../vendors/contract.js';
-import type { InvoiceService } from '../invoices/contract.js';
-import { createOaApprovalOperations } from '../approval-directory/operations.js';
-import { exceedsMoneyThreshold } from '../exact-money.js';
 import {
   PAYMENT_REQUEST_LIFECYCLE,
-  type PaymentRequestRecord,
-  type PaymentRequestInput,
   type PaymentPayee,
+  type PaymentRequestInput,
+  type PaymentRequestRecord,
 } from './contract.js';
 import { PaymentRequestError } from './errors.js';
+import { createPaymentRequestFunding } from './funding.js';
+import { paymentCashActions } from './handling.js';
 import {
   createPaymentLifecycleStore,
   type PaymentMutation,
 } from './lifecycle-store.js';
-import { createPaymentRequestFunding } from './funding.js';
-import { paymentCashActions } from './handling.js';
 export { paymentRequestServiceToken } from './contract.js';
 
 export const paymentRequestInputSchema = z.strictObject({
@@ -1061,7 +1069,7 @@ export function createPaymentRequestService(d: PaymentRequestDependencies) {
       ),
     ),
   });
-  runtime.register(approval, { services: source });
+  registerAppApproval(d.db, runtime, approval, source);
   const approvals = createAppApprovalService(
     runtime,
     [approval.approval as unknown as Approval<never>],
@@ -1428,6 +1436,14 @@ export function createPaymentRequestService(d: PaymentRequestDependencies) {
         approvals.perform({ ...input, actor: { id: actorId } }),
       );
     },
+    async accessFacts(id: string, actorId: string, policy?: RepositoryPolicy) {
+      const record = await canRead(id, actorId, policy);
+      return {
+        applicantId: record.applicantId,
+        status: record.status,
+        contractId: record.contractId,
+      };
+    },
     async detail(id: string, actorId: string, readPolicy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, readPolicy);
       const runs = await approvals.runViewsFor(PAYMENT_REQUEST_LIFECYCLE, id);
@@ -1616,40 +1632,33 @@ export function createPaymentRequestService(d: PaymentRequestDependencies) {
         nextOffset: page.nextOffset,
       };
     },
-    async readableIds(actorId: string) {
+    async readableScope(actorId: string): Promise<DatabaseScope> {
       await refresh();
-      const records = await d.db
-        .repository<PaymentRequestRecord>('paymentRequests')
-        .findMany();
-      const ids: string[] = [];
-      for (const r of records) {
-        if (
-          owner({ record: r, actor: { id: actorId } }) ||
-          [
-            'finance',
-            'financeManager',
-            'cashier',
-            'cfo',
-            'approval.admin',
-            'gm',
-          ].some((role) => outside.directory.hasRole(actorId, role)) ||
-          r.executiveApproverId === actorId ||
-          (
-            await approvals.involvementOf(
-              PAYMENT_REQUEST_LIFECYCLE,
-              r.id,
-              actorId,
-            )
-          ).length ||
-          (r.departmentId &&
-            (await d.org.activeChain(r.departmentId))?.some(
-              (dept) => dept.managerId === actorId,
-            )) ||
-          (await d.employees.isAboveInReportingLine(actorId, r.applicantId))
-        )
-          ids.push(r.id);
-      }
-      return ids;
+      return approvalReadableScope(actorId, {
+        approvals: approvals,
+        lifecycle: PAYMENT_REQUEST_LIFECYCLE,
+        directory: outside.directory,
+        roles: [
+          'finance',
+          'financeManager',
+          'cashier',
+          'cfo',
+          'approval.admin',
+          'gm',
+        ],
+        ownerFields: ['applicantId', 'createdById', 'executiveApproverId'],
+        taskActors: false,
+        org: d.org,
+        department: 'record',
+        employees: d.employees,
+      });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'paymentRequests',
+        await this.readableScope(actorId),
+      );
     },
     async list(actorId: string, view: string, readPolicy?: RepositoryPolicy) {
       await refresh();

@@ -767,6 +767,25 @@ export function createOrganizationService(
   }
 
   const service: OrganizationService = {
+    async departmentsManagedBy(userId, connection) {
+      const tree = await loadTree(connection);
+      return [...tree.keys()].filter((id) =>
+        activeChainOf(tree, id)?.some((node) => node.managerId === userId),
+      );
+    },
+    async primaryMembersOf(departmentIds, connection) {
+      const target = root(connection);
+      const memberships = await activeMemberships(target, { departmentIds });
+      const primaries = await primaryMap(target, [
+        ...new Set(
+          memberships.filter((row) => row.primary).map((row) => row.userId),
+        ),
+      ]);
+      const wanted = new Set(departmentIds);
+      return [...primaries]
+        .filter(([, department]) => wanted.has(department.id))
+        .map(([userId]) => userId);
+    },
     // ---- Contract -------------------------------------------------------------------------------------------------
 
     async primaryDepartmentOf(userId, connection) {

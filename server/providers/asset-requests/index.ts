@@ -1,39 +1,40 @@
-import { demoNow } from '../demo-data/context.js';
-import {
-  assetSelectionServiceToken,
-  createAssetSelectionService,
-} from './selection.js';
-import { ServiceProvider } from '@nocobase/service-provider';
-import type { Application } from '@nocobase/app-server/application';
-import { databaseManagerToken } from '@nocobase/db';
 import {
   lockUserForAdministration,
   userAdministrationServiceToken,
 } from '@nocobase/app-plugin-authentication';
 import {
-  authorizationToken,
-  defineDatabasePermission,
-  condition,
   anyScope,
+  authorizationToken,
+  condition,
+  defineDatabasePermission,
 } from '@nocobase/app-plugin-authorization/server';
+import type { NotificationConfig } from '@nocobase/app-plugin-notification/server';
+import { schedulerServiceToken } from '@nocobase/app-plugin-scheduler/server/tokens';
+import type { Application } from '@nocobase/app-server/application';
+import { i18nToken } from '@nocobase/app-server/i18n';
+import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
 import {
   defineCompositeResource,
   defineRecordAccess,
 } from '@nocobase/authorization/core';
-import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
-import { i18nToken } from '@nocobase/app-server/i18n';
-import { schedulerServiceToken } from '@nocobase/app-plugin-scheduler/server/tokens';
-import type { NotificationConfig } from '@nocobase/app-plugin-notification/server';
-import type { ApprovalNotificationConfig } from '../approval-notifications/contract.js';
+import { databaseManagerToken } from '@nocobase/db';
 import {
   createLifecycleJobs,
   type LifecycleJobs,
 } from '@nocobase/lifecycle/jobs';
-import { auditServiceToken } from '../audit/index.js';
-import { orgServiceToken } from '../org/contract.js';
-import { employeeServiceToken } from '../employees/contract.js';
+import { ServiceProvider } from '@nocobase/service-provider';
 import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
+import type { ApprovalNotificationConfig } from '../approval-notifications/contract.js';
 import { approvalNotificationServiceToken } from '../approval-notifications/contract.js';
+import {
+  assetServiceToken,
+  assetStockSourceToken,
+} from '../assets/contract.js';
+import { AssetError } from '../assets/errors.js';
+import { auditServiceToken } from '../audit/index.js';
+import { demoNow } from '../demo-data/context.js';
+import { employeeServiceToken } from '../employees/contract.js';
+import { orgServiceToken } from '../org/contract.js';
 import {
   calendarServiceToken,
   dictionaryServiceToken,
@@ -41,19 +42,18 @@ import {
   sequenceServiceToken,
 } from '../platform/index.js';
 import {
-  assetServiceToken,
-  assetStockSourceToken,
-} from '../assets/contract.js';
-import { AssetError } from '../assets/errors.js';
+  assertAssetPhotos,
+  assetPhotoServiceToken,
+  createAssetPhotoService,
+} from './attachments.js';
 import {
   assetRequestServiceToken,
   type AssetRequestRecord,
 } from './contract.js';
 import {
-  assertAssetPhotos,
-  createAssetPhotoService,
-  assetPhotoServiceToken,
-} from './attachments.js';
+  assetSelectionServiceToken,
+  createAssetSelectionService,
+} from './selection.js';
 import { createAssetRequestService } from './service.js';
 export * from './contract.js';
 export const assetRequestResource = defineCompositeResource(
@@ -235,12 +235,9 @@ export default class AssetRequestsProvider extends ServiceProvider<Application> 
           .collections('assetRequests')
           .resolver(async ({ principal }) => {
             if (principal.type !== 'user') return false;
-            const ids = await this.app.container
+            return await this.app.container
               .resolve(assetRequestServiceToken)
-              .readableIds(principal.id);
-            return ids.length
-              ? anyScope(ids.map((id) => condition('id', '$eq', id)))
-              : false;
+              .readableScope(principal.id);
           }),
       ),
     );

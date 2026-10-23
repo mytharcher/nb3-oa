@@ -217,9 +217,9 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
           };
         }, `${h.basePath}/api/reports/${suffix}`);
       }
-      for (const [dataset, title] of datasets) {
+      for (const [dataset] of datasets) {
         await page.goto(base);
-        await page.getByRole('tab', { name: title, exact: true }).click();
+        await page.goto(`${base}/${dataset}`);
         await expect(page.locator('tbody tr')).toHaveCount(1);
         const response = await data(page, dataset);
         expect(response.status).toBe(200);
@@ -274,9 +274,7 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
         );
       }
       await page.goto(base);
-      await page
-        .getByRole('tab', { name: 'Contract ledger', exact: true })
-        .click();
+      await page.goto(`${base}/contract-ledger`);
       await expect(
         page.getByRole('columnheader', { name: 'Expiry state', exact: true }),
       ).toBeVisible();
@@ -328,9 +326,7 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
         filter: { id: accountId },
         values: { initialized: false },
       });
-      await page
-        .getByRole('tab', { name: 'Headcount balances', exact: true })
-        .click();
+      await page.goto(`${base}/headcount-balances`);
       await expect(
         page.getByRole('cell', { name: 'Uninitialized', exact: true }),
       ).toHaveCount(2);
@@ -397,13 +393,8 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
               { theme, preset },
             );
             await p.goto(base);
-            for (const [dataset, en, zh] of datasets) {
-              await p
-                .getByRole('tab', {
-                  name: locale === 'zh-CN' ? zh : en,
-                  exact: true,
-                })
-                .click();
+            for (const [dataset] of datasets) {
+              await p.goto(`${base}/${dataset}`);
               await expect(p.locator('tbody tr')).toHaveCount(1);
               await expect(p.locator('html')).toHaveClass(new RegExp(theme));
               await expect(p.locator('html')).toHaveAttribute(
@@ -433,9 +424,7 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
       await stranger.goto(base);
       expect((await data(stranger, 'budget-balances')).status).toBe(403);
       expect((await data(stranger, 'headcount-balances')).status).toBe(403);
-      await stranger
-        .getByRole('tab', { name: 'Contract ledger', exact: true })
-        .click();
+      await stranger.goto(`${base}/contract-ledger`);
       await expect(stranger.locator('tbody tr')).toHaveCount(1);
       expect((await data(stranger, 'contract-ledger')).body.data[0].id).toBe(
         contractId,
@@ -486,9 +475,7 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
         ],
       });
       await page.goto(base);
-      await page
-        .getByRole('tab', { name: 'Headcount balances', exact: true })
-        .click();
+      await page.goto(`${base}/headcount-balances`);
       await expect(page.locator('tbody tr')).toHaveCount(1);
       const scoped = await data(page, 'headcount-balances');
       expect(scoped.body.data.map((r: { id: string }) => r.id)).toEqual([
@@ -496,7 +483,6 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
       ]);
       const scopedDownload = page.waitForEvent('download');
       await page
-        .getByRole('tabpanel', { name: 'Headcount balances', exact: true })
         .getByRole('button', { name: 'Export Excel', exact: true })
         .click();
       const scopedBook = new ExcelJS.Workbook();
@@ -545,12 +531,12 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
         'actual revocation while headcount rows are displayed: Refresh removes cached rows and disables Excel',
       );
 
-      for (const [dataset, title] of datasets) {
+      for (const [dataset] of datasets) {
         await page.goto(base);
         await page.waitForLoadState('networkidle');
         const r = await data(page, dataset);
         if (dataset === 'contract-ledger') {
-          await page.getByRole('tab', { name: title, exact: true }).click();
+          await page.goto(`${base}/${dataset}`);
           expect(r.status).toBe(200);
           expect(r.body.data).toEqual([]);
           await expect(
@@ -558,9 +544,13 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
           ).toBeVisible();
         } else {
           expect(r.status).toBe(403);
+          await page.goto(`${base}/${dataset}`);
           await expect(
-            page.getByRole('tab', { name: title, exact: true }),
-          ).toHaveCount(0);
+            page.getByText(
+              'You do not have permission to read this report source.',
+              { exact: true },
+            ),
+          ).toBeVisible();
           expect((await data(page, `${dataset}.xlsx`)).status).toBe(403);
         }
         await expect(

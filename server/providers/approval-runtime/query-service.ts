@@ -1,3 +1,4 @@
+import { taskCenterRuntimeServices } from './task-center.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import {
   ApprovalQuery,
@@ -10,6 +11,10 @@ import {
 type Input = ConstructorParameters<typeof ApprovalService>;
 const inputs = new WeakMap<ApprovalService, Input>();
 const queries = new WeakMap<ApprovalService, ApprovalQuery>();
+const exactInvolvement = new WeakMap<
+  ApprovalService,
+  ApprovalService['involvementOf']
+>();
 const serviceIdentity = Symbol('oa/approval-service-identity');
 function canonicalService(service: ApprovalService): ApprovalService {
   return (
@@ -40,12 +45,14 @@ export function cachedApprovalRelations(
 }
 
 export function createAppApprovalService(...input: Input): ApprovalService {
+  input[2] = taskCenterRuntimeServices(input[0]) ?? input[2];
   const service = new ApprovalService(...input);
   // Application owner proxies forward non-function members. Keep their public
   // SDK facade while registering the exact underlying observer owner once.
   Object.defineProperty(service, serviceIdentity, { value: service });
   inputs.set(service, input);
   const original = service.involvementOf.bind(service);
+  exactInvolvement.set(service, original);
   service.involvementOf = async (lifecycle, recordId, person) => {
     const context = reads.getStore();
     const query = queries.get(service);
@@ -255,4 +262,70 @@ export function approvalQuerySources(service: ApprovalService) {
     kind: approval.kind,
     runtime: input[0],
   }));
+}
+
+/** Public application composition bindings for task synchronization, not business authorization. */
+export function approvalTaskBindings(service: ApprovalService) {
+  const input = inputs.get(canonicalService(service));
+  if (!input)
+    throw new Error('Approval owner did not use the application SDK factory.');
+  return { runtime: input[0], approvals: input[1], services: input[2] };
+}
+
+/** Fresh per resolution, including POST. Never treats comments/admin actions as
+ * task participation. Delegate-only candidates need the SDK's decide-kind check. */
+export async function approvalReadableRecords(
+  owner: ApprovalService,
+  lifecycle: string,
+  actorId: string,
+  includeTaskActors: boolean,
+): Promise<readonly string[]> {
+  const service = canonicalService(owner);
+  if (!queries.has(service)) await initializeApprovalQuery(service);
+  const query = queries.get(service);
+  const input = inputs.get(service);
+  if (!query || !input) throw new Error('Approval query owner is unavailable.');
+  const ids = new Set<string>();
+  for (const approval of input[1]) {
+    const relations = await query.involvement(approval.name, actorId);
+    if (includeTaskActors) {
+      for (let offset = 0; ; offset += 1000) {
+        const tasks = await query.taskRelations(approval.name, actorId, {
+          relation: 'acted',
+          limit: 1000,
+          offset,
+        });
+        for (const task of tasks)
+          if (task.lifecycle === lifecycle) ids.add(task.recordId);
+        if (tasks.length < 1000) break;
+      }
+    }
+    for (const row of relations) {
+      if (row.lifecycle !== lifecycle || ids.has(row.recordId)) continue;
+      if (
+        row.relations.some((relation) =>
+          ['applicant', 'assignee', 'copied'].includes(relation),
+        )
+      ) {
+        ids.add(row.recordId);
+      } else if (
+        row.relations.includes('delegate') ||
+        (!includeTaskActors && row.relations.includes('actor'))
+      ) {
+        // The public batch reference omits task kind. Only this related subset
+        // needs a precise fallback; never enumerate business records here.
+        if (
+          (
+            await exactInvolvement.get(service)!(
+              lifecycle,
+              row.recordId,
+              actorId,
+            )
+          ).length
+        )
+          ids.add(row.recordId);
+      }
+    }
+  }
+  return [...ids];
 }

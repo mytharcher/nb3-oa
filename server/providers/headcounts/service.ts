@@ -1,3 +1,4 @@
+import { measureApprovalPhase } from '../approval-runtime/timing.js';
 import { demoNow } from '../demo-data/context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseConnection } from '@nocobase/db';
@@ -79,10 +80,12 @@ export function createHeadcountService(d: {
   ) {
     return connection.transaction(async (tx) => {
       // A durable database lock, not a process mutex. Complete roster reconciliation and cross-account writes serialize.
-      const locked = await tx.repository('headcountGuards').updateMany({
-        filter: { id: 'mutation' },
-        values: { version: { increment: 0 } },
-      });
+      const locked = await measureApprovalPhase('headcountLock', () =>
+        tx.repository('headcountGuards').updateMany({
+          filter: { id: 'mutation' },
+          values: { version: { increment: 0 } },
+        }),
+      );
       if (locked.updatedCount !== 1)
         fail(
           'GUARD_UNAVAILABLE',

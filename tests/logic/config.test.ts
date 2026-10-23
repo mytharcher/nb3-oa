@@ -6,6 +6,11 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type { AuthorizationConfig } from '@nocobase/app-plugin-authorization/server';
+import {
+  createNotificationRegistry,
+  type NotificationConfig,
+} from '@nocobase/app-plugin-notification/server';
+import { InAppChannel } from '@nocobase/app-plugin-notification-in-app/server';
 import { type AppIdentityConfig } from '@nocobase/app-server/config';
 import { type AppDatabaseConfig } from '@nocobase/app-server/database';
 import { resolveStandaloneAppRuntime } from '@nocobase/app-server/node';
@@ -34,6 +39,37 @@ describe('application config', () => {
   afterAll(async () => {
     await rm(configRoot, { recursive: true, force: true });
   });
+
+  it.each(['provider', 'type'])(
+    'keeps %s notification configuration valid after runtime normalization and reload',
+    async (discriminator) => {
+      const notificationPath = path.join(configRoot, `${discriminator}.yml`);
+      await writeFile(
+        notificationPath,
+        `notification:\n  channels:\n    inbox:\n      ${discriminator}: in-app\n`,
+      );
+      const runtime = await resolveStandaloneAppRuntime(appRuntime, {
+        rootDir: templateRootDir,
+        configPath: notificationPath,
+        env: { AUTH_SECRET: 'test-auth-secret-at-least-32-characters' },
+      });
+      const registry = createNotificationRegistry();
+      registry.registerChannelType(InAppChannel);
+
+      const verify = () => {
+        const config = runtime.config.get<NotificationConfig>('notification')!;
+        expect(config.channels.inbox).toMatchObject({
+          provider: 'in-app',
+          type: 'in-app',
+        });
+        expect(config.channels['demo-inbox']).toBeDefined();
+        expect(() => registry.validate(config)).not.toThrow();
+      };
+      verify();
+      await runtime.config.reload();
+      verify();
+    },
+  );
 
   it('assembles module defaults in the runtime', async () => {
     const runtime = await resolveStandaloneAppRuntime(appRuntime, {

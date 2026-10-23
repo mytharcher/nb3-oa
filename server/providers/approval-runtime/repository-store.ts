@@ -1,3 +1,5 @@
+import { synchronizeOrdinaryTask } from '../task-center/ordinary.js';
+import { measureApprovalPhase } from './timing.js';
 import { demoRecordPartition } from '../demo-data/context.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { DatabaseConnection } from '@nocobase/db';
@@ -45,13 +47,24 @@ export function createAppLifecycleStore(
             callback: (child: LifecycleStore) => Promise<T>,
             options?: Parameters<LifecycleStore['transaction']>[1],
           ) =>
-            target.transaction((child) => callback(wrap(child)), {
-              ...options,
-              within:
-                options?.within ??
-                target.transactionHandle ??
-                joinedTransactions.getStore(),
-            });
+            target.transaction(
+              (child) =>
+                measureApprovalPhase('transactionBody', () =>
+                  callback(wrap(child)),
+                ),
+              {
+                ...options,
+                within:
+                  options?.within ??
+                  target.transactionHandle ??
+                  joinedTransactions.getStore(),
+              },
+            );
+        if (property === 'afterCommit')
+          return (callback: () => void | Promise<void>) =>
+            target.afterCommit(() =>
+              measureApprovalPhase('afterCommit', async () => callback()),
+            );
         if (property === 'findRecord')
           return async (...args: Parameters<LifecycleStore['findRecord']>) => {
             const record = await target.findRecord(...args);
@@ -62,9 +75,42 @@ export function createAppLifecycleStore(
           return async (
             ...args: Parameters<LifecycleStore['createRecord']>
           ) => {
-            const record = await target.createRecord(...args);
+            const record = await measureApprovalPhase('businessWrite', () =>
+              target.createRecord(...args),
+            );
             demoRecordPartition(target.transactionHandle, record);
+            if (target.transactionHandle)
+              await synchronizeOrdinaryTask(
+                input[0],
+                args[0],
+                record,
+                target.transactionHandle as DatabaseConnection,
+              );
             return record;
+          };
+        if (property === 'updateRecordIf')
+          return async (
+            ...args: Parameters<LifecycleStore['updateRecordIf']>
+          ) => {
+            const changed = await measureApprovalPhase('businessWrite', () =>
+              target.updateRecordIf(...args),
+            );
+            if (
+              changed &&
+              ['workItems', 'announcementReceipts', 'announcements'].includes(
+                args[0],
+              )
+            ) {
+              const record = await target.findRecord(args[0], args[1]);
+              if (record)
+                await synchronizeOrdinaryTask(
+                  input[0],
+                  args[0],
+                  record,
+                  target.transactionHandle as DatabaseConnection,
+                );
+            }
+            return changed;
           };
         if (property === 'findTransition')
           return (id: string) =>

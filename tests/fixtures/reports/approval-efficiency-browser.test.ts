@@ -181,15 +181,9 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
               },
               { color, preset },
             );
-            await p.goto(`${h.origin}${h.basePath}/reports`);
-            await p
-              .getByRole('tab', {
-                name: en
-                  ? 'Leave decision task elapsed time'
-                  : '请假决策任务自然耗时',
-                exact: true,
-              })
-              .click();
+            await p.goto(
+              `${h.origin}${h.basePath}/reports/leave-approval-efficiency`,
+            );
             const year = p.getByLabel(en ? 'Start year' : '开始年份', {
               exact: true,
             });
@@ -290,7 +284,7 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
               ).toHaveCount(0);
               if ((await year.inputValue()) === '') await year.fill('2026');
               await expect(
-                p.locator('[role=tabpanel] [data-slot=alert].text-destructive'),
+                p.locator('[data-slot=alert].text-destructive'),
               ).toBeVisible();
             }
             expect(errors).toEqual([]);

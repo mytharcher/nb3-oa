@@ -16,9 +16,6 @@ import {
 // index; see the gap notes in the page component.
 
 export type TaskStatus = 'pending' | 'completed' | 'cancelled';
-/** The status tab: `closed` combines completed and cancelled tasks. */
-export type StatusTab = 'pending' | 'closed' | 'all';
-
 export interface PrototypeTask {
   readonly id: string;
   readonly sourceType: string;
@@ -105,13 +102,6 @@ export const taskSubjects: readonly TaskSubjectDefinition[] = [
     icon: ListTodo,
   },
 ];
-
-export const statusTabs: readonly StatusTab[] = ['pending', 'closed', 'all'];
-
-export function matchesStatusTab(status: TaskStatus, tab: StatusTab): boolean {
-  if (tab === 'all') return true;
-  return tab === 'pending' ? status === 'pending' : status !== 'pending';
-}
 
 let sequence = 0;
 function task(

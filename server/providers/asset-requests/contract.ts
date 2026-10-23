@@ -66,6 +66,9 @@ export interface AssetRequestService {
       createdBy?: { id: string; name: string };
     })[]
   >;
+  readableScope(
+    actorId: string,
+  ): Promise<import('@nocobase/app-plugin-authorization/server').DatabaseScope>;
   readableIds(actorId: string): Promise<string[]>;
   detail(
     id: string,

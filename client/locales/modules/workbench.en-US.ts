@@ -1,5 +1,27 @@
 export default {
   workbench: {
+    summaryTodo_one: '{{count}} task',
+    summaryTodo_other: '{{count}} tasks',
+    sourcesLabel: 'Tasks by source',
+    todo: 'Tasks',
+    todoDescription: 'Items waiting for you, most urgent first.',
+    openTaskCenter: 'Open task center',
+    mineRevisions_one: '{{count}} request was returned or failed',
+    mineRevisions_other: '{{count}} requests were returned or failed',
+    quickStart: 'Quick start',
+    quickStartDescription:
+      'Your frequent requests; adjust them in All requests.',
+    newWorkItem: 'New work item',
+    latestAnnouncements: 'Latest announcements',
+    pinned: 'Pinned',
+    publishedAt: 'Published {{date}}',
+    emptyAnnouncements: 'No announcements',
+    emptyAnnouncementsDescription: 'New announcements will appear here.',
+    emptyMineQuickStart: 'Choose a request type in Quick start.',
+    rowSource: {
+      approval: 'Approval',
+      application: 'My request',
+    },
     refresh: 'Refresh',
     greeting: {
       morning: 'Good morning, {{name}}',

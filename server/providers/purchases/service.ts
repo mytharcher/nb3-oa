@@ -1,99 +1,106 @@
-import { demoNow } from '../demo-data/context.js';
 import {
-  hasApprovalCandidate,
+  allActivePeople,
+  APPROVAL_COLLECTIONS,
+  approvalState,
+  approve,
+  assignAction,
+  ccAction,
+  claimAction,
+  commentAction,
+  configureAction,
+  defineApprovalAction,
+  isOpenRun,
+  readAction,
+  reject,
+  releaseAction,
+  returnTo,
+  stagesFor,
+  type Approval,
+  type PerformInput,
+  type TaskRow,
+} from '@nocobase/app-plugin-approval/server';
+import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
+import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
+import type {
+  DatabaseConnection,
+  DatabaseManager,
+  RepositoryPolicy,
+  RepositoryRecord,
+} from '@nocobase/db';
+import {
+  LifecycleRuntime,
+  type EffectDispatcher,
+  type JsonObject,
+  type LifecycleRecord,
+  type LifecycleStore,
+} from '@nocobase/lifecycle';
+import { createServiceToken } from '@nocobase/service-provider';
+import { randomUUID } from 'node:crypto';
+import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import {
   createAppApprovalService,
-  hasApprovalTaskActor,
+  hasApprovalCandidate,
 } from '../approval-runtime/query-service.js';
+import {
+  approvalReadableScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
+import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
+import {
+  defineAppApproval as defineApproval,
+  registerAppApproval,
+} from '../approval-runtime/task-center.js';
 import { runTaskViewsFor } from '../approval-runtime/task-views.js';
+import type { BudgetService } from '../budgets/contract.js';
+import { demoNow } from '../demo-data/context.js';
+import { exceedsMoneyThreshold } from '../exact-money.js';
+import type { DictionaryService } from '../platform/dictionaries.js';
 import {
   appointAction,
   reassignAction,
 } from '../process-management/actions.js';
 import { processDirectorySnapshot } from '../process-management/context.js';
-import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
-import { purchaseQuoteBasis } from './quotes.js';
-import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
-import { randomUUID } from 'node:crypto';
-import {
-  isOpenRun,
-  APPROVAL_COLLECTIONS,
-  type TaskRow,
-  approvalState,
-  defineApproval,
-  stagesFor,
-  approve,
-  reject,
-  returnTo,
-  commentAction,
-  readAction,
-  ccAction,
-  defineApprovalAction,
-  configureAction,
-  allActivePeople,
-  claimAction,
-  releaseAction,
-  assignAction,
-  type Approval,
-  type PerformInput,
-} from '@nocobase/app-plugin-approval/server';
-import {
-  LifecycleRuntime,
-  type LifecycleStore,
-  type LifecycleRecord,
-  type JsonObject,
-  type EffectDispatcher,
-} from '@nocobase/lifecycle';
-import type {
-  DatabaseManager,
-  DatabaseConnection,
-  RepositoryPolicy,
-  RepositoryRecord,
-} from '@nocobase/db';
-import { createServiceToken } from '@nocobase/service-provider';
-import { PurchaseError } from './errors.js';
 import { VendorError } from '../vendors/service.js';
-import { exceedsMoneyThreshold } from '../exact-money.js';
-import type { BudgetService } from '../budgets/contract.js';
-import type { DictionaryService } from '../platform/dictionaries.js';
-import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import { PurchaseError } from './errors.js';
+import { purchaseQuoteBasis } from './quotes.js';
 
-import type { OrgService } from '../org/contract.js';
-import type { AuditService } from '../audit/index.js';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { EmployeeService } from '../employees/contract.js';
 import type {
   ApprovalDirectoryService,
   OaApprovalDirectory,
 } from '../approval-directory/contract.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import type { AuditService } from '../audit/index.js';
+import type { EmployeeService } from '../employees/contract.js';
+import type { OrgService } from '../org/contract.js';
 import type {
   CalendarService,
   RuleService,
   SequenceService,
 } from '../platform/index.js';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
 
-import {
-  PURCHASE_LIFECYCLE,
-  type PurchaseRecord,
-  type PurchaseInput,
-} from './contract.js';
-export {
-  PURCHASE_LIFECYCLE,
-  type PurchaseRecord,
-  type PurchaseInput,
-} from './contract.js';
-import type { VendorService } from '../vendors/contract.js';
-import type { PurchaseOrderService } from './contract.js';
 import { createHash } from 'node:crypto';
-import { quantityText, priceNeedsConfirmation } from './money.js';
+import type { VendorService } from '../vendors/contract.js';
+import { assertPurchaseQuoteFiles } from './attachments.js';
+import type { PurchaseOrderService } from './contract.js';
 import {
+  PURCHASE_LIFECYCLE,
+  type PurchaseInput,
+  type PurchaseRecord,
+} from './contract.js';
+import {
+  PricedInput,
   purchaseHandlingActions,
   purchaseHandlingOutputs,
   purchaseHandlingPolicy,
-  PricedInput,
 } from './handling.js';
-import { assertPurchaseQuoteFiles } from './attachments.js';
+import { priceNeedsConfirmation, quantityText } from './money.js';
+export {
+  PURCHASE_LIFECYCLE,
+  type PurchaseInput,
+  type PurchaseRecord,
+} from './contract.js';
 interface Services {
   directory: OaApprovalDirectory;
   connection?: DatabaseConnection;
@@ -1247,7 +1254,7 @@ export function createPurchaseService(d: PurchaseDependencies) {
       ]),
     ),
   });
-  runtime.register(approval, { services: source });
+  registerAppApproval(d.db, runtime, approval, source);
   const approvals = createAppApprovalService(
     runtime,
     [approval.approval as unknown as Approval<never>],
@@ -1421,62 +1428,25 @@ export function createPurchaseService(d: PurchaseDependencies) {
           : null,
       };
     },
-    async readableIds(actorId: string) {
+    async readableScope(actorId: string): Promise<DatabaseScope> {
       await refresh();
-      return readDirectory.run(outside.directory, async () => {
-        const records = await d.db
-          .repository<PurchaseRecord>('purchaseRequests')
-          .findMany();
-        const ids: string[] = [];
-        for (const record of records) {
-          if (
-            record.applicantId === actorId ||
-            record.createdById === actorId ||
-            record.executiveApproverId === actorId ||
-            ['finance', 'gm', 'approval.admin', 'purchasing'].some((role) =>
-              outside.directory.hasRole(actorId, role),
-            )
-          ) {
-            ids.push(record.id);
-            continue;
-          }
-          const involvement = await approvals.involvementOf(
-            PURCHASE_LIFECYCLE,
-            record.id,
-            actorId,
-          );
-          if (involvement.length) {
-            ids.push(record.id);
-            continue;
-          }
-          const acted = await hasApprovalTaskActor(
-            approvals,
-            PURCHASE_LIFECYCLE,
-            record.id,
-            actorId,
-          );
-          const head = Boolean(
-            (record.departmentId
-              ? await d.org.activeChain(record.departmentId)
-              : undefined
-            )?.some((department) => department.managerId === actorId),
-          );
-          if (
-            record.applicantId === actorId ||
-            record.createdById === actorId ||
-            involvement.length ||
-            acted ||
-            outside.directory.hasRole(actorId, 'finance') ||
-            record.executiveApproverId === actorId ||
-            outside.directory.hasRole(actorId, 'gm') ||
-            outside.directory.hasRole(actorId, 'approval.admin') ||
-            head ||
-            outside.directory.hasRole(actorId, 'purchasing')
-          )
-            ids.push(record.id);
-        }
-        return ids;
+      return approvalReadableScope(actorId, {
+        approvals: approvals,
+        lifecycle: PURCHASE_LIFECYCLE,
+        directory: outside.directory,
+        roles: ['finance', 'gm', 'approval.admin', 'purchasing'],
+        ownerFields: ['applicantId', 'createdById', 'executiveApproverId'],
+        taskActors: true,
+        org: d.org,
+        department: 'record',
       });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'purchaseRequests',
+        await this.readableScope(actorId),
+      );
     },
     runtime,
     approvals,
@@ -1620,6 +1590,10 @@ export function createPurchaseService(d: PurchaseDependencies) {
       );
       return { people, nextOffset: page.nextOffset };
     },
+    async accessFacts(id: string, actorId: string, policy?: RepositoryPolicy) {
+      const record = await canRead(id, actorId, policy);
+      return { applicantId: record.applicantId, status: record.status };
+    },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);
       return readDirectory.run(outside.directory, async () => {
@@ -1657,7 +1631,7 @@ export function createPurchaseService(d: PurchaseDependencies) {
           record,
           users,
           view: await runtime.view(PURCHASE_LIFECYCLE, id, actor),
-          runs: await approvals.runViewsFor(PURCHASE_LIFECYCLE, id),
+          runs,
           taskActions: await approvals.actionsFor(
             PURCHASE_LIFECYCLE,
             id,

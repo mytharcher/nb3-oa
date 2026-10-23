@@ -1,83 +1,90 @@
-import { demoNow } from '../demo-data/context.js';
 import {
-  hasApprovalCandidate,
+  allActivePeople,
+  APPROVAL_COLLECTIONS,
+  approvalState,
+  approve,
+  ccAction,
+  commentAction,
+  configureAction,
+  defineApprovalAction,
+  isOpenRun,
+  readAction,
+  reject,
+  returnTo,
+  stagesFor,
+  type Approval,
+  type PerformInput,
+  type TaskRow,
+} from '@nocobase/app-plugin-approval/server';
+import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
+import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
+import type {
+  DatabaseConnection,
+  DatabaseManager,
+  RepositoryPolicy,
+  RepositoryRecord,
+} from '@nocobase/db';
+import {
+  LifecycleRuntime,
+  type EffectDispatcher,
+  type JsonObject,
+  type LifecycleRecord,
+  type LifecycleStore,
+} from '@nocobase/lifecycle';
+import { createServiceToken } from '@nocobase/service-provider';
+import { randomUUID } from 'node:crypto';
+import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import {
   createAppApprovalService,
-  hasApprovalTaskActor,
+  hasApprovalCandidate,
 } from '../approval-runtime/query-service.js';
+import {
+  approvalReadableScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
+import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
+import {
+  defineAppApproval as defineApproval,
+  registerAppApproval,
+} from '../approval-runtime/task-center.js';
 import { runTaskViewsFor } from '../approval-runtime/task-views.js';
+import type { AttendanceService } from '../attendance/contract.js';
+import { demoNow } from '../demo-data/context.js';
+import { exceedsMoneyThreshold } from '../exact-money.js';
 import {
   appointAction,
   reassignAction,
 } from '../process-management/actions.js';
 import { processDirectorySnapshot } from '../process-management/context.js';
-import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
-import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
-import { randomUUID } from 'node:crypto';
-import {
-  isOpenRun,
-  APPROVAL_COLLECTIONS,
-  type TaskRow,
-  approvalState,
-  defineApproval,
-  stagesFor,
-  approve,
-  reject,
-  returnTo,
-  commentAction,
-  readAction,
-  ccAction,
-  defineApprovalAction,
-  configureAction,
-  allActivePeople,
-  type Approval,
-  type PerformInput,
-} from '@nocobase/app-plugin-approval/server';
-import {
-  LifecycleRuntime,
-  type LifecycleStore,
-  type LifecycleRecord,
-  type JsonObject,
-  type EffectDispatcher,
-} from '@nocobase/lifecycle';
-import type {
-  DatabaseManager,
-  DatabaseConnection,
-  RepositoryPolicy,
-  RepositoryRecord,
-} from '@nocobase/db';
-import { createServiceToken } from '@nocobase/service-provider';
 import { TrainingError } from './errors.js';
-import { exceedsMoneyThreshold } from '../exact-money.js';
-import type { AttendanceService } from '../attendance/contract.js';
-import { createOaApprovalOperations } from '../approval-directory/operations.js';
 
-import type { OrgService } from '../org/contract.js';
-import type { AuditService } from '../audit/index.js';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { EmployeeService } from '../employees/contract.js';
 import type {
   ApprovalDirectoryService,
   OaApprovalDirectory,
 } from '../approval-directory/contract.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import type { AuditService } from '../audit/index.js';
+import type { EmployeeService } from '../employees/contract.js';
+import type { OrgService } from '../org/contract.js';
 import type {
   CalendarService,
   RuleService,
   SequenceService,
 } from '../platform/index.js';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
 
+import type { ExpenseAuthorizationService } from '../expense-authorizations/contract.js';
 import {
   TRAINING_LIFECYCLE,
-  type TrainingRecord,
   type TrainingInput,
+  type TrainingRecord,
 } from './contract.js';
 export {
   TRAINING_LIFECYCLE,
-  type TrainingRecord,
   type TrainingInput,
+  type TrainingRecord,
 } from './contract.js';
-import type { ExpenseAuthorizationService } from '../expense-authorizations/contract.js';
 interface Services {
   directory: OaApprovalDirectory;
   connection?: DatabaseConnection;
@@ -854,7 +861,7 @@ export function createTrainingService(d: TrainingDependencies) {
       ]),
     ),
   });
-  runtime.register(approval, { services: source });
+  registerAppApproval(d.db, runtime, approval, source);
   const approvals = createAppApprovalService(
     runtime,
     [approval.approval as unknown as Approval<never>],
@@ -1003,61 +1010,26 @@ export function createTrainingService(d: TrainingDependencies) {
     async options(actorId: string) {
       return { timeZone: d.calendar.timeZone(), actorId };
     },
-    async readableIds(actorId: string) {
+    async readableScope(actorId: string): Promise<DatabaseScope> {
       await refresh();
-      return readDirectory.run(outside.directory, async () => {
-        const records = await d.db
-          .repository<TrainingRecord>('trainingRequests')
-          .findMany();
-        const ids: string[] = [];
-        for (const record of records) {
-          if (
-            record.applicantId === actorId ||
-            record.createdById === actorId
-          ) {
-            ids.push(record.id);
-            continue;
-          }
-          const involvement = await approvals.involvementOf(
-            TRAINING_LIFECYCLE,
-            record.id,
-            actorId,
-          );
-          if (involvement.length) {
-            ids.push(record.id);
-            continue;
-          }
-          const acted = await hasApprovalTaskActor(
-            approvals,
-            TRAINING_LIFECYCLE,
-            record.id,
-            actorId,
-          );
-          const head = Boolean(
-            (record.departmentId
-              ? await d.org.activeChain(record.departmentId)
-              : undefined
-            )?.some((department) => department.managerId === actorId),
-          );
-          if (
-            record.applicantId === actorId ||
-            record.createdById === actorId ||
-            involvement.length ||
-            acted ||
-            outside.directory.hasRole(actorId, 'finance') ||
-            record.executiveApproverId === actorId ||
-            outside.directory.hasRole(actorId, 'gm') ||
-            outside.directory.hasRole(actorId, 'approval.admin') ||
-            head ||
-            (await d.employees.isAboveInReportingLine(
-              actorId,
-              record.applicantId,
-            ))
-          )
-            ids.push(record.id);
-        }
-        return ids;
+      return approvalReadableScope(actorId, {
+        approvals: approvals,
+        lifecycle: TRAINING_LIFECYCLE,
+        directory: outside.directory,
+        roles: ['finance', 'gm', 'approval.admin'],
+        ownerFields: ['applicantId', 'createdById', 'executiveApproverId'],
+        taskActors: true,
+        org: d.org,
+        department: 'record',
+        employees: d.employees,
       });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'trainingRequests',
+        await this.readableScope(actorId),
+      );
     },
     runtime,
     approvals,
@@ -1189,6 +1161,10 @@ export function createTrainingService(d: TrainingDependencies) {
       );
       return { people, nextOffset: page.nextOffset };
     },
+    async accessFacts(id: string, actorId: string, policy?: RepositoryPolicy) {
+      const record = await canRead(id, actorId, policy);
+      return { applicantId: record.applicantId, status: record.status };
+    },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);
       return readDirectory.run(outside.directory, async () => {
@@ -1217,7 +1193,7 @@ export function createTrainingService(d: TrainingDependencies) {
           record,
           users,
           view: await runtime.view(TRAINING_LIFECYCLE, id, actor),
-          runs: await approvals.runViewsFor(TRAINING_LIFECYCLE, id),
+          runs,
           taskActions: await approvals.actionsFor(
             TRAINING_LIFECYCLE,
             id,

@@ -1,5 +1,4 @@
-import { Hono, type Context } from 'hono';
-import { z } from 'zod';
+import { ApprovalError } from '@nocobase/app-plugin-approval/server';
 import {
   authenticationToken,
   type AuthEnv,
@@ -9,35 +8,36 @@ import {
   type AuthorizationEnv,
 } from '@nocobase/app-plugin-authorization/server';
 import type { Application } from '@nocobase/app-server/application';
-import type { RepositoryPolicy } from '@nocobase/db';
 import {
   ApiError,
   apiErrorHandler,
   apiErrorResponses,
   apiValidator,
   dataResponse,
-  listResponse,
   defineApiRoutes,
   describeRoute,
+  listResponse,
 } from '@nocobase/app-server/router';
+import type { RepositoryPolicy } from '@nocobase/db';
 import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
-import { ApprovalError } from '@nocobase/app-plugin-approval/server';
+import { Hono, type Context } from 'hono';
+import { z } from 'zod';
 import { departureServiceToken } from '../../providers/departure/contract.js';
 import { DepartureError } from '../../providers/departure/service.js';
 import {
-  Options,
-  HandoverCandidates,
-  CandidatesQuery,
-  Candidates,
-  Create,
-  Params,
-  WorkParams,
-  Transition,
   Action,
-  WorkAction,
-  Record,
+  Candidates,
+  CandidatesQuery,
+  Create,
   Detail,
+  HandoverCandidates,
+  Options,
+  Params,
+  Record,
   Result,
+  Transition,
+  WorkAction,
+  WorkParams,
 } from './schemas.js';
 type Env = AuthEnv & AuthorizationEnv;
 export default [
@@ -298,9 +298,9 @@ export default [
         const id = c.req.valid('param').id,
           actorId = c.get('auth')!.user.id;
         const view = await policies(c, 'view');
-        const detail = await service.detail(id, actorId, view.record);
+        const facts = await service.accessFacts(id, actorId, view.record);
         const cancellation =
-          detail.record.status === 'cancellationReview'
+          facts.status === 'cancellationReview'
             ? await policies(c, 'cancel')
             : undefined;
         return c.json({

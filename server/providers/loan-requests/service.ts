@@ -1,89 +1,96 @@
-import { readLoanLedgerName } from './related-names.js';
-import { demoNow } from '../demo-data/context.js';
+import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
+import { z } from 'zod';
 import {
-  hasApprovalCandidate,
   createAppApprovalService,
-  hasApprovalTaskActor,
+  hasApprovalCandidate,
 } from '../approval-runtime/query-service.js';
+import {
+  approvalReadableScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
+import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
+import {
+  defineAppApproval as defineApproval,
+  registerAppApproval,
+} from '../approval-runtime/task-center.js';
 import { runTaskViewsFor } from '../approval-runtime/task-views.js';
+import { demoNow } from '../demo-data/context.js';
 import {
   appointAction,
   reassignAction,
 } from '../process-management/actions.js';
 import { processDirectorySnapshot } from '../process-management/context.js';
-import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
-import { z } from 'zod';
 import { loanCashActions } from './handling.js';
+import { readLoanLedgerName } from './related-names.js';
 
-import { randomUUID } from 'node:crypto';
 import {
+  allActivePeople,
   APPROVAL_COLLECTIONS,
-  type TaskRow,
   approvalState,
-  defineApproval,
-  stagesFor,
   approve,
-  reject,
-  returnTo,
-  commentAction,
-  readAction,
-  claimAction,
-  releaseAction,
   assignAction,
   ccAction,
+  claimAction,
+  commentAction,
   defineApprovalAction,
-  allActivePeople,
   isOpenRun,
+  readAction,
+  reject,
+  releaseAction,
+  returnTo,
+  stagesFor,
   type Approval,
   type PerformInput,
+  type TaskRow,
 } from '@nocobase/app-plugin-approval/server';
-import {
-  LifecycleRuntime,
-  type LifecycleStore,
-  type LifecycleRecord,
-  type JsonObject,
-  type EffectDispatcher,
-} from '@nocobase/lifecycle';
 import type {
-  DatabaseManager,
   DatabaseConnection,
+  DatabaseManager,
   RepositoryPolicy,
   RepositoryRecord,
 } from '@nocobase/db';
-
-export { loanRequestServiceToken } from './contract.js';
-import { lockLoanApplicant, checkLoanQuota } from './quota.js';
-import { LoanRequestError } from './errors.js';
+import {
+  LifecycleRuntime,
+  type EffectDispatcher,
+  type JsonObject,
+  type LifecycleRecord,
+  type LifecycleStore,
+} from '@nocobase/lifecycle';
+import { randomUUID } from 'node:crypto';
 import { exceedsMoneyThreshold } from '../exact-money.js';
 import type { LoanLedgerService } from '../loan-ledger/contract.js';
+import { LoanRequestError } from './errors.js';
+import { checkLoanQuota, lockLoanApplicant } from './quota.js';
+
+export {
+  LOAN_REQUEST_LIFECYCLE,
+  loanRequestServiceToken,
+  type LoanRequestInput,
+  type LoanRequestRecord,
+} from './contract.js';
 
 import { createOaApprovalOperations } from '../approval-directory/operations.js';
 
-import type { OrgService } from '../org/contract.js';
-import type { AuditService } from '../audit/index.js';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { EmployeeService } from '../employees/contract.js';
 import type {
   ApprovalDirectoryService,
   OaApprovalDirectory,
 } from '../approval-directory/contract.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import type { AuditService } from '../audit/index.js';
+import type { EmployeeService } from '../employees/contract.js';
+import type { OrgService } from '../org/contract.js';
 import type {
   CalendarService,
   RuleService,
   SequenceService,
 } from '../platform/index.js';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
 
 import {
   LOAN_REQUEST_LIFECYCLE,
-  type LoanRequestRecord,
   type LoanRequestInput,
-} from './contract.js';
-export {
-  LOAN_REQUEST_LIFECYCLE,
   type LoanRequestRecord,
-  type LoanRequestInput,
 } from './contract.js';
 
 interface Services {
@@ -1011,7 +1018,7 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
       ]),
     ),
   });
-  runtime.register(approval, { services: source });
+  registerAppApproval(d.db, runtime, approval, source);
   const approvals = createAppApprovalService(
     runtime,
     [approval.approval as unknown as Approval<never>],
@@ -1188,77 +1195,26 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
         ),
       };
     },
-    async readableIds(actorId: string) {
+    async readableScope(actorId: string): Promise<DatabaseScope> {
       await refresh();
-      return readDirectory.run(outside.directory, async () => {
-        const records = await d.db
-          .repository<LoanRequestRecord>('loanRequests')
-          .findMany();
-        const ids: string[] = [];
-        for (const record of records) {
-          if (
-            record.applicantId === actorId ||
-            record.createdById === actorId ||
-            record.executiveApproverId === actorId ||
-            ['finance', 'cashier', 'cfo', 'gm', 'approval.admin'].some((role) =>
-              outside.directory.hasRole(actorId, role),
-            )
-          ) {
-            ids.push(record.id);
-            continue;
-          }
-          const head = Boolean(
-            (record.departmentId
-              ? await d.org.activeChain(record.departmentId)
-              : undefined
-            )?.some((department) => department.managerId === actorId),
-          );
-          if (
-            head ||
-            (await d.employees.isAboveInReportingLine(
-              actorId,
-              record.applicantId,
-            ))
-          ) {
-            ids.push(record.id);
-            continue;
-          }
-          const involvement = await approvals.involvementOf(
-            LOAN_REQUEST_LIFECYCLE,
-            record.id,
-            actorId,
-          );
-          if (involvement.length) {
-            ids.push(record.id);
-            continue;
-          }
-          const acted = await hasApprovalTaskActor(
-            approvals,
-            LOAN_REQUEST_LIFECYCLE,
-            record.id,
-            actorId,
-          );
-          if (
-            record.applicantId === actorId ||
-            record.createdById === actorId ||
-            involvement.length ||
-            acted ||
-            outside.directory.hasRole(actorId, 'finance') ||
-            outside.directory.hasRole(actorId, 'cashier') ||
-            outside.directory.hasRole(actorId, 'cfo') ||
-            record.executiveApproverId === actorId ||
-            outside.directory.hasRole(actorId, 'gm') ||
-            outside.directory.hasRole(actorId, 'approval.admin') ||
-            head ||
-            (await d.employees.isAboveInReportingLine(
-              actorId,
-              record.applicantId,
-            ))
-          )
-            ids.push(record.id);
-        }
-        return ids;
+      return approvalReadableScope(actorId, {
+        approvals: approvals,
+        lifecycle: LOAN_REQUEST_LIFECYCLE,
+        directory: outside.directory,
+        roles: ['finance', 'cashier', 'cfo', 'gm', 'approval.admin'],
+        ownerFields: ['applicantId', 'createdById', 'executiveApproverId'],
+        taskActors: true,
+        org: d.org,
+        department: 'record',
+        employees: d.employees,
       });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'loanRequests',
+        await this.readableScope(actorId),
+      );
     },
     async repayments(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);
@@ -1659,6 +1615,10 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
         );
       return record.paymentAccount;
     },
+    async accessFacts(id: string, actorId: string, policy?: RepositoryPolicy) {
+      const record = await canRead(id, actorId, policy);
+      return { applicantId: record.applicantId, status: record.status };
+    },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);
       return redactLoanPayment(
@@ -1712,7 +1672,7 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
                   paymentAccount: null,
                 },
               })),
-            runs: await approvals.runViewsFor(LOAN_REQUEST_LIFECYCLE, id),
+            runs,
             taskActions: await approvals.actionsFor(
               LOAN_REQUEST_LIFECYCLE,
               id,

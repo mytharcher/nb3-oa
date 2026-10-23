@@ -1,7 +1,7 @@
 import type { Application } from '@nocobase/app-server/application';
 import { ApprovalService } from '@nocobase/app-plugin-approval/server';
 import { LifecycleRuntime } from '@nocobase/lifecycle';
-import type { RepositoryPolicy } from '@nocobase/db';
+import type { DatabaseConnection, RepositoryPolicy } from '@nocobase/db';
 import type {
   PerformInput,
   Approval,
@@ -37,7 +37,7 @@ import { certificateRequestServiceToken } from '../certificates/index.js';
 export interface ProcessSdk {
   runtime: LifecycleRuntime;
   approvals: ApprovalService;
-  read<T>(work: () => Promise<T>): Promise<T>;
+  read<T>(work: () => Promise<T>, connection?: DatabaseConnection): Promise<T>;
   definition?: Approval<never>;
 }
 export interface ProcessOwner {
@@ -94,9 +94,12 @@ async function publicSdk(service: unknown): Promise<ProcessSdk> {
     approvals = kit.approvals;
   const read =
     'read' in kit && typeof kit.read === 'function'
-      ? (kit.read as (work: () => Promise<unknown>) => Promise<unknown>).bind(
-          kit,
-        )
+      ? (
+          kit.read as (
+            work: () => Promise<unknown>,
+            connection?: DatabaseConnection,
+          ) => Promise<unknown>
+        ).bind(kit)
       : undefined;
   let definition: unknown =
     'approvalDefinition' in service ? service.approvalDefinition : undefined;
@@ -118,8 +121,10 @@ async function publicSdk(service: unknown): Promise<ProcessSdk> {
       'describe' in definition
         ? (definition as Approval<never>)
         : undefined,
-    read: async <T>(work: () => Promise<T>): Promise<T> =>
-      read ? ((await read(work)) as T) : work(),
+    read: async <T>(
+      work: () => Promise<T>,
+      connection?: DatabaseConnection,
+    ): Promise<T> => (read ? ((await read(work, connection)) as T) : work()),
   };
 }
 export const processOwners: readonly ProcessOwner[] = [

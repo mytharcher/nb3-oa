@@ -397,7 +397,9 @@ describe('reimbursement actual HTTP secure evidence and bank boundaries', () => 
         `/reimbursementRequests/${draft.id}/paymentAccount`,
         {
           ...json({
-            version: Number.MAX_SAFE_INTEGER,
+            // A stale version within PostgreSQL's INTEGER range tests the
+            // conflict contract without failing in the database parameter cast.
+            version: 2_147_483_647,
             payeeVersion: savedAccount.version,
             account: {
               bankName: 'Changed bank',

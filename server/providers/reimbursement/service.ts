@@ -1,110 +1,117 @@
-import { demoNow } from '../demo-data/context.js';
 import {
-  hasApprovalCandidate,
+  allActivePeople,
+  APPROVAL_COLLECTIONS,
+  approvalState,
+  approve,
+  assignAction,
+  ccAction,
+  claimAction,
+  commentAction,
+  configureAction,
+  defineApprovalAction,
+  hashOf,
+  isOpenRun,
+  peopleWithRole,
+  readAction,
+  reject,
+  releaseAction,
+  returnTo,
+  stagesFor,
+  transferAction,
+  type ActionContext,
+  type Approval,
+  type EligibilityQuery,
+  type PerformInput,
+  type RunRow,
+  type TaskRow,
+} from '@nocobase/app-plugin-approval/server';
+import {
+  lockUserForAdministration,
+  type UserAdministrationService,
+} from '@nocobase/app-plugin-authentication';
+import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
+import type {
+  DatabaseConnection,
+  DatabaseManager,
+  RepositoryPolicy,
+  RepositoryRecord,
+} from '@nocobase/db';
+import {
+  LifecycleRuntime,
+  type EffectDispatcher,
+  type JsonObject,
+  type LifecycleRecord,
+  type LifecycleStore,
+} from '@nocobase/lifecycle';
+import { createServiceToken } from '@nocobase/service-provider';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { randomUUID } from 'node:crypto';
+import { z } from 'zod';
+import type {
+  ApprovalDirectoryService,
+  OaApprovalDirectory,
+} from '../approval-directory/contract.js';
+import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import {
   createAppApprovalService,
-  hasApprovalTaskActor,
+  hasApprovalCandidate,
 } from '../approval-runtime/query-service.js';
+import {
+  approvalReadableScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
+import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
+import {
+  defineAppApproval as defineApproval,
+  registerAppApproval,
+} from '../approval-runtime/task-center.js';
 import { runTaskViewsFor } from '../approval-runtime/task-views.js';
+import type { AuditService } from '../audit/index.js';
+import { demoNow } from '../demo-data/context.js';
+import type { EmployeeService } from '../employees/contract.js';
+import { exceedsMoneyThreshold } from '../exact-money.js';
+import type { ExpenseAuthorizationService } from '../expense-authorizations/contract.js';
+import type { FinanceAssignmentService } from '../finance-assignments/contract.js';
+import type { InvoiceService } from '../invoices/contract.js';
+import type { LoanLedgerService } from '../loan-ledger/contract.js';
+import type { OrgService } from '../org/contract.js';
+import type {
+  CalendarService,
+  DictionaryService,
+  RuleService,
+  SequenceService,
+} from '../platform/index.js';
+import { isLocalDate } from '../platform/time-zone.js';
 import {
   appointAction,
   reassignAction,
 } from '../process-management/actions.js';
 import { processDirectorySnapshot } from '../process-management/context.js';
-import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
-import {
-  expenseCategoryStandardKinds,
-  validateReimbursementTravelStandards,
-  ReimbursementTravelStandardError,
-  type ReimbursementTravelStandardSnapshot,
-} from './travel-standards.js';
-import { randomUUID } from 'node:crypto';
-import { AsyncLocalStorage } from 'node:async_hooks';
-import { z } from 'zod';
-import {
-  lockUserForAdministration,
-  type UserAdministrationService,
-} from '@nocobase/app-plugin-authentication';
-import {
-  isOpenRun,
-  APPROVAL_COLLECTIONS,
-  approvalState,
-  defineApproval,
-  stagesFor,
-  approve,
-  reject,
-  returnTo,
-  commentAction,
-  readAction,
-  ccAction,
-  defineApprovalAction,
-  configureAction,
-  allActivePeople,
-  type ActionContext,
-  type EligibilityQuery,
-  claimAction,
-  releaseAction,
-  assignAction,
-  transferAction,
-  peopleWithRole,
-  hashOf,
-  type Approval,
-  type PerformInput,
-  type TaskRow,
-  type RunRow,
-} from '@nocobase/app-plugin-approval/server';
-import {
-  LifecycleRuntime,
-  type LifecycleStore,
-  type LifecycleRecord,
-  type JsonObject,
-  type EffectDispatcher,
-} from '@nocobase/lifecycle';
-import type {
-  DatabaseManager,
-  DatabaseConnection,
-  RepositoryPolicy,
-  RepositoryRecord,
-} from '@nocobase/db';
-import { createServiceToken } from '@nocobase/service-provider';
-import type { OrgService } from '../org/contract.js';
-import type { AuditService } from '../audit/index.js';
-import type { EmployeeService } from '../employees/contract.js';
-import type {
-  ApprovalDirectoryService,
-  OaApprovalDirectory,
-} from '../approval-directory/contract.js';
-import type {
-  CalendarService,
-  RuleService,
-  SequenceService,
-  DictionaryService,
-} from '../platform/index.js';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
-import type { FinanceAssignmentService } from '../finance-assignments/contract.js';
-import type { ExpenseAuthorizationService } from '../expense-authorizations/contract.js';
-import type { InvoiceService } from '../invoices/contract.js';
-import type { LoanLedgerService } from '../loan-ledger/contract.js';
-import { createOaApprovalOperations } from '../approval-directory/operations.js';
-import { exceedsMoneyThreshold } from '../exact-money.js';
-import { isLocalDate } from '../platform/time-zone.js';
+import { paymentAmounts, totalClaimCents } from './amounts.js';
 import {
   REIMBURSEMENT_LIFECYCLE,
-  type ReimbursementRecord,
+  type FinanceLineFact,
   type ReimbursementInput,
   type ReimbursementPayee,
-  type FinanceLineFact,
+  type ReimbursementRecord,
 } from './contract.js';
 import { ReimbursementError } from './errors.js';
-import { totalClaimCents, paymentAmounts } from './amounts.js';
-import { createReimbursementFunding } from './funding.js';
-import { createReimbursementSettlement } from './settlement.js';
-import { reviewBasis } from './review-basis.js';
-import { checkReturnedLineRevision } from './line-revision.js';
 import { reimbursementFinancePolicy, returnItem } from './finance-policy.js';
+import { createReimbursementFunding } from './funding.js';
 import {
   reimbursementCashierActions,
   reimbursementPaymentOutputs,
 } from './handling.js';
+import { checkReturnedLineRevision } from './line-revision.js';
+import { reviewBasis } from './review-basis.js';
+import { createReimbursementSettlement } from './settlement.js';
+import {
+  expenseCategoryStandardKinds,
+  ReimbursementTravelStandardError,
+  validateReimbursementTravelStandards,
+  type ReimbursementTravelStandardSnapshot,
+} from './travel-standards.js';
 export { REIMBURSEMENT_LIFECYCLE } from './contract.js';
 interface Services {
   directory: OaApprovalDirectory;
@@ -1493,7 +1500,7 @@ export function createReimbursementService(d: ReimbursementDependencies) {
       ]),
     ),
   });
-  runtime.register(approval, { services: source });
+  registerAppApproval(d.db, runtime, approval, source);
   const approvals = createAppApprovalService(
     runtime,
     [approval.approval as unknown as Approval<never>],
@@ -1801,67 +1808,26 @@ export function createReimbursementService(d: ReimbursementDependencies) {
     approvals,
     approvalDefinition:
       approval.approval as unknown as import('@nocobase/app-plugin-approval/server').Approval<never>,
-    async readableIds(actorId: string) {
+    async readableScope(actorId: string): Promise<DatabaseScope> {
       await refresh();
-      return readDirectory.run(outside.directory, async () => {
-        const records = await d.db
-          .repository<ReimbursementRecord>('reimbursementRequests')
-          .findMany();
-        const ids: string[] = [];
-        for (const record of records) {
-          if (
-            record.applicantId === actorId ||
-            record.createdById === actorId ||
-            record.executiveId === actorId ||
-            ['finance', 'financeManager', 'cfo', 'gm', 'approval.admin'].some(
-              (role) => outside.directory.hasRole(actorId, role),
-            )
-          ) {
-            ids.push(record.id);
-            continue;
-          }
-          const involvement = await approvals.involvementOf(
-            REIMBURSEMENT_LIFECYCLE,
-            record.id,
-            actorId,
-          );
-          if (involvement.length) {
-            ids.push(record.id);
-            continue;
-          }
-          const acted = await hasApprovalTaskActor(
-            approvals,
-            REIMBURSEMENT_LIFECYCLE,
-            record.id,
-            actorId,
-          );
-          const head = Boolean(
-            (record.departmentId
-              ? await d.org.activeChain(record.departmentId)
-              : undefined
-            )?.some((department) => department.managerId === actorId),
-          );
-          if (
-            record.applicantId === actorId ||
-            record.createdById === actorId ||
-            involvement.length ||
-            acted ||
-            outside.directory.hasRole(actorId, 'finance') ||
-            outside.directory.hasRole(actorId, 'financeManager') ||
-            outside.directory.hasRole(actorId, 'cfo') ||
-            record.executiveId === actorId ||
-            outside.directory.hasRole(actorId, 'gm') ||
-            outside.directory.hasRole(actorId, 'approval.admin') ||
-            head ||
-            (await d.employees.isAboveInReportingLine(
-              actorId,
-              record.applicantId,
-            ))
-          )
-            ids.push(record.id);
-        }
-        return ids;
+      return approvalReadableScope(actorId, {
+        approvals: approvals,
+        lifecycle: REIMBURSEMENT_LIFECYCLE,
+        directory: outside.directory,
+        roles: ['finance', 'financeManager', 'cfo', 'gm', 'approval.admin'],
+        ownerFields: ['applicantId', 'createdById', 'executiveId'],
+        taskActors: true,
+        org: d.org,
+        department: 'record',
+        employees: d.employees,
       });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'reimbursementRequests',
+        await this.readableScope(actorId),
+      );
     },
     async create(
       input: ReimbursementInput,
@@ -2116,6 +2082,10 @@ export function createReimbursementService(d: ReimbursementDependencies) {
       return d.db
         .repository<ReimbursementPayee>('reimbursementPayees')
         .findOne({ filter: { requestId: id } });
+    },
+    async accessFacts(id: string, actorId: string, policy?: RepositoryPolicy) {
+      const record = await canRead(id, actorId, policy);
+      return { applicantId: record.applicantId, status: record.status };
     },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);

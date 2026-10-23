@@ -1,3 +1,4 @@
+import { ApprovalError } from '@nocobase/app-plugin-approval/server';
 import {
   authenticationToken,
   type AuthEnv,
@@ -10,33 +11,32 @@ import type { Application } from '@nocobase/app-server/application';
 import {
   ApiError,
   apiErrorHandler,
-  defineApiRoutes,
-  describeRoute,
-  apiValidator,
-  dataResponse,
   apiErrorResponse,
   apiErrorResponses,
+  apiValidator,
+  dataResponse,
+  defineApiRoutes,
+  describeRoute,
   type AppRouteContribution,
 } from '@nocobase/app-server/router';
-import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
-import { ApprovalError } from '@nocobase/app-plugin-approval/server';
-import { z } from 'zod';
-import { Hono, type Context } from 'hono';
 import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
+import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
+import { Hono, type Context } from 'hono';
+import { z } from 'zod';
 import { SupplyError } from '../../providers/supplies/errors.js';
 import { supplyServiceToken } from '../../providers/supplies/index.js';
 import {
-  ActionInput,
   ActionCandidates,
+  ActionInput,
+  ActionResult,
   CreateSupply,
-  SupplyInput,
-  SupplyParams,
-  ListQuery,
-  TransitionInput,
-  Result,
   Detail,
   List,
-  ActionResult,
+  ListQuery,
+  Result,
+  SupplyInput,
+  SupplyParams,
+  TransitionInput,
 } from './schemas.js';
 export const routes: readonly AppRouteContribution<Application>[] = [
   defineApiRoutes<Application>((app) => {
@@ -283,12 +283,10 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         }),
       ),
       async (c) => {
-        const grant = await c
-          .get('authz')
-          .authorize({
-            resource: { type: 'composite', id: 'oa.supplies' },
-            action: 'submit',
-          });
+        const grant = await c.get('authz').authorize({
+          resource: { type: 'composite', id: 'oa.supplies' },
+          action: 'submit',
+        });
         if (grant.effect === 'deny') await readPolicy(c);
         return c.json({ data: await service.options() });
       },
@@ -353,14 +351,14 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         const actorId = c.get('auth')!.user.id;
         let mutationPolicy: RepositoryPolicy | undefined;
         if (['submit', 'edit', 'withdraw'].includes(input.transition)) {
-          const detail = await service.detail(
+          const detail = await service.accessFacts(
             c.req.valid('param').id,
             actorId,
             await readPolicy(c),
           );
           mutationPolicy = await actionPolicy(
             c,
-            detail.record.applicantId === actorId ? 'submit' : 'delegate',
+            detail.applicantId === actorId ? 'submit' : 'delegate',
           );
         }
         if (input.transition === 'edit') {

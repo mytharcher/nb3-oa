@@ -1,6 +1,4 @@
-import { i18nToken } from '@nocobase/app-server/i18n';
-import { getRequestLocale } from '@nocobase/i18n/server';
-import { Hono, type Context } from 'hono';
+import { ApprovalError } from '@nocobase/app-plugin-approval/server';
 import {
   authenticationToken,
   type AuthEnv,
@@ -9,27 +7,29 @@ import {
   authorizationToken,
   type AuthorizationEnv,
 } from '@nocobase/app-plugin-authorization/server';
-import { type RepositoryPolicy } from '@nocobase/db';
+import type { Application } from '@nocobase/app-server/application';
+import { i18nToken } from '@nocobase/app-server/i18n';
 import {
   ApiError,
   apiErrorHandler,
-  apiErrorResponses,
   apiErrorResponse,
-  defineApiRoutes,
-  describeRoute,
+  apiErrorResponses,
   apiValidator,
   dataResponse,
+  defineApiRoutes,
+  describeRoute,
   type AppRouteContribution,
 } from '@nocobase/app-server/router';
-import type { Application } from '@nocobase/app-server/application';
+import { type RepositoryPolicy } from '@nocobase/db';
+import { getRequestLocale } from '@nocobase/i18n/server';
 import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
-import { ApprovalError } from '@nocobase/app-plugin-approval/server';
-import { transferServiceToken } from '../../providers/transfer/service.js';
+import { Hono, type Context } from 'hono';
+import { HeadcountError } from '../../providers/headcounts/service.js';
 import { SalaryRangeError } from '../../providers/job-grades/ranges.js';
 import { SalaryTableError } from '../../providers/job-grades/service.js';
 import { TransferSalaryError } from '../../providers/transfer/salary.js';
+import { transferServiceToken } from '../../providers/transfer/service.js';
 import { TransferError } from '../../providers/transfer/submission.js';
-import { HeadcountError } from '../../providers/headcounts/service.js';
 import * as S from './schemas.js';
 export const routes: readonly AppRouteContribution<Application>[] = [
   defineApiRoutes<Application>((app) => {
@@ -387,7 +387,7 @@ export const routes: readonly AppRouteContribution<Application>[] = [
           },
         );
         return c.json({
-          data: await service.detail(id, actorId, await policy(c, 'view')),
+          data: await service.accessFacts(id, actorId, await policy(c, 'view')),
         });
       },
     );
@@ -405,7 +405,7 @@ export const routes: readonly AppRouteContribution<Application>[] = [
           id = c.req.valid('param').id,
           actorId = c.get('auth')!.user.id;
         const ordinary = await policy(c, 'view');
-        await service.detail(id, actorId, ordinary);
+        await service.accessFacts(id, actorId, ordinary);
         await service.action(
           id,
           { ...input, requestId: requestKey },
@@ -451,7 +451,7 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         const query = c.req.valid('query'),
           id = c.req.valid('param').id,
           actorId = c.get('auth')!.user.id;
-        await service.detail(id, actorId, await policy(c, 'view'));
+        await service.accessFacts(id, actorId, await policy(c, 'view'));
         return c.json({
           data: await service.candidates(
             id,

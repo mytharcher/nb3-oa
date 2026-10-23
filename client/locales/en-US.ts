@@ -8,6 +8,7 @@ import sealsLocale from './modules/seals.en-US.js';
 import recruitmentLocale from './modules/recruitment.en-US.js';
 import announcementsLocale from './modules/announcements.en-US.js';
 import workItemsLocale from './modules/work-items.en-US.js';
+import taskCenterUiLocale from '../extensions/nocobase-task-center-ui/locales/en-US.js';
 import taskCenterLocale from './modules/task-center.en-US.js';
 import knowledgeLocale from './modules/knowledge.en-US.js';
 import transferLocale from './modules/transfer.en-US.js';
@@ -84,6 +85,7 @@ const enUS = {
   ...certificatesLocale,
   ...knowledgeLocale,
   ...workItemsLocale,
+  ...taskCenterUiLocale,
   ...taskCenterLocale,
   ...accessLocale,
   ...meetingRoomsLocale,

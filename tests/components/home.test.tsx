@@ -126,7 +126,7 @@ function serve(mine: LeaveRecord[] = [], pending: LeaveRecord[] = []) {
             items: [],
           },
         });
-      if (path === 'announcements/pending')
+      if (path === 'workbench/announcementReceipts')
         return Promise.resolve({ data: { count: 0, items: [] } });
       const capabilities: Record<string, unknown> = {
         'assetRequests/options': {
@@ -150,7 +150,7 @@ function serve(mine: LeaveRecord[] = [], pending: LeaveRecord[] = []) {
       };
       if (path in capabilities)
         return Promise.resolve({ data: capabilities[path] });
-      if (path !== 'approvalCenter')
+      if (path !== 'workbench/tasks')
         throw new Error(`Unexpected fixture endpoint: ${path}`);
       const original = query.view === 'mine' ? mine : pending;
       const selected = original.filter(
@@ -375,7 +375,7 @@ describe('personal workbench', () => {
       screen.getByRole('link', { name: 'Awaiting my action 0' }),
     ).toHaveAttribute('href', '/approvals/todo');
   });
-  it('keeps drafts in the center instead of previewing them in my requests', async () => {
+  it('keeps the draft shortcut available when the response omits drafts from its preview', async () => {
     serve([{ ...record('no-summary', 'draft'), title: '', number: null }]);
     open();
     await screen.findByText(enUS.workbench.allClear);
@@ -465,7 +465,7 @@ describe('personal workbench', () => {
       const complete = new Map<string, () => void>();
       api.request.mockImplementation(
         (input: { path: string; query?: Record<string, string> }) => {
-          if (input.path !== 'approvalCenter') return original(input);
+          if (input.path !== 'workbench/tasks') return original(input);
           return new Promise((resolve, reject) => {
             complete.set(input.query?.view ?? '', () => {
               if (fail && input.query?.view === 'mine')
@@ -717,17 +717,24 @@ describe('personal workbench', () => {
     ).toHaveLength(1);
     expect(api.request).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: 'approvalCenter',
+        path: 'workbench/tasks',
         query: expect.objectContaining({ view: 'pending' }),
       }),
     );
     expect(api.request).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: 'approvalCenter',
+        path: 'workbench/tasks',
         query: expect.objectContaining({ view: 'mine' }),
       }),
     );
     expect(screen.queryByText(enUS.home.title)).not.toBeInTheDocument();
+    expect(
+      api.request.mock.calls.some(
+        ([request]) =>
+          request.path === 'approvalCenter' ||
+          request.path === 'announcements/pending',
+      ),
+    ).toBe(false);
   });
   it('offers manual probation creation only after the server confirms HR identity', async () => {
     const defaultReply = api.request.getMockImplementation()!;
@@ -963,7 +970,7 @@ describe('personal workbench', () => {
         screen.queryByRole('button', { name: enUS.approvalCenter.kinds.leave }),
       ).not.toBeInTheDocument();
       expect(
-        api.request.mock.calls.some(([r]) => r.path === 'approvalCenter'),
+        api.request.mock.calls.some(([r]) => r.path === 'workbench/tasks'),
       ).toBe(false);
     },
   );
@@ -976,7 +983,7 @@ describe('personal workbench', () => {
       { wrapper: I18n },
     );
     expect(
-      api.request.mock.calls.some(([r]) => r.path === 'approvalCenter'),
+      api.request.mock.calls.some(([r]) => r.path === 'workbench/tasks'),
     ).toBe(false);
     unmount();
     permission.pending = false;
@@ -1056,7 +1063,7 @@ describe('personal workbench', () => {
                       items: [],
                     },
                   })
-                : path === 'announcements/pending'
+                : path === 'workbench/announcementReceipts'
                   ? Promise.resolve({ data: { count: 0, items: [] } })
                   : query?.view === 'pending'
                     ? Promise.reject(

@@ -1,3 +1,4 @@
+import { registerAppApproval } from '../approval-runtime/task-center.js';
 import { demoNow } from '../demo-data/context.js';
 import { createAppApprovalService } from '../approval-runtime/query-service.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -150,7 +151,7 @@ export function createContractRuntime(
     dispatcher,
   });
   const definition = contractGraph(host);
-  runtime.register(definition, { services: source });
+  registerAppApproval(db, runtime, definition, source);
   const approvals = createAppApprovalService(
     runtime,
     [definition.approval as unknown as Approval<never>],

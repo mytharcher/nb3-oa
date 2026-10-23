@@ -1,46 +1,42 @@
-import { headcountServiceToken } from '../headcounts/contract.js';
-import { departureCustodyClearanceToken } from './contract.js';
-import { workItemServiceToken } from '../work-items/contract.js';
-import type { Application } from '@nocobase/app-server/application';
-import { ServiceProvider } from '@nocobase/service-provider';
-import { databaseManagerToken } from '@nocobase/db';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
-import { employeeServiceToken } from '../employees/contract.js';
-import { orgServiceToken } from '../org/contract.js';
-import {
-  calendarServiceToken,
-  ruleServiceToken,
-  sequenceServiceToken,
-} from '../platform/index.js';
-import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
-import { dictionaryServiceToken } from '../platform/index.js';
-import { auditServiceToken } from '../audit/index.js';
-import { probationDepartureAdapterToken } from '../probation/contract.js';
-import {
-  departureServiceToken,
-  departureAssetClearanceToken,
-  departureFinancialClearanceToken,
-  departureApprovalReassignmentToken,
-} from './contract.js';
-import { organizationServiceToken } from '../org/index.js';
-import { approvalNotificationServiceToken } from '../approval-notifications/contract.js';
-import { loanLedgerServiceToken } from '../loan-ledger/contract.js';
-import { reimbursementServiceToken } from '../reimbursement/index.js';
-import { createDepartureService } from './service.js';
-import {
-  authorizationToken,
-  condition,
-  anyScope,
-} from '@nocobase/app-plugin-authorization/server';
-import { defineRecordAccess } from '@nocobase/authorization/core';
-import { departureResource } from './authz.js';
+import { authorizationToken } from '@nocobase/app-plugin-authorization/server';
 import { schedulerServiceToken } from '@nocobase/app-plugin-scheduler/server/tokens';
+import type { Application } from '@nocobase/app-server/application';
 import { i18nToken } from '@nocobase/app-server/i18n';
 import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
+import { defineRecordAccess } from '@nocobase/authorization/core';
+import { databaseManagerToken } from '@nocobase/db';
 import {
   createLifecycleJobs,
   type LifecycleJobs,
 } from '@nocobase/lifecycle/jobs';
+import { ServiceProvider } from '@nocobase/service-provider';
+import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
+import { approvalNotificationServiceToken } from '../approval-notifications/contract.js';
+import { auditServiceToken } from '../audit/index.js';
+import { employeeServiceToken } from '../employees/contract.js';
+import { headcountServiceToken } from '../headcounts/contract.js';
+import { loanLedgerServiceToken } from '../loan-ledger/contract.js';
+import { orgServiceToken } from '../org/contract.js';
+import { organizationServiceToken } from '../org/index.js';
+import {
+  calendarServiceToken,
+  dictionaryServiceToken,
+  ruleServiceToken,
+  sequenceServiceToken,
+} from '../platform/index.js';
+import { probationDepartureAdapterToken } from '../probation/contract.js';
+import { reimbursementServiceToken } from '../reimbursement/index.js';
+import { workItemServiceToken } from '../work-items/contract.js';
+import { departureResource } from './authz.js';
+import {
+  departureApprovalReassignmentToken,
+  departureAssetClearanceToken,
+  departureCustodyClearanceToken,
+  departureFinancialClearanceToken,
+  departureServiceToken,
+} from './contract.js';
+import { createDepartureService } from './service.js';
 export { departureServiceToken } from './contract.js';
 export default class DepartureProvider extends ServiceProvider<Application> {
   public readonly name = 'oa/departure-provider';
@@ -149,12 +145,9 @@ export default class DepartureProvider extends ServiceProvider<Application> {
           .collections('departureRequests')
           .resolver(async ({ principal }) => {
             if (principal.type !== 'user') return false;
-            const ids = await c
+            return await c
               .resolve(departureServiceToken)
-              .readableIds(principal.id);
-            return ids.length
-              ? anyScope(ids.map((id) => condition('id', '$eq', id)))
-              : false;
+              .readableScope(principal.id);
           }),
       ),
     );

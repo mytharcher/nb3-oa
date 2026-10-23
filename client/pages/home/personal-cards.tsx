@@ -12,9 +12,13 @@ import {
 } from '#components/ui/card';
 import { Button } from '#components/ui/button';
 import { Skeleton } from '#components/ui/skeleton';
+import {
+  useLeaveCardData,
+  useMeetingSummary,
+  type LeaveCardData,
+} from './personal-card-data.js';
 import { useResource } from '../approvals/use-resource.js';
 import { ErrorState } from '../approvals/states.js';
-import type { Balance, LeaveType } from '../leave-balances/types.js';
 
 export function PersonalCards() {
   const { session } = useAuthentication();
@@ -103,12 +107,11 @@ function SummaryCard({
     </Card>
   );
 }
-function LeaveCard() {
+export function LeaveCard() {
+  return <LeaveCardView {...useLeaveCardData()} />;
+}
+export function LeaveCardView({ balances, options }: LeaveCardData) {
   const { t, i18n } = useTranslation();
-  const balances = useResource<Balance[]>('leaveBalances/me');
-  const options = useResource<{ leaveTypes: LeaveType[] }>(
-    'leaveRequests/options',
-  );
   const reload = () => {
     balances.reload();
     options.reload();
@@ -150,21 +153,19 @@ function LeaveCard() {
     </SummaryCard>
   );
 }
-export interface MeetingSummary {
-  date: string;
-  timeZone: string;
-  total: number;
-  items: {
-    id: string;
-    title: string;
-    startAt: string;
-    endAt: string;
-    status: string;
-  }[];
+export function MeetingCard({ canNavigate }: { canNavigate: boolean }) {
+  return (
+    <MeetingCardView resource={useMeetingSummary()} canNavigate={canNavigate} />
+  );
 }
-function MeetingCard({ canNavigate }: { canNavigate: boolean }) {
+export function MeetingCardView({
+  resource,
+  canNavigate,
+}: {
+  resource: ReturnType<typeof useMeetingSummary>;
+  canNavigate: boolean;
+}) {
   const { t, i18n } = useTranslation();
-  const resource = useResource<MeetingSummary>('workbench/meetings');
   const data = resource.data;
   const location = useLocation();
   const time = (value: string) =>
@@ -228,9 +229,8 @@ function AnnouncementCard() {
       id: string;
       announcementId: string;
       title: string;
-      dueAt: string;
     }[];
-  }>('announcements/pending');
+  }>('workbench/announcementReceipts');
   return (
     <SummaryCard
       title='workbench.announcementReceipts'

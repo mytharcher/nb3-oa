@@ -1,48 +1,54 @@
-import { demoNow } from '../demo-data/context.js';
-import { createHash, randomUUID } from 'node:crypto';
-import { createServiceToken } from '@nocobase/service-provider';
+import {
+  isOpenRun,
+  type ActionTarget,
+  type ApprovalService,
+  type PeopleQuery,
+  type PerformInput,
+} from '@nocobase/app-plugin-approval/server';
 import {
   lockUserForAdministration,
   type UserAdministrationService,
 } from '@nocobase/app-plugin-authentication';
-import {
-  isOpenRun,
-  type PerformInput,
-  type ApprovalService,
-  type ActionTarget,
-  type PeopleQuery,
-} from '@nocobase/app-plugin-approval/server';
+import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
 import type {
-  DatabaseManager,
   DatabaseConnection,
+  DatabaseManager,
   RepositoryPolicy,
 } from '@nocobase/db';
-import type { JsonObject, EffectDispatcher } from '@nocobase/lifecycle';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
-import type { AuditService } from '../audit/index.js';
-import type { OrgService } from '../org/contract.js';
-import type { EmployeeService } from '../employees/contract.js';
+import type { EffectDispatcher, JsonObject } from '@nocobase/lifecycle';
+import { createServiceToken } from '@nocobase/service-provider';
+import { createHash, randomUUID } from 'node:crypto';
 import type { ApprovalDirectoryService } from '../approval-directory/contract.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import {
+  approvalReadableScope,
+  memberScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
+import type { AuditService } from '../audit/index.js';
+import { demoNow } from '../demo-data/context.js';
+import type { EmployeeService } from '../employees/contract.js';
+import type { OrgService } from '../org/contract.js';
 import type {
   CalendarService,
+  DictionaryService,
   RuleService,
   SequenceService,
-  DictionaryService,
 } from '../platform/index.js';
 import type { VendorService } from '../vendors/contract.js';
 import { committeeCandidates } from './committee.js';
 import { createCommitteeConfiguration } from './configuration.js';
-import { createQualificationRuntime } from './runtime.js';
-import {
-  vendorQualificationInputSchema,
-  validateQualificationSubmission,
-} from './validation.js';
 import {
   VENDOR_QUALIFICATION_KIND,
   type VendorQualificationInput,
   type VendorQualificationRecord,
 } from './contract.js';
-import { refuse, VendorQualificationError } from './errors.js';
+import { refuse } from './errors.js';
+import { createQualificationRuntime } from './runtime.js';
+import {
+  validateQualificationSubmission,
+  vendorQualificationInputSchema,
+} from './validation.js';
 interface Bank {
   requestId: string;
   bankName: string;
@@ -720,24 +726,29 @@ export function createVendorQualificationService(d: QualificationDependencies) {
         return result;
       });
     },
-    async readableIds(actorId: string) {
-      const rows = await d.db
-        .repository<{ id: string }>('vendorQualifications')
-        .findMany();
-      const ids: string[] = [];
-      for (const row of rows) {
-        try {
-          await canRead(row.id, actorId);
-          ids.push(row.id);
-        } catch (error) {
-          if (
-            !(error instanceof VendorQualificationError) ||
-            error.kind !== 'permission'
-          )
-            throw error;
-        }
-      }
-      return ids;
+    async readableScope(actorId: string): Promise<DatabaseScope> {
+      const kit = await sdk();
+      return approvalReadableScope(actorId, {
+        approvals: kit.approvals,
+        lifecycle: VENDOR_QUALIFICATION_KIND,
+        directory: await d.directory.snapshot(),
+        roles: ['finance', 'financeManager', 'cfo', 'gm', 'approval.admin'],
+        ownerFields: ['applicantId', 'createdById'],
+        taskActors: false,
+        extra: async () => {
+          const department = await d.org.primaryDepartmentOf(actorId);
+          return department && (await d.org.headOf(department.id)) === actorId
+            ? memberScope('departmentId', await d.org.subtreeIds(department.id))
+            : false;
+        },
+      });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'vendorQualifications',
+        await this.readableScope(actorId),
+      );
     },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy),
