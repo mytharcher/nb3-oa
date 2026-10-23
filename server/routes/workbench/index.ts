@@ -1,3 +1,4 @@
+import { workbenchTaskRoutes } from './tasks.js';
 import {
   authenticationToken,
   type AuthEnv,
@@ -173,6 +174,7 @@ export default [
     );
     const root = new Hono();
     root.route('/', r);
+    root.route('/', workbenchTaskRoutes(app));
     return root;
   }),
 ];

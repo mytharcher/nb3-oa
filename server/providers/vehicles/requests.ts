@@ -1,3 +1,5 @@
+import { registerAppApproval } from '../approval-runtime/task-center.js';
+import { defineAppApproval as defineApproval } from '../approval-runtime/task-center.js';
 import { demoNow } from '../demo-data/context.js';
 import {
   hasApprovalCandidate,
@@ -10,7 +12,6 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   approvalState,
-  defineApproval,
   stagesFor,
   approve,
   reject,
@@ -731,7 +732,7 @@ export function createVehicleRequestService(d: VehicleRequestDependencies) {
       ]),
     ),
   });
-  runtime.register(approval, { services });
+  registerAppApproval(d.db, runtime, approval, services);
   const approvals = createAppApprovalService(
     runtime,
     [approval.approval as unknown as Approval<never>],
@@ -1147,7 +1148,7 @@ export function createVehicleRequestService(d: VehicleRequestDependencies) {
           .repository<VehicleRequest>('vehicleRequests')
           .findOne({ filter: { id } });
         const reader = new LifecycleRuntime({ clock: demoNow, store: child });
-        reader.register(approval, { services });
+        registerAppApproval(d.db, reader, approval, services);
         const readerApprovals = createAppApprovalService(
           reader,
           [approval.approval as unknown as Approval<never>],

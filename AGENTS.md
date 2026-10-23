@@ -12,13 +12,13 @@ This repository owns the application business code. Build features directly in t
 - Environment: Node.js >= 24 and pnpm. See [package.json](package.json) and the lockfile for exact versions.
 - Registered plugins below omit the `@nocobase/app-plugin-` prefix:
 
-| Capability                          | Plugins                                                                                   |
-| ----------------------------------- | ----------------------------------------------------------------------------------------- |
-| Authentication, users, and API keys | `authentication`, `users`, `api-keys`                                                     |
-| Authorization and data scopes       | `authorization`, `authz-default-access`, `authz-sharing-rules`, `authz-restriction-rules` |
-| Internationalization and files      | `i18n`, `file`                                                                            |
-| Notifications and inbox             | `notification`, `notification-in-app`, `notification-providers`                           |
-| Approvals, scheduling, and agents   | `approval`, `scheduler`, `agents`                                                         |
+| Capability                               | Plugins                                                                                   |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Authentication, users, and API keys      | `authentication`, `users`, `api-keys`                                                     |
+| Authorization and data scopes            | `authorization`, `authz-default-access`, `authz-sharing-rules`, `authz-restriction-rules` |
+| Internationalization and files           | `i18n`, `file`                                                                            |
+| Notifications and inbox                  | `notification`, `notification-in-app`, `notification-providers`                           |
+| Approvals, tasks, scheduling, and agents | `approval`, `task-center` (Server), `scheduler`, `agents`                                 |
 
 Registration lives in [server/plugins.ts](server/plugins.ts), [client/plugins.ts](client/plugins.ts), and [cli/plugins.ts](cli/plugins.ts), as needed by each runtime. Approval pages import the plugin's frontend helpers and locales directly. Template printing uses `@nocobase/app-plugin-template-print` through the application's `server/providers/template-print/`. An installed dependency is not necessarily registered or enabled.
 

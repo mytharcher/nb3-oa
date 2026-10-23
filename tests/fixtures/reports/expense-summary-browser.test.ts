@@ -156,9 +156,9 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
             const baselineErrors = [...errors];
             errors.length = 0;
             await p.goto(
-              `${h.origin}${h.basePath}/reports?expenseYear=2026&expenseMonth=1`,
+              `${h.origin}${h.basePath}/reports/expense-summary?expenseYear=2026&expenseMonth=1`,
             );
-            await p.getByRole('tab', { name: copy.title, exact: true }).click();
+            await expect(p.getByRole('tablist')).toHaveCount(0);
             await expect(p.getByText('other', { exact: true })).toBeVisible();
             await expect(p.locator('tbody tr')).toHaveCount(1);
             await expect(

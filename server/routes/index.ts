@@ -1,3 +1,4 @@
+import taskCenterRoutes from './task-center/index.js';
 import processManagementRoutes from './process-management/index.js';
 import personalSchedulesRoutes from './personal-schedules/index.js';
 import approvalReturnRateRoutes from './reports/approval-return-rate.js';
@@ -62,6 +63,7 @@ import approvalEfficiencyRoutes from './reports/approval-efficiency.js';
 const routes: readonly AppRouteContribution<Application>[] = [
   ...workbenchRoutes,
   ...processManagementRoutes,
+  ...taskCenterRoutes,
   ...personalSchedulesRoutes,
   ...approvalReturnRateRoutes,
   ...accessRoutes,

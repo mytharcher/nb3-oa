@@ -1,49 +1,49 @@
+import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
+import {
+  anyScope,
+  authorizationToken,
+  condition,
+  defineDatabasePermission,
+} from '@nocobase/app-plugin-authorization/server';
 import {
   notificationServiceToken,
   type NotificationConfig,
 } from '@nocobase/app-plugin-notification/server';
-import { i18nToken } from '@nocobase/app-server/i18n';
-import { replacementNotificationsToken } from '../headcounts/notifications.js';
-import { createRecruitmentReplacementOwner } from './notifications.js';
-import { ServiceProvider } from '@nocobase/service-provider';
 import type { Application } from '@nocobase/app-server/application';
-import { databaseManagerToken } from '@nocobase/db';
-import {
-  authorizationToken,
-  defineDatabasePermission,
-  condition,
-  anyScope,
-} from '@nocobase/app-plugin-authorization/server';
+import { i18nToken } from '@nocobase/app-server/i18n';
+import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
+import { loggingToken } from '@nocobase/app-server/logging';
 import {
   defineCompositeResource,
   defineRecordAccess,
 } from '@nocobase/authorization/core';
-import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
+import { databaseManagerToken } from '@nocobase/db';
 import {
   createLifecycleJobs,
   type LifecycleJobs,
 } from '@nocobase/lifecycle/jobs';
-import { loggingToken } from '@nocobase/app-server/logging';
-import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
+import { ServiceProvider } from '@nocobase/service-provider';
+import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
+import { approvalNotificationServiceToken } from '../approval-notifications/contract.js';
+import { auditServiceToken } from '../audit/index.js';
+import { employeeServiceToken } from '../employees/contract.js';
+import { headcountServiceToken } from '../headcounts/contract.js';
+import { replacementNotificationsToken } from '../headcounts/notifications.js';
+import { salaryGradeServiceToken } from '../job-grades/contract.js';
 import { orgServiceToken } from '../org/contract.js';
 import {
   organizationServiceToken,
   registerDepartmentScopes,
 } from '../org/index.js';
-import { employeeServiceToken } from '../employees/contract.js';
-import { headcountServiceToken } from '../headcounts/contract.js';
-import { salaryGradeServiceToken } from '../job-grades/contract.js';
-import { auditServiceToken } from '../audit/index.js';
-import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
-import { approvalNotificationServiceToken } from '../approval-notifications/contract.js';
 import { calendarServiceToken, ruleServiceToken } from '../platform/index.js';
+import { createRecruitmentReplacementOwner } from './notifications.js';
+import { requisitionServiceToken } from './requisitions.js';
 import {
   createRecruitmentService,
   recruitmentServiceToken,
 } from './service.js';
-import { requisitionServiceToken } from './requisitions.js';
-export * from './service.js';
 export * from './requisitions.js';
+export * from './service.js';
 const read = defineDatabasePermission((p) =>
   p.collection('recruitmentRequests').read('*'),
 );
@@ -199,13 +199,9 @@ export default class RecruitmentProvider extends ServiceProvider<Application> {
           .collections('recruitmentRequests')
           .resolver(async ({ principal }) => {
             if (principal.type !== 'user') return false;
-            const ids = await c
+            return c
               .resolve(recruitmentServiceToken)
-              .readableIds(principal.id);
-            return anyScope([
-              condition('applicantId', '$eq', principal.id),
-              ...ids.map((id) => condition('id', '$eq', id)),
-            ]);
+              .readableScope(principal.id);
           }),
       ),
     );

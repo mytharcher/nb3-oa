@@ -1,3 +1,4 @@
+import { applicationCategory } from '../../providers/task-center/application-category.js';
 import type { CenterRecord } from './schemas.js';
 
 // These summaries only consume the owning service's already-authorized DTO.
@@ -20,34 +21,6 @@ export function readableSummary(record: object, field: string) {
   };
 }
 
-const inProgressStatuses = new Set([
-  'hrbp',
-  'hrDirector',
-  'legal',
-  'financeManager',
-  'stamping',
-  'returning',
-  'returnException',
-  'dispatch',
-  'usage',
-  'manager',
-  'sourceHead',
-  'targetHead',
-  'pendingEffective',
-  'cancellationReview',
-  'head',
-  'hr',
-  'extra',
-  'issuing',
-  'booking',
-  'unbooking',
-  'cashier',
-  'finance',
-  'executive',
-  'cfo',
-  'gm',
-]);
-
 export type CenterCategory =
   'drafts' | 'revisions' | 'inProgress' | 'submitted';
 export function matchesCategory(
@@ -61,5 +34,5 @@ export function matchesCategory(
   if (category === 'drafts') return record.status === 'draft';
   if (category === 'revisions')
     return ['revision', 'exception'].includes(record.status);
-  return inProgressStatuses.has(record.status);
+  return applicationCategory(record.status) === 'inProgress';
 }

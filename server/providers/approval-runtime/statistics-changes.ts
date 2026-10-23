@@ -1,3 +1,4 @@
+import { synchronizeTaskDependencies } from './task-center.js';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 import type { ApprovalQuery } from '@nocobase/app-plugin-approval/server';
 import type { LifecycleRuntime } from '@nocobase/lifecycle';
@@ -84,6 +85,28 @@ export class ApprovalStatisticsChangeService implements ApprovalStatisticsChange
     work: (connection: DatabaseConnection) => Promise<T>,
     connection?: DatabaseConnection,
   ): Promise<T> {
+    return this.execute(change, work, connection, true);
+  }
+
+  async guard<T>(
+    work: (connection: DatabaseConnection) => Promise<T>,
+    connection?: DatabaseConnection,
+    kinds: 'all' | readonly string[] = 'all',
+  ): Promise<T> {
+    return this.execute(
+      { kinds, userIds: [], reason: 'delegationWriteGuard' },
+      work,
+      connection,
+      false,
+    );
+  }
+
+  private async execute<T>(
+    change: ApprovalStatisticsChange,
+    work: (connection: DatabaseConnection) => Promise<T>,
+    connection: DatabaseConnection | undefined,
+    synchronize: boolean,
+  ): Promise<T> {
     const sources = this.selected(change);
     const users = [...new Set(change.userIds)].sort();
     const enter = async (
@@ -101,9 +124,10 @@ export class ApprovalStatisticsChangeService implements ApprovalStatisticsChange
         );
       }
       const result = await work(current);
+      if (!synchronize) return result;
       // Re-enter each owner after the final write so its directory and guards see
       // the new facts, rather than the snapshot captured while acquiring gates.
-      for (const source of sources)
+      for (const source of users.length ? sources : [])
         await withAppLifecycleTransaction(current, () =>
           source.runtime.transaction(async (tx) => {
             for (const userId of users)
@@ -113,6 +137,15 @@ export class ApprovalStatisticsChangeService implements ApprovalStatisticsChange
                 tx,
               );
           }),
+        );
+      for (const source of sources)
+        await synchronizeTaskDependencies(
+          this.database,
+          source.business,
+          current,
+          ['delegationChanged', 'delegationTimeChanged'].includes(change.reason)
+            ? { assigneeIds: users }
+            : undefined,
         );
       return result;
     };

@@ -1,33 +1,45 @@
-import { demoNow } from '../demo-data/context.js';
-import {
-  hasApprovalCandidate,
-  createAppApprovalService,
-} from '../approval-runtime/query-service.js';
-import { runTaskViewsFor } from '../approval-runtime/task-views.js';
-import {
-  appLifecycleTransaction,
-  createAppLifecycleStore,
-} from '../approval-runtime/repository-store.js';
-import { randomUUID, createHash } from 'node:crypto';
-import { AsyncLocalStorage } from 'node:async_hooks';
-import { candidateDirectory } from '../approval-runtime/candidate-directory.js';
+import { measureApprovalPhase } from '../approval-runtime/timing.js';
 import {
   lockUserForAdministration,
   type UserAdministrationService,
 } from '@nocobase/app-plugin-authentication';
 import {
-  defineLifecycle,
-  LifecycleRuntime,
-  type LifecycleStore,
-  type JsonObject,
-} from '@nocobase/lifecycle';
+  anyScope,
+  condition,
+  type DatabaseScope,
+} from '@nocobase/app-plugin-authorization/server';
 import type {
-  DatabaseManager,
   DatabaseConnection,
+  DatabaseManager,
   RepositoryPolicy,
 } from '@nocobase/db';
-import type { EmployeeService } from '../employees/contract.js';
+import {
+  defineLifecycle,
+  LifecycleRuntime,
+  type JsonObject,
+  type LifecycleStore,
+} from '@nocobase/lifecycle';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { createHash, randomUUID } from 'node:crypto';
+import { candidateDirectory } from '../approval-runtime/candidate-directory.js';
+import {
+  createAppApprovalService,
+  hasApprovalCandidate,
+} from '../approval-runtime/query-service.js';
+import {
+  approvalReadableScope,
+  memberScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
+import {
+  appLifecycleTransaction,
+  createAppLifecycleStore,
+} from '../approval-runtime/repository-store.js';
+import { registerAppApproval } from '../approval-runtime/task-center.js';
+import { runTaskViewsFor } from '../approval-runtime/task-views.js';
 import type { AuditService } from '../audit/index.js';
+import { demoNow } from '../demo-data/context.js';
+import type { EmployeeService } from '../employees/contract.js';
 import type { OrgService } from '../org/contract.js';
 import type { DictionaryService } from '../platform/dictionaries.js';
 import type {
@@ -45,37 +57,35 @@ import {
   type Approval,
   type PerformInput,
 } from '@nocobase/app-plugin-approval/server';
-import {
-  departureApproval,
-  type DepartureTypes,
-  type DepartureServices,
-} from './approval.js';
 import type { ApprovalDirectoryService } from '../approval-directory/contract.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import type { HeadcountService } from '../headcounts/contract.js';
+import type { LoanLedgerService } from '../loan-ledger/contract.js';
+import type { OrganizationService } from '../org/index.js';
 import type {
   CalendarService,
   RuleService,
   SequenceService,
 } from '../platform/index.js';
-import { departureWorkLifecycle } from './work-items.js';
 import {
-  DEPARTURE_WORK_LIFECYCLE,
-  DEPARTURE_WORK_KINDS,
-  type DepartureWorkRecord,
-  type DepartureAssetClearance,
-  type DepartureFinancialClearance,
-} from './contract.js';
-import type { LoanLedgerService } from '../loan-ledger/contract.js';
-import { departureExecution } from './execution.js';
+  departureApproval,
+  type DepartureServices,
+  type DepartureTypes,
+} from './approval.js';
+import type { DepartureCustodyClearance } from './contract.js';
 import {
   DEPARTURE_EXECUTION_LIFECYCLE,
-  type DepartureExecutionRecord,
+  DEPARTURE_WORK_KINDS,
+  DEPARTURE_WORK_LIFECYCLE,
   type DepartureApprovalReassignment,
+  type DepartureAssetClearance,
+  type DepartureExecutionRecord,
+  type DepartureFinancialClearance,
+  type DepartureWorkRecord,
 } from './contract.js';
-import type { HeadcountService } from '../headcounts/contract.js';
-import type { DepartureCustodyClearance } from './contract.js';
-import type { OrganizationService } from '../org/index.js';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
 import { DepartureError } from './errors.js';
+import { departureExecution } from './execution.js';
+import { departureWorkLifecycle } from './work-items.js';
 export { DepartureError } from './errors.js';
 function fail(
   code: string,
@@ -261,19 +271,19 @@ export function createDepartureService(d: DepartureDependencies) {
                   : undefined;
             if (!policy)
               return target.updateRecordIf(collection, id, condition, values);
-            const result = await (
-              target.transactionHandle as DatabaseConnection
-            )
-              .repository(collection)
-              .withPolicy(policy)
-              .updateMany({
-                filter: {
-                  id,
-                  [condition.stateField]: condition.state,
-                  [condition.versionField]: condition.version,
-                },
-                values: values as import('@nocobase/db').RepositoryRecord,
-              });
+            const result = await measureApprovalPhase('businessWrite', () =>
+              (target.transactionHandle as DatabaseConnection)
+                .repository(collection)
+                .withPolicy(policy)
+                .updateMany({
+                  filter: {
+                    id,
+                    [condition.stateField]: condition.state,
+                    [condition.versionField]: condition.version,
+                  },
+                  values: values as import('@nocobase/db').RepositoryRecord,
+                }),
+            );
             return result.updatedCount > 0;
           };
         if (key === 'findRecord')
@@ -575,7 +585,7 @@ export function createDepartureService(d: DepartureDependencies) {
   );
   const source = (handle: unknown): DepartureServices =>
     handle ? snapshots.get(handle)! : outside;
-  runtime.register(approval, { services: source });
+  registerAppApproval(d.db, runtime, approval, source);
   runtime.register(departureWorkLifecycle(d), { services: source });
   const execution = departureExecution(d, runtime);
   runtime.register(execution.definition, { services: source });
@@ -1080,27 +1090,57 @@ export function createDepartureService(d: DepartureDependencies) {
         total: eligible.length,
       };
     },
-    async readableIds(actorId: string) {
+    async readableScope(actorId: string): Promise<DatabaseScope> {
       await refresh();
-      return readDirectory.run(outside.directory, async () => {
-        const rows = await d.db
-          .repository<DepartureRecord>('departureRequests')
-          .findMany();
-        const ids: string[] = [];
-        for (const row of rows) {
-          try {
-            await canRead(row.id, actorId);
-            ids.push(row.id);
-          } catch (error) {
-            if (
-              !(error instanceof DepartureError) ||
-              error.kind !== 'permission'
+      if (await d.org.hasDutyRole(actorId, 'hr')) return true;
+      return approvalReadableScope(actorId, {
+        approvals: approvals,
+        lifecycle: DEPARTURE_LIFECYCLE,
+        directory: outside.directory,
+        roles: ['approval.admin'],
+        ownerFields: [
+          'applicantId',
+          'createdById',
+          'handoverUserId',
+          'managerApproverId',
+          'headApproverId',
+          'gmApproverId',
+        ],
+        taskActors: false,
+        extra: async () => {
+          const work = await d.db
+            .repository<DepartureWorkRecord>('departureWorkItems')
+            .findMany({
+              filter: (f) =>
+                f.or([
+                  f.string('claimedById').eq(actorId),
+                  f.string('forcedById').eq(actorId),
+                ]),
+              select: (s) => s.fields('departureId'),
+            });
+          const handlesHandover = (
+            await Promise.all(
+              ['it', 'admin', 'finance'].map((role) =>
+                d.org.hasDutyRole(actorId, role),
+              ),
             )
-              throw error;
-          }
-        }
-        return ids;
+          ).some(Boolean);
+          return anyScope([
+            memberScope(
+              'id',
+              work.map((row) => row.departureId),
+            ),
+            handlesHandover ? condition('status', '$eq', 'handover') : false,
+          ]);
+        },
       });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'departureRequests',
+        await this.readableScope(actorId),
+      );
     },
     async list(actorId: string, policy?: RepositoryPolicy, view = 'all') {
       await refresh();
@@ -1195,6 +1235,11 @@ export function createDepartureService(d: DepartureDependencies) {
         }
         return result;
       });
+    },
+    async accessFacts(id: string, actorId: string, policy?: RepositoryPolicy) {
+      await refresh();
+      const record = await canRead(id, actorId, policy);
+      return { applicantId: record.applicantId, status: record.status };
     },
     async detail(
       id: string,

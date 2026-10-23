@@ -1,42 +1,16 @@
 import { ApplicationRefreshButton } from '#components/application-refresh-button';
-import { approvalStatusTone } from '../approvals/status-tone.js';
 import { PersonalCards } from './personal-cards.js';
-import { UserName } from '#components/user-name';
-import type { Options as ContractOptions } from '../contracts/types.js';
-import type { Options as AssetRequestOptions } from '../asset-requests/types.js';
-import type { QualificationOptions } from '../vendor-qualifications/types.js';
-import { useResource } from '../approvals/use-resource.js';
-import type { DepartureOptions } from '../departure-requests/types.js';
-import type { ProbationOptions } from '../probation-requests/types.js';
-import { approvalStateLabel } from '../approvals/business-metadata.js';
-import {
-  approvalBusiness,
-  formatApprovalPeriodValue,
-} from '../approvals/business-metadata.js';
 import { cn } from 'cn';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { ClipboardCheck, Info, TriangleAlert } from 'lucide-react';
 import { FavoriteRequestActions } from '#components/request-actions';
-import {
-  byUrgency,
-  dueState,
-  kindPresentation,
-  relativeTime,
-} from './record-presentation.js';
-import {
-  createElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { byUrgency, dueState } from './record-presentation.js';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useResolvedPath } from 'react-router';
 import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
-import { StatusBadge } from '#components/status-badge';
 import { Alert, AlertAction, AlertDescription } from '#components/ui/alert';
 import { Button } from '#components/ui/button';
 import {
@@ -61,10 +35,11 @@ import {
   TooltipContent,
 } from '#components/ui/tooltip';
 import { ErrorState } from '../approvals/states.js';
-import {
-  useCenterResource,
-  type CenterRecord,
-} from '../approvals/use-center-resource.js';
+import { WorkRow } from './work-row.js';
+import { useRequestAvailability } from './use-request-availability.js';
+import type { RequestActionAvailability } from '#components/request-action-definitions';
+
+import { useWorkbenchResource } from './use-workbench-resource.js';
 
 export default function HomePage() {
   const { t } = useTranslation();
@@ -271,10 +246,10 @@ function PersonalWorkbench() {
 
 function Workbench() {
   const { session } = useAuthentication();
-  // The fullest page the endpoint serves, so the list can lead with the earliest deadline and count overdue
-  // items; the server orders an ascending due date with undated items first, which buries the urgent ones.
-  const pending = useCenterResource({ view: 'pending', pageSize: '100' });
-  const mine = useCenterResource({
+  // The bounded index preview is enriched with deadlines; overdue remains a
+  // lower bound whenever not every pending entry fits in the preview.
+  const pending = useWorkbenchResource({ view: 'pending', pageSize: '100' });
+  const mine = useWorkbenchResource({
     view: 'mine',
     pageSize: '5',
     homeSummary: 'true',
@@ -295,186 +270,8 @@ function Workbench() {
       titleRef.current?.focus();
     previousPathRef.current = location.pathname;
   }, [location.pathname, base.pathname]);
-  const submit = useCan({
-    resource: { type: 'composite', id: 'oa.leave' },
-    action: 'submit',
-  });
-  const attendanceSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.attendanceChange' },
-    action: 'submit',
-  });
-  const outingSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.outing' },
-    action: 'submit',
-  });
-  const expensePlanSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.expensePlan' },
-    action: 'submit',
-  });
-  const contractSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.contract' },
-    action: 'submit',
-  });
-  const assetSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.assetRequests' },
-    action: 'create',
-  });
-  const assetOptions = useResource<AssetRequestOptions>(
-    optionsReady &&
-      assetSubmit.can &&
-      !assetSubmit.isPending &&
-      !assetSubmit.error
-      ? 'assetRequests/options'
-      : null,
-    { viewer: session?.user.id ?? '' },
-  );
-  const contractOptions = useResource<ContractOptions>(
-    optionsReady &&
-      contractSubmit.can &&
-      !contractSubmit.isPending &&
-      !contractSubmit.error
-      ? 'contractRequests/options'
-      : null,
-    { viewer: session?.user.id ?? '' },
-  );
-  const contractCreate =
-    contractSubmit.can &&
-    !contractSubmit.isPending &&
-    !contractSubmit.error &&
-    !contractOptions.loading &&
-    !contractOptions.error &&
-    contractOptions.data?.eligible === true;
-  const assetCreate =
-    !assetSubmit.isPending &&
-    !assetSubmit.error &&
-    assetSubmit.can &&
-    !assetOptions.loading &&
-    !assetOptions.error &&
-    assetOptions.data?.eligible === true;
-  const vendorSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.vendorQualification' },
-    action: 'submit',
-  });
-  const vendorOptions = useResource<QualificationOptions>(
-    optionsReady &&
-      vendorSubmit.can &&
-      !vendorSubmit.isPending &&
-      !vendorSubmit.error
-      ? 'vendorQualifications/options'
-      : null,
-    { viewer: session?.user.id ?? '' },
-  );
-  const vendorCreate =
-    !vendorSubmit.isPending &&
-    !vendorSubmit.error &&
-    vendorSubmit.can &&
-    !vendorOptions.loading &&
-    !vendorOptions.error &&
-    !!(
-      vendorOptions.data?.canCreateQualification ||
-      vendorOptions.data?.canCreateRemoval
-    );
-  const departureSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.departure' },
-    action: 'submit',
-  });
-  const departureDelegate = useCan({
-    resource: { type: 'composite', id: 'oa.departure' },
-    action: 'delegate',
-  });
-  const departureOptions = useResource<DepartureOptions>(
-    optionsReady && (departureSubmit.can || departureDelegate.can)
-      ? 'departureRequests/options'
-      : null,
-    { viewer: session?.user.id ?? '' },
-  );
-  const departureSelf =
-    !departureSubmit.isPending &&
-    departureSubmit.can &&
-    !departureOptions.loading &&
-    !departureOptions.error &&
-    !!departureOptions.data?.canCreateSelfDraft;
-  const departureManual =
-    !departureDelegate.isPending &&
-    departureDelegate.can &&
-    !departureOptions.loading &&
-    !departureOptions.error &&
-    !!departureOptions.data?.canCreateManualDraft;
-  const departureCreate = departureSelf || departureManual;
-  // Eight independent capability reads still contend for PG connections. Run
-  // two groups of four after the primary summaries, releasing on errors too.
-  const secondaryOptionsReady =
-    optionsReady &&
-    assetOptions.settled &&
-    contractOptions.settled &&
-    vendorOptions.settled &&
-    departureOptions.settled;
-  const probationDelegate = useCan({
-    resource: { type: 'composite', id: 'oa.probation' },
-    action: 'delegate',
-  });
-  const probationOptions = useResource<ProbationOptions>(
-    secondaryOptionsReady && probationDelegate.can
-      ? 'probationRequests/options'
-      : null,
-    { viewer: session?.user.id ?? '' },
-  );
-  const probationCreate =
-    !probationDelegate.isPending &&
-    probationDelegate.can &&
-    !probationOptions.loading &&
-    !probationOptions.error &&
-    !!probationOptions.data?.canCreateManualDraft;
-  const paymentSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.payment' },
-    action: 'submit',
-  });
-
-  const loanSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.loan' },
-    action: 'submit',
-  });
-
-  const purchaseSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.purchase' },
-    action: 'submit',
-  });
-  const reimbursementSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.reimbursement' },
-    action: 'submit',
-  });
-  const travelSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.travel' },
-    action: 'submit',
-  });
-  const travelCancellationSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.travelCancellation' },
-    action: 'submit',
-  });
-  const trainingSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.training' },
-    action: 'submit',
-  });
-  const budgetSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.budgetAdjustment' },
-    action: 'submit',
-  });
-  const supplySubmit = useCan({
-    resource: { type: 'composite', id: 'oa.supplies' },
-    action: 'submit',
-  });
-  const generalSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.general' },
-    action: 'submit',
-  });
-  const overtimeSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.overtime' },
-    action: 'submit',
-  });
-  const cancellationSubmit = useCan({
-    resource: { type: 'composite', id: 'oa.leaveCancellation' },
-    action: 'submit',
-  });
+  const requests = useRequestAvailability(optionsReady);
+  const canSubmit = requests.canSubmit;
   // The server derives attention from the complete authorized mine set, not this page.
   const revisionRows = { ...mine, data: mine.meta?.attention?.revisions };
   const [personalRevision, setPersonalRevision] = useState(0);
@@ -523,8 +320,7 @@ function Workbench() {
     ? 0
     : (mine.meta?.counts.revisions ?? 0);
   const recent =
-    mine.meta?.attention?.submitted ??
-    (mine.data ?? []).filter((r) => r.status !== 'draft').slice(0, 5);
+    mine.meta?.attention?.submitted ?? (mine.data ?? []).slice(0, 5);
   const number = new Intl.NumberFormat(i18n.language);
   const metrics = [
     {
@@ -550,111 +346,6 @@ function Workbench() {
       tone: 'primary',
     },
   ] as const;
-  const transferPermission = useCan({
-    resource: { type: 'composite', id: 'oa.transfer' },
-    action: 'submit',
-  });
-  const transferOptions = useResource<{ canCreateAsHR: boolean }>(
-    transferPermission.can &&
-      secondaryOptionsReady &&
-      !transferPermission.isPending &&
-      !transferPermission.error
-      ? 'transferRequests/capabilities'
-      : null,
-  );
-  const transferCreate =
-    transferPermission.can &&
-    !transferPermission.isPending &&
-    !transferPermission.error &&
-    !transferOptions.loading &&
-    !transferOptions.error &&
-    transferOptions.data?.canCreateAsHR === true;
-  const recruitmentPermission = useCan({
-    resource: { type: 'composite', id: 'oa.recruitment' },
-    action: 'submit',
-  });
-  const recruitmentOptions = useResource<{ canCreate: boolean }>(
-    recruitmentPermission.can &&
-      secondaryOptionsReady &&
-      !recruitmentPermission.isPending &&
-      !recruitmentPermission.error
-      ? 'recruitmentRequests/createOptions'
-      : null,
-  );
-  const recruitmentCreate =
-    recruitmentPermission.can &&
-    !recruitmentPermission.isPending &&
-    !recruitmentPermission.error &&
-    !recruitmentOptions.loading &&
-    !recruitmentOptions.error &&
-    recruitmentOptions.data?.canCreate === true;
-  const vehiclePermission = useCan({
-    resource: { type: 'composite', id: 'oa.vehicleRequests' },
-    action: 'submit',
-  });
-  const vehicleView = useCan({
-    resource: { type: 'composite', id: 'oa.vehicleRequests' },
-    action: 'view',
-  });
-  const vehicleOptions = useResource<{ canCreate: boolean }>(
-    vehiclePermission.can &&
-      secondaryOptionsReady &&
-      !vehiclePermission.isPending &&
-      !vehiclePermission.error &&
-      vehicleView.can &&
-      !vehicleView.isPending &&
-      !vehicleView.error
-      ? 'vehicleBrowser/options'
-      : null,
-  );
-  const vehicleCreate =
-    vehiclePermission.can &&
-    !vehiclePermission.isPending &&
-    !vehiclePermission.error &&
-    !vehicleOptions.loading &&
-    !vehicleOptions.error &&
-    vehicleOptions.data?.canCreate === true;
-  const sealPermission = useCan({
-    resource: { type: 'composite', id: 'oa.sealRequests' },
-    action: 'create',
-  });
-  const sealCreate =
-    sealPermission.can && !sealPermission.isPending && !sealPermission.error;
-  const certificatePermission = useCan({
-    resource: { type: 'composite', id: 'oa.certificateRequests' },
-    action: 'create',
-  });
-  const certificateCreate =
-    certificatePermission.can &&
-    !certificatePermission.isPending &&
-    !certificatePermission.error;
-  const canSubmit =
-    vehicleCreate ||
-    recruitmentCreate ||
-    sealCreate ||
-    transferCreate ||
-    certificateCreate ||
-    contractCreate ||
-    assetCreate ||
-    vendorCreate ||
-    probationCreate ||
-    departureCreate ||
-    (!submit.isPending && submit.can) ||
-    (!attendanceSubmit.isPending && attendanceSubmit.can) ||
-    (!outingSubmit.isPending && outingSubmit.can) ||
-    (!generalSubmit.isPending && generalSubmit.can) ||
-    (!expensePlanSubmit.isPending && expensePlanSubmit.can) ||
-    (!trainingSubmit.isPending && trainingSubmit.can) ||
-    (!paymentSubmit.isPending && paymentSubmit.can) ||
-    (!loanSubmit.isPending && loanSubmit.can) ||
-    (!purchaseSubmit.isPending && purchaseSubmit.can) ||
-    (!reimbursementSubmit.isPending && reimbursementSubmit.can) ||
-    (!travelSubmit.isPending && travelSubmit.can) ||
-    (!travelCancellationSubmit.isPending && travelCancellationSubmit.can) ||
-    (!budgetSubmit.isPending && budgetSubmit.can) ||
-    (!supplySubmit.isPending && supplySubmit.can) ||
-    (!overtimeSubmit.isPending && overtimeSubmit.can) ||
-    (!cancellationSubmit.isPending && cancellationSubmit.can);
   const retry = () => {
     reload();
     refreshRef.current?.focus();
@@ -739,15 +430,7 @@ function Workbench() {
         {metrics.map((metric) => {
           const active = !metric.error && (metric.value ?? 0) > 0;
           const content = (
-            <Card
-              className={cn(
-                'h-full border-l-4 border-l-transparent transition-colors group-hover:bg-muted/50',
-                active &&
-                  (metric.tone === 'destructive'
-                    ? 'border-l-destructive'
-                    : 'border-l-primary'),
-              )}
-            >
+            <Card className='h-full transition-colors group-hover:bg-muted/50'>
               <CardHeader>
                 <CardDescription>
                   {t(`workbench.${metric.key}`)}
@@ -932,157 +615,13 @@ function Workbench() {
       )}
       {canSubmit ? (
         <section id='request-actions' aria-label={t('workbench.newRequest')}>
-          <NewRequestCard
-            vehicle={vehicleCreate}
-            recruitment={recruitmentCreate}
-            seal={sealCreate}
-            transfer={transferCreate}
-            certificate={certificateCreate}
-            leave={submit.can}
-            attendance={attendanceSubmit.can}
-            outing={outingSubmit.can}
-            expensePlan={expensePlanSubmit.can}
-            training={trainingSubmit.can}
-            reimbursement={reimbursementSubmit.can}
-            probation={probationCreate}
-            departure={departureCreate}
-            contract={contractCreate}
-            asset={assetCreate}
-            vendor={vendorCreate}
-            payment={paymentSubmit.can}
-            loan={loanSubmit.can}
-            purchase={purchaseSubmit.can}
-            travel={travelSubmit.can}
-            travelCancellation={travelCancellationSubmit.can}
-            budget={budgetSubmit.can}
-            supplies={supplySubmit.can}
-            general={generalSubmit.can}
-            overtime={overtimeSubmit.can}
-            cancellation={cancellationSubmit.can}
-          />
+          <NewRequestCard available={requests.available} />
         </section>
       ) : null}
       {/* Reference information follows the work and the request entries. */}
       <PersonalCards key={personalRevision} />
       <Outlet context={context} />
     </PageContainer>
-  );
-}
-
-function WorkRow({
-  record,
-  showInitiator = false,
-  showApplicant = false,
-  now,
-}: {
-  record: CenterRecord;
-  showInitiator?: boolean;
-  showApplicant?: boolean;
-  now: Date;
-}) {
-  const { t, i18n } = useTranslation();
-  const location = useLocation();
-  const date = (value: string) =>
-    formatApprovalPeriodValue(value, i18n.language);
-  const tone = approvalStatusTone(record.status, record.kind);
-  const business = t(
-    `approvalCenter.kinds.${approvalBusiness(record.kind).label}`,
-  );
-  const title =
-    record.title?.trim() ||
-    t(
-      record.status === 'draft'
-        ? 'workbench.draftWithoutSummary'
-        : 'workbench.requestWithoutSummary',
-      { type: business },
-    );
-  const to = {
-    pathname: `${approvalBusiness(record.kind).detail}/${record.id}`,
-    search: location.search,
-    hash: location.hash,
-  };
-  const { session } = useAuthentication();
-  const isApproval = !['oa.workItem', 'oa.announcementReceipt'].includes(
-    record.kind,
-  );
-  const showPerson =
-    showInitiator &&
-    ((showApplicant && isApproval) || record.applicantId !== session?.user?.id);
-  const relevantDate = record.dueAt || record.updatedAt || record.createdAt;
-  const dateLabel = record.dueAt
-    ? 'workbench.dueAt'
-    : record.updatedAt
-      ? 'workbench.updatedAt'
-      : 'workbench.createdAt';
-  const relative = relativeTime(relevantDate ?? '', now, i18n.language);
-  const due = dueState(record.dueAt, now);
-  const kind = kindPresentation(record.kind);
-  const linkClass =
-    'rounded-sm text-sm font-medium text-foreground underline-offset-4 hover:text-primary hover:underline focus-visible:outline-ring focus-visible:outline-2';
-  return (
-    <li className='grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-b border-border py-3 first:pt-0 last:border-0 last:pb-0'>
-      <span
-        aria-hidden='true'
-        className='row-span-2 flex size-8 items-center justify-center rounded-lg bg-muted'
-      >
-        {createElement(kind.icon, { className: cn('size-4', kind.className) })}
-      </span>
-      <div className='min-w-0 break-words'>
-        <Link className={linkClass} to={to}>
-          {title}
-        </Link>
-      </div>
-      <StatusBadge tone={tone} className='justify-self-end'>
-        {approvalStateLabel(record.status, t, record.kind)}
-      </StatusBadge>
-      {showPerson ||
-      title !== business ||
-      (record.startDate && record.endDate) ||
-      relevantDate ? (
-        <div className='col-span-2 col-start-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground'>
-          {due ? (
-            <StatusBadge tone={due === 'overdue' ? 'destructive' : 'warning'}>
-              {t(
-                due === 'overdue'
-                  ? 'workbench.overdueBadge'
-                  : 'workbench.dueToday',
-              )}
-            </StatusBadge>
-          ) : null}
-          {showPerson ? (
-            <span className='inline-flex min-w-0 items-center gap-1'>
-              <span>
-                {t(isApproval ? 'approvals.applicant' : 'workbench.initiator')}:
-              </span>
-              <UserName
-                name={record.applicant?.name ?? t('approvals.unknownPerson')}
-              />
-            </span>
-          ) : null}
-          <span>{business}</span>
-          {record.unit === 'cents' && record.amount !== null ? (
-            <span>
-              {new Intl.NumberFormat(i18n.language, {
-                style: 'currency',
-                currency: 'CNY',
-              }).format(record.amount / 100)}
-            </span>
-          ) : null}
-          {relevantDate ? (
-            <time dateTime={relevantDate} title={date(relevantDate)}>
-              {t(dateLabel, { date: relative ?? date(relevantDate) })}
-            </time>
-          ) : null}
-          {!(record.unit === 'cents' && record.amount !== null) &&
-          record.startDate &&
-          record.endDate ? (
-            <span>
-              {date(record.startDate)}–{date(record.endDate)}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-    </li>
   );
 }
 
@@ -1100,59 +639,9 @@ function ListLink({ to, label }: { to: string; label: string }) {
 }
 /** This card contains business creation actions only; browsing belongs in the sidebar and summary footers. */
 function NewRequestCard({
-  vehicle,
-  recruitment,
-  seal,
-  transfer,
-  certificate,
-  contract,
-  leave,
-  overtime,
-  cancellation,
-  general,
-  supplies,
-  budget,
-  expensePlan,
-  training,
-  reimbursement,
-  probation,
-  departure,
-  asset,
-  vendor,
-  payment,
-  loan,
-  purchase,
-  travel,
-  travelCancellation,
-  attendance,
-  outing,
+  available,
 }: {
-  vehicle: boolean;
-  recruitment: boolean;
-  seal: boolean;
-  transfer: boolean;
-  certificate: boolean;
-  leave: boolean;
-  overtime: boolean;
-  cancellation: boolean;
-  general: boolean;
-  supplies: boolean;
-  budget: boolean;
-  expensePlan: boolean;
-  training: boolean;
-  reimbursement: boolean;
-  probation: boolean;
-  departure: boolean;
-  contract: boolean;
-  asset: boolean;
-  vendor: boolean;
-  payment: boolean;
-  loan: boolean;
-  purchase: boolean;
-  travel: boolean;
-  travelCancellation: boolean;
-  attendance: boolean;
-  outing: boolean;
+  available: RequestActionAvailability;
 }) {
   const { t } = useTranslation();
 
@@ -1167,36 +656,7 @@ function NewRequestCard({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <FavoriteRequestActions
-          available={{
-            vehicle,
-            recruitment,
-            seal,
-            transfer,
-            certificate,
-            attendance,
-            outing,
-            general,
-            leave,
-            overtime,
-            cancellation,
-            expensePlan,
-            contract,
-            asset,
-            vendor,
-            departure,
-            probation,
-            payment,
-            loan,
-            purchase,
-            reimbursement,
-            travel,
-            travelCancellation,
-            training,
-            budget,
-            supplies,
-          }}
-        />
+        <FavoriteRequestActions available={available} />
       </CardContent>
     </Card>
   );

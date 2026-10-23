@@ -1,32 +1,32 @@
-import { ServiceProvider } from '@nocobase/service-provider';
-import type { Application } from '@nocobase/app-server/application';
-import { databaseManagerToken } from '@nocobase/db';
+import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import {
-  authorizationToken,
-  defineDatabasePermission,
   anyScope,
+  authorizationToken,
   condition,
+  defineDatabasePermission,
 } from '@nocobase/app-plugin-authorization/server';
+import type { Application } from '@nocobase/app-server/application';
+import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
 import {
   defineCompositeResource,
   defineRecordAccess,
 } from '@nocobase/authorization/core';
-import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
+import { databaseManagerToken } from '@nocobase/db';
 import {
   createLifecycleJobs,
   type LifecycleJobs,
 } from '@nocobase/lifecycle/jobs';
-import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
-import { organizationServiceToken } from '../org/index.js';
+import { ServiceProvider } from '@nocobase/service-provider';
+import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
+import { approvalNotificationServiceToken } from '../approval-notifications/contract.js';
+import { auditServiceToken } from '../audit/index.js';
 import { employeeServiceToken } from '../employees/contract.js';
 import { headcountServiceToken } from '../headcounts/contract.js';
 import { salaryGradeServiceToken } from '../job-grades/contract.js';
+import { organizationServiceToken } from '../org/index.js';
 import { calendarServiceToken, ruleServiceToken } from '../platform/index.js';
-import { auditServiceToken } from '../audit/index.js';
-import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
-import { approvalNotificationServiceToken } from '../approval-notifications/contract.js';
-import { createTransferService, transferServiceToken } from './service.js';
 import type { TransferRecord } from './approval.js';
+import { createTransferService, transferServiceToken } from './service.js';
 export * from './service.js';
 const read = defineDatabasePermission((p) =>
   p.collection('transferRequests').read('*'),
@@ -99,13 +99,7 @@ export default class TransferProvider extends ServiceProvider<Application> {
           .collections('transferRequests')
           .resolver(async ({ principal }) => {
             if (principal.type !== 'user') return false;
-            const ids = await c
-              .resolve(transferServiceToken)
-              .readableIds(principal.id);
-            return anyScope([
-              condition('applicantId', '$eq', principal.id),
-              ...ids.map((id) => condition('id', '$eq', id)),
-            ]);
+            return c.resolve(transferServiceToken).readableScope(principal.id);
           }),
       ),
     );

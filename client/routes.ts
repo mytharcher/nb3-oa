@@ -10,6 +10,8 @@ import sealsRoutes, { sealViewChildren } from './route-modules/seals.js';
 import announcementsRoutes from './route-modules/announcements.js';
 import { centerEntry } from './pages/approvals/center-entry.js';
 import workItemsRoutes from './route-modules/work-items.js';
+import taskCenterRoutes from './route-modules/task-center.js';
+import workbenchPrototypeRoutes from './route-modules/workbench-prototype.js';
 import knowledgeRoutes from './route-modules/knowledge.js';
 import certificateRoutes, {
   certificateViewChildren,
@@ -76,10 +78,9 @@ import {
   CircleUserRound,
   IdCard,
   LayoutDashboard,
-  ScrollText,
+  Wrench,
   SlidersHorizontal,
   Bell,
-  Bot,
   NotebookTabs,
   Landmark,
   BriefcaseBusiness,
@@ -91,7 +92,6 @@ import {
 } from '@nocobase/app-client/plugins';
 
 import administrationRoutes from './route-modules/administration.js';
-import agentsRoutes from './route-modules/agents.js';
 import { overtimeViewChildren } from './route-modules/overtime.js';
 import approvalsRoutes, {
   nonApprovalViewChildren,
@@ -374,17 +374,8 @@ const managementRoutes: AppClientRouteContribution = defineAppRoutes([
     children: [],
   },
   {
-    name: 'oa-automation',
-    navigation: {
-      title: 'oa.navigation.automation',
-      icon: Bot,
-      order: 110,
-    },
-    children: [],
-  },
-  {
     name: 'oa-system',
-    navigation: { title: 'oa.navigation.system', icon: ScrollText, order: 120 },
+    navigation: { title: 'oa.navigation.system', icon: Wrench, order: 120 },
     children: [],
   },
 ]);
@@ -415,6 +406,8 @@ const routes: readonly AppClientRouteContribution[] = [
   sealsRoutes,
   announcementsRoutes,
   workItemsRoutes,
+  taskCenterRoutes,
+  workbenchPrototypeRoutes,
   knowledgeRoutes,
   certificateRoutes,
   attendanceManagementRoutes,
@@ -424,7 +417,6 @@ const routes: readonly AppClientRouteContribution[] = [
   meetingRoomRoutes,
   vehicleRoutes,
   administrationRoutes,
-  agentsRoutes,
   ...orgRoutes,
   ...employeesRoutes,
   ...platformRoutes,

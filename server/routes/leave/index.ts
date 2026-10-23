@@ -135,7 +135,7 @@ export const routes: readonly AppRouteContribution<Application>[] = [
     }
     async function readPolicy(
       c: Context<AuthEnv & AuthorizationEnv>,
-    ): Promise<RepositoryPolicy | undefined> {
+    ): Promise<RepositoryPolicy> {
       const decision = await c.get('authz').authorize({
         resource: { type: 'composite', id: 'oa.leave' },
         action: 'view',
@@ -296,14 +296,26 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         const actorId = c.get('auth')!.user.id;
         let mutationPolicy: RepositoryPolicy | undefined;
         if (['submit', 'edit', 'withdraw'].includes(input.transition)) {
-          const detail = await service.detail(
-            c.req.valid('param').id,
-            actorId,
-            await readPolicy(c),
-          );
+          // readPolicy independently enforces record scope and reviewed fields.
+          // The transition service rechecks access and lifecycle guards in its write path.
+          const policy = await readPolicy(c);
+          const repository = app.container
+            .resolve(databaseManagerToken)
+            .repository('leaveRequests');
+          const record = await repository.withPolicy(policy).findOne({
+            filter: { id: c.req.valid('param').id },
+            select: (s) => s.fields('id', 'applicantId'),
+          });
+          if (!record)
+            throw new ApiError({
+              status: 'PERMISSION_DENIED',
+              domain: 'leave',
+              reason: 'LEAVE_ACCESS_DENIED',
+              message: 'This leave request is outside the granted scope.',
+            });
           mutationPolicy = await actionPolicy(
             c,
-            detail.record.applicantId === actorId ? 'submit' : 'delegate',
+            record.applicantId === actorId ? 'submit' : 'delegate',
           );
         }
         if (input.transition === 'edit') {

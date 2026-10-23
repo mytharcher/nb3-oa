@@ -22,7 +22,7 @@ import { attendanceChangeViewChildren } from './attendance-change.js';
 import { outingsViewChildren } from './outings.js';
 import { generalRequestViewChildren } from './general-requests.js';
 import { cancellationViewChildren } from './leave-cancellations.js';
-import { ClipboardCheck, UserRoundCheck } from 'lucide-react';
+import { UserRoundCheck } from 'lucide-react';
 import { overtimeViewChildren } from './overtime.js';
 import {
   defineAppRoutes,
@@ -164,11 +164,6 @@ const routes: readonly AppClientRouteContribution[] = [
       authz: {
         resource: { type: 'page', id: 'oa.approvals' },
         action: 'access',
-      },
-      navigation: {
-        title: 'approvals.navigation.center',
-        icon: ClipboardCheck,
-        order: 20,
       },
       componentLoader: () => import('../pages/approvals/index.js'),
       children: ['todo', 'done', 'copied', 'mine'].map((tab) => ({

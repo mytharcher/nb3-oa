@@ -1,46 +1,46 @@
-import { i18nToken } from '@nocobase/app-server/i18n';
-import { ServiceProvider } from '@nocobase/service-provider';
-import type { Application } from '@nocobase/app-server/application';
-import { databaseManagerToken } from '@nocobase/db';
+import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import {
-  authorizationToken,
-  defineDatabasePermission,
-  condition,
   anyScope,
+  authorizationToken,
+  condition,
+  defineDatabasePermission,
 } from '@nocobase/app-plugin-authorization/server';
+import { schedulerServiceToken } from '@nocobase/app-plugin-scheduler/server/tokens';
+import type { Application } from '@nocobase/app-server/application';
+import { i18nToken } from '@nocobase/app-server/i18n';
+import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
 import {
   defineCompositeResource,
   defineRecordAccess,
 } from '@nocobase/authorization/core';
-import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
-import { schedulerServiceToken } from '@nocobase/app-plugin-scheduler/server/tokens';
-import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
+import { databaseManagerToken } from '@nocobase/db';
 import {
   createLifecycleJobs,
   type LifecycleJobs,
 } from '@nocobase/lifecycle/jobs';
-import { auditServiceToken } from '../audit/index.js';
-import { orgServiceToken } from '../org/contract.js';
-import { employeeServiceToken } from '../employees/contract.js';
+import { ServiceProvider } from '@nocobase/service-provider';
 import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
 import { approvalNotificationServiceToken } from '../approval-notifications/contract.js';
+import { auditServiceToken } from '../audit/index.js';
+import { employeeServiceToken } from '../employees/contract.js';
+import { orgServiceToken } from '../org/contract.js';
 import {
   calendarServiceToken,
   dictionaryServiceToken,
-  sequenceServiceToken,
   ruleServiceToken,
+  sequenceServiceToken,
 } from '../platform/index.js';
 import { vendorServiceToken } from '../vendors/contract.js';
-import { vendorQualificationServiceToken } from './contract.js';
-import {
-  createVendorQualificationService,
-  vendorQualificationHttpServiceToken,
-} from './service.js';
 import {
   assertVendorQualificationAttachments,
   createVendorQualificationAttachmentService,
   vendorQualificationAttachmentServiceToken,
 } from './attachments.js';
+import { vendorQualificationServiceToken } from './contract.js';
+import {
+  createVendorQualificationService,
+  vendorQualificationHttpServiceToken,
+} from './service.js';
 const read = defineDatabasePermission((p) =>
   p.collection('vendorQualifications').read('*'),
 );
@@ -184,12 +184,9 @@ export default class VendorQualificationProvider extends ServiceProvider<Applica
           .collections('vendorQualifications')
           .resolver(async ({ principal }) => {
             if (principal.type !== 'user') return false;
-            const ids = await c
+            return await c
               .resolve(vendorQualificationHttpServiceToken)
-              .readableIds(principal.id);
-            return ids.length
-              ? anyScope(ids.map((id) => condition('id', '$eq', id)))
-              : false;
+              .readableScope(principal.id);
           }),
       ),
     );

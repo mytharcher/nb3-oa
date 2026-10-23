@@ -1,6 +1,6 @@
+import { defineAppApproval as defineApproval } from '../approval-runtime/task-center.js';
 import {
   approvalState,
-  defineApproval,
   stagesFor,
   approve,
   reject,

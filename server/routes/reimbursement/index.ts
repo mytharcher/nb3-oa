@@ -1,6 +1,4 @@
-import { loanRequestServiceToken } from '../../providers/loan-requests/contract.js';
-import { ReimbursementAttachmentError } from '../../providers/reimbursement/attachments.js';
-import attachmentRoutes from './attachments.js';
+import { ApprovalError } from '@nocobase/app-plugin-approval/server';
 import {
   authenticationToken,
   type AuthEnv,
@@ -13,40 +11,42 @@ import type { Application } from '@nocobase/app-server/application';
 import {
   ApiError,
   apiErrorHandler,
-  defineApiRoutes,
-  describeRoute,
-  apiValidator,
-  dataResponse,
   apiErrorResponse,
   apiErrorResponses,
+  apiValidator,
+  dataResponse,
+  defineApiRoutes,
+  describeRoute,
   type AppRouteContribution,
 } from '@nocobase/app-server/router';
-import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
-import { ApprovalError } from '@nocobase/app-plugin-approval/server';
-import { z } from 'zod';
-import { Hono, type Context } from 'hono';
 import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
-import { ReimbursementAmountError } from '../../providers/reimbursement/amounts.js';
-import { InvoiceError } from '../../providers/invoices/service.js';
+import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
+import { Hono, type Context } from 'hono';
+import { z } from 'zod';
 import { ExpenseAuthorizationError } from '../../providers/expense-authorizations/service.js';
+import { InvoiceError } from '../../providers/invoices/service.js';
 import { LoanLedgerError } from '../../providers/loan-ledger/service.js';
+import { loanRequestServiceToken } from '../../providers/loan-requests/contract.js';
+import { ReimbursementAmountError } from '../../providers/reimbursement/amounts.js';
+import { ReimbursementAttachmentError } from '../../providers/reimbursement/attachments.js';
 import { ReimbursementError } from '../../providers/reimbursement/errors.js';
 import { reimbursementServiceToken } from '../../providers/reimbursement/index.js';
+import attachmentRoutes from './attachments.js';
 import {
   ActionInput,
-  CandidatesResult,
+  ActionResult,
   CandidatesQuery,
+  CandidatesResult,
+  CorrectPaymentAccount,
   CreateReimbursement,
-  ReimbursementInput,
-  ReimbursementParams,
-  ListQuery,
-  TransitionInput,
-  Result,
   Detail,
   List,
-  ActionResult,
+  ListQuery,
   PaymentAccount,
-  CorrectPaymentAccount,
+  ReimbursementInput,
+  ReimbursementParams,
+  Result,
+  TransitionInput,
 } from './schemas.js';
 export const routes: readonly AppRouteContribution<Application>[] = [
   ...attachmentRoutes,
@@ -420,14 +420,14 @@ export const routes: readonly AppRouteContribution<Application>[] = [
             'reviseBusiness',
           ].includes(input.transition)
         ) {
-          const detail = await service.detail(
+          const detail = await service.accessFacts(
             c.req.valid('param').id,
             actorId,
             await readPolicy(c),
           );
           mutationPolicy = await actionPolicy(
             c,
-            detail.record.applicantId === actorId ? 'submit' : 'delegate',
+            detail.applicantId === actorId ? 'submit' : 'delegate',
           );
         }
         if (input.transition === 'edit') {

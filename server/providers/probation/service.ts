@@ -1,77 +1,90 @@
-import { demoNow } from '../demo-data/context.js';
-import { runTaskViewsFor } from '../approval-runtime/task-views.js';
 import {
-  hasApprovalCandidate,
-  createAppApprovalService,
-} from '../approval-runtime/query-service.js';
-import {
-  appointAction,
-  reassignAction,
-} from '../process-management/actions.js';
-import { processDirectorySnapshot } from '../process-management/context.js';
-import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
-import { randomUUID, createHash } from 'node:crypto';
-import { AsyncLocalStorage } from 'node:async_hooks';
+  APPROVAL_COLLECTIONS,
+  approvalState,
+  approve,
+  commentAction,
+  outputsOf,
+  readAction,
+  reject,
+  returnTo,
+  stagesFor,
+  type Approval,
+  type PerformInput,
+  type TaskRow,
+} from '@nocobase/app-plugin-approval/server';
 import {
   lockUserForAdministration,
   type UserAdministrationService,
 } from '@nocobase/app-plugin-authentication';
-import {
-  APPROVAL_COLLECTIONS,
-  approvalState,
-  defineApproval,
-  stagesFor,
-  approve,
-  reject,
-  returnTo,
-  commentAction,
-  readAction,
-  outputsOf,
-  type TaskRow,
-  type Approval,
-  type PerformInput,
-} from '@nocobase/app-plugin-approval/server';
-import {
-  LifecycleRuntime,
-  type LifecycleStore,
-  type LifecycleRecord,
-  type JsonObject,
-  type EffectDispatcher,
-} from '@nocobase/lifecycle';
+import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
 import type {
-  DatabaseManager,
   DatabaseConnection,
+  DatabaseManager,
   RepositoryPolicy,
   RepositoryRecord,
 } from '@nocobase/db';
+import {
+  LifecycleRuntime,
+  type EffectDispatcher,
+  type JsonObject,
+  type LifecycleRecord,
+  type LifecycleStore,
+} from '@nocobase/lifecycle';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { OrgService } from '../org/contract.js';
-import type { AuditService } from '../audit/index.js';
-import type { EmployeeService } from '../employees/contract.js';
 import type {
   ApprovalDirectoryService,
   OaApprovalDirectory,
 } from '../approval-directory/contract.js';
+import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import {
+  createAppApprovalService,
+  hasApprovalCandidate,
+} from '../approval-runtime/query-service.js';
+import {
+  approvalReadableScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
+import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
+import {
+  defineAppApproval as defineApproval,
+  registerAppApproval,
+} from '../approval-runtime/task-center.js';
+import { runTaskViewsFor } from '../approval-runtime/task-views.js';
+import type { AuditService } from '../audit/index.js';
+import { demoNow } from '../demo-data/context.js';
+import type { EmployeeService } from '../employees/contract.js';
+import type { OrgService } from '../org/contract.js';
 import type {
   CalendarService,
   RuleService,
   SequenceService,
 } from '../platform/index.js';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
-import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import {
+  appointAction,
+  reassignAction,
+} from '../process-management/actions.js';
+import { processDirectorySnapshot } from '../process-management/context.js';
 import {
   PROBATION_LIFECYCLE,
-  type ProbationRecord,
-  type ProbationDepartureAdapter,
   type ProbationCompensationInput,
+  type ProbationDepartureAdapter,
+  type ProbationRecord,
 } from './contract.js';
 import {
-  probationManagerOutputsSchema,
-  probationCompensationInputSchema,
-  validateProbationManagerOutputs,
   isProbationReminderDue,
+  probationCompensationInputSchema,
+  probationManagerOutputsSchema,
+  validateProbationManagerOutputs,
 } from './validation.js';
-export { PROBATION_LIFECYCLE, type ProbationRecord } from './contract.js';
+export {
+  PROBATION_LIFECYCLE,
+  probationServiceToken,
+  type ProbationRecord,
+  type ProbationService,
+} from './contract.js';
 export class ProbationError extends Error {
   constructor(
     public readonly code: string,
@@ -944,7 +957,7 @@ export function createProbationService(d: ProbationDependencies) {
       ]),
     ),
   });
-  runtime.register(approval, { services: source });
+  registerAppApproval(d.db, runtime, approval, source);
   const approvals = createAppApprovalService(
     runtime,
     [approval.approval as unknown as Approval<never>],
@@ -1291,7 +1304,7 @@ export function createProbationService(d: ProbationDependencies) {
         users,
         timeZone: d.calendar.timeZone(),
         view: await runtime.view(PROBATION_LIFECYCLE, id, actor),
-        runs: await approvals.runViewsFor(PROBATION_LIFECYCLE, id),
+        runs,
         taskActions: await approvals.actionsFor(PROBATION_LIFECYCLE, id, actor),
         runActions: await approvals.runActionsFor(
           PROBATION_LIFECYCLE,
@@ -1352,22 +1365,26 @@ export function createProbationService(d: ProbationDependencies) {
         baseSalary: textValue(proposal.baseSalary),
       };
     },
-    async readableIds(actorId: string) {
+    async readableScope(actorId: string): Promise<DatabaseScope> {
       await refresh();
-      const rows = await d.db
-        .repository<ProbationRecord>('probationRequests')
-        .findMany();
-      const ids: string[] = [];
-      for (const r of rows) {
-        try {
-          await canRead(r.id, actorId);
-          ids.push(r.id);
-        } catch (error) {
-          if (!(error instanceof ProbationError) || error.kind !== 'permission')
-            throw error;
-        }
-      }
-      return ids;
+      return approvalReadableScope(actorId, {
+        approvals: approvals,
+        lifecycle: PROBATION_LIFECYCLE,
+        directory: outside.directory,
+        roles: ['hr', 'gm', 'cfo', 'approval.admin'],
+        ownerFields: ['applicantId', 'createdById'],
+        taskActors: false,
+        org: d.org,
+        department: 'record',
+        employees: d.employees,
+      });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'probationRequests',
+        await this.readableScope(actorId),
+      );
     },
     async list(actorId: string, view: string, policy?: RepositoryPolicy) {
       await refresh();
@@ -1556,4 +1573,3 @@ export function createProbationService(d: ProbationDependencies) {
   };
   return service;
 }
-export { probationServiceToken, type ProbationService } from './contract.js';

@@ -116,12 +116,20 @@ it('shows half-day balances and complete source totals with bounded preview and 
   expect(
     screen.getByText('Available: 3.5 days · Held: 0.5 days'),
   ).toBeVisible();
-  expect(await screen.findByText('2026-10-11 · 17 meetings')).toBeVisible();
+  expect(await screen.findByText('Oct 11, 2026 · 17 meetings')).toBeVisible();
   expect(screen.getByText('21 confirmations pending')).toBeVisible();
   expect(
     screen.getByRole('link', { name: 'Personal meeting' }),
-  ).toHaveAttribute('href', '/meeting-rooms/booking/m');
+  ).toHaveAttribute('href', '/booking/m');
   expect(screen.queryByText('Read notice 5')).toBeNull();
+  expect(state.request).toHaveBeenCalledWith(
+    expect.objectContaining({ path: 'workbench/announcementReceipts' }),
+  );
+  expect(
+    state.request.mock.calls.some(
+      ([request]) => request.path === 'announcements/pending',
+    ),
+  ).toBe(false);
 });
 it('does not request independent denied sources and omits meeting links without the parent page grant', async () => {
   state.announcement = false;
@@ -130,7 +138,9 @@ it('does not request independent denied sources and omits meeting links without 
   expect(await screen.findByText('Personal meeting')).toBeVisible();
   expect(screen.queryByRole('link', { name: 'Personal meeting' })).toBeNull();
   expect(
-    state.request.mock.calls.some(([r]) => r.path === 'announcements/pending'),
+    state.request.mock.calls.some(
+      ([r]) => r.path === 'workbench/announcementReceipts',
+    ),
   ).toBe(false);
 });
 it.each(['actor', 'revision'] as const)(
@@ -167,7 +177,7 @@ it.each(['actor', 'revision'] as const)(
   },
 );
 it('final refusal clears the old private title and does not claim a zero count or show raw errors', async () => {
-  render(<View />);
+  const mounted = render(<View />);
   await screen.findByText('Personal meeting');
   state.request.mockRejectedValue(
     new ApiClientError('secret failure', {
@@ -179,9 +189,8 @@ it('final refusal clears the old private title and does not claim a zero count o
   const card = screen
     .getByRole('heading', { name: enUS.workbench.todayMeetings })
     .closest('[data-slot="card"]') as HTMLElement;
-  await act(async () => {
-    within(card).getByRole('button', { name: enUS.approvals.refresh }).click();
-  });
+  state.revision++;
+  mounted.rerender(<View />);
   await waitFor(() =>
     expect(screen.queryByText('Personal meeting')).toBeNull(),
   );

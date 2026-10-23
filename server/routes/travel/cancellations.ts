@@ -302,14 +302,14 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         const actorId = c.get('auth')!.user.id;
         let mutationPolicy: RepositoryPolicy | undefined;
         if (['submit', 'edit', 'withdraw'].includes(input.transition)) {
-          const detail = await service.detail(
+          const detail = await service.accessFacts(
             c.req.valid('param').id,
             actorId,
             await readPolicy(c),
           );
           mutationPolicy = await actionPolicy(
             c,
-            detail.record.applicantId === actorId ? 'submit' : 'delegate',
+            detail.applicantId === actorId ? 'submit' : 'delegate',
           );
         }
         if (input.transition === 'edit') {

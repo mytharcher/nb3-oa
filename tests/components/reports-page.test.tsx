@@ -1,4 +1,5 @@
-import { MemoryRouter } from 'react-router';
+import { Link, MemoryRouter, Route, Routes, useParams } from 'react-router';
+import { useTranslation } from '@nocobase/i18n/client';
 import {
   createTestI18nRuntime,
   TestI18nProvider,
@@ -17,26 +18,19 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import ReportsPage from '../../client/pages/reports/index.js';
+import {
+  reportTitle,
+  type ReportDataset,
+} from '../../client/pages/reports/datasets.js';
 
 const { api } = vi.hoisted(() => ({
-  api: { request: vi.fn(), stream: vi.fn() },
+  api: { request: vi.fn(), stream: vi.fn(), datasets: vi.fn() },
 }));
 
 const reportApi = {
   ...api,
   request: (args: { path: string }) =>
-    args.path === 'reports/datasets'
-      ? Promise.resolve({
-          data: [
-            'budget-balances',
-            'contract-ledger',
-            'headcount-balances',
-            'leave-monthly',
-            'leave-approval-efficiency',
-            'expense-summary',
-          ],
-        })
-      : api.request(args),
+    args.path === 'reports/datasets' ? api.datasets() : api.request(args),
 };
 
 vi.mock('@nocobase/app-client', async (original) => ({
@@ -87,11 +81,41 @@ vi.mock('../../client/components/date-picker.js', () => ({
 const runtime = await createTestI18nRuntime({
   application: { namespace: 'nb3-oa', resources: enUS },
 });
+const datasets: ReportDataset[] = [
+  'budget-balances',
+  'contract-ledger',
+  'headcount-balances',
+  'leave-monthly',
+  'leave-approval-efficiency',
+  'expense-summary',
+];
+function SelectedReport() {
+  const { dataset } = useParams();
+  return <ReportsPage dataset={dataset as ReportDataset | undefined} />;
+}
+function ReportTestRoutes() {
+  const { t } = useTranslation();
+  return (
+    <>
+      <nav aria-label='Reports'>
+        {datasets.map((dataset) => (
+          <Link key={dataset} to={`/reports/${dataset}`}>
+            {t(reportTitle(dataset))}
+          </Link>
+        ))}
+      </nav>
+      <Routes>
+        <Route path='/reports/:dataset' element={<SelectedReport />} />
+        <Route path='/reports' element={<ReportsPage />} />
+      </Routes>
+    </>
+  );
+}
 function show() {
   return render(
     <TestI18nProvider runtime={runtime}>
-      <MemoryRouter>
-        <ReportsPage />
+      <MemoryRouter initialEntries={['/reports/budget-balances']}>
+        <ReportTestRoutes />
       </MemoryRouter>
     </TestI18nProvider>,
   );
@@ -108,7 +132,7 @@ it('keeps typed report filters stable and cancels pending input when clearing', 
   const user = userEvent.setup();
   show();
   await user.click(
-    await screen.findByRole('tab', { name: 'Monthly leave requests' }),
+    await screen.findByRole('link', { name: 'Monthly leave requests' }),
   );
   const year = screen.getByLabelText('Year', { exact: true });
   await user.type(year, '2026');
@@ -138,6 +162,7 @@ it('keeps typed report filters stable and cancels pending input when clearing', 
 });
 
 beforeEach(() => {
+  api.datasets.mockResolvedValue({ data: datasets });
   api.request.mockImplementation(
     async ({ path }: { path: string; query: Record<string, string> }) =>
       path === 'departments/options'
@@ -207,12 +232,12 @@ it('loads every independently authorized dataset and sends its filters', async (
     ),
   );
   await user.click(
-    await screen.findByRole('tab', {
+    await screen.findByRole('link', {
       name: 'Contract ledger',
     }),
   );
   await user.click(
-    await screen.findByRole('tab', {
+    await screen.findByRole('link', {
       name: 'Headcount balances',
     }),
   );
@@ -344,7 +369,7 @@ it('clears previous rows when refreshed source access is revoked', async () => {
 it('filters the immutable contract expiry and headcount position without changing export scope', async () => {
   show();
   await userEvent.click(
-    await screen.findByRole('tab', { name: 'Contract ledger' }),
+    await screen.findByRole('link', { name: 'Contract ledger' }),
   );
   await userEvent.setup().clear(screen.getByLabelText('Ends on or before'));
   fireEvent.change(screen.getByLabelText('Ends on or before'), {
@@ -364,7 +389,7 @@ it('filters the immutable contract expiry and headcount position without changin
     expect.objectContaining({ query: { endsBefore: '2026-12-31' } }),
   );
   await userEvent.click(
-    await screen.findByRole('tab', { name: 'Headcount balances' }),
+    await screen.findByRole('link', { name: 'Headcount balances' }),
   );
   await userEvent.type(screen.getByLabelText('Position'), 'Engineer');
   await userEvent.click(
@@ -408,13 +433,13 @@ it.each(['en-US', 'zh-CN'])(
     });
     render(
       <TestI18nProvider runtime={localized}>
-        <MemoryRouter>
-          <ReportsPage />
+        <MemoryRouter initialEntries={['/reports/budget-balances']}>
+          <ReportTestRoutes />
         </MemoryRouter>
       </TestI18nProvider>,
     );
     await userEvent.click(
-      await screen.findByRole('tab', {
+      await screen.findByRole('link', {
         name: locale === 'zh-CN' ? '编制余额' : 'Headcount balances',
       }),
     );
@@ -453,13 +478,13 @@ it.each(['en-US', 'zh-CN'])(
     });
     render(
       <TestI18nProvider runtime={localized}>
-        <MemoryRouter>
-          <ReportsPage />
+        <MemoryRouter initialEntries={['/reports/budget-balances']}>
+          <ReportTestRoutes />
         </MemoryRouter>
       </TestI18nProvider>,
     );
     await userEvent.click(
-      await screen.findByRole('tab', {
+      await screen.findByRole('link', {
         name: locale === 'zh-CN' ? '合同台账' : 'Contract ledger',
       }),
     );
@@ -480,7 +505,7 @@ it.each(['en-US', 'zh-CN'])(
 it('searches labels without submitting opaque IDs, then clears the selected position filter', async () => {
   show();
   await userEvent.click(
-    await screen.findByRole('tab', { name: 'Headcount balances' }),
+    await screen.findByRole('link', { name: 'Headcount balances' }),
   );
   const input = screen.getByLabelText('Position');
   await userEvent.type(input, 'Engineer');
@@ -524,7 +549,7 @@ it('fails closed for position metadata denial while leaving independent authoriz
   });
   show();
   await userEvent.click(
-    await screen.findByRole('tab', { name: 'Headcount balances' }),
+    await screen.findByRole('link', { name: 'Headcount balances' }),
   );
   await screen.findByText('Position options could not be loaded.');
   expect(
@@ -558,7 +583,7 @@ it('uses identical monthly leave filters for list and Excel, rejects invalid mon
   );
   show();
   await user.click(
-    await screen.findByRole('tab', { name: 'Monthly leave requests' }),
+    await screen.findByRole('link', { name: 'Monthly leave requests' }),
   );
   expect(await screen.findByText('annual')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Year'), {
@@ -612,7 +637,7 @@ it('monthly numeric sorting is sent to the owner and clear filters restores defa
   const user = userEvent.setup();
   show();
   await user.click(
-    await screen.findByRole('tab', { name: 'Monthly leave requests' }),
+    await screen.findByRole('link', { name: 'Monthly leave requests' }),
   );
   await screen.findByRole('button', { name: 'Approved requests' });
   await user.click(screen.getByRole('button', { name: 'Approved requests' }));
@@ -658,7 +683,7 @@ it('monthly source limit gives a range correction instead of blind retry', async
   });
   show();
   await user.click(
-    await screen.findByRole('tab', { name: 'Monthly leave requests' }),
+    await screen.findByRole('link', { name: 'Monthly leave requests' }),
   );
   expect(
     await screen.findByText(
@@ -684,7 +709,7 @@ it('monthly known source denial hides Excel and gives the next step', async () =
   });
   show();
   await user.click(
-    await screen.findByRole('tab', { name: 'Monthly leave requests' }),
+    await screen.findByRole('link', { name: 'Monthly leave requests' }),
   );
   expect(
     await screen.findByText(
@@ -737,15 +762,15 @@ it('composes both new source reports without mixing their filters or private fie
   render(
     <TestI18nProvider runtime={runtime}>
       <MemoryRouter
-        initialEntries={['/reports?expenseYear=2026&expenseMonth=10']}
+        initialEntries={[
+          '/reports/expense-summary?expenseYear=2026&expenseMonth=10',
+        ]}
       >
-        <ReportsPage />
+        <ReportTestRoutes />
       </MemoryRouter>
     </TestI18nProvider>,
   );
-  await user.click(
-    await screen.findByRole('tab', { name: enUS.reportsExpense.title }),
-  );
+  expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   expect(await screen.findByText('travel')).toBeInTheDocument();
   expect(api.request).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -755,7 +780,7 @@ it('composes both new source reports without mixing their filters or private fie
   );
   expect(screen.queryByText('must-never-render')).not.toBeInTheDocument();
   await user.click(
-    await screen.findByRole('tab', { name: enUS.reportsEfficiency.title }),
+    await screen.findByRole('link', { name: enUS.reportsEfficiency.title }),
   );
   expect(
     await screen.findByText(enUS.reportsEfficiency.selectYear),
@@ -773,3 +798,46 @@ it('composes both new source reports without mixing their filters or private fie
   );
   expect(screen.queryByText('must-never-render')).not.toBeInTheDocument();
 });
+
+it('redirects legacy report links while preserving filters and removing dataset selection', async () => {
+  render(
+    <TestI18nProvider runtime={runtime}>
+      <MemoryRouter
+        initialEntries={[
+          '/reports?dataset=leave-monthly&leave-monthly-second=2026',
+        ]}
+      >
+        <ReportTestRoutes />
+      </MemoryRouter>
+    </TestI18nProvider>,
+  );
+  await screen.findByLabelText('Year', { exact: true });
+  expect(screen.getByLabelText('Year', { exact: true })).toHaveValue(2026);
+  expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+    'Monthly leave requests',
+  );
+  expect(
+    api.request.mock.calls
+      .filter(([call]) => call.path.startsWith('reports/'))
+      .every(([call]) => call.path === 'reports/leave-monthly'),
+  ).toBe(true);
+});
+
+it.each([[[]], [['contract-ledger']]])(
+  'does not substitute or load a denied direct report for available datasets %j',
+  async (...[available]) => {
+    api.datasets.mockResolvedValue({ data: available });
+    show();
+    await screen.findByText(enUS.reports.forbidden);
+    expect(
+      api.request.mock.calls.filter(([call]) =>
+        call.path.startsWith('reports/'),
+      ),
+    ).toHaveLength(0);
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: enUS.navigation.home }),
+    ).toHaveAttribute('href', '/');
+  },
+);

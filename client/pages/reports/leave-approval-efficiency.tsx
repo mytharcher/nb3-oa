@@ -60,15 +60,22 @@ const columns = [
   'totalElapsedMs',
   'averageElapsedMs',
 ] as const;
-export function LeaveApprovalEfficiencyReport() {
+export function LeaveApprovalEfficiencyReport({
+  showHeader = true,
+}: {
+  showHeader?: boolean;
+}) {
   const { session } = useAuthentication();
   const authorizationRevision = useAuthorizationRevision();
   return (
-    <EfficiencyReport key={`${session?.user.id}:${authorizationRevision}`} />
+    <EfficiencyReport
+      showHeader={showHeader}
+      key={`${session?.user.id}:${authorizationRevision}`}
+    />
   );
 }
 
-function EfficiencyReport() {
+function EfficiencyReport({ showHeader }: { showHeader: boolean }) {
   const api = useApiClient();
   const { t, i18n } = useTranslation();
   const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US';
@@ -230,10 +237,12 @@ function EfficiencyReport() {
   const text = (key: string) => t(`reportsEfficiency.${key}`);
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{text('title')}</CardTitle>
-        <CardDescription>{text('description')}</CardDescription>
-      </CardHeader>
+      {showHeader ? (
+        <CardHeader>
+          <CardTitle>{text('title')}</CardTitle>
+          <CardDescription>{text('description')}</CardDescription>
+        </CardHeader>
+      ) : null}
       <CardContent className='flex flex-col gap-4'>
         <ApplicationToolbar
           actions={

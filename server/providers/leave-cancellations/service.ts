@@ -1,69 +1,76 @@
-import { demoNow } from '../demo-data/context.js';
 import {
-  hasApprovalCandidate,
+  approvalState,
+  approve,
+  commentAction,
+  readAction,
+  reject,
+  returnTo,
+  stagesFor,
+  type Approval,
+  type PerformInput,
+} from '@nocobase/app-plugin-approval/server';
+import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
+import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
+import type {
+  DatabaseConnection,
+  DatabaseManager,
+  RepositoryPolicy,
+  RepositoryRecord,
+} from '@nocobase/db';
+import {
+  LifecycleRuntime,
+  type EffectDispatcher,
+  type JsonObject,
+  type LifecycleRecord,
+  type LifecycleStore,
+} from '@nocobase/lifecycle';
+import { createServiceToken } from '@nocobase/service-provider';
+import { randomUUID } from 'node:crypto';
+import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import {
   createAppApprovalService,
-  hasApprovalTaskActor,
+  hasApprovalCandidate,
 } from '../approval-runtime/query-service.js';
+import {
+  approvalReadableScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
+import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
+import {
+  defineAppApproval as defineApproval,
+  registerAppApproval,
+} from '../approval-runtime/task-center.js';
 import { runTaskViewsFor } from '../approval-runtime/task-views.js';
+import { demoNow } from '../demo-data/context.js';
+import { LeaveError } from '../leave/errors.js';
 import {
   appointAction,
   reassignAction,
 } from '../process-management/actions.js';
 import { processDirectorySnapshot } from '../process-management/context.js';
-import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
-import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
-import { randomUUID } from 'node:crypto';
-import {
-  approvalState,
-  defineApproval,
-  stagesFor,
-  approve,
-  reject,
-  returnTo,
-  commentAction,
-  readAction,
-  type Approval,
-  type PerformInput,
-} from '@nocobase/app-plugin-approval/server';
-import {
-  LifecycleRuntime,
-  type LifecycleStore,
-  type LifecycleRecord,
-  type JsonObject,
-  type EffectDispatcher,
-} from '@nocobase/lifecycle';
-import type {
-  DatabaseManager,
-  DatabaseConnection,
-  RepositoryPolicy,
-  RepositoryRecord,
-} from '@nocobase/db';
-import { createServiceToken } from '@nocobase/service-provider';
-import { LeaveError } from '../leave/errors.js';
-import { createOaApprovalOperations } from '../approval-directory/operations.js';
 
+import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import type {
+  ApprovalDirectoryService,
+  OaApprovalDirectory,
+} from '../approval-directory/contract.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import type { AuditService } from '../audit/index.js';
+import type { EmployeeService } from '../employees/contract.js';
+import type { LeaveBalanceService } from '../leave-balances/contract.js';
 import {
   LEAVE_LIFECYCLE,
   type LeaveRecord,
   type LeaveService,
 } from '../leave/service.js';
-import type { LeaveBalanceService } from '../leave-balances/contract.js';
 import type { OrgService } from '../org/contract.js';
-import type { AuditService } from '../audit/index.js';
-import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
-import { AsyncLocalStorage } from 'node:async_hooks';
-import type { EmployeeService } from '../employees/contract.js';
-import type {
-  ApprovalDirectoryService,
-  OaApprovalDirectory,
-} from '../approval-directory/contract.js';
 import type {
   CalendarService,
   DictionaryService,
   RuleService,
   SequenceService,
 } from '../platform/index.js';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
 
 export const CANCELLATION_LIFECYCLE = 'oa.leaveCancellation';
 export interface CancellationRecord extends LifecycleRecord {
@@ -643,7 +650,7 @@ export function createCancellationService(d: CancellationDependencies) {
       ]),
     ),
   });
-  runtime.register(approval, { services: source });
+  registerAppApproval(d.db, runtime, approval, source);
   const approvals = createAppApprovalService(
     runtime,
     [approval.approval as unknown as Approval<never>],
@@ -816,62 +823,26 @@ export function createCancellationService(d: CancellationDependencies) {
   }
   return {
     initialize: refresh,
-    async readableIds(actorId: string) {
+    async readableScope(actorId: string): Promise<DatabaseScope> {
       await refresh();
-      return readDirectory.run(outside.directory, async () => {
-        const records = await d.db
-          .repository<CancellationRecord>('leaveCancellations')
-          .findMany();
-        const ids: string[] = [];
-        for (const record of records) {
-          if (
-            record.applicantId === actorId ||
-            record.createdById === actorId
-          ) {
-            ids.push(record.id);
-            continue;
-          }
-          const involvement = await approvals.involvementOf(
-            CANCELLATION_LIFECYCLE,
-            record.id,
-            actorId,
-          );
-          if (involvement.length) {
-            ids.push(record.id);
-            continue;
-          }
-          const acted = await hasApprovalTaskActor(
-            approvals,
-            CANCELLATION_LIFECYCLE,
-            record.id,
-            actorId,
-          );
-          let head = false;
-          const dept = await d.org.primaryDepartmentOf(record.applicantId);
-          if (dept)
-            head = Boolean(
-              (await d.org.activeChain(dept.id))?.some(
-                (d) => d.managerId === actorId,
-              ),
-            );
-          if (
-            record.applicantId === actorId ||
-            record.createdById === actorId ||
-            involvement.length ||
-            acted ||
-            outside.directory.hasRole(actorId, 'hr') ||
-            outside.directory.hasRole(actorId, 'gm') ||
-            outside.directory.hasRole(actorId, 'approval.admin') ||
-            head ||
-            (await d.employees.isAboveInReportingLine(
-              actorId,
-              record.applicantId,
-            ))
-          )
-            ids.push(record.id);
-        }
-        return ids;
+      return approvalReadableScope(actorId, {
+        approvals: approvals,
+        lifecycle: CANCELLATION_LIFECYCLE,
+        directory: outside.directory,
+        roles: ['hr', 'gm', 'approval.admin'],
+        ownerFields: ['applicantId', 'createdById'],
+        taskActors: true,
+        org: d.org,
+        department: 'primary',
+        employees: d.employees,
       });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'leaveCancellations',
+        await this.readableScope(actorId),
+      );
     },
     runtime,
     approvals,
@@ -1076,6 +1047,10 @@ export function createCancellationService(d: CancellationDependencies) {
       );
       return { people, nextOffset: page.nextOffset };
     },
+    async accessFacts(id: string, actorId: string, policy?: RepositoryPolicy) {
+      const record = await canRead(id, actorId, policy);
+      return { applicantId: record.applicantId, status: record.status };
+    },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);
       return readDirectory.run(outside.directory, async () => {
@@ -1102,7 +1077,7 @@ export function createCancellationService(d: CancellationDependencies) {
           record,
           users,
           view: await runtime.view(CANCELLATION_LIFECYCLE, id, actor),
-          runs: await approvals.runViewsFor(CANCELLATION_LIFECYCLE, id),
+          runs,
           taskActions: await approvals.actionsFor(
             CANCELLATION_LIFECYCLE,
             id,

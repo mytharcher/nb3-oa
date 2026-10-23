@@ -1,28 +1,26 @@
-import { travelServiceToken } from './contract.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
+import { travelServiceToken } from './contract.js';
 
-import { orgServiceToken } from '../org/contract.js';
-import { auditServiceToken } from '../audit/index.js';
-import { ServiceProvider } from '@nocobase/service-provider';
-import type { Application } from '@nocobase/app-server/application';
-import { databaseManagerToken } from '@nocobase/db';
 import {
   authorizationToken,
   defineDatabasePermission,
-  condition,
-  anyScope,
 } from '@nocobase/app-plugin-authorization/server';
+import type { Application } from '@nocobase/app-server/application';
+import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
+import { loggingToken } from '@nocobase/app-server/logging';
 import {
   defineCompositeResource,
   defineRecordAccess,
 } from '@nocobase/authorization/core';
-import { loggingToken } from '@nocobase/app-server/logging';
-import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
-import { createLifecycleJobs } from '@nocobase/lifecycle/jobs';
+import { databaseManagerToken } from '@nocobase/db';
 import type { LifecycleJobs } from '@nocobase/lifecycle/jobs';
-import { approvalNotificationServiceToken } from '../approval-notifications/contract.js';
+import { createLifecycleJobs } from '@nocobase/lifecycle/jobs';
+import { ServiceProvider } from '@nocobase/service-provider';
 import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
+import { approvalNotificationServiceToken } from '../approval-notifications/contract.js';
+import { auditServiceToken } from '../audit/index.js';
 import { employeeServiceToken } from '../employees/contract.js';
+import { orgServiceToken } from '../org/contract.js';
 import {
   calendarServiceToken,
   ruleServiceToken,
@@ -112,12 +110,9 @@ export default class TravelCancellationProvider extends ServiceProvider<Applicat
           .collections('travelCancellations')
           .resolver(async ({ principal }) => {
             if (principal.type !== 'user') return false;
-            const ids = await this.app.container
+            return await this.app.container
               .resolve(travelCancellationServiceToken)
-              .readableIds(principal.id);
-            return ids.length
-              ? anyScope(ids.map((id) => condition('id', '$eq', id)))
-              : false;
+              .readableScope(principal.id);
           }),
       ),
     );

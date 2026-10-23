@@ -11,6 +11,10 @@ import { databaseManagerToken } from '@nocobase/db';
 import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
 import { installRequestSchemaReads, withRequestSchemaReads } from './schema.js';
 import { withApprovalQueryReads } from '../approval-runtime/query-service.js';
+import {
+  withApprovalTimings,
+  type ApprovalTiming,
+} from '../approval-runtime/timing.js';
 import { withBusinessReads } from './business-reads.js';
 import { withRequestUserSummaries } from './user-summaries.js';
 
@@ -30,25 +34,34 @@ export const requestPerformanceMiddleware = defineHttpMiddleware<Application>({
       .getLogger('oa-performance');
     router.use('*', async (context, next) => {
       const start = performance.now();
-      const { timings } = await measureRequestScopes(() =>
-        withRequestSchemaReads(() =>
-          context.req.method === 'GET'
-            ? withRequestUserSummaries(() =>
-                withBusinessReads(() =>
-                  withApprovalQueryReads(() =>
-                    withRequestRecordAccess(() =>
-                      app.container.has(approvalDirectoryServiceToken)
-                        ? app.container
-                            .resolve(approvalDirectoryServiceToken)
-                            .withReadSnapshot(next)
-                        : next(),
+      const run = () =>
+        measureRequestScopes(() =>
+          withRequestSchemaReads(() =>
+            context.req.method === 'GET'
+              ? withRequestUserSummaries(() =>
+                  withBusinessReads(() =>
+                    withApprovalQueryReads(() =>
+                      withRequestRecordAccess(() =>
+                        app.container.has(approvalDirectoryServiceToken)
+                          ? app.container
+                              .resolve(approvalDirectoryServiceToken)
+                              .withReadSnapshot(next)
+                          : next(),
+                      ),
                     ),
                   ),
-                ),
-              )
-            : next(),
-        ),
-      );
+                )
+              : next(),
+          ),
+        );
+      let approvalTiming: ApprovalTiming | undefined;
+      const { timings } = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(
+        context.req.method,
+      )
+        ? await withApprovalTimings(run, (value) => {
+            approvalTiming = value;
+          })
+        : await run();
       const elapsed = performance.now() - start;
       if (elapsed > 500)
         logger.warn(
@@ -58,6 +71,7 @@ export const requestPerformanceMiddleware = defineHttpMiddleware<Application>({
             status: context.res.status,
             durationMs: Math.round(elapsed),
             scopes: [...timings].map(([scope, value]) => ({ scope, ...value })),
+            approvalPhases: approvalTiming?.phases,
           },
           'Request exceeded 500ms',
         );
@@ -71,7 +85,14 @@ export const requestPerformanceMiddleware = defineHttpMiddleware<Application>({
         );
       context.header(
         'Server-Timing',
-        [`app;dur=${elapsed.toFixed(1)}`, ...scopes].join(', '),
+        [
+          `app;dur=${elapsed.toFixed(1)}`,
+          ...scopes,
+          ...Object.entries(approvalTiming?.phases ?? {}).map(
+            ([phase, value]) =>
+              `approval_${phase};dur=${value.durationMs.toFixed(1)}`,
+          ),
+        ].join(', '),
       );
     });
   },

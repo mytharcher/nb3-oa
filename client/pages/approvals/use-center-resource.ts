@@ -63,13 +63,16 @@ interface CenterResponse {
   };
 }
 /** Keep the server total with the records; a paged length is never a work count. */
-export function useCenterResource(query: Record<string, string>) {
+export function useCenterResource(
+  query: Record<string, string>,
+  path = 'approvalCenter',
+) {
   const api = useApiClient();
   const [generation, reload] = useReducer((v: number) => v + 1, 0);
   const { session } = useAuthentication();
   const revision = useAuthorizationRevision();
   const queryKey = JSON.stringify(query);
-  const source = JSON.stringify([queryKey, session?.user.id, revision]);
+  const source = JSON.stringify([path, queryKey, session?.user.id, revision]);
   const key = JSON.stringify([source, generation]);
   const [result, setResult] = useState<{
     source: string;
@@ -79,15 +82,12 @@ export function useCenterResource(query: Record<string, string>) {
   }>();
   useEffect(() => {
     let active = true;
-    const read = sharedRead(
-      api,
-      JSON.stringify(['approvalCenter', key]),
-      (signal) =>
-        api.request<CenterResponse>({
-          path: 'approvalCenter',
-          query: JSON.parse(queryKey) as Record<string, string>,
-          signal,
-        }),
+    const read = sharedRead(api, JSON.stringify([path, key]), (signal) =>
+      api.request<CenterResponse>({
+        path,
+        query: JSON.parse(queryKey) as Record<string, string>,
+        signal,
+      }),
     );
     read.promise.then(
       (value) => {
@@ -110,7 +110,7 @@ export function useCenterResource(query: Record<string, string>) {
       active = false;
       read.release();
     };
-  }, [api, source, key, queryKey]);
+  }, [api, source, key, queryKey, path]);
   return {
     data: result?.source === source ? result.value?.data : undefined,
     meta: result?.source === source ? result.value?.meta : undefined,

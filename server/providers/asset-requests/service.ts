@@ -1,55 +1,60 @@
-import { demoNow } from '../demo-data/context.js';
-import {
-  hasApprovalCandidate,
-  createAppApprovalService,
-  hasApprovalTaskActor,
-} from '../approval-runtime/query-service.js';
-import { runTaskViewsFor } from '../approval-runtime/task-views.js';
-import { createHash } from 'node:crypto';
-import {
-  lockUserForAdministration,
-  type UserAdministrationService,
-} from '@nocobase/app-plugin-authentication';
 import {
   type Approval,
   type PerformInput,
 } from '@nocobase/app-plugin-approval/server';
 import {
-  LifecycleRuntime,
-  type JsonObject,
-  type EffectDispatcher,
-} from '@nocobase/lifecycle';
+  lockUserForAdministration,
+  type UserAdministrationService,
+} from '@nocobase/app-plugin-authentication';
+import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
 import type {
-  DatabaseManager,
   DatabaseConnection,
+  DatabaseManager,
   RepositoryPolicy,
 } from '@nocobase/db';
-import type { AuditService } from '../audit/index.js';
-import type { OrgService } from '../org/contract.js';
-import type { EmployeeService } from '../employees/contract.js';
+import {
+  LifecycleRuntime,
+  type EffectDispatcher,
+  type JsonObject,
+} from '@nocobase/lifecycle';
+import { createHash } from 'node:crypto';
 import type { ApprovalDirectoryService } from '../approval-directory/contract.js';
+import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import {
+  createAppApprovalService,
+  hasApprovalCandidate,
+} from '../approval-runtime/query-service.js';
+import {
+  approvalReadableScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
+import { registerAppApproval } from '../approval-runtime/task-center.js';
+import { runTaskViewsFor } from '../approval-runtime/task-views.js';
+import type { AssetService, StockPhase } from '../assets/contract.js';
+import { AssetError } from '../assets/errors.js';
+import type { AuditService } from '../audit/index.js';
+import { demoNow } from '../demo-data/context.js';
+import type { EmployeeService } from '../employees/contract.js';
+import { exceedsMoneyThreshold } from '../exact-money.js';
+import type { OrgService } from '../org/contract.js';
 import type {
   CalendarService,
   DictionaryService,
   RuleService,
   SequenceService,
 } from '../platform/index.js';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
-import type { AssetService, StockPhase } from '../assets/contract.js';
-import { AssetError } from '../assets/errors.js';
-import { exceedsMoneyThreshold } from '../exact-money.js';
+import { assetRequestApproval, assetRequestFingerprint } from './approval.js';
 import {
   ASSET_REQUEST_LIFECYCLE,
-  type AssetRequestRecord,
   type AssetRequestInput,
+  type AssetRequestRecord,
 } from './contract.js';
-import { assetRequestApproval, assetRequestFingerprint } from './approval.js';
-import { createAssetRequestStore } from './store.js';
 import { createAssetRequestJournal } from './journal.js';
-import { createAssetBorrowReminders } from './reminders.js';
 import { projectAssetApprovalJson } from './projection.js';
+import { createAssetBorrowReminders } from './reminders.js';
 import { createAssetRequestStockSource } from './stock-source.js';
-import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import { createAssetRequestStore } from './store.js';
 import {
   assetRequestInputSchema,
   assetUnitsSchema,
@@ -463,9 +468,9 @@ export function createAssetRequestService(d: AssetRequestDependencies) {
     store: store.store,
     dispatcher: d.dispatcher,
   });
-  runtime.register(graph, {
-    services: (handle: unknown) => store.services(handle),
-  });
+  registerAppApproval(d.db, runtime, graph, (handle: unknown) =>
+    store.services(handle),
+  );
   const approvals = createAppApprovalService(
     runtime,
     [graph.approval as unknown as Approval<never>],
@@ -595,66 +600,23 @@ export function createAssetRequestService(d: AssetRequestDependencies) {
         return result;
       });
     },
-    async readableIds(actorId: string) {
+    async readableScope(actorId: string): Promise<DatabaseScope> {
       await store.refresh();
-      return store.withReadDirectory(async () => {
-        const directory = store.services(undefined).directory;
-        const ids: string[] = [];
-        let cursor: string | undefined;
-        for (;;) {
-          const rows = await d.db
-            .repository<AssetRequestRecord>('assetRequests')
-            .findMany({
-              cursor: cursor ? { id: cursor } : undefined,
-              direction: cursor ? 'forward' : undefined,
-              limit: 100,
-              sort: (s) => [s.field('id').asc()],
-            });
-          for (const record of rows) {
-            // These are already positive branches of the same read policy.
-            if (
-              record.applicantId === actorId ||
-              record.createdById === actorId ||
-              record.headApproverId === actorId ||
-              ['admin', 'finance', 'gm', 'approval.admin'].some((role) =>
-                directory.hasRole(actorId, role),
-              )
-            ) {
-              ids.push(record.id);
-              continue;
-            }
-            const involvement = await approvals.involvementOf(
-              ASSET_REQUEST_LIFECYCLE,
-              record.id,
-              actorId,
-            );
-            if (involvement.length) {
-              ids.push(record.id);
-              continue;
-            }
-            const acted = await hasApprovalTaskActor(
-              approvals,
-              ASSET_REQUEST_LIFECYCLE,
-              record.id,
-              actorId,
-            );
-            if (
-              record.applicantId === actorId ||
-              record.createdById === actorId ||
-              record.headApproverId === actorId ||
-              involvement.length ||
-              acted ||
-              ['admin', 'finance', 'gm', 'approval.admin'].some((role) =>
-                directory.hasRole(actorId, role),
-              )
-            )
-              ids.push(record.id);
-          }
-          if (rows.length < 100) break;
-          cursor = rows.at(-1)!.id;
-        }
-        return ids;
+      return approvalReadableScope(actorId, {
+        approvals: approvals,
+        lifecycle: ASSET_REQUEST_LIFECYCLE,
+        directory: store.services(undefined).directory,
+        roles: ['admin', 'finance', 'gm', 'approval.admin'],
+        ownerFields: ['applicantId', 'createdById', 'headApproverId'],
+        taskActors: true,
       });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'assetRequests',
+        await this.readableScope(actorId),
+      );
     },
     async detail(id: string, actorId: string, policy: RepositoryPolicy) {
       const record = await requireRead(id, policy);

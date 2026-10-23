@@ -97,13 +97,7 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
               },
               { color: theme, preset },
             );
-            await p.goto(`${h.origin}${h.basePath}/reports`);
-            await p
-              .getByRole('tab', {
-                name: en ? 'Monthly leave requests' : '请假月汇总',
-                exact: true,
-              })
-              .click();
+            await p.goto(`${h.origin}${h.basePath}/reports/leave-monthly`);
             await p
               .getByLabel(en ? 'Year' : '年度', { exact: true })
               .fill('2026');
@@ -222,18 +216,7 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
               p.getByText(en ? 'Annual leave' : '年假', { exact: true }),
             ).toBeVisible();
             await expect(p.locator('tbody tr')).toHaveCount(1);
-            expect(
-              await p.evaluate(() => {
-                const list = document.querySelector('[data-slot="tabs-list"]')!,
-                  card = document.querySelector(
-                    '[role="tabpanel"] [data-slot="card"]',
-                  )!;
-                return (
-                  list.getBoundingClientRect().bottom <
-                  card.getBoundingClientRect().top
-                );
-              }),
-            ).toBe(true);
+            await expect(p.getByRole('tablist')).toHaveCount(0);
             await expect(
               p.getByText(
                 en ? 'Approved original requested days' : '批准原申请天数',

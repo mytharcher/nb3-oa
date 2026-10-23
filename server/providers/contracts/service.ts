@@ -1,51 +1,56 @@
-import { demoNow } from '../demo-data/context.js';
-import { z } from 'zod';
-import { hasApprovalAssignment } from '../approval-runtime/query-service.js';
-import { createHash, randomUUID } from 'node:crypto';
-import { createServiceToken } from '@nocobase/service-provider';
+import {
+  isOpenRun,
+  type ActionTarget,
+  type ApprovalService,
+  type PeopleQuery,
+  type PerformInput,
+} from '@nocobase/app-plugin-approval/server';
 import {
   lockUserForAdministration,
   type UserAdministrationService,
 } from '@nocobase/app-plugin-authentication';
-import {
-  isOpenRun,
-  type PerformInput,
-  type ApprovalService,
-  type ActionTarget,
-  type PeopleQuery,
-} from '@nocobase/app-plugin-approval/server';
+import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
 import type {
   DatabaseConnection,
   DatabaseManager,
   RepositoryPolicy,
 } from '@nocobase/db';
 import type { EffectDispatcher, JsonObject } from '@nocobase/lifecycle';
-import type { AuditService } from '../audit/index.js';
-import type { OrgService } from '../org/contract.js';
-import type { EmployeeService } from '../employees/contract.js';
-import { VendorError, type VendorService } from '../vendors/contract.js';
+import { createServiceToken } from '@nocobase/service-provider';
+import { createHash, randomUUID } from 'node:crypto';
+import { z } from 'zod';
 import type { ApprovalDirectoryService } from '../approval-directory/contract.js';
+import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import { hasApprovalAssignment } from '../approval-runtime/query-service.js';
+import {
+  approvalReadableScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
+import type { AuditService } from '../audit/index.js';
+import { demoNow } from '../demo-data/context.js';
+import type { EmployeeService } from '../employees/contract.js';
+import type { OrgService } from '../org/contract.js';
 import type {
   CalendarService,
   DictionaryService,
   RuleService,
   SequenceService,
 } from '../platform/index.js';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
-import type { ContractLedgerService, ContractFacts } from './contract.js';
-import { CONTRACT_KIND, type ContractRequest } from './types.js';
-import { createContractRuntime } from './runtime.js';
+import { VendorError, type VendorService } from '../vendors/contract.js';
+import type { ContractFacts, ContractLedgerService } from './contract.js';
+import { fail } from './errors.js';
+import { commandFingerprint } from './ledger.js';
 import { reusableOpinionAction } from './opinions.js';
-import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import { createContractRuntime } from './runtime.js';
+import { CONTRACT_KIND, type ContractRequest } from './types.js';
 import {
   createContractSchema,
-  validateActionInput,
-  ruleCents,
   proposalSchema,
+  ruleCents,
+  validateActionInput,
   type ContractCreate,
 } from './validation.js';
-import { commandFingerprint } from './ledger.js';
-import { ContractError, fail } from './errors.js';
 interface Dependencies {
   db: DatabaseManager;
   audit: AuditService;
@@ -1491,23 +1496,29 @@ export function createContractService(d: Dependencies) {
         },
       };
     },
-    async readableIds(actorId: string) {
-      const ids: string[] = [];
-      for (const row of await d.db
-        .repository<ContractRequest>('contractRequests')
-        .findMany()) {
-        try {
-          await read(row.id, actorId);
-          ids.push(row.id);
-        } catch (error) {
-          if (
-            !(error instanceof ContractError) ||
-            error.code !== 'CONTRACT_ACCESS_DENIED'
-          )
-            throw error;
-        }
-      }
-      return ids;
+    async readableScope(actorId: string): Promise<DatabaseScope> {
+      return approvalReadableScope(actorId, {
+        approvals: kit.approvals,
+        lifecycle: CONTRACT_KIND,
+        directory: await d.directory.snapshot(),
+        roles: [
+          'legal',
+          'finance',
+          'financeManager',
+          'cfo',
+          'gm',
+          'approval.admin',
+        ],
+        ownerFields: ['applicantId', 'creatorId'],
+        taskActors: false,
+      });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'contractRequests',
+        await this.readableScope(actorId),
+      );
     },
   };
   return service;

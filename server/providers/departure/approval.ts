@@ -1,8 +1,8 @@
+import { defineAppApproval as defineApproval } from '../approval-runtime/task-center.js';
 import { demoNow } from '../demo-data/context.js';
 import { DepartureError } from './errors.js';
 import {
   approvalState,
-  defineApproval,
   stagesFor,
   approve,
   reject,

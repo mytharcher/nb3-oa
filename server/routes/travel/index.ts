@@ -1,4 +1,4 @@
-import { ExpenseAuthorizationError } from '../../providers/expense-authorizations/service.js';
+import { ApprovalError } from '@nocobase/app-plugin-approval/server';
 import {
   authenticationToken,
   type AuthEnv,
@@ -11,35 +11,37 @@ import type { Application } from '@nocobase/app-server/application';
 import {
   ApiError,
   apiErrorHandler,
-  defineApiRoutes,
-  describeRoute,
-  apiValidator,
-  dataResponse,
   apiErrorResponse,
   apiErrorResponses,
+  apiValidator,
+  dataResponse,
+  defineApiRoutes,
+  describeRoute,
   type AppRouteContribution,
 } from '@nocobase/app-server/router';
-import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
-import { ApprovalError } from '@nocobase/app-plugin-approval/server';
-import { z } from 'zod';
-import { Hono, type Context } from 'hono';
 import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
+import { LifecycleError, lifecycleErrorFields } from '@nocobase/lifecycle';
+import { Hono, type Context } from 'hono';
+import { z } from 'zod';
+import { ExpenseAuthorizationError } from '../../providers/expense-authorizations/service.js';
 import { TravelAttachmentError } from '../../providers/travel/attachments.js';
 import { TravelError } from '../../providers/travel/errors.js';
 import { travelServiceToken } from '../../providers/travel/index.js';
+import attachmentRoutes from './attachments.js';
+import cancellationRoutes from './cancellations.js';
 import {
-  OptionsQuery,
   ActionInput,
+  ActionResult,
   CandidatesResult,
   CreateTravel,
-  TravelInput,
-  TravelParams,
-  ListQuery,
-  TransitionInput,
-  Result,
   Detail,
   List,
-  ActionResult,
+  ListQuery,
+  OptionsQuery,
+  Result,
+  TransitionInput,
+  TravelInput,
+  TravelParams,
 } from './schemas.js';
 const INPUT_ERROR_FIELDS: Record<string, string> = {
   TRAVEL_ITINERARY_REQUIRED: 'attachments',
@@ -390,14 +392,14 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         const actorId = c.get('auth')!.user.id;
         let mutationPolicy: RepositoryPolicy | undefined;
         if (['submit', 'edit', 'withdraw'].includes(input.transition)) {
-          const detail = await service.detail(
+          const detail = await service.accessFacts(
             c.req.valid('param').id,
             actorId,
             await readPolicy(c),
           );
           mutationPolicy = await actionPolicy(
             c,
-            detail.record.applicantId === actorId ? 'submit' : 'delegate',
+            detail.applicantId === actorId ? 'submit' : 'delegate',
           );
         }
         if (input.transition === 'edit') {
@@ -485,6 +487,4 @@ export const routes: readonly AppRouteContribution<Application>[] = [
     return root;
   }),
 ];
-import attachmentRoutes from './attachments.js';
-import cancellationRoutes from './cancellations.js';
 export default [...routes, ...attachmentRoutes, ...cancellationRoutes];

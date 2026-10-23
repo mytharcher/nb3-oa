@@ -368,14 +368,8 @@ export const routes: readonly AppRouteContribution<Application>[] = [
       apiValidator('json', TransitionInput),
       async (c) => {
         const input = c.req.valid('json');
-        const actorId = c.get('auth')!.user.id;
         let mutationPolicy: RepositoryPolicy | undefined;
         if (['submit', 'edit', 'withdraw'].includes(input.transition)) {
-          await service.detail(
-            c.req.valid('param').id,
-            actorId,
-            await readPolicy(c),
-          );
           mutationPolicy = await actionPolicy(c, 'submit');
         }
         if (input.transition === 'edit') {

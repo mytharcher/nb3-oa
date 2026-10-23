@@ -31,7 +31,7 @@ interface Result {
 }
 const recordKey = (v: { kind: string; id: string }) => `${v.kind}:${v.id}`;
 export function useBatchApprove(
-  rows: CenterRecord[] | undefined,
+  rows: Pick<CenterRecord, 'id' | 'kind' | 'title' | 'number'>[] | undefined,
   enabled: boolean,
   scope: string,
   reload: () => void,
@@ -280,5 +280,29 @@ export function useBatchApprove(
       </AlertDialog>
     </>
   );
-  return { column, controls, hasCandidates: candidates.length > 0 };
+  return {
+    column,
+    controls,
+    hasCandidates: candidates.length > 0,
+    candidates,
+    selected,
+    blocked,
+    select(candidate: Candidate, checked: boolean) {
+      if (
+        blocked ||
+        !candidates.some((item) => item.taskId === candidate.taskId)
+      )
+        return;
+      const key = recordKey(candidate);
+      if (checked && keys.length >= 20) return;
+      setResults(undefined);
+      setError(undefined);
+      setSelection({
+        source,
+        keys: checked
+          ? [...new Set([...keys, key])]
+          : keys.filter((value) => value !== key),
+      });
+    },
+  };
 }

@@ -1,93 +1,100 @@
-import { demoNow } from '../demo-data/context.js';
 import {
-  hasApprovalCandidate,
+  allActivePeople,
+  APPROVAL_COLLECTIONS,
+  approvalState,
+  approve,
+  assignAction,
+  ccAction,
+  claimAction,
+  commentAction,
+  configureAction,
+  defineApprovalAction,
+  isOpenRun,
+  peopleWithRole,
+  readAction,
+  reject,
+  releaseAction,
+  returnTo,
+  stagesFor,
+  transferAction,
+  type Approval,
+  type PerformInput,
+  type TaskRow,
+} from '@nocobase/app-plugin-approval/server';
+import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
+import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
+import type {
+  DatabaseConnection,
+  DatabaseManager,
+  RepositoryPolicy,
+  RepositoryRecord,
+} from '@nocobase/db';
+import {
+  LifecycleRuntime,
+  type EffectDispatcher,
+  type JsonObject,
+  type LifecycleRecord,
+  type LifecycleStore,
+} from '@nocobase/lifecycle';
+import { createHash, randomUUID } from 'node:crypto';
+import { z } from 'zod';
+import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import {
   createAppApprovalService,
-  hasApprovalTaskActor,
+  hasApprovalCandidate,
 } from '../approval-runtime/query-service.js';
+import {
+  approvalReadableScope,
+  readableIdsFromScope,
+} from '../approval-runtime/readable-scope.js';
+import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
+import {
+  defineAppApproval as defineApproval,
+  registerAppApproval,
+} from '../approval-runtime/task-center.js';
 import { runTaskViewsFor } from '../approval-runtime/task-views.js';
+import type { AttendanceService } from '../attendance/contract.js';
+import { demoNow } from '../demo-data/context.js';
+import { exceedsMoneyThreshold } from '../exact-money.js';
+import type { LoanRequestService } from '../loan-requests/contract.js';
+import type { DictionaryService } from '../platform/dictionaries.js';
 import {
   appointAction,
   reassignAction,
 } from '../process-management/actions.js';
 import { processDirectorySnapshot } from '../process-management/context.js';
-import { createAppLifecycleStore } from '../approval-runtime/repository-store.js';
-import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
-import { createHash, randomUUID } from 'node:crypto';
-import { z } from 'zod';
-import {
-  isOpenRun,
-  APPROVAL_COLLECTIONS,
-  type TaskRow,
-  approvalState,
-  defineApproval,
-  stagesFor,
-  approve,
-  reject,
-  returnTo,
-  commentAction,
-  readAction,
-  ccAction,
-  defineApprovalAction,
-  configureAction,
-  allActivePeople,
-  peopleWithRole,
-  transferAction,
-  claimAction,
-  releaseAction,
-  assignAction,
-  type Approval,
-  type PerformInput,
-} from '@nocobase/app-plugin-approval/server';
-import {
-  LifecycleRuntime,
-  type LifecycleStore,
-  type LifecycleRecord,
-  type JsonObject,
-  type EffectDispatcher,
-} from '@nocobase/lifecycle';
-import type {
-  DatabaseManager,
-  DatabaseConnection,
-  RepositoryPolicy,
-  RepositoryRecord,
-} from '@nocobase/db';
-export { travelServiceToken } from './contract.js';
 import { assertTravelAttachments } from './attachments.js';
-import { bookingPolicy, bookingActions } from './handling.js';
-import type { DictionaryService } from '../platform/dictionaries.js';
-import type { LoanRequestService } from '../loan-requests/contract.js';
 import { TravelError } from './errors.js';
-import { exceedsMoneyThreshold } from '../exact-money.js';
-import type { AttendanceService } from '../attendance/contract.js';
-import { createOaApprovalOperations } from '../approval-directory/operations.js';
+import { bookingActions, bookingPolicy } from './handling.js';
+export {
+  TRAVEL_LIFECYCLE,
+  travelServiceToken,
+  type TravelInput,
+  type TravelRecord,
+} from './contract.js';
 
-import type { OrgService } from '../org/contract.js';
-import type { AuditService } from '../audit/index.js';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { EmployeeService } from '../employees/contract.js';
 import type {
   ApprovalDirectoryService,
   OaApprovalDirectory,
 } from '../approval-directory/contract.js';
+import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
+import type { AuditService } from '../audit/index.js';
+import type { EmployeeService } from '../employees/contract.js';
+import type { OrgService } from '../org/contract.js';
 import type {
   CalendarService,
   RuleService,
   SequenceService,
 } from '../platform/index.js';
-import type { ApprovalNotificationService } from '../approval-notifications/contract.js';
 
+import type { ExpenseAuthorizationService } from '../expense-authorizations/contract.js';
 import {
   TRAVEL_LIFECYCLE,
-  type TravelRecord,
   type TravelInput,
-} from './contract.js';
-export {
-  TRAVEL_LIFECYCLE,
   type TravelRecord,
-  type TravelInput,
 } from './contract.js';
-import type { ExpenseAuthorizationService } from '../expense-authorizations/contract.js';
 interface Services {
   directory: OaApprovalDirectory;
   connection?: DatabaseConnection;
@@ -326,13 +333,23 @@ export function createTravelService(d: TravelDependencies) {
     connection: DatabaseConnection,
   ) {
     const repo = connection.repository<TravelRecord>('travelRequests');
-    const records = (
-      await Promise.all(
-        ['booking', 'exception', 'completed'].map((status) =>
-          repo.findMany({ filter: { status } }),
-        ),
-      )
-    ).flat();
+    // Both endpoints are datetimeTz columns, so database comparisons preserve
+    // Date.parse instant ordering even when the input uses a different offset.
+    const records = await repo.findMany({
+      filter: (f) =>
+        f.and([
+          f.or(
+            ['booking', 'exception', 'completed'].map((status) =>
+              f.string('status').eq(status),
+            ),
+          ),
+          f.string('id').ne(record.id),
+          f.date('cancelledAt').empty(),
+          f.date('approvalGrantedAt').notEmpty(),
+          f.date('startAt').before(record.endAt),
+          f.date('endAt').after(record.startAt),
+        ]),
+    });
     for (const r of records)
       if (
         r.id !== record.id &&
@@ -1263,7 +1280,7 @@ export function createTravelService(d: TravelDependencies) {
       ]),
     ),
   });
-  runtime.register(approval, { services: source });
+  registerAppApproval(d.db, runtime, approval, source);
   const approvals = createAppApprovalService(
     runtime,
     [approval.approval as unknown as Approval<never>],
@@ -1565,63 +1582,26 @@ export function createTravelService(d: TravelDependencies) {
         }),
       );
     },
-    async readableIds(actorId: string) {
+    async readableScope(actorId: string): Promise<DatabaseScope> {
       await refresh();
-      return readDirectory.run(outside.directory, async () => {
-        const records = await d.db
-          .repository<TravelRecord>('travelRequests')
-          .findMany();
-        const ids: string[] = [];
-        for (const record of records) {
-          if (
-            record.applicantId === actorId ||
-            record.createdById === actorId
-          ) {
-            ids.push(record.id);
-            continue;
-          }
-          const involvement = await approvals.involvementOf(
-            TRAVEL_LIFECYCLE,
-            record.id,
-            actorId,
-          );
-          if (involvement.length) {
-            ids.push(record.id);
-            continue;
-          }
-          const acted = await hasApprovalTaskActor(
-            approvals,
-            TRAVEL_LIFECYCLE,
-            record.id,
-            actorId,
-          );
-          const head = Boolean(
-            (record.departmentId
-              ? await d.org.activeChain(record.departmentId)
-              : undefined
-            )?.some((department) => department.managerId === actorId),
-          );
-          if (
-            record.applicantId === actorId ||
-            record.createdById === actorId ||
-            involvement.length ||
-            acted ||
-            ['finance', 'financeManager', 'cfo'].some((role) =>
-              outside.directory.hasRole(actorId, role),
-            ) ||
-            record.executiveApproverId === actorId ||
-            outside.directory.hasRole(actorId, 'gm') ||
-            outside.directory.hasRole(actorId, 'approval.admin') ||
-            head ||
-            (await d.employees.isAboveInReportingLine(
-              actorId,
-              record.applicantId,
-            ))
-          )
-            ids.push(record.id);
-        }
-        return ids;
+      return approvalReadableScope(actorId, {
+        approvals: approvals,
+        lifecycle: TRAVEL_LIFECYCLE,
+        directory: outside.directory,
+        roles: ['finance', 'financeManager', 'cfo', 'gm', 'approval.admin'],
+        ownerFields: ['applicantId', 'createdById', 'executiveApproverId'],
+        taskActors: true,
+        org: d.org,
+        department: 'record',
+        employees: d.employees,
       });
+    },
+    async readableIds(actorId: string): Promise<string[]> {
+      return readableIdsFromScope(
+        d.db,
+        'travelRequests',
+        await this.readableScope(actorId),
+      );
     },
     runtime,
     approvals,
@@ -1761,6 +1741,10 @@ export function createTravelService(d: TravelDependencies) {
       );
       return { people, nextOffset: page.nextOffset };
     },
+    async accessFacts(id: string, actorId: string, policy?: RepositoryPolicy) {
+      const record = await canRead(id, actorId, policy);
+      return { applicantId: record.applicantId, status: record.status };
+    },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);
       return readDirectory.run(outside.directory, async () => {
@@ -1789,7 +1773,7 @@ export function createTravelService(d: TravelDependencies) {
           record,
           users,
           view: await runtime.view(TRAVEL_LIFECYCLE, id, actor),
-          runs: await approvals.runViewsFor(TRAVEL_LIFECYCLE, id),
+          runs,
           taskActions: await approvals.actionsFor(TRAVEL_LIFECYCLE, id, actor),
           runActions: await approvals.runActionsFor(
             TRAVEL_LIFECYCLE,

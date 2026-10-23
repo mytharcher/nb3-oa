@@ -1,3 +1,4 @@
+import { Wrench } from 'lucide-react';
 import {
   resolveAppClientContributions,
   type AppClientRegisteredRoute,
@@ -9,6 +10,7 @@ import applicationRoutes from '../../client/routes.ts';
 import {
   buildRouteNavigation,
   routeKey,
+  selectedNavigationId,
 } from '../../client/routing/route-navigation.js';
 
 describe('app client routes', () => {
@@ -353,20 +355,12 @@ describe('app client routes', () => {
         // 通讯录 (employees module); the seeded `oa-directory` set grants it to every signed-in user.
         { name: 'oa-directory', authorizedAs: 'oa.employees.directory' },
         { name: 'oa-approvals', authorizedAs: 'oa.approvals' },
+        { name: 'oa-workbench-prototype', authorizedAs: 'oa.approvals' },
         ...[
           'oa-salary-grades',
           'oa-salary-grades-publish',
           'oa-salary-grades-revision',
         ].map((name) => ({ name, authorizedAs: 'oa-salary-grades' })),
-        { name: 'agents', authorizedAs: 'agents' },
-        { name: 'agents-new', authorizedAs: 'agents' },
-        { name: 'agents-detail', authorizedAs: 'agents' },
-        { name: 'runtimes', authorizedAs: 'runtimes' },
-        { name: 'runtimes-connect', authorizedAs: 'runtimes' },
-        { name: 'skills', authorizedAs: 'skills' },
-        { name: 'skills-new', authorizedAs: 'skills' },
-        { name: 'skills-detail', authorizedAs: 'skills' },
-        { name: 'usage', authorizedAs: 'usage' },
         ...['todo', 'done', 'copied', 'mine'].flatMap((tab) =>
           [
             '',
@@ -418,7 +412,6 @@ describe('app client routes', () => {
         'update',
       ],
       ['/schedules/:scheduleId', 'settings', 'scheduler.schedules', 'read'],
-      ['/models', 'settings', 'agents.services', 'read'],
       ['/notification-logs', 'page', 'notification.logs', 'access'],
     ]) {
       const route = routes.find(
@@ -523,6 +516,7 @@ describe('app client routes', () => {
     ).not.toContain('oa-seal-instances');
     const visiblePages = new Set([
       'home',
+      'oa-task-center',
       'oa-approvals',
       'oa-directory',
       'inbox',
@@ -543,6 +537,7 @@ describe('app client routes', () => {
     );
     expect(employeeMenu.map((item) => item.route.name)).toEqual([
       'home',
+      'oa-task-center',
       'oa-approvals',
       'inbox',
       'oa-personal',
@@ -560,6 +555,49 @@ describe('app client routes', () => {
     ).toEqual(['oa-leave-balances']);
   });
 
+  it('removes automation and agent pages and places schedules under the wrench system menu', () => {
+    const routes = resolveRoutes().routes;
+    expect(routes.some((route) => route.name === 'oa-automation')).toBe(false);
+    expect(
+      pagePaths(routes).some((path) =>
+        /^\/(agents|runtimes|skills|models|usage)(\/|$)/.test(path),
+      ),
+    ).toBe(false);
+    const system = routes.find((route) => route.name === 'oa-system');
+    expect(system?.navigation?.icon).toBe(Wrench);
+    expect(
+      system?.children?.find((route) => route.name === 'schedules')?.path,
+    ).toBe('/schedules');
+  });
+
+  it('gives each report its own child menu and URL, retaining a hidden legacy entry', () => {
+    const routes = resolveRoutes().routes;
+    const reports = routes.find((route) => route.name === 'oa-reports');
+    expect(reports?.componentLoader).toBeUndefined();
+    expect(reports?.children?.map((route) => route.path)).toEqual([
+      '/reports/budget-balances',
+      '/reports/contract-ledger',
+      '/reports/headcount-balances',
+      '/reports/leave-monthly',
+      '/reports/leave-approval-efficiency',
+      '/reports/expense-summary',
+    ]);
+    expect(
+      reports?.children?.every(
+        (route) =>
+          route.navigation &&
+          route.auth === 'required' &&
+          route.componentLoader,
+      ),
+    ).toBe(true);
+    for (const report of reports?.children ?? []) {
+      expect(selectedNavigationId(routes, report.path)).toBe(routeKey(report));
+    }
+    const legacy = routes.find((route) => route.name === 'oa-reports-index');
+    expect(legacy?.path).toBe('/reports');
+    expect(legacy?.navigation).toBeUndefined();
+  });
+
   it('puts daily pages before administrative groups, with no settings surface', () => {
     const routes = resolveRoutes().routes;
     expect(
@@ -570,6 +608,7 @@ describe('app client routes', () => {
       .sort((a, b) => (a.navigation?.order ?? 0) - (b.navigation?.order ?? 0));
     expect(menu.map((route) => route.name)).toEqual([
       'home',
+      'oa-task-center',
       'oa-approvals',
       'inbox',
       'oa-personal',
@@ -581,7 +620,6 @@ describe('app client routes', () => {
       'oa-administration',
       'oa-reports',
       'oa-configuration',
-      'oa-automation',
       'oa-system',
     ]);
   });
