@@ -1,3 +1,13 @@
+import invoiceRecognitionLocale from './modules/invoice-recognition.zh-CN.js';
+import electronicSignaturesLocale from './modules/electronic-signatures.zh-CN.js';
+import wecomAttendanceLocale from './modules/wecom-attendance.zh-CN.js';
+import hrMasterDataLocale from './modules/hr-master-data.zh-CN.js';
+import globalSearchLocale from './modules/global-search.zh-CN.js';
+import enterpriseIdentityLocale from './modules/enterprise-identity.zh-CN.js';
+import processOperationsLocale from './modules/process-operations.zh-CN.js';
+import financeIntegrationLocale from './modules/finance-integration.zh-CN.js';
+import attendanceResultsLocale from './modules/attendance-results.zh-CN.js';
+import personalSchedulesLocale from './modules/personal-schedules.zh-CN.js';
 import demoData from './modules/demo-data.zh-CN.js';
 import processManagementLocale from './modules/process-management.zh-CN.js';
 import attendanceImportZhCN from './modules/attendance-import.zh-CN.js';
@@ -81,11 +91,21 @@ const zhCN = {
   ...announcementsLocale,
   transfer: transferLocale,
   ...attendanceManagementLocale,
+  ...attendanceResultsLocale,
+  ...wecomAttendanceLocale,
   ...certificatesLocale,
   ...knowledgeLocale,
   ...workItemsLocale,
   ...taskCenterUiLocale,
   ...taskCenterLocale,
+  ...globalSearchLocale,
+  ...enterpriseIdentityLocale,
+  ...processOperationsLocale,
+  ...financeIntegrationLocale,
+  ...invoiceRecognitionLocale,
+  ...electronicSignaturesLocale,
+  ...hrMasterDataLocale,
+  ...personalSchedulesLocale,
   ...accessLocale,
   ...meetingRoomsLocale,
   ...vehiclesLocale,
@@ -188,6 +208,10 @@ const zhCN = {
   ...approvalsZhCN,
   oa: {
     navigation: {
+      systemPeople: '用户与组织',
+      systemAccess: '角色与权限',
+      systemConnections: '通知与集成',
+      systemOperations: '运维',
       office: '日常办公',
       finance: '财务与费用',
       procurement: '采购与合同',

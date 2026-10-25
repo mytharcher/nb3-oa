@@ -24,6 +24,8 @@ import { followUps } from '../../../cli/commands/lib/trial-data/follow-ups.js';
 import type { TrialPasswords } from '../../../cli/commands/lib/trial-data/passwords.js';
 import { currentDemo, registerDemoUser } from './context.js';
 import type { DemoAccount, DemoDataSet } from './contract.js';
+import { sampleFailureReason } from './errors.js';
+import { loggingToken } from '@nocobase/app-server/logging';
 
 /** Reuses public business creation/approval paths. No SDK run or task table is written here. */
 export async function generateDemo(
@@ -71,6 +73,20 @@ export async function generateDemo(
   const sessions = {} as TrialSessions;
   const saved = { ...dataset.scenarios };
   const failures: DemoDataSet['failures'] = [];
+  const failure = (key: string, error: unknown) => {
+    const detail = {
+      key,
+      module: scenarios(facts)
+        .find((s) => s.key === key)
+        ?.path.slice(1),
+      reason: sampleFailureReason(error, 'DEMO_SCENARIO_FAILED'),
+    };
+    failures.push(detail);
+    app.container
+      .resolve(loggingToken)
+      .getLogger('oa-sample-data')
+      .warn({ datasetId: dataset.id, ...detail }, 'OA sample scenario failed');
+  };
   const checkpoint = async (row: (typeof saved)[string]) => {
     saved[row.key] = row;
     await save({ scenarios: { ...saved }, progress: row.key });
@@ -96,22 +112,18 @@ export async function generateDemo(
             saved[scenario.key],
           ),
         );
-      } catch {
-        failures.push({
-          key: scenario.key,
-          module: scenario.path.slice(1),
-          reason: 'DEMO_SCENARIO_FAILED',
-        });
+      } catch (error) {
+        failure(scenario.key, error);
       }
     }
-    await followUps(app, sessions, facts, passwords, saved, checkpoint, (key) =>
-      failures.push({
-        key,
-        module: scenarios(facts)
-          .find((s) => s.key === key)
-          ?.path.slice(1),
-        reason: 'DEMO_SCENARIO_FAILED',
-      }),
+    await followUps(
+      app,
+      sessions,
+      facts,
+      passwords,
+      saved,
+      checkpoint,
+      failure,
     );
     await completedStories(app, sessions, facts, saved, checkpoint);
     await historicalScenarios(app, sessions, facts, saved, checkpoint);

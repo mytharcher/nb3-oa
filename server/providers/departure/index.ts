@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { authorizationToken } from '@nocobase/app-plugin-authorization/server';
 import { schedulerServiceToken } from '@nocobase/app-plugin-scheduler/server/tokens';
@@ -131,6 +132,16 @@ export default class DepartureProvider extends ServiceProvider<Application> {
     );
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.departure',
+      resource: 'oa.departure',
+      collection: 'departureRequests',
+      titleField: 'reason',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(departureServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     const c = this.app.container;
     const authz = c.resolve(authorizationToken);
     for (const name of ['departureRequests', 'departureWorkItems'])

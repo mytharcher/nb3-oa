@@ -4,7 +4,11 @@ type Dataset =
   | 'headcount-balances'
   | 'leave-monthly';
 export type ReportDataset =
-  Dataset | 'leave-approval-efficiency' | 'expense-summary';
+  | Dataset
+  | 'leave-approval-efficiency'
+  | 'expense-summary'
+  | 'supply-ledger'
+  | 'seal-ledger';
 
 export function reportTitle(dataset: ReportDataset) {
   return dataset === 'expense-summary'

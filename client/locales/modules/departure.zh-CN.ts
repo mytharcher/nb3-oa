@@ -10,8 +10,7 @@ export default {
     DEPARTURE_RECEIPT_REQUIRED: '请填写本交接事项的收据号或清退凭据。',
     DEPARTURE_SETTLEMENT_NOTE_REQUIRED: '请填写离职结算说明。',
     DEPARTURE_REASSIGNMENT_INCOMPLETE: '请先完成未结任务的转交，再继续办理。',
-    DEPARTURE_APPLICATION_INCOMPLETE:
-      '请补齐离职类型、申请原因和所需员工信息。',
+    DEPARTURE_APPLICATION_INCOMPLETE: '请填写期望最后工作日并选择交接人。',
     DEPARTURE_TYPE_INVALID: '请选择已启用的离职类型。',
     DEPARTURE_ALREADY_ACTIVE: '该员工已有进行中的离职申请，请查看现有申请。',
     DEPARTURE_CANCELLATION_PENDING:
@@ -127,6 +126,8 @@ export default {
   },
   form: {
     create: '新建离职申请',
+    confirmSubmission: '确认提交离职申请',
+    submissionHelp: '请确认预计最后工作日并选择交接人，确认后将提交审批。',
     edit: '编辑离职申请',
     save: '保存草稿',
     saved: '已保存“{{name}}”',
@@ -142,6 +143,12 @@ export default {
     chooseType: '选择离职类型',
     chooseHandover: '选择交接人',
     searchHandover: '搜索合格交接人',
+    handoverSearchMinimum: '请输入至少两个字符，按姓名或工号搜索交接人。',
+    noHandoverCandidates:
+      '未找到合格交接人，请尝试其他姓名或工号，或联系HR核对员工档案与账号状态。',
+    requiredOnSubmit: '正式提交时必填，保存草稿可暂不填写。',
+    handoverHelp:
+      '正式提交时必填，保存草稿可暂不填写。可选择本人以外、账号有效的试用或正式员工，支持按姓名或工号搜索。',
     refineHandoverSearch: '匹配人数较多，请输入更完整的姓名缩小搜索范围。',
     required: '请填写此项。',
     dateInvalid: '请选择有效日历日期。',

@@ -104,8 +104,8 @@ export default {
     selectExisting: 'Choose uploaded file',
     removeFile: 'Remove "{{name}}" selection',
     uploadHint:
-      'Text: PDF. Evidence: PDF, JPEG, PNG or WebP; up to 5 MiB per file.',
-    fileInvalid: 'Choose a matching supported file up to 5 MiB.',
+      'Text: PDF. Evidence: PDF, JPEG, PNG or WebP; up to 5 MB per file.',
+    fileInvalid: 'Choose a matching supported file up to 5 MB.',
     uploadUnknown:
       'Upload result needs checking. Choose an uploaded file; do not upload again.',
     fileMissing: 'Selected file is unavailable. Check access and text version.',
@@ -185,7 +185,7 @@ export default {
         'An active employee with a primary department is required.',
       CONTRACT_FIELDS_RESTRICTED:
         'The required contract fields are outside your granted access.',
-      CONTRACT_FILE_SIZE: 'Choose a nonempty contract file up to 5 MiB.',
+      CONTRACT_FILE_SIZE: 'Choose a nonempty contract file up to 5 MB.',
       CONTRACT_FILE_TYPE:
         'Contract text must be PDF; evidence may be PDF, JPEG, PNG or WebP with matching file content.',
       CONTRACT_IDEMPOTENCY_CONFLICT:

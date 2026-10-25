@@ -26,7 +26,7 @@ const enUS = {
       earlier: 'Earlier',
     },
     time: {
-      received: 'Arrived {{time}}',
+      received: '{{time}}',
       closed: 'Closed {{time}}',
     },
     selection: {

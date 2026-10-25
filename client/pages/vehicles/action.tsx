@@ -12,7 +12,7 @@ import {
 } from '@nocobase/app-plugin-approval/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useParams, useOutletContext } from 'react-router';
-import { RouteDrawer } from '#components/route-drawer';
+import { RequestActionOverlay } from '#components/request-action-overlay';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { Button } from '#components/ui/button';
 import {
@@ -77,7 +77,7 @@ export default function RequestAction() {
     setBusy(value);
   };
   return (
-    <RouteDrawer
+    <RequestActionOverlay
       className='sm:max-w-2xl'
       title={t(`vehicles.actions.${operation}`)}
       beforeClose={() => !workingRef.current}
@@ -103,7 +103,7 @@ export default function RequestAction() {
           </AlertDescription>
         </Alert>
       )}
-    </RouteDrawer>
+    </RequestActionOverlay>
   );
 }
 function Footer({ busy, ready }: { busy: boolean; ready: boolean }) {

@@ -20,7 +20,7 @@ export default {
     DEPARTURE_REASSIGNMENT_INCOMPLETE:
       'Complete outstanding task reassignment before proceeding.',
     DEPARTURE_APPLICATION_INCOMPLETE:
-      'Complete the departure type, reason and required employee details.',
+      'Choose the expected last working day and handover recipient.',
     DEPARTURE_TYPE_INVALID: 'Select an enabled departure type.',
     DEPARTURE_ALREADY_ACTIVE:
       'This employee already has an active departure request. Open the existing request.',
@@ -145,6 +145,9 @@ export default {
   },
   form: {
     create: 'New departure request',
+    confirmSubmission: 'Confirm departure submission',
+    submissionHelp:
+      'Confirm the expected last working day and handover recipient before submitting for approval.',
     edit: 'Edit departure request',
     save: 'Save draft',
     saved: 'Saved "{{name}}"',
@@ -160,6 +163,13 @@ export default {
     chooseType: 'Choose a departure type',
     chooseHandover: 'Choose a handover recipient',
     searchHandover: 'Search eligible recipients',
+    handoverSearchMinimum:
+      'Enter at least two characters to search by name or employee code.',
+    noHandoverCandidates:
+      'No eligible recipients found. Try another name or employee code, or ask HR to check employee and account status.',
+    requiredOnSubmit: 'Required for submission; optional when saving a draft.',
+    handoverHelp:
+      'Required for submission; optional for a draft. Choose another probationary or regular employee with an enabled account. Search by name or employee code.',
     refineHandoverSearch:
       'Many recipients match. Enter a more specific name to narrow the search.',
     required: 'Complete this field.',

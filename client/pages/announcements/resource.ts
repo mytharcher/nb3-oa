@@ -1,3 +1,4 @@
+import { refreshPersonalWork } from '#lib/personal-work-refresh';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useAuthorizationRevision } from '@nocobase/app-plugin-authorization/client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
@@ -9,7 +10,11 @@ export function useAnnouncementResource<T>(
 ) {
   const api = useApiClient();
   const { session } = useAuthentication();
-  const [generation, reload] = useReducer((n: number) => n + 1, 0);
+  const [generation, reloadLocal] = useReducer((n: number) => n + 1, 0);
+  const reload = useCallback(() => {
+    reloadLocal();
+    refreshPersonalWork();
+  }, []);
   const queryKey = JSON.stringify(query ?? {});
   const revision = useAuthorizationRevision();
   const source = JSON.stringify([path, queryKey, session?.user.id, revision]);
@@ -60,7 +65,7 @@ export function useAnnouncementResource<T>(
     invalidate: useCallback(() => {
       setResult(undefined);
       reload();
-    }, []),
+    }, [reload]),
     update,
   };
 }

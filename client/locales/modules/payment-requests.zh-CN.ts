@@ -28,7 +28,7 @@ const zh: LocaleResource<typeof en> = {
       PAYMENT_REQUEST_ALREADY_PAID: '该付款已结算，请刷新查看已登记的结果。',
       PAYMENT_REQUEST_CONTRACT_ACTUAL_PAYMENT_REQUIRED:
         '请先登记合同的实际付款事实，再完成此操作。',
-      PAYMENT_FILE_SIZE: '请选择非空且不超过 5 MiB 的附件。',
+      PAYMENT_FILE_SIZE: '请选择非空且不超过 5 MB 的附件。',
       PAYMENT_FILE_TYPE:
         '请上传格式与扩展名一致的 PDF、JPEG、PNG 或 WebP 文件。',
       PAYMENT_ATTACHMENT_INVALID: '请选择上传到本付款申请的有效附件。',

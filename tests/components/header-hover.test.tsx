@@ -4,6 +4,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { AppThemeProvider } from '../../client/theme/theme-provider';
 import { ThemeSettings } from '../../client/theme/theme-settings';
 import { UserMenu } from '../../client/layouts/components/user-menu';
+import { MemoryRouter } from 'react-router';
+vi.mock('../../client/hooks/use-enterprise-identity.js', () => ({
+  useEnterpriseIdentity: () => ({ enabled: false, error: false }),
+}));
 
 // Session requests belong to the authentication tests.
 vi.mock('@nocobase/app-plugin-authentication/client', () => ({
@@ -44,9 +48,11 @@ it.each(panels)(
   async (label, Component, role) => {
     const user = userEvent.setup();
     render(
-      <AppThemeProvider>
-        <Component />
-      </AppThemeProvider>,
+      <MemoryRouter>
+        <AppThemeProvider>
+          <Component />
+        </AppThemeProvider>
+      </MemoryRouter>,
     );
     const trigger = screen.getByRole('button', { name: label });
 
@@ -71,9 +77,11 @@ it.each(panels)(
   async (label, Component, role) => {
     const user = userEvent.setup();
     render(
-      <AppThemeProvider>
-        <Component />
-      </AppThemeProvider>,
+      <MemoryRouter>
+        <AppThemeProvider>
+          <Component />
+        </AppThemeProvider>
+      </MemoryRouter>,
     );
     const trigger = screen.getByRole('button', { name: label });
 

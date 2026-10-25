@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { contractLedgerServiceToken } from '../contracts/contract.js';
 import { invoiceServiceToken } from '../invoices/contract.js';
@@ -136,6 +137,16 @@ export default class PaymentRequestProvider extends ServiceProvider<Application>
     );
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.payment',
+      resource: 'oa.payment',
+      collection: 'paymentRequests',
+      titleField: 'reason',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(paymentRequestServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     if (!this.app.container.has(authorizationToken)) return;
     const authz = this.app.container.resolve(authorizationToken);
     authz.database.collections.add({

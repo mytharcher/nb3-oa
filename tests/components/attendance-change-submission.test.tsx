@@ -88,16 +88,19 @@ const record = {
   status: 'draft',
   lifecycleVersion: 1,
 };
-function show() {
+function show(initial = '/requests/r1/edit') {
   const router = createMemoryRouter(
     [
       {
         path: '/requests',
         element: <Outlet context={{ reload: vi.fn() }} />,
-        children: [{ path: ':requestId/edit', element: <Form /> }],
+        children: [
+          { path: ':requestId/edit', element: <Form /> },
+          { path: 'new', element: <Form /> },
+        ],
       },
     ],
-    { initialEntries: ['/requests/r1/edit'] },
+    { initialEntries: [initial] },
   );
   render(
     <TestI18nProvider runtime={runtime}>
@@ -170,4 +173,14 @@ it('accepts a proof statement without requiring an attachment', async () => {
   expect(
     api.request.mock.calls.filter(([call]) => call.method === 'POST'),
   ).toHaveLength(2);
+});
+
+it('prefills the selected eligible missing punch from the attendance result link', async () => {
+  show('/requests/new?missingPunchId=punch-1');
+  expect(await screen.findByRole('combobox')).toHaveTextContent('Oct 13, 2026');
+  await waitFor(() =>
+    expect(screen.getByRole('combobox')).not.toHaveTextContent(
+      enUS.attendanceChange.missing,
+    ),
+  );
 });

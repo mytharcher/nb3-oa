@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import {
   ServiceProvider,
   createServiceToken,
@@ -150,6 +151,16 @@ export default class VehiclesProvider extends ServiceProvider<Application> {
     );
   }
   public override async boot() {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.vehicleRequest',
+      resource: 'oa.vehicleRequests',
+      collection: 'vehicleRequests',
+      titleField: 'purpose',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(vehicleRequestServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     const c = this.app.container,
       authz = c.resolve(authorizationToken);
     c.resolve(departureCustodyClearanceToken).register(

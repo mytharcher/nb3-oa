@@ -9,6 +9,8 @@ export interface DraftRecord {
 }
 export interface SubmitAdapter {
   resource: string;
+  /** Standalone confirmation forms always submit; draft editors capture the button intent. */
+  initialIntent?: 'save' | 'submit';
   /** Only owners with durable create commands may replay an unknown creation. */
   replayUnknownCreate?: boolean;
   suffix?: 'transition' | 'transitions' | 'submit';
@@ -25,7 +27,7 @@ export function useRequestFormSubmission<R extends DraftRecord>(
   adapter: SubmitAdapter,
 ) {
   const api = useApiClient();
-  const intentRef = useRef<'save' | 'submit'>('save');
+  const intentRef = useRef<'save' | 'submit'>(adapter.initialIntent ?? 'save');
   const recordRef = useRef<R | undefined>(undefined);
   const savedInputRef = useRef<string | undefined>(undefined);
   const pendingRef = useRef<

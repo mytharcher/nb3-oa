@@ -32,6 +32,16 @@ export interface DelegationWriteContext {
   connection?: DatabaseConnection;
 }
 export interface OaApprovalDirectory extends ApprovalDirectory {
+  /** This application's snapshot is fully materialized before it is returned. */
+  isActive(person: string): boolean;
+  hasRole(person: string, role: string): boolean;
+  managerOf(person: string): string | undefined;
+  delegateOf?(
+    principal: string,
+    kind: string,
+    at: string,
+    assignedAt: string,
+  ): Awaited<ReturnType<NonNullable<ApprovalDirectory['delegateOf']>>>;
   headOf(userId: string): string | undefined;
   executiveOf(userId: string): string | undefined;
   roleMembers(role: string): readonly string[];

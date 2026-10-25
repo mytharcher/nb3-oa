@@ -62,7 +62,7 @@ export default {
     bank: {
       title: '私有收款账户',
       denied: '无权查看此收款账户。',
-      missing: '暂无收款账户快照。',
+      missing: '暂无收款账户信息。',
       correct: '更正收款账户',
       unavailable: '仅申请人或经办人在异常状态可更正收款账户。',
       bankName: '开户银行',

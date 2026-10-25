@@ -12,6 +12,9 @@ import enUS from '../../client/locales/en-US.js';
 import zhCN from '../../client/locales/zh-CN.js';
 import PersonalArchivePage from '../../client/pages/employees/personal/index.js';
 import { UserMenu } from '../../client/layouts/components/user-menu.js';
+vi.mock('../../client/hooks/use-enterprise-identity.js', () => ({
+  useEnterpriseIdentity: () => ({ enabled: false, error: false }),
+}));
 
 const { api, auth } = vi.hoisted(() => ({
   api: { request: vi.fn() },

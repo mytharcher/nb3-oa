@@ -1,5 +1,12 @@
 import { useEffect } from 'react';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router';
@@ -159,6 +166,18 @@ it('preserves filters and real pagination request, with one toolbar initiation',
   expect(screen.getAllByRole('button', { name: 'New work item' })).toHaveLength(
     1,
   );
+});
+it('shows the task state once in the title bar instead of the body', async () => {
+  show('/work-items/t1');
+  const dialog = await screen.findByRole('dialog', { name: 'Follow up' });
+  await waitFor(() =>
+    expect(within(dialog).getAllByText('Draft', { exact: true })).toHaveLength(
+      1,
+    ),
+  );
+  const badge = within(dialog).getByText('Draft', { exact: true });
+  expect(badge.closest('[data-slot=route-overlay-header]')).toBeTruthy();
+  expect(badge.closest('[data-slot=route-overlay-body]')).toBeNull();
 });
 it('dirty top return is guarded and successful edit navigates to exact source', async () => {
   const u = userEvent.setup();

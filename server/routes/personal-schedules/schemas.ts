@@ -24,5 +24,21 @@ export const Schedule = z
     startAt: z.iso.datetime(),
     endAt: z.iso.datetime(),
     version: z.int().positive(),
+    sourceBookingId: z.string().nullable(),
   })
   .strict();
+
+export const Interval = z
+  .object({
+    startAt: z.iso.datetime({ offset: true }).optional(),
+    endAt: z.iso.datetime({ offset: true }).optional(),
+  })
+  .refine(
+    (v) =>
+      (!v.startAt && !v.endAt) ||
+      (!!v.startAt &&
+        !!v.endAt &&
+        Date.parse(v.startAt) < Date.parse(v.endAt) &&
+        Date.parse(v.endAt) - Date.parse(v.startAt) <= 366 * 86400000),
+    { message: 'Invalid interval' },
+  );

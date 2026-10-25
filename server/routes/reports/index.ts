@@ -1,6 +1,5 @@
 import { orgServiceToken } from '../../providers/org/contract.js';
 import { dictionaryServiceToken } from '../../providers/platform/dictionaries.js';
-import ExcelJS from 'exceljs';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import {
@@ -32,7 +31,11 @@ import { headcountServiceToken } from '../../providers/headcounts/index.js';
 import { ContractError } from '../../providers/contracts/errors.js';
 import { leaveServiceToken } from '../../providers/leave/index.js';
 import { LeaveError } from '../../providers/leave/errors.js';
-import { allRows } from './export.js';
+import { allRows, xlsx } from './export.js';
+import {
+  registerAdministrativeReports,
+  administrativeDatasets,
+} from './administrative.js';
 import * as S from './schemas.js';
 
 type Env = AuthEnv & AuthorizationEnv;
@@ -104,34 +107,6 @@ async function policy(
   return policies[collection];
 }
 
-async function xlsx(
-  rows: readonly Record<string, unknown>[],
-  columns: readonly { header: string; key: string }[],
-  filename: string,
-) {
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'NocoBase OA';
-  const sheet = workbook.addWorksheet('Report');
-  sheet.columns = columns.map((column) => ({ ...column, width: 18 }));
-  sheet.getRow(1).font = { bold: true };
-  for (const row of rows)
-    sheet.addRow({
-      ...row,
-      subject:
-        (row.subjectLabel as Record<string, string> | null)?.['en-US'] ??
-        row.subject,
-      available: row.initialized === false ? null : row.available,
-    });
-  const body = Buffer.from(await workbook.xlsx.writeBuffer());
-  return new Response(body, {
-    headers: {
-      'content-type': XLSX_TYPE,
-      'content-disposition': `attachment; filename="${filename}"`,
-      'cache-control': 'no-store',
-    },
-  });
-}
-
 /** Read-only report projections always authorize against the originating source. */
 const routes: readonly AppRouteContribution<Application>[] = [
   defineApiRoutes((app) => {
@@ -152,6 +127,8 @@ const routes: readonly AppRouteContribution<Application>[] = [
       c.resolve(authenticationToken).required(),
       c.resolve(authorizationToken).middleware(),
     );
+
+    registerAdministrativeReports(router, app);
 
     // Capability metadata contains no records or counts. Every dataset request still rechecks its source policy.
     router.get(
@@ -287,6 +264,7 @@ const routes: readonly AppRouteContribution<Application>[] = [
           ])
         )
           available.push('expense-summary');
+        available.push(...(await administrativeDatasets(ctx)));
         ctx.header('Cache-Control', 'no-store');
         return ctx.json({ data: available });
       },

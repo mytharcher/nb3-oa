@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import {
   anyScope,
@@ -86,6 +87,17 @@ export default class TransferProvider extends ServiceProvider<Application> {
     });
   }
   public override async boot() {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.transfer',
+      resource: 'oa.transfer',
+      collection: 'transferRequests',
+      titleField: 'reason',
+      numberField: null,
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(transferServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     const c = this.app.container,
       authz = c.resolve(authorizationToken);
     authz.database.collections.add({

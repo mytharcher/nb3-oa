@@ -1,3 +1,4 @@
+import { asyncFilter } from '../approval-runtime/async-filter.js';
 import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
 import { z } from 'zod';
 import {
@@ -356,14 +357,17 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
       const page = await allActivePeople().search(context, query);
       return {
         ...page,
-        people: page.people.filter(
-          (person) =>
-            context.eligible(person, {
-              replacing: false,
-              kind: 'decide',
-              role: 'member',
-              via: 'assign',
-            }).ok,
+        people: await asyncFilter(
+          page.people,
+          async (person) =>
+            (
+              await context.eligible(person, {
+                replacing: false,
+                kind: 'decide',
+                role: 'member',
+                via: 'assign',
+              })
+            ).ok,
         ),
       };
     },
@@ -374,9 +378,15 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
       const page = await allActivePeople().search(context, query);
       return {
         ...page,
-        people: page.people.filter(
-          (person) =>
-            context.eligible(person, { replacing: true, via: 'reassign' }).ok,
+        people: await asyncFilter(
+          page.people,
+          async (person) =>
+            (
+              await context.eligible(person, {
+                replacing: true,
+                via: 'reassign',
+              })
+            ).ok,
         ),
       };
     },
@@ -390,8 +400,8 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
     defineApprovalAction({
       ...ccAction,
       people: (context, query) => allActivePeople().search(context, query),
-      validate: ({ to }, context) =>
-        typeof to === 'string' && context.directory.isActive(to)
+      validate: async ({ to }, context) =>
+        typeof to === 'string' && (await context.directory.isActive(to))
           ? null
           : 'Choose an active recipient.',
     }),
@@ -1618,6 +1628,14 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
     async accessFacts(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);
       return { applicantId: record.applicantId, status: record.status };
+    },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await canRead(id, actorId, policy);
     },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);

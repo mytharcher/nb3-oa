@@ -28,6 +28,7 @@ export default class TaskCenterProvider extends ServiceProvider<Application> {
   override async boot(): Promise<void> {
     const c = this.app.container;
     configureTaskCenter(c.resolve(databaseManagerToken), {
+      reader: c.resolve(userTaskServiceToken),
       contributor: c.resolve(approvalTaskContributorToken),
       applications: c
         .resolve(userTaskServiceToken)

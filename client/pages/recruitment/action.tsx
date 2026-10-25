@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { useParams, useOutletContext } from 'react-router';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { RouteDrawer } from '#components/route-drawer';
+import { RequestActionOverlay } from '#components/request-action-overlay';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { Button } from '#components/ui/button';
 import { Spinner } from '#components/ui/spinner';
@@ -65,7 +65,7 @@ function RecruitmentActionContent() {
           )),
     ready = !r.loading && !r.error && (!!offer || !!transition);
   return (
-    <RouteDrawer
+    <RequestActionOverlay
       title={t(`recruitment.actions.${operation}`)}
       className={
         peopleActions.includes(operation) ? 'sm:max-w-2xl' : 'sm:max-w-2xl'
@@ -103,7 +103,7 @@ function RecruitmentActionContent() {
         </Alert>
       )}
       <Discard guard={guard} />
-    </RouteDrawer>
+    </RequestActionOverlay>
   );
 }
 function Footer({

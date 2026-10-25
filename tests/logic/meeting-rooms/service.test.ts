@@ -1,3 +1,4 @@
+import { personalScheduleServiceToken } from '../../../server/providers/personal-schedules/contract.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 // @vitest-environment node
 import { randomUUID } from 'node:crypto';
@@ -26,6 +27,7 @@ async function fixture(testApp: Parameters<typeof createEmployee>[0]) {
   const deps = {
     db,
     audit: c.resolve(auditServiceToken),
+    schedules: c.resolve(personalScheduleServiceToken),
     org: c.resolve(orgServiceToken),
     employees: c.resolve(employeeServiceToken),
     users: c.resolve(userAdministrationServiceToken),
@@ -707,4 +709,82 @@ test('disabled actors cannot create, edit or replay an old booking command even 
         .findOne({ filter: { id: rows[0].id } })
     )?.status,
   ).toBe('pendingConfirmation');
+});
+
+test('confirmed meetings synchronize organizer and attendees, reschedule, membership removal, cancellation and rollback atomically', async ({
+  testApp,
+}) => {
+  const f = await fixture(testApp),
+    attendee = await createEmployee(testApp, 'Schedule participant');
+  const [pending] = await f.create({
+    ...f.input(),
+    attendeeUserIds: [attendee.userId],
+  });
+  const schedules = () =>
+    f.db
+      .repository('personalSchedules')
+      .findMany({ filter: { sourceBookingId: pending.id } });
+  expect(await schedules()).toEqual([]);
+  const confirmed = await f.service.act(
+    {
+      ...f.cmd(f.administrator.userId),
+      id: pending.id,
+      expectedVersion: pending.version,
+      action: 'confirm',
+    },
+    f.db.connection(),
+  );
+  expect((await schedules()).map((r) => r.ownerUserId).sort()).toEqual(
+    [f.owner.userId, attendee.userId].sort(),
+  );
+  const edit = {
+    ...f.cmd(),
+    id: confirmed.id,
+    target: 'this' as const,
+    expectedVersions: { [confirmed.id]: confirmed.version },
+    roomId: f.room.id,
+    title: 'Changed meeting',
+    attendeeUserIds: [],
+    date: '2030-01-02',
+    startTime: '11:00',
+    endTime: '12:00',
+  };
+  await expect(
+    f.db.transaction(async (tx) => {
+      await f.service.edit(edit, tx);
+      throw new Error('rollback schedule');
+    }),
+  ).rejects.toThrow('rollback schedule');
+  expect(await schedules()).toHaveLength(2);
+  const [edited] = await f.service.edit(edit, f.db.connection());
+  // Editing this confirmation-required room returns to pending and removes stale appointments.
+  expect(await schedules()).toEqual([]);
+  const again = await f.service.act(
+    {
+      ...f.cmd(f.administrator.userId),
+      id: edited.id,
+      expectedVersion: edited.version,
+      action: 'confirm',
+    },
+    f.db.connection(),
+  );
+  const rows = await schedules();
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatchObject({
+    ownerUserId: f.owner.userId,
+    title: 'Changed meeting',
+  });
+  expect(new Date(String(rows[0].startAt)).toISOString()).toBe(
+    new Date(again.startAt).toISOString(),
+  );
+  await f.service.act(
+    {
+      ...f.cmd(),
+      id: again.id,
+      expectedVersion: again.version,
+      action: 'cancel',
+    },
+    f.db.connection(),
+  );
+  expect(await schedules()).toEqual([]);
 });

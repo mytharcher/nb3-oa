@@ -1,9 +1,13 @@
 export default {
   taskCenter: {
+    attention: {
+      pendingCount: '待办中心，{{count}} 项待处理',
+      pendingUnknown: '待办中心，待处理数量暂时无法加载',
+      unreadCount: '通知，{{count}} 条未读',
+    },
     navigation: '待办中心',
     title: '待办中心',
     description: '按来源和事项查看需要你处理或关注的工作',
-    prototypeNotice: '原型页面：当前展示示例数据，尚未接入待办数据。',
     noResults: '没有符合条件的任务',
     noResultsDescription: '清除事项类型筛选，查看其他工作。',
     refresh: '刷新',

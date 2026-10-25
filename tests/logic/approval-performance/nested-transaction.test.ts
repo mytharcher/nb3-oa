@@ -12,10 +12,11 @@ it('retains the SDK child savepoint instead of starting a sibling on the ambient
   const inner = { name: 'inner' } as DatabaseConnection;
   const fire = vi.fn(async () => ({}));
   const create = vi.fn(async () => ({}));
+  const runEffect = vi.fn(async () => undefined);
   const runtime = {
     fire,
     create,
-    runEffect: vi.fn(),
+    runEffect,
   } as unknown as LifecycleRuntime;
   const approvals = {
     perform: vi.fn(),
@@ -50,6 +51,9 @@ it('retains the SDK child savepoint instead of starting a sibling on the ambient
     {},
     { actor: { id: 'actor' }, transaction: inner },
   ]);
+  expect(changes.guard).not.toHaveBeenCalled();
+  await runtime.runEffect('notification-effect');
+  expect(runEffect).toHaveBeenCalledWith('notification-effect');
   expect(changes.guard).not.toHaveBeenCalled();
   dispose();
 });

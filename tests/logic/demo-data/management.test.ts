@@ -173,6 +173,60 @@ it('records dataset-owned business creations atomically and rejects changes to p
   });
 });
 
+it('assigns seeded roles in demo context without owning or modifying the roles', async () => {
+  const db = fixture.testApp.database;
+  const org = fixture.organization;
+  const user = await fixture.createUser('DemoRoleLock');
+  const id = `demo-${randomUUID()}`;
+  const scope = {
+    id,
+    locale: 'en-US' as const,
+    baseDate: '2026-10-25',
+    users: new Set<string>(),
+  };
+  const before = await org.getDutyRole('hr');
+  await demoContext.run(scope, () =>
+    org.addDutyRoleMember('hr', user.user.id, { actorId: null }),
+  );
+  expect(await org.listDutyRoleMembers('hr')).toContain(user.user.id);
+  expect(await org.getDutyRole('hr')).toEqual(before);
+  expect(
+    await db.repository('demoDataRecords').count({
+      filter: { datasetId: id, collection: 'dutyRoles' },
+    }),
+  ).toBe(0);
+  expect(
+    await db.repository('demoDataRecords').count({
+      filter: { datasetId: id, collection: 'dutyRoleMembers' },
+    }),
+  ).toBe(1);
+  await expect(
+    demoContext.run(scope, () =>
+      org.setDutyRoleActive('hr', false, { actorId: null }),
+    ),
+  ).rejects.toThrow('DEMO_SHARED_WRITE_REFUSED:dutyRoles');
+  expect(await org.getDutyRole('hr')).toEqual(before);
+  await expect(
+    demoContext.run(scope, () =>
+      db.transaction(async (connection) => {
+        await org.addDutyRoleMember('finance', user.user.id, {
+          actorId: null,
+          connection,
+        });
+        throw new Error('rollback demo membership');
+      }),
+    ),
+  ).rejects.toThrow('rollback demo membership');
+  expect(await org.listDutyRoleMembers('finance')).not.toContain(user.user.id);
+  expect(
+    await db.repository('demoDataRecords').count({
+      filter: { datasetId: id, collection: 'dutyRoleMembers' },
+    }),
+  ).toBe(1);
+});
+
+// Budget for both a complete import and checkpoint recovery before the next
+// test resets passwords; use the same PostgreSQL budget as removal/reimport.
 it('imports a complete dataset with actionable scenarios and reports its actual result', async () => {
   const service =
     fixture.testApp.application.container.resolve(demoDataServiceToken);
@@ -239,7 +293,7 @@ it('imports a complete dataset with actionable scenarios and reports its actual 
   expect(await service.credentials(result.datasetId!, result.version)).toEqual(
     credentialsBefore,
   );
-}, 360000);
+}, 900000);
 
 it('adopts existing samples, changes old sample passwords and preserves the administrator', async () => {
   const app = fixture.testApp.application;

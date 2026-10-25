@@ -1,3 +1,4 @@
+import { personalScheduleServiceToken } from '../personal-schedules/contract.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { ServiceProvider } from '@nocobase/service-provider';
 import type { Application } from '@nocobase/app-server/application';
@@ -84,6 +85,7 @@ export default class MeetingRoomsProvider extends ServiceProvider<Application> {
       });
       this.service = createMeetingRoomService({
         db: c.resolve(databaseManagerToken),
+        schedules: c.resolve(personalScheduleServiceToken),
         audit: c.resolve(auditServiceToken),
         employees: c.resolve(employeeServiceToken),
         users: c.resolve(userAdministrationServiceToken),

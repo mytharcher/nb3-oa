@@ -1,5 +1,10 @@
+import { calculateAttendance } from './calculation.js';
+import type {
+  AttendanceActivitySources,
+  AttendanceBusinessEvidence,
+} from './activity-sources.js';
 import { demoNow } from '../demo-data/context.js';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import {
   lockUserForAdministration,
   type UserAdministrationService,
@@ -18,7 +23,7 @@ import type {
   ScheduleRevision,
   ShiftRevision,
 } from '../attendance-management/contract.js';
-import type { AttendanceRecord } from './contract.js';
+import type { AttendanceRecord, AttendanceService } from './contract.js';
 import type {
   AttendanceEvaluation,
   AttendanceEvaluationRevision,
@@ -33,6 +38,8 @@ export function createAttendanceEvaluationService(d: {
   org: OrgService;
   calendar: CalendarService;
   audit: AuditService;
+  sources: AttendanceActivitySources;
+  attendance: AttendanceService;
 }): AttendanceEvaluationService {
   return {
     async evaluate(input, connection) {
@@ -196,7 +203,7 @@ export function createAttendanceEvaluationService(d: {
             else corrections.push(correction);
           }
         }
-        // Rows are not proof of approved business sources. Conservatively block overlap until owner adapters exist.
+        // The owning business adapters establish eligibility; attendance verifies its recorded activity.
         const activities = await tx
           .repository<Activity>('attendanceActivities')
           .findMany({
@@ -231,82 +238,138 @@ export function createAttendanceEvaluationService(d: {
                   )
                   .getTime() && end > dayStart;
         });
-        if (relevantActivities.length) block('unverifiedActivitySource');
+        let businessEvidence: AttendanceBusinessEvidence = {
+          exemptions: [],
+          approvedOvertimeMinutes: 0,
+        };
+        try {
+          businessEvidence = await d.sources.read(
+            values.userId,
+            values.date,
+            tx,
+          );
+        } catch {
+          block('unverifiedActivitySource');
+        }
+        const exemptions = businessEvidence.exemptions
+          .filter((e) => !e.activityId)
+          .map((e) => ({ start: instant(e.startAt), end: instant(e.endAt) }));
+        for (const activity of relevantActivities) {
+          if (activity.active === false) continue;
+          const proof = businessEvidence.exemptions.find(
+            (e) =>
+              e.kind === activity.kind &&
+              e.activityId === activity.applicationId,
+          );
+          if (
+            !proof ||
+            instant(proof.startAt) !== instant(activity.startAt) ||
+            instant(proof.endAt) !== instant(activity.endAt)
+          ) {
+            block('unverifiedActivitySource');
+            continue;
+          }
+          const end =
+            activity.status === 'active'
+              ? instant(activity.endAt)
+              : activity.actualEndAt
+                ? instant(activity.actualEndAt)
+                : NaN;
+          if (
+            !Number.isFinite(end) ||
+            end <= instant(activity.startAt) ||
+            end > instant(activity.endAt)
+          ) {
+            block('invalidActivityTime');
+            continue;
+          }
+          exemptions.push({ start: instant(activity.startAt), end });
+        }
         if (result.status !== 'blocked') {
           if (!calendar.workday || scheduleRevision?.restDay)
             result.status = 'rest';
-          else if (intervals.length !== 1)
-            block('multipleIntervalsRequireMatchingAdapter');
           else {
-            const interval = intervals[0];
-            const effective = punches.map((p) => ({
-              id: p.id,
-              date: p.date,
-              kind: p.punchKind,
-              at:
-                p.status === 'corrected'
-                  ? corrections.find((c) => c.originalId === p.id)?.punchedAt
-                  : p.punchedAt,
-            }));
-            const start = instant(interval.startAt),
-              end = instant(interval.endAt);
-            // Each punch belongs to the company date of its explicit endpoint.
-            // A next-day out must never complete a same-day shift; overnight out is intentionally next-day.
-            const startDate = d.calendar.localDate(new Date(start));
-            const endDate = d.calendar.localDate(new Date(end));
-            const ins = effective.filter(
-              (p) =>
-                p.kind === 'in' &&
-                p.date === startDate &&
-                (p.at === null ||
-                  (p.at &&
-                    d.calendar.localDate(new Date(instant(p.at))) ===
-                      startDate &&
-                    instant(p.at) < end)),
+            Object.assign(
+              result,
+              calculateAttendance({
+                shifts: intervals.map((interval) => ({
+                  start: instant(interval.startAt),
+                  end: instant(interval.endAt),
+                })),
+                exemptions,
+                punches: punches
+                  .filter(
+                    (p) =>
+                      p.source !== 'wecom-checkin' ||
+                      p.sourceData.workDate === values.date,
+                  )
+                  .map((p) => {
+                    const at =
+                      p.status === 'corrected'
+                        ? corrections.find((c) => c.originalId === p.id)
+                            ?.punchedAt
+                        : p.punchedAt;
+                    return {
+                      id: p.id,
+                      date: p.date,
+                      kind: p.punchKind,
+                      at: at ? instant(at) : null,
+                      expectedAt:
+                        typeof p.sourceData.expectedAt === 'string'
+                          ? instant(p.sourceData.expectedAt)
+                          : undefined,
+                      syntheticMissing:
+                        p.source === 'oa-evaluation' && p.status === 'missing',
+                    };
+                  }),
+                localDate: (at) => d.calendar.localDate(new Date(at)),
+                lateToleranceMinutes: shift!.lateToleranceMinutes,
+                earlyToleranceMinutes: shift!.earlyToleranceMinutes,
+                absenceThresholdMinutes: shift!.absenceThresholdMinutes,
+              }),
             );
-            const outs = effective.filter(
-              (p) =>
-                p.kind === 'out' &&
-                p.date === endDate &&
-                (p.at === null ||
-                  (p.at &&
-                    d.calendar.localDate(new Date(instant(p.at))) === endDate &&
-                    instant(p.at) > start)),
-            );
-            if (ins.length > 1 || outs.length > 1)
-              block('ambiguousPunchEvidence');
-            else {
-              const inAt = ins[0]?.at,
-                outAt = outs[0]?.at;
-              result.missingPunches = Number(!inAt) + Number(!outAt);
-              result.lateMinutes = inAt
-                ? Math.max(0, (instant(String(inAt)) - start) / 60000)
-                : 0;
-              result.earlyMinutes = outAt
-                ? Math.max(0, (end - instant(String(outAt))) / 60000)
-                : 0;
-              if (
-                inAt &&
-                outAt &&
-                instant(String(inAt)) >= instant(String(outAt))
-              )
-                block('invalidPunchOrder');
-              else {
-                if (result.missingPunches) result.reasons.push('missingPunch');
-                if (result.lateMinutes > shift!.lateToleranceMinutes)
-                  result.reasons.push('late');
-                if (result.earlyMinutes > shift!.earlyToleranceMinutes)
-                  result.reasons.push('early');
-                if (
-                  result.missingPunches === 2 &&
-                  (end - start) / 60000 >= shift!.absenceThresholdMinutes
-                ) {
-                  result.absentMinutes = (end - start) / 60000;
-                  result.reasons.push('absent');
-                }
-                result.status = result.reasons.length ? 'exception' : 'normal';
+          }
+        }
+        if (result.status === 'exception') {
+          const endpoints =
+            (
+              result as typeof result & {
+                missingEndpoints?: { kind: 'in' | 'out'; at: number }[];
               }
-            }
+            ).missingEndpoints ?? [];
+          for (const endpoint of endpoints) {
+            // A real date-only missing record already supports the existing correction workflow.
+            if (
+              punches.some(
+                (p) =>
+                  p.status === 'missing' &&
+                  p.punchKind === endpoint.kind &&
+                  p.date === d.calendar.localDate(new Date(endpoint.at)) &&
+                  p.source !== 'oa-evaluation',
+              )
+            )
+              continue;
+            const expectedAt = new Date(endpoint.at).toISOString();
+            await d.attendance.ingest(
+              {
+                userId: values.userId,
+                date: d.calendar.localDate(new Date(endpoint.at)),
+                punchKind: endpoint.kind,
+                punchedAt: null,
+                source: 'oa-evaluation',
+                sourceKey: createHash('sha256')
+                  .update(
+                    JSON.stringify([values.userId, endpoint.kind, expectedAt]),
+                  )
+                  .digest('hex'),
+                sourceData: {
+                  expectedAt,
+                  evaluationDate: values.date,
+                  evidenceType: 'calculated-missing-punch',
+                },
+              },
+              { actorId: values.actorId, connection: tx, calculated: true },
+            );
           }
         }
         const id = pointer?.id ?? randomUUID();
@@ -315,13 +378,18 @@ export function createAttendanceEvaluationService(d: {
           values: {
             id: revisionId,
             evaluationId: id,
+            userId: values.userId,
+            date: values.date,
+            departmentId: department?.id ?? null,
             revision: (pointer?.version ?? -1) + 2,
             requestKey: values.requestKey,
             actorId: values.actorId,
             reason: values.reason,
             createdAt: demoNow().toISOString(),
             snapshot: {
-              engineVersion: 1,
+              engineVersion: 2,
+              approvedOvertimeMinutes: businessEvidence.approvedOvertimeMinutes,
+              approvedExemptions: exemptions,
               userId: values.userId,
               date: values.date,
               employeeId: employee.id,
@@ -355,6 +423,7 @@ export function createAttendanceEvaluationService(d: {
             filter: { id, version: pointer.version },
             values: {
               currentRevisionId: revisionId,
+              departmentId: department?.id ?? null,
               version: pointer.version + 1,
             },
           });
@@ -370,6 +439,7 @@ export function createAttendanceEvaluationService(d: {
               userId: values.userId,
               date: values.date,
               currentRevisionId: revisionId,
+              departmentId: department?.id ?? null,
               version: 0,
             },
           });
@@ -476,4 +546,6 @@ interface Activity extends RepositoryRecord {
   kind: string;
   applicationId: string;
   status: string;
+  active?: boolean;
+  actualEndAt?: string | null;
 }

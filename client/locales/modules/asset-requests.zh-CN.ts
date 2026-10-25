@@ -64,7 +64,7 @@ export default {
   reasonLimit: '最多填写5000个字符。',
   futureDate: '请选择公司时区的未来日期。',
   photoRequired: '请至少选择一张证据照片。',
-  photoLimit: '最多10张JPEG、PNG或WebP照片，每张不超过5 MiB。',
+  photoLimit: '最多10张JPEG、PNG或WebP照片，每张不超过5 MB。',
   removeSelection: '移除选择',
   selectPhoto: '选择已有证据',
   uploadUnknown:
@@ -173,7 +173,7 @@ export default {
       '仅可申请报废本人持有的符合条件资产或行政管理的在库资产。',
     ASSET_PHOTO_DENIED: '无权访问该申请或其照片字段。',
     ASSET_PHOTO_INVALID: '最多选择十张有效且关联本申请的照片。',
-    ASSET_PHOTO_SIZE: '每张照片不得超过 5 MiB。',
+    ASSET_PHOTO_SIZE: '每张照片不得超过 5 MB。',
     ASSET_PHOTO_TYPE: '请上传有效的 JPEG、PNG 或 WebP 图片。',
     ASSET_STOCK_SHORTAGE: '可用单件不足，无法满足本次申请的全部数量。',
     ASSET_INVALID_QUANTITY: '请确认 1 至 100 之间的整数数量。',
@@ -198,7 +198,8 @@ export default {
     ASSET_SOURCE_MISMATCH: '库存来源与实际申请不一致。',
     ASSET_TARGET_MISMATCH: '审批操作目标属于另一申请。',
     ASSET_DIRECTORY_UNAVAILABLE: '须取得最新的审批人员目录。',
-    ASSET_SLA_UNSUPPORTED: '当前版本仅支持默认 24/48 工作小时审批时钟。',
+    ASSET_SLA_UNSUPPORTED:
+      '暂时无法提交审批，请联系管理员将审批期限设置为 24/48 工作小时。',
   },
   schedule: {
     title: '借用资产归还提醒',

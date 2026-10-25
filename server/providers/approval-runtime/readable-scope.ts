@@ -1,4 +1,13 @@
-import type { ApprovalService } from '@nocobase/app-plugin-approval/server';
+import { withCandidateDirectory } from './candidate-directory.js';
+import type { OaApprovalDirectory } from '../approval-directory/contract.js';
+import {
+  isBusinessRead,
+  requestBusinessRead,
+} from '../request-performance/business-reads.js';
+import type {
+  ApprovalDirectory,
+  ApprovalService,
+} from '@nocobase/app-plugin-approval/server';
 import {
   anyScope,
   condition,
@@ -9,6 +18,21 @@ import type { DatabaseManager } from '@nocobase/db';
 import type { EmployeeService } from '../employees/contract.js';
 import type { OrgService } from '../org/contract.js';
 import { approvalReadableRecords } from './query-service.js';
+
+function isOaDirectory(
+  directory: ApprovalDirectory,
+): directory is OaApprovalDirectory {
+  return (
+    'headOf' in directory &&
+    typeof directory.headOf === 'function' &&
+    'executiveOf' in directory &&
+    typeof directory.executiveOf === 'function' &&
+    'roleMembers' in directory &&
+    typeof directory.roleMembers === 'function' &&
+    'uniqueRoleMember' in directory &&
+    typeof directory.uniqueRoleMember === 'function'
+  );
+}
 
 // The installed FilterOperator has no $in. Keep identifier expansion confined
 // to related people/records, never all documents in the source collection.
@@ -22,7 +46,7 @@ export function memberScope(
 export interface ReadableScopeOptions {
   approvals: ApprovalService;
   lifecycle: string;
-  directory: { hasRole(actorId: string, role: string): boolean };
+  directory: ApprovalDirectory;
   roles: readonly string[];
   ownerFields?: readonly string[];
   taskActors?: boolean;
@@ -38,42 +62,64 @@ export async function approvalReadableScope(
   actorId: string,
   options: ReadableScopeOptions,
 ): Promise<DatabaseScope> {
-  if (options.roles.some((role) => options.directory.hasRole(actorId, role)))
-    return true;
+  for (const role of options.roles)
+    if (await options.directory.hasRole(actorId, role)) return true;
   const scopes: DatabaseScope[] = (
     options.ownerFields ?? ['applicantId', 'createdById']
   ).map((field) => condition(field, '$eq', actorId));
   scopes.push(
     memberScope(
       'id',
-      await approvalReadableRecords(
-        options.approvals,
-        options.lifecycle,
-        actorId,
-        options.taskActors ?? false,
-      ),
+      await (isBusinessRead() && isOaDirectory(options.directory)
+        ? withCandidateDirectory(options.directory, () =>
+            approvalReadableRecords(
+              options.approvals,
+              options.lifecycle,
+              actorId,
+              options.taskActors ?? false,
+            ),
+          )
+        : approvalReadableRecords(
+            options.approvals,
+            options.lifecycle,
+            actorId,
+            options.taskActors ?? false,
+          )),
     ),
   );
   if (options.department && options.org) {
-    const departments = await options.org.departmentsManagedBy(actorId);
+    const org = options.org;
+    const departments = await requestBusinessRead(
+      org,
+      `managed:${actorId}`,
+      () => org.departmentsManagedBy(actorId),
+    );
     scopes.push(
       options.department === 'record'
         ? memberScope('departmentId', departments)
         : memberScope(
             'applicantId',
-            await options.org.primaryMembersOf(departments),
+            await requestBusinessRead(
+              org,
+              `primaryMembers:${JSON.stringify([...departments].sort())}`,
+              () => org.primaryMembersOf(departments),
+            ),
           ),
     );
   }
-  if (options.employees)
+  if (options.employees) {
+    const employees = options.employees;
     scopes.push(
       memberScope(
         'applicantId',
-        (await options.employees.reportsOf(actorId)).map(
-          (employee) => employee.userId,
-        ),
+        (
+          await requestBusinessRead(employees, `reports:${actorId}`, () =>
+            employees.reportsOf(actorId),
+          )
+        ).map((employee) => employee.userId),
       ),
     );
+  }
   if (options.extra) scopes.push(await options.extra());
   return anyScope(scopes);
 }

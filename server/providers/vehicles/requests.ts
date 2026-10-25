@@ -1108,6 +1108,14 @@ export function createVehicleRequestService(d: VehicleRequestDependencies) {
         return selected;
       });
     },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await readable(id, actorId, policy);
+    },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await readable(id, actorId, policy);
       return readDirectory.run(outside.directory, async () => ({

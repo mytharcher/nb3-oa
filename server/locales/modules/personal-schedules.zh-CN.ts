@@ -9,6 +9,7 @@ export default {
       delete: '删除',
     },
     errors: {
+      SOURCE_MANAGED: '会议日程请到会议预订中修改或取消。',
       ACCESS_DENIED: '无权访问此日程。',
       NOT_FOUND: '日程不存在。',
       INVALID_INPUT: '请填写标题和有效的开始、结束时间。',

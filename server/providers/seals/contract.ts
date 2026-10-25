@@ -37,6 +37,7 @@ export interface SealRequest extends LifecycleRecord {
   contractTextVersionId: string | null;
   fileIds: string[];
   sealType: string;
+  executionMode: 'physical' | 'electronic';
   copies: number;
   external: boolean;
   returnDueAt: string | null;
@@ -50,6 +51,7 @@ export interface SealRequest extends LifecycleRecord {
   borrowedAt: string | null;
   returnedAt: string | null;
   ledgerId: string | null;
+  electronicEvidenceId: string | null;
   exceptionReason: string | null;
   administrativeReason: string | null;
   ruleSnapshot: JsonObject;
@@ -129,6 +131,7 @@ export interface SealRequestInput {
   contractId: string | null;
   fileIds: string[];
   sealType: string;
+  executionMode?: 'physical' | 'electronic';
   copies: number;
   external: boolean;
   returnDueAt: string | null;
@@ -139,6 +142,7 @@ export interface SealAccess {
   requests: RepositoryPolicy;
   view?: RepositoryPolicy;
   contract?: RepositoryPolicy;
+  contractView?: RepositoryPolicy;
 }
 export interface SealLedgerDetail {
   record: SealLedger & {
@@ -215,6 +219,26 @@ export interface SealService {
   >;
 }
 export interface SealRequestService {
+  signatureSource(
+    id: string,
+    actorId: string,
+    access: SealAccess,
+    tx: DatabaseConnection,
+    send: boolean | 'recover',
+  ): Promise<import('../electronic-signatures/contract.js').SignatureSource>;
+  finalizeElectronic(
+    id: string,
+    actorId: string,
+    proof: import('../electronic-signatures/contract.js').VerifiedSignature,
+    access: SealAccess,
+    tx: DatabaseConnection,
+  ): Promise<void>;
+
+  searchVisible(
+    id: string,
+    actorId: string,
+    policy: import('@nocobase/db').RepositoryPolicy,
+  ): Promise<void>;
   readonly approvalDefinition: import('@nocobase/app-plugin-approval/server').Approval<never>;
   runtime: LifecycleRuntime;
   /** Read-only transition previews within the trusted directory context. Writes revalidate. */
@@ -327,6 +351,7 @@ export const SEAL_REQUEST_FIELDS = [
   'fileIds',
   'sealType',
   'copies',
+  'executionMode',
   'external',
   'returnDueAt',
   'purpose',
@@ -339,6 +364,7 @@ export const SEAL_REQUEST_FIELDS = [
   'borrowedAt',
   'returnedAt',
   'ledgerId',
+  'electronicEvidenceId',
   'exceptionReason',
   'administrativeReason',
   'ruleSnapshot',

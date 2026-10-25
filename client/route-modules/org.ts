@@ -12,7 +12,7 @@ import { BriefcaseBusiness, Layers, Network, UsersRound } from 'lucide-react';
 const orgSettingsRoutes: AppClientRouteContribution = defineAppRoutes([
   {
     auth: 'required',
-    parent: 'oa-organization',
+    parent: 'oa-system-people',
     name: 'org-departments',
     path: '/departments',
     navigation: {
@@ -61,7 +61,7 @@ const orgSettingsRoutes: AppClientRouteContribution = defineAppRoutes([
   },
   {
     auth: 'required',
-    parent: 'oa-organization',
+    parent: 'oa-system-people',
     name: 'org-positions',
     path: '/positions',
     navigation: {
@@ -89,7 +89,7 @@ const orgSettingsRoutes: AppClientRouteContribution = defineAppRoutes([
   },
   {
     auth: 'required',
-    parent: 'oa-organization',
+    parent: 'oa-system-people',
     name: 'org-grades',
     path: '/grades',
     navigation: { title: 'org.navigation.grades', icon: Layers, order: 30 },
@@ -113,7 +113,7 @@ const orgSettingsRoutes: AppClientRouteContribution = defineAppRoutes([
   },
   {
     auth: 'required',
-    parent: 'oa-organization',
+    parent: 'oa-system-people',
     name: 'org-duty-roles',
     path: '/duty-roles',
     navigation: {
@@ -147,7 +147,7 @@ const orgSettingsRoutes: AppClientRouteContribution = defineAppRoutes([
 
 /**
  * Routes of the `org` OA module. Settings pages append to the groups `client/routes.ts` declares with
- * `parent: 'oa-organization' | 'oa-hr' | 'oa-configuration' | 'oa-system'`; App pages use `defineAppRoutes()`.
+ * `parent: 'oa-system-people' | 'oa-hr' | 'oa-configuration' | 'oa-system'`; App pages use `defineAppRoutes()`.
  */
 const orgRoutes: readonly AppClientRouteContribution[] = [orgSettingsRoutes];
 

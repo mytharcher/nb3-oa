@@ -1,5 +1,4 @@
 import type { DatabaseConnection } from '@nocobase/db';
-import type { ApprovalQuery } from '@nocobase/app-plugin-approval/server';
 import { createServiceToken } from '@nocobase/service-provider';
 
 export interface ApprovalStatisticsChange {
@@ -47,7 +46,3 @@ export const approvalStatisticsChangesToken =
   createServiceToken<ApprovalStatisticsChanges>(
     'oa/approval-statistics-changes',
   );
-
-/** Server-side SDK access; callers still own business authorization. */
-export const approvalQueryToken =
-  createServiceToken<ApprovalQuery>('oa/approval-query');

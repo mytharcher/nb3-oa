@@ -27,7 +27,7 @@ export default {
       REIMBURSEMENT_TOTAL_TOO_LARGE:
         'The expense total exceeds the supported amount. Reduce the total or split the request.',
       REIMBURSEMENT_FILE_SIZE:
-        'Select a nonempty attachment no larger than 5 MiB.',
+        'Select a nonempty attachment no larger than 5 MB.',
       REIMBURSEMENT_FILE_TYPE:
         'Upload a PDF, JPEG, PNG or WebP file with a matching file type.',
     },

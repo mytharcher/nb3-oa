@@ -1,3 +1,4 @@
+import { isMissingAttendanceEffective } from './missing-evidence.js';
 import { demoNow } from '../demo-data/context.js';
 import { isDeepStrictEqual } from 'node:util';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
@@ -29,6 +30,41 @@ export function createAttendanceService(d: {
   calendar: CalendarService;
 }): AttendanceService {
   const service: AttendanceService = {
+    isMissingEffective: (record, connection) =>
+      isMissingAttendanceEffective(
+        record,
+        connection ?? d.db.connection(),
+        d.calendar,
+      ),
+    async effectiveActivities(userId, connection) {
+      const rows = await connection
+        .repository<{
+          userId: string;
+          kind: string;
+          applicationId: string;
+          startAt: string;
+          endAt: string;
+          actualEndAt: string | null;
+          active: boolean;
+        }>('attendanceActivities')
+        .findMany({ filter: { userId, active: true } });
+      return rows.flatMap((row) => {
+        const end = Math.min(
+          Date.parse(row.endAt),
+          row.actualEndAt ? Date.parse(row.actualEndAt) : Infinity,
+        );
+        return Number.isFinite(end) && Date.parse(row.startAt) < end
+          ? [
+              {
+                kind: row.kind,
+                applicationId: row.applicationId,
+                startAt: new Date(row.startAt).toISOString(),
+                endAt: new Date(end).toISOString(),
+              },
+            ]
+          : [];
+      });
+    },
     get: (id, connection) =>
       (connection ?? d.db)
         .repository<AttendanceRecord>('attendanceRecords')
@@ -36,6 +72,11 @@ export function createAttendanceService(d: {
     async ingest(input, context) {
       const work = async (connection: DatabaseConnection) => {
         validateEvidence(input);
+        if (input.source === 'oa-evaluation' && !context.calculated)
+          throw new AttendanceError(
+            'ATTENDANCE_INVALID_INPUT',
+            'Calculated missing evidence is reserved for the attendance evaluator.',
+          );
         await lockUserForAdministration(connection, input.userId);
         if (
           !/^\d{4}-\d{2}-\d{2}$/.test(input.date) ||
@@ -313,6 +354,7 @@ export function createAttendanceService(d: {
       });
       if (
         !original ||
+        !(await service.isMissingEffective(original, connection)) ||
         original.userId !== input.userId ||
         original.status !== 'missing' ||
         original.version !== input.originalVersion

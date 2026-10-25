@@ -1,3 +1,6 @@
+import ExcelJS from 'exceljs';
+const XLSX_TYPE =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 import { ApiError } from '@nocobase/app-server/router';
 const MAX_EXPORT_ROWS = 10_000;
 export async function allRows<T>(
@@ -43,4 +46,32 @@ export async function allRows<T>(
     rows.push(...next.data);
   }
   return rows;
+}
+
+export async function xlsx(
+  rows: readonly Record<string, unknown>[],
+  columns: readonly { header: string; key: string }[],
+  filename: string,
+): Promise<Response> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'NocoBase OA';
+  const sheet = workbook.addWorksheet('Report');
+  sheet.columns = columns.map((column) => ({ ...column, width: 18 }));
+  sheet.getRow(1).font = { bold: true };
+  for (const row of rows)
+    sheet.addRow({
+      ...row,
+      subject:
+        (row.subjectLabel as Record<string, string> | null)?.['en-US'] ??
+        row.subject,
+      available: row.initialized === false ? null : row.available,
+    });
+  const body = Buffer.from(await workbook.xlsx.writeBuffer());
+  return new Response(body, {
+    headers: {
+      'content-type': XLSX_TYPE,
+      'content-disposition': `attachment; filename="${filename}"`,
+      'cache-control': 'no-store',
+    },
+  });
 }

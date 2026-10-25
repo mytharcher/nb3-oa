@@ -1,3 +1,13 @@
+import invoiceRecognitionLocale from './modules/invoice-recognition.en-US.js';
+import electronicSignaturesLocale from './modules/electronic-signatures.en-US.js';
+import wecomAttendanceLocale from './modules/wecom-attendance.en-US.js';
+import hrMasterDataLocale from './modules/hr-master-data.en-US.js';
+import globalSearchLocale from './modules/global-search.en-US.js';
+import enterpriseIdentityLocale from './modules/enterprise-identity.en-US.js';
+import processOperationsLocale from './modules/process-operations.en-US.js';
+import financeIntegrationLocale from './modules/finance-integration.en-US.js';
+import attendanceResultsLocale from './modules/attendance-results.en-US.js';
+import personalSchedulesLocale from './modules/personal-schedules.en-US.js';
 import demoData from './modules/demo-data.en-US.js';
 import processManagementLocale from './modules/process-management.en-US.js';
 import attendanceImportEnUS from './modules/attendance-import.en-US.js';
@@ -82,11 +92,21 @@ const enUS = {
   ...announcementsLocale,
   transfer: transferLocale,
   ...attendanceManagementLocale,
+  ...attendanceResultsLocale,
+  ...wecomAttendanceLocale,
   ...certificatesLocale,
   ...knowledgeLocale,
   ...workItemsLocale,
   ...taskCenterUiLocale,
   ...taskCenterLocale,
+  ...globalSearchLocale,
+  ...enterpriseIdentityLocale,
+  ...processOperationsLocale,
+  ...financeIntegrationLocale,
+  ...invoiceRecognitionLocale,
+  ...electronicSignaturesLocale,
+  ...hrMasterDataLocale,
+  ...personalSchedulesLocale,
   ...accessLocale,
   ...meetingRoomsLocale,
   ...vehiclesLocale,
@@ -189,6 +209,10 @@ const enUS = {
   ...approvalsEnUS,
   oa: {
     navigation: {
+      systemPeople: 'Users and organization',
+      systemAccess: 'Roles and permissions',
+      systemConnections: 'Notifications and integrations',
+      systemOperations: 'Operations',
       office: 'Daily office',
       finance: 'Finance & expenses',
       procurement: 'Procurement & contracts',

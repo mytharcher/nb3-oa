@@ -10,6 +10,9 @@ import type { PropsWithChildren } from 'react';
 import base from '../../../client/locales/en-US.js';
 import copy from '../../../client/locales/modules/payment-requests.en-US.js';
 import Detail from '../../../client/pages/payment-requests/detail.js';
+vi.mock('#components/finance-integration-section', () => ({
+  FinanceIntegrationSection: () => null,
+}));
 const { resource, options, offers, orderPermission } = vi.hoisted(() => ({
   orderPermission: { can: true, isPending: false },
   resource: {

@@ -1,3 +1,11 @@
+import reportsLocale from '../../client/locales/modules/reports.en-US.js';
+import invoiceRecognitionLocale from '../../client/locales/modules/invoice-recognition.en-US.js';
+import electronicSignaturesLocale from './modules/electronic-signatures.en-US.js';
+import wecomAttendanceLocale from './modules/wecom-attendance.en-US.js';
+import hrMasterDataLocale from '../../client/locales/modules/hr-master-data.en-US.js';
+import attendanceResultsLocale from './modules/attendance-results.en-US.js';
+import processOperationsLocale from './modules/process-operations.en-US.js';
+import financeIntegrationLocale from '../../client/locales/modules/finance-integration.en-US.js';
 import accessLocale from '../../client/locales/modules/access.en-US.js';
 import demoData from '../../client/locales/modules/demo-data.en-US.js';
 import processManagementLocale from '../../client/locales/modules/process-management.en-US.js';
@@ -36,6 +44,14 @@ const enUS = {
   transfer: transferLocale,
   ...certificatesLocale,
   ...attendanceManagementLocale,
+  ...attendanceResultsLocale,
+  ...wecomAttendanceLocale,
+  ...processOperationsLocale,
+  ...financeIntegrationLocale,
+  ...invoiceRecognitionLocale,
+  ...reportsLocale,
+  ...electronicSignaturesLocale,
+  ...hrMasterDataLocale,
   ...knowledgeLocale,
   ...recruitmentLocale,
   ...onboardingLocale,

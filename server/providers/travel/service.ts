@@ -405,8 +405,8 @@ export function createTravelService(d: TravelDependencies) {
       defineApprovalAction({
         ...ccAction,
         people: (context, query) => allActivePeople().search(context, query),
-        validate: ({ to }, context) =>
-          typeof to === 'string' && context.directory.isActive(to)
+        validate: async ({ to }, context) =>
+          typeof to === 'string' && (await context.directory.isActive(to))
             ? null
             : 'Choose an active recipient.',
       }),
@@ -1438,6 +1438,58 @@ export function createTravelService(d: TravelDependencies) {
     }
   }
   return {
+    /** Calendar summaries keep the original document policy, including companion visibility. */
+    async calendarEntries(
+      policy: RepositoryPolicy,
+      connection: DatabaseConnection,
+      date: string,
+    ) {
+      const nextDay = new Date(`${date}T12:00:00Z`);
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+      const lower = d.calendar
+          .resolveLocalDateTime(date, '00:00')
+          .toISOString(),
+        upper = d.calendar
+          .resolveLocalDateTime(nextDay.toISOString().slice(0, 10), '00:00')
+          .toISOString();
+      const fields = [
+        'id',
+        'applicantId',
+        'status',
+        'startAt',
+        'endAt',
+        'companionIds',
+        'approvalGrantedAt',
+        'cancelledAt',
+      ] as const;
+      const rows = await connection
+        .repository<TravelRecord>('travelRequests')
+        .withPolicy(policy)
+        .findMany({
+          filter: (f) =>
+            f.and([
+              f.or(
+                [
+                  'booking',
+                  'exception',
+                  'completed',
+                  'cancelled',
+                  'terminated',
+                ].map((status) => f.string('status').eq(status)),
+              ),
+              f.date('approvalGrantedAt').notEmpty(),
+              f.date('startAt').before(upper),
+              f.date('endAt').after(lower),
+            ]),
+          select: (s) => s.fields(...fields),
+        });
+      return rows
+        .filter((row) => fields.every((field) => row[field] !== undefined))
+        .map((row) => ({
+          id: String(row.id),
+          userIds: [String(row.applicantId), ...(row.companionIds as string[])],
+        }));
+    },
     /** Optional identities always obey explicit source record and field scopes, including for owners. */
     async names(
       requested: readonly string[],
@@ -1744,6 +1796,14 @@ export function createTravelService(d: TravelDependencies) {
     async accessFacts(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);
       return { applicantId: record.applicantId, status: record.status };
+    },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await canRead(id, actorId, policy);
     },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);

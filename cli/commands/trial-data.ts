@@ -7,7 +7,7 @@ export default class TrialData extends AppCommand {
 
   async run(): Promise<never> {
     throw new CommandError(
-      'Use APP_SAMPLE_DATA=true pnpm nocobase db sample in a source checkout, or APP_SAMPLE_DATA=true on first installation. Inspect accounts with pnpm nocobase app sample-data --export-access.',
+      'Use pnpm nocobase db sample in a source checkout, or APP_SAMPLE_DATA=true on first installation. Inspect accounts with pnpm nocobase app sample-data --export-access.',
       { code: 'USE_DATABASE_SAMPLE' },
     );
   }

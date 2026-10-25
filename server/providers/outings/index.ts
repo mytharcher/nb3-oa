@@ -1,3 +1,6 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
+import { attendanceActivitySourcesToken } from '../attendance/activity-sources.js';
+import { outingAttendanceEvidence } from './attendance-evidence.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 
 import {
@@ -96,6 +99,21 @@ export default class OutingProvider extends ServiceProvider<Application> {
     });
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.outing',
+      resource: 'oa.outing',
+      collection: 'outingRequests',
+      titleField: 'reason',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(outingServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
+    this.app.container
+      .resolve(attendanceActivitySourcesToken)
+      .register('outings', (userId, date, connection) =>
+        outingAttendanceEvidence(userId, date, connection),
+      );
     if (!this.app.container.has(authorizationToken)) return;
     const authz = this.app.container.resolve(authorizationToken);
     authz.database.collections.add({

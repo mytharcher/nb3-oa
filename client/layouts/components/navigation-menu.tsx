@@ -1,8 +1,9 @@
 import { useTranslation } from '@nocobase/i18n/client';
 import { ChevronRight } from 'lucide-react';
-import { useRef, useState, type ReactElement } from 'react';
+import { useId, useRef, useState, type ReactElement } from 'react';
 import { Link } from 'react-router';
 
+import { TaskCenterMenuBadge } from '../../components/task-center-menu-badge.js';
 import { InboxMenuBadge } from '#components/inbox-menu-badge';
 import {
   Collapsible,
@@ -29,6 +30,7 @@ import {
 } from '#components/ui/sidebar';
 
 import {
+  isNavigationSection,
   routeKey,
   type RouteNavigationItem,
 } from '../../routing/route-navigation.js';
@@ -112,6 +114,16 @@ function NavigationItem({
     ? undefined
     : { children: label, role: 'tooltip', sideOffset: 8 };
 
+  if (isNavigationSection(item))
+    return (
+      <NavigationSection
+        item={item}
+        selectedKey={selectedKey}
+        inPopover={inPopover}
+        onNavigate={navigate}
+      />
+    );
+
   if (children.length > 0 && state === 'collapsed' && !isMobile && !inPopover)
     return (
       <SidebarMenuItem>
@@ -140,14 +152,13 @@ function NavigationItem({
           render={link}
           isActive={isSelected}
           tooltip={tooltip}
-          className={`${SELECTED}${item.route.name === 'inbox' ? ' pr-12' : ''}`}
+          className={`${SELECTED}${hasMenuBadge(item) ? ' pr-12' : ''}`}
         >
           {Icon ? <Icon /> : null}
           <span>{label}</span>
         </SidebarMenuButton>
-        {/* Navigation metadata has no live badge slot; keep the inbox indicator outside
-            the button's clipped icon-mode content without changing the Sidebar primitive. */}
-        {item.route.name === 'inbox' ? <InboxMenuBadge /> : null}
+        {/* Keep counts outside the button's clipped icon-mode content. */}
+        <NavigationBadge item={item} />
       </SidebarMenuItem>
     );
 
@@ -212,6 +223,15 @@ function NavigationSubItem({
   const children = item.children;
   if (children.length === 0 && !item.route.componentLoader) return null;
 
+  if (isNavigationSection(item))
+    return (
+      <NavigationSection
+        item={item}
+        selectedKey={selectedKey}
+        onNavigate={onNavigate}
+      />
+    );
+
   const link = item.route.componentLoader ? (
     <Link
       to={item.route.path}
@@ -232,10 +252,11 @@ function NavigationSubItem({
         <SidebarMenuSubButton
           render={link}
           isActive={isSelected}
-          className={SELECTED}
+          className={`${SELECTED}${hasMenuBadge(item) ? ' pr-12' : ''}`}
         >
           {content}
         </SidebarMenuSubButton>
+        <NavigationBadge item={item} />
       </SidebarMenuSubItem>
     );
 
@@ -282,6 +303,50 @@ function NavigationSubItem({
         </SidebarMenuSub>
       </CollapsibleContent>
     </Collapsible>
+  );
+}
+
+/** Static section titles remove an extra disclosure without flattening the authorized route tree. */
+function NavigationSection({
+  item,
+  selectedKey,
+  inPopover = false,
+  onNavigate,
+}: ItemProps): ReactElement | null {
+  const label = useItemLabel(item);
+  const labelId = useId();
+  if (!item.children.length) return null;
+  return (
+    <SidebarMenuItem>
+      <div role='group' aria-labelledby={labelId} className='pt-2'>
+        <div
+          id={labelId}
+          className='px-2 pb-1 text-xs font-medium text-sidebar-foreground/60'
+        >
+          {label}
+        </div>
+        <SidebarMenu>
+          {item.children.map((child) =>
+            inPopover ? (
+              <NavigationItem
+                key={routeKey(child.route)}
+                item={child}
+                selectedKey={selectedKey}
+                inPopover
+                onNavigate={onNavigate}
+              />
+            ) : (
+              <NavigationSubItem
+                key={routeKey(child.route)}
+                item={child}
+                selectedKey={selectedKey}
+                onNavigate={onNavigate}
+              />
+            ),
+          )}
+        </SidebarMenu>
+      </div>
+    </SidebarMenuItem>
   );
 }
 
@@ -412,4 +477,17 @@ function NavigationPopover({
       </PopoverContent>
     </Popover>
   );
+}
+
+function hasMenuBadge(item: RouteNavigationItem): boolean {
+  return item.route.name === 'inbox' || item.route.name === 'oa-task-center';
+}
+function NavigationBadge({
+  item,
+}: {
+  item: RouteNavigationItem;
+}): ReactElement | null {
+  if (item.route.name === 'inbox') return <InboxMenuBadge />;
+  if (item.route.name === 'oa-task-center') return <TaskCenterMenuBadge />;
+  return null;
 }

@@ -7,6 +7,7 @@ import type {
 export interface AttendanceEvaluation extends RepositoryRecord {
   id: string;
   userId: string;
+  departmentId?: string | null;
   date: string;
   currentRevisionId: string;
   version: number;
@@ -14,6 +15,9 @@ export interface AttendanceEvaluation extends RepositoryRecord {
 export interface AttendanceEvaluationRevision extends RepositoryRecord {
   id: string;
   evaluationId: string;
+  userId?: string | null;
+  departmentId?: string | null;
+  date?: string | null;
   revision: number;
   requestKey: string;
   actorId: string;
@@ -32,7 +36,7 @@ export interface AttendanceEvaluationRevision extends RepositoryRecord {
 export interface AttendanceEvaluationService {
   /** Trusted orchestration only. Always creates a savepoint on caller connection.
    * Same request key replays the original immutable revision; distinct key explicitly recalculates.
-   * Activity adapters are pending: activity-bearing days fail closed.
+   * Business owner adapters verify activities; unknown or inconsistent facts fail closed.
    */
   evaluate(
     input: {

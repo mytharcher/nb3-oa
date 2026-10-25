@@ -63,7 +63,7 @@ export default {
       'An item is disabled or missing. Refresh before submitting changed content.',
     inactive: 'An active employee archive is required.',
     configuration:
-      'The approval clock configuration is unsupported. Contact an administrator.',
+      'Approval cannot be submitted. Contact an administrator to check the approval deadlines.',
     contentChanged:
       'The contents no longer match the approved request. Load the latest version.',
     reasonRequired: 'Provide a reason.',

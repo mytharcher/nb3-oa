@@ -346,6 +346,31 @@ describe('reimbursement application-bound approval integration', () => {
       totalCents: 250,
       voucherNumber: 'BANK-1',
     });
+    const exported = await service.financeExport(id, ids.finance, {
+      read: true,
+      create: false,
+      update: false,
+      delete: false,
+    });
+    expect(exported).toMatchObject({
+      id,
+      amountCents: 250,
+      offsetCents: 0,
+      paidCents: 250,
+      forced: false,
+    });
+    expect(
+      exported.lines.reduce((total, line) => total + line.amountCents, 0),
+    ).toBe(250);
+    expect(JSON.stringify(exported)).not.toContain('0000012345');
+    await expect(
+      service.financeExport(id, ids.finance, {
+        read: { fields: ['id'], scope: true },
+        create: false,
+        update: false,
+        delete: false,
+      }),
+    ).rejects.toMatchObject({ code: 'REIMBURSEMENT_FIELDS_RESTRICTED' });
     const db = app.testApp.application.container.resolve(databaseManagerToken);
     expect(
       await db

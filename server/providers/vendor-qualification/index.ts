@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import {
   anyScope,
@@ -162,6 +163,17 @@ export default class VendorQualificationProvider extends ServiceProvider<Applica
     );
   }
   override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.vendorQualification',
+      resource: 'oa.vendorQualification',
+      collection: 'vendorQualifications',
+      titleField: 'name',
+      titleType: 'string',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(vendorQualificationServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     const c = this.app.container,
       authz = c.resolve(authorizationToken);
     authz.database.collections.add({

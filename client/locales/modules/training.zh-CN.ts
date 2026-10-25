@@ -54,7 +54,7 @@ export default {
     zeroNoAuthorization: '免费培训不生成费用额度。',
     uncertainCreate: '保存结果未知，请先到“我的申请”查询，再决定是否新建。',
     inactive: '申请人须有有效在职员工档案。',
-    configuration: '当前审批时钟配置不受支持。',
+    configuration: '暂时无法提交审批，请联系管理员检查审批期限设置。',
     invalid: '请检查申请字段，必要时重新加载最新记录。',
     stages: {
       manager: '直属上级',

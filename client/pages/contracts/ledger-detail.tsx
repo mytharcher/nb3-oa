@@ -1,3 +1,4 @@
+import { ElectronicSignatureSection } from '#components/electronic-signature-section';
 import { UserName } from '#components/user-name';
 import { ResponsiveTable as Table } from '#components/responsive-table';
 import { useMissing } from './use-missing.js';
@@ -276,6 +277,12 @@ export default function LedgerDetailPage() {
             </section>
           </>
         )}
+        {data?.contract.requestId ? (
+          <ElectronicSignatureSection
+            kind='contract'
+            id={data.contract.requestId}
+          />
+        ) : null}
         <Outlet context={context} />
       </div>
     </RecordDetailDrawer>

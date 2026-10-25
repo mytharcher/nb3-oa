@@ -167,6 +167,35 @@ export interface ApplyAssignmentInput {
 }
 
 export interface EmployeeService {
+  /** Scoped snapshot for master-data reconciliation, within the caller transaction. */
+  masterDataSnapshot(
+    id: string,
+    policy: RepositoryPolicy,
+    connection: DatabaseConnection,
+  ): Promise<Partial<Employee> | undefined>;
+
+  /** Public administrative import/synchronization boundary; always enforces the supplied archive policy. */
+  createEmployee(
+    input: import('./service.js').CreateEmployeeInput,
+    policy: RepositoryPolicy,
+    actorId: string,
+    options?: import('./service.js').EmployeeWriteOptions,
+  ): Promise<import('./service.js').EmployeeView>;
+  updateEmployee(
+    id: string,
+    input: import('./service.js').EmployeeInput,
+    policy: RepositoryPolicy,
+    actorId: string,
+    options?: import('./service.js').EmployeeWriteOptions,
+  ): Promise<import('./service.js').EmployeeView>;
+  correctStatus(
+    id: string,
+    input: import('./service.js').CorrectStatusInput,
+    policy: RepositoryPolicy,
+    actorId: string,
+    options?: Pick<import('./service.js').EmployeeWriteOptions, 'connection'>,
+  ): Promise<import('./service.js').EmployeeView>;
+
   /** Bulk effective position and reporting-manager members for access administration. */
   accessMemberships(
     connection?: DatabaseConnection,

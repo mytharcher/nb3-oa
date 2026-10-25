@@ -938,6 +938,40 @@ export function createLeaveService(d: LeaveDependencies) {
     }
   }
   return {
+    /** Calendar summaries must retain the original document's record and field policy. */
+    async calendarEntries(
+      policy: RepositoryPolicy,
+      connection: DatabaseConnection,
+      date: string,
+    ) {
+      const fields = [
+        'id',
+        'applicantId',
+        'status',
+        'startDate',
+        'endDate',
+        'startHalf',
+        'endHalf',
+      ] as const;
+      const rows = await connection
+        .repository<LeaveRecord>('leaveRequests')
+        .withPolicy(policy)
+        .findMany({
+          filter: (f) =>
+            f.and([
+              f.string('status').eq('approved'),
+              f.date('startDate').notAfter(date),
+              f.date('endDate').notBefore(date),
+            ]),
+          select: (s) => s.fields(...fields),
+        });
+      return rows
+        .filter((row) => fields.every((field) => row[field] !== undefined))
+        .map((row) => ({
+          id: String(row.id),
+          userIds: [String(row.applicantId)],
+        }));
+    },
     initialize: refresh,
     async readableScope(actorId: string): Promise<DatabaseScope> {
       await refresh();
@@ -1082,6 +1116,14 @@ export function createLeaveService(d: LeaveDependencies) {
         }),
       );
       return { people, nextOffset: page.nextOffset };
+    },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await canRead(id, actorId, policy);
     },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);

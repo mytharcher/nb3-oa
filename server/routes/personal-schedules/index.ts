@@ -1,3 +1,4 @@
+import { registerTeamCalendar } from './team-calendar.js';
 import { i18nToken } from '@nocobase/app-server/i18n';
 import { getRequestLocale } from '@nocobase/i18n/server';
 import { Hono, type Context } from 'hono';
@@ -69,7 +70,7 @@ export default [
               ? 'PERMISSION_DENIED'
               : e.code === 'NOT_FOUND'
                 ? 'NOT_FOUND'
-                : e.code === 'VERSION_CONFLICT'
+                : ['VERSION_CONFLICT', 'SOURCE_MANAGED'].includes(e.code)
                   ? 'ABORTED'
                   : 'INVALID_ARGUMENT',
           localizedMessage: {
@@ -120,14 +121,24 @@ export default [
           409: apiErrorResponse(409),
         },
       });
-    r.get('/', doc('listOwnPersonalSchedules', true), async (ctx) => {
-      const rows = await service.list(
-        actor(ctx),
-        db.connection(),
-        await policy(ctx, 'view'),
-      );
-      return ctx.json({ data: await Promise.all(rows.map(dto)) });
-    });
+    r.get(
+      '/',
+      doc('listOwnPersonalSchedules', true),
+      apiValidator('query', S.Interval),
+      async (ctx) => {
+        const interval = ctx.req.valid('query');
+        const rows = await service.list(
+          actor(ctx),
+          db.connection(),
+          await policy(ctx, 'view'),
+          interval.startAt && interval.endAt
+            ? { startAt: interval.startAt, endAt: interval.endAt }
+            : undefined,
+        );
+        return ctx.json({ data: await Promise.all(rows.map(dto)) });
+      },
+    );
+    registerTeamCalendar(r, app);
     r.get(
       '/:id',
       doc('getOwnPersonalSchedule'),

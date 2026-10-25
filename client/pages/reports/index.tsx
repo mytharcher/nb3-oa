@@ -3,6 +3,7 @@ import {
   reportDescription,
   type ReportDataset,
 } from './datasets.js';
+import { AdministrativeReport } from './administrative.js';
 import { ApplicationTableEmpty } from '#components/application-table-empty';
 import { StatusBadge } from '#components/status-badge';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
@@ -886,7 +887,9 @@ function AuthorizedReportsPage({ dataset }: { dataset?: ReportDataset }) {
         </Alert>
       ) : null}
       {dataset && visible?.includes(dataset) ? (
-        dataset === 'expense-summary' ? (
+        dataset === 'supply-ledger' || dataset === 'seal-ledger' ? (
+          <AdministrativeReport key={dataset} dataset={dataset} />
+        ) : dataset === 'expense-summary' ? (
           <ExpenseSummaryReport showHeader={false} />
         ) : dataset === 'leave-approval-efficiency' ? (
           <LeaveApprovalEfficiencyReport showHeader={false} />

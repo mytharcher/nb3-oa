@@ -32,6 +32,15 @@ export default class PersonalSchedulesProvider extends ServiceProvider<Applicati
   }
   public override async boot() {
     const authz = this.app.container.resolve(authorizationToken);
+    authz.ui.sections.add({
+      name: 'oa.personalSchedules',
+      parent: 'administration',
+      title: title('title'),
+    });
+    authz.ui.place(
+      { type: 'composite', id: 'oa.personalSchedules' },
+      { section: 'oa.personalSchedules' },
+    );
     authz.database.collections.add({
       name: 'personalSchedules',
       title: title('title'),

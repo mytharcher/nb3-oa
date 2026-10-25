@@ -47,21 +47,24 @@ beforeEach(() => {
   api.request.mockReset();
 });
 afterEach(cleanup);
-it('requires typing, selects directly in one input and has no pagination', async () => {
+it('waits for two characters before requesting candidates and selecting in the same input', async () => {
   api.request.mockResolvedValue({
     data: { items: [{ id: 'chen', name: '陈明' }], total: 25 },
   });
   render(<Show />);
   const user = userEvent.setup();
   const input = screen.getByRole('combobox');
+  expect(api.request).not.toHaveBeenCalled();
   await user.click(input);
+  await user.type(input, '陈');
   await new Promise((resolve) => setTimeout(resolve, 350));
   expect(api.request).not.toHaveBeenCalled();
-  await user.type(input, '陈');
+  expect(screen.queryByRole('option')).toBeNull();
+  await user.type(input, '明');
   await waitFor(() => expect(api.request).toHaveBeenCalledTimes(1));
   expect(api.request.mock.calls[0][0]).toMatchObject({
     path: 'departureRequests/handoverCandidates',
-    query: { search: '陈', employeeId: 'employee', offset: '0', limit: '20' },
+    query: { search: '陈明', employeeId: 'employee', offset: '0', limit: '20' },
   });
   expect(
     await screen.findByText(base.departureRequests.form.refineHandoverSearch),
@@ -85,12 +88,21 @@ it('keeps the known selected name and hides stale results while the next search 
   const user = userEvent.setup();
   await user.click(input);
   await user.clear(input);
-  await user.type(input, '陈');
+  await user.type(input, '陈明');
   await screen.findByRole('option', { name: '陈明' });
-  fireEvent.change(input, { target: { value: '李' } });
+  fireEvent.change(input, { target: { value: '李华' } });
   expect(screen.queryByRole('option', { name: '陈明' })).toBeNull();
   await waitFor(() => expect(api.request).toHaveBeenCalledTimes(2));
   fireEvent.change(input, { target: { value: '' } });
   await new Promise((resolve) => setTimeout(resolve, 350));
   expect(api.request).toHaveBeenCalledTimes(2);
+});
+
+it('explains when no eligible employees are available', async () => {
+  api.request.mockResolvedValue({ data: { items: [], total: 0 } });
+  render(<Show />);
+  await userEvent.type(screen.getByRole('combobox'), '无人');
+  expect(
+    await screen.findByText(base.departureRequests.form.noHandoverCandidates),
+  ).toBeInTheDocument();
 });

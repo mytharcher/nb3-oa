@@ -1,5 +1,44 @@
 export default {
   workbench: {
+    commonLinks: 'Common links',
+    moreLinks: 'More links',
+    lessLinks: 'Fewer links',
+    roleFilter: 'Filter by responsibility',
+    allRoles: 'All',
+    filteredEmpty: 'No items for this responsibility in the current preview',
+    previewHint: 'Priority preview only. Open the task center for all items.',
+    functionalRequests: 'Functional requests',
+    roleLabels: {
+      manager: 'Team',
+      hr: 'HR',
+      finance: 'Finance',
+      administration: 'Administration',
+      procurement: 'Procurement',
+    },
+    roleWorkspaces: 'My workspaces',
+    workspacePreview:
+      'A preview of your pending work in this area, with urgent items first.',
+    workspaceEmpty:
+      'No items in the current preview. Open the task center to see all your work.',
+    workspaceLoadFailed: 'Could not load your workspaces. Please retry.',
+    teamBatchReview: 'Open task list · Batch approval',
+    workspaceQueue: '{{name}} tasks',
+    workspaceExport: '{{name}} · View and export',
+    workspaces: {
+      manager: 'Team management',
+      hr: 'HR operations',
+      finance: 'Finance operations',
+      administration: 'Office operations',
+      procurement: 'Procurement and contracts',
+    },
+    workspaceLinks: {
+      supplies: 'Supplies ledger',
+      seals: 'Seal ledger',
+      vehicles: 'Vehicles and drivers',
+      orders: 'Purchase orders',
+      contracts: 'Contract ledger',
+    },
+
     summaryTodo_one: '{{count}} task',
     summaryTodo_other: '{{count}} tasks',
     sourcesLabel: 'Tasks by source',
@@ -63,11 +102,23 @@ export default {
     searchRequests: 'Search request types',
     noMatchingRequests: 'No matching request types.',
     favoritesHint:
-      'Choose up to 6 favorites, saved for your account in this browser.',
-    favorite: 'Favorite {{name}}',
+      'Choose up to 6 favorites. They follow your account across devices.',
+    favorite: 'Favorite: {{name}}',
     resetFavorites: 'Restore defaults',
     saveFailed:
-      'Favorites could not be saved in this browser. Your selection lasts until this page closes.',
+      'Favorites were not saved. Please try again; your previous choices are unchanged.',
+    preferencesLoadFailed:
+      'Could not load your favorites. Retry before changing them.',
+    recentRequests: 'Recently used',
+    catalogGroups: {
+      attendance: 'Time off and attendance',
+      travel: 'Travel',
+      expenses: 'Expenses',
+      people: 'People',
+      administration: 'Administration',
+      procurement: 'Procurement and contracts',
+      other: 'Other',
+    },
     groups: {
       office: 'Daily office',
       people: 'Organization and HR',
@@ -102,7 +153,7 @@ export default {
     newRequest: 'New request',
     newRequestDescription:
       'Choose a request type, complete it and submit for approval.',
-    viewPending: 'View all approvals',
+    viewPending: 'View all tasks',
     viewMine: 'View all my requests',
     emptyAttention: 'Nothing needs your attention',
     emptyAttentionDescription:

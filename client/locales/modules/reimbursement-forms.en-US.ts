@@ -56,8 +56,8 @@ export default {
     retryCreation: 'Retry draft creation',
     upload: 'Upload evidence',
     uploadHint:
-      'PDF, JPEG, PNG or WebP, up to 5 MiB per file. Removing a selection keeps the stored evidence.',
-    fileSize: 'Choose a nonempty file up to 5 MiB.',
+      'PDF, JPEG, PNG or WebP, up to 5 MB per file. Removing a selection keeps the stored evidence.',
+    fileSize: 'Choose a nonempty file up to 5 MB.',
     fileType: 'Choose a PDF, JPEG, PNG or WebP file.',
     uploadFailed: 'Evidence upload failed. Your selections are retained.',
     uploading: 'Uploading evidence',

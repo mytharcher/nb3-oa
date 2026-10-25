@@ -22,6 +22,12 @@ import {
 import { auditServiceToken } from '../../../server/providers/audit/index.js';
 const test = createEmployeesAppTest();
 async function fixture(testApp: Parameters<typeof createPerson>[0]) {
+  // Remove the install-time authenticated baseline in this permission-isolation fixture.
+  const authz = testApp.application.container.resolve(authorizationToken);
+  for (const assignment of await authz.permissionSets.listAssignments(
+    'oa-personal-schedules-employee',
+  ))
+    await authz.permissionSets.revoke(assignment.id);
   const owner = await createPerson(testApp, 'Schedule owner'),
     other = await createPerson(testApp, 'Schedule other'),
     denied = await createPerson(testApp, 'Schedule denied');
@@ -502,4 +508,78 @@ test('production HTTP turns actual narrower repository scopes into 403 while unk
   } finally {
     failed.mockRestore();
   }
+});
+
+test('meeting-derived schedules reject owner edits/deletion and list by half-open interval', async ({
+  testApp,
+}) => {
+  const { owner, body } = await fixture(testApp),
+    c = testApp.application.container,
+    db = c.resolve(databaseManagerToken),
+    service = c.resolve(personalScheduleServiceToken),
+    session = await owner.session();
+  await db.transaction((tx) =>
+    service.syncMeeting(
+      {
+        id: 'meeting-calendar-source',
+        organizerUserId: owner.userId,
+        attendeeUserIds: [],
+        title: 'Meeting appointment',
+        startAt: body.startAt,
+        endAt: body.endAt,
+        status: 'confirmed',
+      },
+      tx,
+    ),
+  );
+  const rows = (await (await session.fetch('/personalSchedules')).json()).data;
+  expect(rows).toHaveLength(1);
+  expect(
+    (
+      await session.fetch(
+        `/personalSchedules/${rows[0].id}`,
+        write('PATCH', { ...body, expectedVersion: 1 }),
+      )
+    ).status,
+  ).toBe(409);
+  expect(
+    (
+      await session.fetch(
+        `/personalSchedules/${rows[0].id}`,
+        write('DELETE', { expectedVersion: 1 }),
+      )
+    ).status,
+  ).toBe(409);
+  expect(
+    (
+      await session.fetch(
+        '/personalSchedules',
+        write('POST', { ...body, sourceBookingId: null }),
+      )
+    ).status,
+  ).toBe(400);
+  const query = (startAt: string, endAt: string) =>
+    `/personalSchedules?${new URLSearchParams({ startAt, endAt })}`;
+  expect(
+    (
+      await (
+        await session.fetch(
+          query('2030-01-01T01:30:00Z', '2030-01-01T03:00:00Z'),
+        )
+      ).json()
+    ).data,
+  ).toHaveLength(1);
+  expect(
+    (
+      await (
+        await session.fetch(
+          query('2030-01-01T02:00:00Z', '2030-01-01T03:00:00Z'),
+        )
+      ).json()
+    ).data,
+  ).toEqual([]);
+  expect(
+    (await session.fetch(query('2030-01-01T00:00:00Z', '2032-01-01T00:00:00Z')))
+      .status,
+  ).toBe(400);
 });

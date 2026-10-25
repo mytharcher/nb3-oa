@@ -118,6 +118,7 @@ export async function readWorkbenchTasks(
         sourceType,
         ...(view === 'pending' ? { status: 'pending' as const } : {}),
         page: 1,
+        includeTotal: true,
         pageSize,
         orderBy: 'createdAt',
         direction: view === 'pending' ? 'asc' : 'desc',
@@ -216,7 +217,7 @@ export async function readWorkbenchTasks(
       page: 1,
       pageSize,
       total:
-        pages.reduce((n, page) => n + page.meta.total, 0) +
+        pages.reduce((n, page) => n + (page.meta.total ?? 0), 0) +
         (view === 'pending' ? counts.revisions : 0),
       kinds: [...new Set(data.map((row) => row.kind))],
       counts,

@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { schedulerServiceToken } from '@nocobase/app-plugin-scheduler/server/tokens';
 import { i18nToken } from '@nocobase/app-server/i18n';
@@ -131,6 +132,16 @@ export default class LoanRequestProvider extends ServiceProvider<Application> {
     });
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.loan',
+      resource: 'oa.loan',
+      collection: 'loanRequests',
+      titleField: 'reason',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(loanRequestServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     const c = this.app.container,
       scheduler = c.resolve(schedulerServiceToken),
       i18n = c.resolve(i18nToken),

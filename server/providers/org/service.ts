@@ -128,6 +128,13 @@ export interface DutyRoleView {
  * commit tells each user whose subjects changed to refresh their permission snapshot.
  */
 export interface OrganizationService extends OrgService {
+  /** Master-data reconciliation holds this owned record until the caller transaction commits. */
+  lockMasterDataRecord(
+    entity: 'department' | 'grade',
+    id: string,
+    connection: DatabaseConnection,
+  ): Promise<void>;
+
   /** Bulk effective department, department-head and duty-role members for access administration. */
   accessMemberships(
     connection?: DatabaseConnection,
@@ -799,6 +806,13 @@ export function createOrganizationService(
   }
 
   const service: OrganizationService = {
+    async lockMasterDataRecord(entity, id, connection) {
+      await connection.query
+        .updateTable(entity === 'department' ? 'departments' : 'grades')
+        .set({ id })
+        .where('id', '=', id)
+        .execute();
+    },
     async departmentsManagedBy(userId, connection) {
       const tree = await loadTree(connection);
       return [...tree.keys()].filter((id) =>
@@ -1784,13 +1798,15 @@ export function createOrganizationService(
       validateUserId(userId);
       await write(context, async (connection, record) => {
         const user = await requireEnabledUser(userId, 'userId', connection);
-        const { updatedCount } = await connection
-          .repository('dutyRoles')
-          .updateMany({
-            filter: { code, active: true },
-            values: { active: true },
-          });
-        if (updatedCount > 1)
+        // Lock the seeded role without reporting a business mutation to ownership
+        // observers. Actual role changes still use Repository in setDutyRoleActive.
+        const { updatedCount } = await connection.query
+          .updateTable('dutyRoles')
+          .set({ active: true })
+          .where('code', '=', code)
+          .where('active', '=', true)
+          .execute();
+        if ((updatedCount ?? 0) > 1)
           throw new OrgError('INVALID_INPUT', 'Duplicate duty role code.');
         // Both matched-row and changed-row drivers hold the matching row lock for this no-op update.
         const role = await loadDutyRole(connection, code);

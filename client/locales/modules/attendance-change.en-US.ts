@@ -37,9 +37,9 @@ export default {
         'The applicant must be an active employee. Contact HR to check the archive.',
       ATTENDANCE_CHANGE_REASON_REQUIRED: 'Provide a reason for the correction.',
       ATTENDANCE_CHANGE_SLA_CONFIGURATION_UNSUPPORTED:
-        'The configured approval clocks are unsupported. Contact an administrator.',
+        'Approval cannot be submitted. Contact an administrator to check the approval deadlines.',
       ATTENDANCE_CHANGE_FILE_SIZE:
-        'Attachments must be nonempty and at most 5 MiB.',
+        'Attachments must be nonempty and at most 5 MB.',
       ATTENDANCE_CHANGE_FILE_TYPE:
         'Use PDF, JPEG, PNG or WebP files with matching contents and format.',
       ATTENDANCE_CHANGE_ATTACHMENT_DENIED:

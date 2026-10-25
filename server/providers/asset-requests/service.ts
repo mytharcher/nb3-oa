@@ -618,6 +618,14 @@ export function createAssetRequestService(d: AssetRequestDependencies) {
         await this.readableScope(actorId),
       );
     },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      _actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await requireRead(id, policy);
+    },
     async detail(id: string, actorId: string, policy: RepositoryPolicy) {
       const record = await requireRead(id, policy);
       await store.refresh();

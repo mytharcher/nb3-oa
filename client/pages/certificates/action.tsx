@@ -6,7 +6,7 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { useToaster } from '@nocobase/app-client';
 import { useAuthorizationRevision } from '@nocobase/app-plugin-authorization/client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
-import { RouteDrawer } from '#components/route-drawer';
+import { RequestActionOverlay } from '#components/request-action-overlay';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { Button } from '#components/ui/button';
 import { Textarea } from '#components/ui/textarea';
@@ -48,7 +48,7 @@ function Overlay() {
     [busy, setBusy] = useState(false),
     workingRef = useRef(false);
   return (
-    <RouteDrawer
+    <RequestActionOverlay
       title={t(`certificates.actions.${action}`)}
       className='sm:max-w-2xl'
       beforeClose={() => !workingRef.current}
@@ -61,7 +61,7 @@ function Overlay() {
           setBusy(value);
         }}
       />
-    </RouteDrawer>
+    </RequestActionOverlay>
   );
 }
 function Footer({ busy }: { busy: boolean }) {

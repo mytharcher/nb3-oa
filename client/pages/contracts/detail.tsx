@@ -1,3 +1,4 @@
+import { ElectronicSignatureSection } from '#components/electronic-signature-section';
 import { statusTone } from './status-tone.js';
 import { PrintEntry } from '../template-print/entry.js';
 import { useMissing } from './use-missing.js';
@@ -266,6 +267,11 @@ export default function RequestDetail() {
                 refreshKey={refreshKey}
               />
             </section>
+            <ElectronicSignatureSection
+              kind='contract'
+              id={requestId}
+              onComplete={context?.reload}
+            />
             <ContractHistory detail={data} />
           </>
         )}

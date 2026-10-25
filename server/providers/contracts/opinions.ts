@@ -62,7 +62,7 @@ export function contractApprove() {
       if (
         place &&
         ['legal', 'finance'].includes(place.pool ?? '') &&
-        !context.directory.hasRole(context.task.assigneeId, place.pool!)
+        !(await context.directory.hasRole(context.task.assigneeId, place.pool!))
       )
         return 'The original seat assignee no longer qualifies.';
       if (place && place.pool === 'legal')

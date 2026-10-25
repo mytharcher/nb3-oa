@@ -16,7 +16,7 @@ import {
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
-import { RouteDrawer } from '#components/route-drawer';
+import { RequestActionOverlay } from '#components/request-action-overlay';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { ApprovalRecipientPicker } from '#components/approval-recipient-picker';
 import { Button } from '#components/ui/button';
@@ -140,7 +140,7 @@ export default function ProbationActionDialog() {
   const name = resource.data?.record.number ?? t('approvals.draft'),
     label = t(`probationRequests.actionForm.labels.${actionName}`);
   return (
-    <RouteDrawer
+    <RequestActionOverlay
       className={
         ['transfer', 'addSigner', 'cc', 'appoint', 'reassign'].includes(
           actionName,
@@ -222,7 +222,7 @@ export default function ProbationActionDialog() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </RouteDrawer>
+    </RequestActionOverlay>
   );
 }
 function ActionFooter({

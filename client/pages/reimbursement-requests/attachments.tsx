@@ -99,7 +99,10 @@ export function ReimbursementAttachments({
               className='break-all text-primary underline'
             >
               {f.filename}
-              {f.ext ? `.${f.ext}` : ''}
+              {f.ext &&
+              !f.filename.toLowerCase().endsWith(`.${f.ext.toLowerCase()}`)
+                ? `.${f.ext}`
+                : ''}
             </a>
           </li>
         ))}
@@ -266,7 +269,12 @@ export function ReimbursementAttachmentEditor({
                   }
                 />
                 {file.filename}
-                {file.ext ? `.${file.ext}` : ''}
+                {file.ext &&
+                !file.filename
+                  .toLowerCase()
+                  .endsWith(`.${file.ext.toLowerCase()}`)
+                  ? `.${file.ext}`
+                  : ''}
               </label>
             ))
           )}

@@ -78,7 +78,7 @@ export const reimbursementAttachmentServiceToken =
 
 export function createReimbursementAttachmentService(
   db: DatabaseManager,
-  reimbursement: Pick<ReimbursementService, 'detail'>,
+  reimbursement: Pick<ReimbursementService, 'attachmentRecord'>,
 ): ReimbursementAttachmentService {
   return {
     async authorize(reimbursementId, actorId, policy, upload) {
@@ -92,7 +92,7 @@ export function createReimbursementAttachmentService(
           'REIMBURSEMENT_ATTACHMENT_DENIED',
           'The attachment field is outside the granted access.',
         );
-      const { record } = await reimbursement.detail(
+      const record = await reimbursement.attachmentRecord(
         reimbursementId,
         actorId,
         policy,

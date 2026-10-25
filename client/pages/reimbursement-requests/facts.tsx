@@ -1,3 +1,5 @@
+import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
+import { InvoiceTools } from './invoice-tools.js';
 import { useResource } from '../approvals/use-resource.js';
 import type { FormOptions } from './types-form.js';
 import { ErrorState } from './states.js';
@@ -17,6 +19,7 @@ export function ReimbursementFacts({
 }) {
   const { t, i18n } = useTranslation();
   const { record } = detail;
+  const { session } = useAuthentication();
   const options = useResource<FormOptions>('reimbursementRequests/options', {
     recordId: record.id,
     applicantId: record.applicantId,
@@ -94,10 +97,6 @@ export function ReimbursementFacts({
       {options.error ? (
         <ErrorState error={options.error} retry={options.reload} />
       ) : null}
-      <FrozenStandards
-        snapshot={record.standardSnapshot}
-        categoryLabel={categoryLabel}
-      />
       <dl className='grid gap-3 sm:grid-cols-[9rem_1fr]'>
         {values.map(([label, value]) => (
           <div key={label} className='contents'>
@@ -183,11 +182,37 @@ export function ReimbursementFacts({
                     />
                   </dd>
                 </dl>
+                <InvoiceTools
+                  recordId={record.id}
+                  lineId={line.id}
+                  fileIds={line.attachmentIds}
+                  version={JSON.stringify(line)}
+                  operation='verify'
+                  canOperate={
+                    [record.applicantId, record.createdById].includes(
+                      session?.user.id ?? '',
+                    ) ||
+                    detail.taskActions.some(
+                      (value) =>
+                        value.task.stage === 'finance' &&
+                        value.task.subject === line.id &&
+                        value.actions.some((action) =>
+                          ['approve', 'returnItem', 'reject'].includes(
+                            action.name,
+                          ),
+                        ),
+                    )
+                  }
+                />
               </section>
             );
           })
         )}
       </section>
+      <FrozenStandards
+        snapshot={record.standardSnapshot}
+        categoryLabel={categoryLabel}
+      />
     </div>
   );
 }

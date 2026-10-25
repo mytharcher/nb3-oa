@@ -10,7 +10,7 @@ import { UsersRound, KeyRound, FileClock, CalendarClock } from 'lucide-react';
 const routes: AppClientRouteDefinition[] = [
   {
     name: 'users',
-    parent: 'oa-system',
+    parent: 'oa-system-people',
     path: '/users',
     auth: 'required',
     authz: { resource: { type: 'page', id: 'users' }, action: 'access' },
@@ -44,7 +44,7 @@ const routes: AppClientRouteDefinition[] = [
   },
   {
     name: 'permission-sets',
-    parent: 'oa-system',
+    parent: 'oa-system-people',
     path: '/permission-sets',
     auth: 'required',
     authz: {
@@ -84,7 +84,7 @@ const routes: AppClientRouteDefinition[] = [
   },
   {
     name: 'default-access',
-    parent: 'oa-system',
+    parent: 'oa-system-people',
     path: '/default-access',
     auth: 'required',
     authz: {
@@ -96,7 +96,7 @@ const routes: AppClientRouteDefinition[] = [
   },
   {
     name: 'sharing-rules',
-    parent: 'oa-system',
+    parent: 'oa-system-people',
     path: '/sharing-rules',
     auth: 'required',
     authz: {
@@ -108,7 +108,7 @@ const routes: AppClientRouteDefinition[] = [
   },
   {
     name: 'restriction-rules',
-    parent: 'oa-system',
+    parent: 'oa-system-people',
     path: '/restriction-rules',
     auth: 'required',
     authz: {
@@ -120,7 +120,7 @@ const routes: AppClientRouteDefinition[] = [
   },
   {
     name: 'inspector',
-    parent: 'oa-system',
+    parent: 'oa-system-people',
     path: '/inspector',
     auth: 'required',
     authz: {
@@ -132,7 +132,7 @@ const routes: AppClientRouteDefinition[] = [
   },
   {
     name: 'api-keys',
-    parent: 'oa-system',
+    parent: 'oa-system-connections',
     path: '/api-keys',
     auth: 'required',
     authz: { resource: { type: 'page', id: 'api-keys' }, action: 'access' },
@@ -146,7 +146,7 @@ const routes: AppClientRouteDefinition[] = [
   },
   {
     name: 'notification-logs',
-    parent: 'oa-system',
+    parent: 'oa-system-connections',
     path: '/notification-logs',
     auth: 'required',
     authz: {
@@ -163,7 +163,7 @@ const routes: AppClientRouteDefinition[] = [
   },
   {
     name: 'schedules',
-    parent: 'oa-system',
+    parent: 'oa-system-operations',
     path: '/schedules',
     auth: 'required',
     authz: {

@@ -64,49 +64,51 @@ beforeEach(() => {
   state.request.mockImplementation(({ path }: { path: string }) =>
     Promise.resolve({
       data:
-        path === 'leaveBalances/me'
-          ? [
-              {
-                employeeId: 'e',
-                leaveType: 'annual',
-                availableUnits: 7,
-                heldUnits: 1,
-              },
-            ]
-          : path === 'leaveRequests/options'
-            ? {
-                leaveTypes: [
-                  {
-                    code: 'annual',
-                    label: { 'en-US': 'Annual leave' },
-                    active: false,
-                  },
-                ],
-              }
-            : path === 'workbench/meetings'
+        path === 'personalSchedules'
+          ? []
+          : path === 'leaveBalances/me'
+            ? [
+                {
+                  employeeId: 'e',
+                  leaveType: 'annual',
+                  availableUnits: 7,
+                  heldUnits: 1,
+                },
+              ]
+            : path === 'leaveRequests/options'
               ? {
-                  date: '2026-10-11',
-                  timeZone: 'Asia/Shanghai',
-                  total: 17,
-                  items: [
+                  leaveTypes: [
                     {
-                      id: 'm',
-                      title: 'Personal meeting',
-                      startAt: '2026-10-11T01:00:00Z',
-                      endAt: '2026-10-11T02:00:00Z',
-                      status: 'confirmed',
+                      code: 'annual',
+                      label: { 'en-US': 'Annual leave' },
+                      active: false,
                     },
                   ],
                 }
-              : {
-                  count: 21,
-                  items: Array.from({ length: 8 }, (_, n) => ({
-                    id: String(n),
-                    announcementId: `a${n}`,
-                    title: `Read notice ${n}`,
-                    dueAt: '2026-10-12T00:00:00Z',
-                  })),
-                },
+              : path === 'workbench/meetings'
+                ? {
+                    date: '2026-10-11',
+                    timeZone: 'Asia/Shanghai',
+                    total: 17,
+                    items: [
+                      {
+                        id: 'm',
+                        title: 'Personal meeting',
+                        startAt: '2026-10-11T01:00:00Z',
+                        endAt: '2026-10-11T02:00:00Z',
+                        status: 'confirmed',
+                      },
+                    ],
+                  }
+                : {
+                    count: 21,
+                    items: Array.from({ length: 8 }, (_, n) => ({
+                      id: String(n),
+                      announcementId: `a${n}`,
+                      title: `Read notice ${n}`,
+                      dueAt: '2026-10-12T00:00:00Z',
+                    })),
+                  },
     }),
   );
 });

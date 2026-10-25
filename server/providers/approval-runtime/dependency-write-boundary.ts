@@ -53,46 +53,63 @@ export function installDelegationWriteBoundary(
   };
   const fire = runtime.fire.bind(runtime);
   const create = runtime.create.bind(runtime);
-  const runEffect = runtime.runEffect.bind(runtime);
   const perform = approvals.perform.bind(approvals);
   const sweepReport = approvals.sweepReport.bind(approvals);
-  runtime.fire = (name, id, transition, options) =>
-    attempt(
+  runtime.fire = (name, id, transition, options) => {
+    const joined = appLifecycleTransaction();
+    // An external transaction is wrapped in a savepoint by guard. Use that
+    // child, rather than opening a sibling while the guard's child is active.
+    // Calls already inside a lifecycle boundary retain explicit SDK children.
+    const transaction = () =>
+      joined
+        ? (options.transaction ?? joined)
+        : (appLifecycleTransaction() ?? options.transaction);
+    return attempt(
       () =>
         fire(name, id, transition, {
           ...options,
-          transaction: options.transaction ?? appLifecycleTransaction(),
+          transaction: transaction(),
         }),
       () =>
         within(
           () =>
             fire(name, id, transition, {
               ...options,
-              transaction: options.transaction ?? appLifecycleTransaction(),
+              transaction: transaction(),
             }),
           options.transaction,
         ),
       options.transaction,
     );
-  runtime.create = (name, values, options) =>
-    attempt(
+  };
+  runtime.create = (name, values, options) => {
+    const joined = appLifecycleTransaction();
+    const transaction = () =>
+      joined
+        ? (options.transaction ?? joined)
+        : (appLifecycleTransaction() ?? options.transaction);
+    return attempt(
       () =>
         create(name, values, {
           ...options,
-          transaction: options.transaction ?? appLifecycleTransaction(),
+          transaction: transaction(),
         }),
       () =>
         within(
           () =>
             create(name, values, {
               ...options,
-              transaction: options.transaction ?? appLifecycleTransaction(),
+              transaction: transaction(),
             }),
           options.transaction,
         ),
       options.transaction,
     );
-  runtime.runEffect = (...args) => within(() => runEffect(...args));
+  };
+  // These owners' effects deliver notifications after commit. runEffect reads
+  // and claims its journal through the root store and may perform external I/O;
+  // holding every source gate around it can exhaust the pool with gate waiters.
+  // Delegation mutations remain guarded at create/fire/perform/sweep boundaries.
   approvals.perform = (...args) =>
     attempt(
       () => perform(...args),
@@ -102,7 +119,6 @@ export function installDelegationWriteBoundary(
   return () => {
     runtime.fire = fire;
     runtime.create = create;
-    runtime.runEffect = runEffect;
     approvals.perform = perform;
     approvals.sweepReport = sweepReport;
   };

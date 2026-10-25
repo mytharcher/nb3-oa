@@ -1,4 +1,5 @@
 import { statusTone } from './status-tone.js';
+import { FinanceIntegrationSection } from '#components/finance-integration-section';
 import { ApprovalProgress } from '#components/approval-progress';
 import { PrintEntry } from '../template-print/entry.js';
 import { useEffect, useMemo, useReducer } from 'react';
@@ -270,6 +271,7 @@ export default function PaymentDetailPage() {
               options={options.data}
               refreshKey={refreshKey}
             />
+            <FinanceIntegrationSection kind='payment' record={data.record} />
             <PaymentAccountSection
               record={data.record}
               refreshKey={refreshKey}

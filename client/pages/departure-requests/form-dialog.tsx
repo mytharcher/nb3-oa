@@ -47,6 +47,14 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from '#components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '#components/ui/dialog';
 import { DatePicker } from '#components/date-picker';
 import { FieldsSkeleton } from '../platform/shared/states.js';
 import { fieldViolationsOf } from '../platform/shared/errors.js';
@@ -261,6 +269,7 @@ export function DepartureForm({
     [offer, setOffer] = useState(true),
     [candidates, setCandidates] = useState<DepartureRecord[]>(),
     [storageBlocked, setStorageBlocked] = useState(false);
+  const [confirmSubmission, setConfirmSubmission] = useState(false);
   const lockRef = useRef(false);
   const f = useCallback(
     (key: string) => t(`departureRequests.form.${key}`),
@@ -381,6 +390,21 @@ export function DepartureForm({
         { shouldFocus: true },
       );
       return;
+    }
+    if (submission.intent.current === 'submit' && !confirmSubmission) {
+      setConfirmSubmission(true);
+      return;
+    }
+    if (submission.intent.current === 'submit') {
+      const missing = (
+        ['expectedLastWorkingDay', 'handoverUserId'] as const
+      ).filter((name) => !values[name]);
+      for (const name of missing)
+        form.setError(name, { message: f('required') });
+      if (missing[0]) {
+        form.setFocus(missing[0]);
+        return;
+      }
     }
     const input = {
       departureType: values.departureType,
@@ -781,7 +805,7 @@ export function DepartureForm({
             )}
           />
         ) : null}
-        <div className='grid gap-4 sm:grid-cols-2'>
+        <div>
           <Controller
             control={form.control}
             name='departureType'
@@ -825,32 +849,6 @@ export function DepartureForm({
               </Field>
             )}
           />
-          <Controller
-            control={form.control}
-            name='expectedLastWorkingDay'
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor='departure-date'>
-                  {t('departureRequests.expectedLastWorkingDay')}
-                </FieldLabel>
-                <div ref={(node) => field.ref(node?.querySelector('button'))}>
-                  <DatePicker
-                    id='departure-date'
-                    className='w-full'
-                    value={field.value ? parseISO(field.value) : undefined}
-                    onChange={(date) =>
-                      field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
-                    }
-                    onBlur={field.onBlur}
-                    invalid={fieldState.invalid}
-                    disabled={disabled}
-                  />
-                </div>
-                <FieldDescription>{f('dateHelp')}</FieldDescription>
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
         </div>
         <Controller
           control={form.control}
@@ -874,43 +872,123 @@ export function DepartureForm({
             </Field>
           )}
         />
-        <Controller
-          control={form.control}
-          name='handoverUserId'
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor='departure-recipient'>
-                {t('departureRequests.handoverUser')}
-              </FieldLabel>
-              {mode === 'manual' && !employeeId && !record ? (
-                <p className='text-sm text-muted-foreground'>
-                  {f('chooseEmployee')}
-                </p>
-              ) : (
-                <HandoverPicker
-                  key={`${mode}:${mode === 'manual' ? employeeId : ''}`}
-                  id='departure-recipient'
-                  employeeId={
-                    record && record.applicantId !== actorId
-                      ? record.employeeId
-                      : mode === 'manual' && !record
-                        ? employeeId
-                        : undefined
-                  }
-                  value={field.value}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  focusRef={field.ref}
-                  invalid={fieldState.invalid}
-                  disabled={disabled}
-                  knownUser={detail?.record.handoverUser}
-                />
-              )}
-              <FieldError errors={[fieldState.error]} />
-            </Field>
-          )}
-        />
       </FieldGroup>
+      <Dialog
+        open={confirmSubmission}
+        onOpenChange={(open) => {
+          if (!busy) setConfirmSubmission(open);
+        }}
+      >
+        <DialogContent className='sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle>{f('confirmSubmission')}</DialogTitle>
+            <DialogDescription>{f('submissionHelp')}</DialogDescription>
+          </DialogHeader>
+          <FieldGroup inert={submission.submitUnknown || undefined}>
+            <Controller
+              control={form.control}
+              name='expectedLastWorkingDay'
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor='departure-date'>
+                    {t('departureRequests.expectedLastWorkingDay')}
+                    <span aria-hidden='true' className='text-destructive'>
+                      *
+                    </span>
+                  </FieldLabel>
+                  <div ref={(node) => field.ref(node?.querySelector('button'))}>
+                    <DatePicker
+                      id='departure-date'
+                      className='w-full'
+                      value={field.value ? parseISO(field.value) : undefined}
+                      onChange={(date) =>
+                        field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
+                      }
+                      onBlur={field.onBlur}
+                      invalid={fieldState.invalid}
+                      disabled={disabled}
+                    />
+                  </div>
+                  <FieldDescription>
+                    {f('requiredOnSubmit')} {f('dateHelp')}
+                  </FieldDescription>
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name='handoverUserId'
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor='departure-recipient'>
+                    {t('departureRequests.handoverUser')}
+                    <span aria-hidden='true' className='text-destructive'>
+                      *
+                    </span>
+                  </FieldLabel>
+                  {mode === 'manual' && !employeeId && !record ? (
+                    <p className='text-sm text-muted-foreground'>
+                      {f('chooseEmployee')}
+                    </p>
+                  ) : (
+                    <HandoverPicker
+                      key={`${mode}:${mode === 'manual' ? employeeId : ''}`}
+                      id='departure-recipient'
+                      employeeId={
+                        record && record.applicantId !== actorId
+                          ? record.employeeId
+                          : mode === 'manual' && !record
+                            ? employeeId
+                            : undefined
+                      }
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      focusRef={field.ref}
+                      invalid={fieldState.invalid}
+                      disabled={disabled}
+                      knownUser={detail?.record.handoverUser}
+                    />
+                  )}
+                  <FieldDescription>{f('handoverHelp')}</FieldDescription>
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+          </FieldGroup>
+          <RequestSubmissionFeedback
+            failed={submission.submitFailed}
+            unknown={submission.submitUnknown}
+          />
+          {error ? (
+            <ErrorState
+              error={error}
+              retry={() => setConfirmSubmission(false)}
+            />
+          ) : null}
+          <DialogFooter>
+            <Button
+              type='button'
+              variant='outline'
+              disabled={busy}
+              onClick={() => setConfirmSubmission(false)}
+            >
+              {t('approvals.cancel')}
+            </Button>
+            <Button
+              type='submit'
+              form='departure-draft-form'
+              name='requestIntent'
+              value='submit'
+              disabled={disabled || busy}
+            >
+              {busy ? <Spinner data-icon='inline-start' /> : null}
+              {f('confirmSubmission')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }

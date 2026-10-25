@@ -26,7 +26,7 @@ import type {
 } from '@nocobase/app-client/plugins';
 import OutingForm from '../../client/pages/outings/form-dialog.js';
 import type { LeaveRecord } from '../../client/pages/approvals/types.js';
-const { api, permission, auth } = vi.hoisted(() => ({
+const { api, permission, auth, client } = vi.hoisted(() => ({
   api: { request: vi.fn() },
   permission: {
     page: true,
@@ -36,6 +36,7 @@ const { api, permission, auth } = vi.hoisted(() => ({
     nonapproval: false,
   },
   auth: { refresh: vi.fn() },
+  client: { can: async () => true },
 }));
 // Banner behavior is covered by demo-data.test.tsx.
 vi.mock('../../client/pages/demo-data/banner.js', () => ({
@@ -48,6 +49,7 @@ vi.mock('@nocobase/app-client', async (original) => ({
 }));
 vi.mock('@nocobase/app-plugin-authorization/client', () => ({
   useAuthorizationRevision: () => 0,
+  useAuthorizationClient: () => client,
   useCan: ({
     resource,
     action,
@@ -110,10 +112,28 @@ function serve(mine: LeaveRecord[] = [], pending: LeaveRecord[] = []) {
     ({
       path,
       query = {},
+      json,
     }: {
       path: string;
+      json?: { favorites?: string[] };
       query?: { view?: string; status?: string; pageSize?: string };
     }) => {
+      if (path.startsWith('requestPreferences'))
+        return Promise.resolve({
+          data: { favorites: json?.favorites ?? null, recent: [] },
+        });
+      if (path === 'workbench/roleContext')
+        return Promise.resolve({
+          data: {
+            manager: false,
+            hr: false,
+            finance: false,
+            administration: false,
+            procurement: false,
+            teamUserIds: [],
+          },
+        });
+      if (path === 'personalSchedules') return Promise.resolve({ data: [] });
       if (path === 'leaveBalances/me') return Promise.resolve({ data: [] });
       if (path === 'leaveRequests/options')
         return Promise.resolve({ data: { leaveTypes: [] } });
@@ -281,11 +301,7 @@ async function catalog() {
     await screen.findByRole('dialog', { name: enUS.workbench.allRequests }),
   );
 }
-function metric(label: string) {
-  return screen
-    .getByText(label, { selector: '[data-slot="card-description"]' })
-    .closest('[data-slot="card"]') as HTMLElement;
-}
+
 beforeEach(() => {
   localStorage.clear();
   api.request.mockReset();
@@ -329,11 +345,11 @@ describe('personal workbench', () => {
         .compareDocumentPosition(entries) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     const actions = await catalog();
-    for (const group of Object.values(enUS.workbench.groups)) {
+    for (const group of Object.values(enUS.workbench.catalogGroups)) {
       expect(actions.getByRole('region', { name: group })).toBeInTheDocument();
     }
     const finance = actions.getByRole('region', {
-      name: enUS.workbench.groups.finance,
+      name: enUS.workbench.catalogGroups.expenses,
     });
     await userEvent.click(
       within(finance).getByRole('button', {
@@ -360,19 +376,10 @@ describe('personal workbench', () => {
     expect(
       within(card(enUS.workbench.mine)).queryByText('LEA-summary'),
     ).toBeNull();
-    expect(screen.getByRole('link', { name: 'In progress 1' })).toHaveAttribute(
-      'href',
-      '/approvals/mine?category=inProgress',
-    );
+    expect(screen.getByText(/In progress 1/)).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Overdue 0' })).toBeNull();
     expect(
-      screen.queryByRole('button', { name: enUS.workbench.reviewRevisions }),
-    ).toBeNull();
-    expect(screen.getByRole('link', { name: 'Overdue 0' })).toHaveAttribute(
-      'href',
-      '/approvals/todo',
-    );
-    expect(
-      screen.getByRole('link', { name: 'Awaiting my action 0' }),
+      screen.getByRole('link', { name: enUS.workbench.viewPending }),
     ).toHaveAttribute('href', '/approvals/todo');
   });
   it('keeps the draft shortcut available when the response omits drafts from its preview', async () => {
@@ -833,10 +840,8 @@ describe('personal workbench', () => {
     );
     open();
     await screen.findAllByText('LEA-revision');
-    expect(within(metric(enUS.workbench.pending)).getByText('2')).toBeVisible();
-    expect(
-      within(metric(enUS.workbench.inProgress)).getByText('1'),
-    ).toBeVisible();
+    expect(screen.getByText(/2 items to handle/)).toBeVisible();
+    expect(screen.getByText(/In progress 1/)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Drafts (1)' })).toHaveAttribute(
       'href',
       '/approvals/mine?category=drafts',
@@ -954,8 +959,16 @@ describe('personal workbench', () => {
     expect(mine.queryByRole('tab')).not.toBeInTheDocument();
     expect(mine.getAllByRole('listitem')).toHaveLength(1);
     expect(
-      mine.getByRole('button', { name: enUS.workbench.viewMine }),
+      mine.getByRole('link', { name: enUS.workbench.viewMine }),
     ).toHaveAttribute('href', '/approvals/mine');
+    expect(
+      mine
+        .getByRole('link', { name: enUS.workbench.viewMine })
+        .closest('[data-slot="card-header"]'),
+    ).not.toBeNull();
+    expect(
+      mine.queryByRole('button', { name: enUS.workbench.viewMine }),
+    ).not.toBeInTheDocument();
   });
   it.each(['page', 'view'] as const)(
     'does not mount business requests without %s permission',
@@ -1010,7 +1023,7 @@ describe('personal workbench', () => {
     await userEvent.click(
       screen.getByRole('button', { name: 'Saved request' }),
     );
-    await waitFor(() => expect(api.request.mock.calls.length).toBe(before + 6));
+    await waitFor(() => expect(api.request.mock.calls.length).toBe(before + 8));
     expect(
       screen.getByRole('heading', { name: enUS.workbench.title }),
     ).toBeVisible();
@@ -1036,9 +1049,7 @@ describe('personal workbench', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       enUS.workbench.refreshing,
     );
-    expect(
-      within(metric(enUS.workbench.inProgress)).getByText('1'),
-    ).toBeVisible();
+    expect(screen.getByText(/In progress 1/)).toBeVisible();
     expect(screen.getByRole('link', { name: 'LEA-one' })).toBeVisible();
     resolve({
       data: [],
@@ -1050,7 +1061,7 @@ describe('personal workbench', () => {
     async (status) => {
       api.request.mockImplementation(
         ({ path, query }: { path: string; query?: { view: string } }) =>
-          path === 'leaveBalances/me'
+          path === 'personalSchedules' || path === 'leaveBalances/me'
             ? Promise.resolve({ data: [] })
             : path === 'leaveRequests/options'
               ? Promise.resolve({ data: { leaveTypes: [] } })
@@ -1090,7 +1101,7 @@ describe('personal workbench', () => {
                       }),
       );
       open();
-      await screen.findAllByText(enUS.workbench.unavailable);
+      await screen.findAllByRole('alert');
       expect(screen.getByRole('button', { name: 'Drafts (1)' })).toBeVisible();
       expect(screen.queryByText('private failure')).not.toBeInTheDocument();
       expect(

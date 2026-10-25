@@ -1131,6 +1131,16 @@ export function createEmployeeService(
       );
     },
 
+    async masterDataSnapshot(id, policy, connection) {
+      const scoped = connection
+        .repository<Employee>('employees')
+        .withPolicy(policy);
+      if (!(await scoped.findOne({ filter: { id } }))) return undefined;
+      const employee = await getById(id, connection);
+      if (!employee) return undefined;
+      await lockUserForAdministration(connection, employee.userId);
+      return scoped.findOne({ filter: { id } });
+    },
     async reportsOf(userId, connection) {
       const start = await startOf(userId, connection);
       if (!start || !start.graph.byId.get(start.id)?.active) return [];

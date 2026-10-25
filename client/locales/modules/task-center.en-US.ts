@@ -1,10 +1,13 @@
 export default {
   taskCenter: {
+    attention: {
+      pendingCount: 'Task center, {{count}} pending',
+      pendingUnknown: 'Task center, pending count unavailable',
+      unreadCount: 'Notifications, {{count}} unread',
+    },
     navigation: 'Task center',
     title: 'Task center',
     description: 'Work that needs your action or attention, by source and type',
-    prototypeNotice:
-      'Prototype: this page shows sample data and is not connected to tasks yet.',
     noResults: 'No matching tasks',
     noResultsDescription: 'Clear the task type filter to see other work.',
     refresh: 'Refresh',

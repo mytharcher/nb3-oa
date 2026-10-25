@@ -16,31 +16,29 @@ it('supports conditional no-op role updates and transactional rollback on isolat
       .createOne({ values: { code: 'hr', active: true } });
     await expect(
       db.connection.transaction(async (tx) => {
-        const result = await tx
-          .repository('dutyRoles')
-          .updateMany({
-            filter: { code: 'hr', active: true },
-            values: { active: true },
-          });
+        const result = await tx.query
+          .updateTable('dutyRoles')
+          .set({ active: true })
+          .where('code', '=', 'hr')
+          .where('active', '=', true)
+          .execute();
         expect(result.updatedCount).toBe(1);
         expect(
           (await tx.repository('dutyRoles').findOne({ filter: { code: 'hr' } }))
             ?.active,
         ).toBe(true);
-        await tx
-          .repository('dutyRoles')
-          .updateMany({
-            filter: { code: 'hr', active: true },
-            values: { active: false },
-          });
+        await tx.repository('dutyRoles').updateMany({
+          filter: { code: 'hr', active: true },
+          values: { active: false },
+        });
         expect(
           (
-            await tx
-              .repository('dutyRoles')
-              .updateMany({
-                filter: { code: 'hr', active: true },
-                values: { active: true },
-              })
+            await tx.query
+              .updateTable('dutyRoles')
+              .set({ active: true })
+              .where('code', '=', 'hr')
+              .where('active', '=', true)
+              .execute()
           ).updatedCount,
         ).toBe(0);
         throw new Error('rollback fixture');

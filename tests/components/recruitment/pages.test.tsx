@@ -19,6 +19,7 @@ import List from '../../../client/pages/recruitment/index.js';
 import Detail from '../../../client/pages/recruitment/detail.js';
 import Form from '../../../client/pages/recruitment/form.js';
 import Action from '../../../client/pages/recruitment/action.js';
+import Requisitions from '../../../client/pages/recruitment/requisitions.js';
 import RequisitionClose from '../../../client/pages/recruitment/requisition-close.js';
 import { cents, patchOf } from '../../../client/pages/recruitment/model.js';
 const { api, reload, toaster, grants, identity } = vi.hoisted(() => ({
@@ -150,6 +151,7 @@ function show(path: string) {
         element: <Outlet context={{ reload }} />,
         children: [
           { path: 'list', element: <List /> },
+          { path: 'requisitions', element: <Requisitions /> },
           {
             path: 'requisitions/:requisitionId/close',
             element: <RequisitionClose />,
@@ -769,4 +771,95 @@ it('identifies the invalid recruitment quantity and keeps the proposal for corre
   expect(
     screen.getByRole('textbox', { name: 'Reason for this operation *' }),
   ).toHaveValue('Revised staffing');
+});
+
+const requisition = {
+  id: 'a3d46acf-8c31-42a3-a588-2e9781314a91',
+  departmentId: '12345',
+  positionId: '67890',
+  sourceYear: 2026,
+  originalQuantity: 1234,
+  remaining: 1200,
+  consumed: 34,
+  status: 'recruiting',
+};
+function serveRequisitions(missingNames = false) {
+  serve((r) => {
+    if (r.path === 'requisitions') return { data: [requisition] };
+    if (r.path === 'departments/options')
+      return {
+        data: missingNames ? [] : [{ id: '12345', title: 'Development' }],
+      };
+    if (r.path === 'positions/options')
+      return { data: missingNames ? [] : [{ id: '67890', title: 'Engineer' }] };
+    return undefined;
+  });
+}
+it('requisitions show a named title, organization names and an ungrouped source year', async () => {
+  serveRequisitions();
+  show('/requisitions?status=recruiting#list');
+  const link = await screen.findByRole('link', {
+    name: '2026 / Development / Engineer recruitment requisition',
+  });
+  expect(link).toHaveAttribute(
+    'href',
+    `/requisitions/${requisition.id}?status=recruiting#list`,
+  );
+  expect(
+    screen.getByRole('columnheader', { name: 'Requisition title' }),
+  ).toBeVisible();
+  expect(screen.getByRole('cell', { name: 'Development' })).toBeVisible();
+  expect(screen.getByRole('cell', { name: 'Engineer' })).toBeVisible();
+  expect(screen.getByRole('cell', { name: '2026' })).toBeVisible();
+  expect(screen.getByRole('cell', { name: '1,234' })).toBeVisible();
+  for (const internal of [
+    requisition.id,
+    requisition.departmentId,
+    requisition.positionId,
+    '2,026',
+  ])
+    expect(
+      screen.queryByText(internal, { exact: true }),
+    ).not.toBeInTheDocument();
+  for (const path of ['departments/options', 'positions/options'])
+    expect(api.request).toHaveBeenCalledWith(
+      expect.objectContaining({ path, query: { includeInactive: 'true' } }),
+    );
+});
+it('missing organization names never fall back to internal identifiers', async () => {
+  serveRequisitions(true);
+  show('/requisitions');
+  expect(
+    await screen.findByRole('link', {
+      name: '2026 / Organization name unavailable / Organization name unavailable recruitment requisition',
+    }),
+  ).toBeVisible();
+  for (const internal of [
+    requisition.id,
+    requisition.departmentId,
+    requisition.positionId,
+  ])
+    expect(
+      screen.queryByText(internal, { exact: true }),
+    ).not.toBeInTheDocument();
+});
+it('requisition catalog failures offer retry and refresh the names with the list', async () => {
+  serveRequisitions();
+  api.request.mockImplementationOnce(() =>
+    Promise.resolve({ data: [requisition] }),
+  );
+  api.request.mockImplementationOnce(() =>
+    Promise.reject(new Error('Network failure')),
+  );
+  show('/requisitions');
+  expect(
+    await screen.findByText('The operation failed. Please try again.'),
+  ).toBeVisible();
+  expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  expect(
+    await screen.findByRole('link', {
+      name: '2026 / Development / Engineer recruitment requisition',
+    }),
+  ).toBeVisible();
 });

@@ -109,7 +109,7 @@ export function qualificationGraph(host: QualificationGraphHost) {
   ];
   const distinctSeats: AssignmentRule = {
     name: 'vendorCommittee.distinctSeats',
-    apply(context) {
+    async apply(context) {
       if (context.spec.assigneeId === context.applicantId)
         return {
           kind: 'refuse',
@@ -127,7 +127,10 @@ export function qualificationGraph(host: QualificationGraphHost) {
         if (
           !seat ||
           (['purchasing', 'finance', 'legal'].includes(seat.source) &&
-            !context.directory.hasRole(context.spec.assigneeId, seat.source))
+            !(await context.directory.hasRole(
+              context.spec.assigneeId,
+              seat.source,
+            )))
         )
           return {
             kind: 'refuse',
@@ -158,7 +161,10 @@ export function qualificationGraph(host: QualificationGraphHost) {
     person: string,
     place?: string,
   ): Promise<boolean> {
-    if (!context.directory.isActive(person) || person === context.applicantId)
+    if (
+      !(await context.directory.isActive(person)) ||
+      person === context.applicantId
+    )
       return false;
     if (
       context.stay.some(
@@ -172,7 +178,7 @@ export function qualificationGraph(host: QualificationGraphHost) {
       return false;
     const services = context.services as unknown as QualificationServices;
     if (context.stage === 'purchasing')
-      return context.directory.hasRole(person, 'purchasing');
+      return await context.directory.hasRole(person, 'purchasing');
     if (context.stage === 'removalReview')
       return (await host.removalHead(services.connection!)) === person;
     const version = versions.find(

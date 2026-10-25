@@ -25,7 +25,7 @@ export default {
         'The end must follow the start. Check the outing period.',
       OUTING_REQUIRED_FIELDS: 'Provide a location and purpose.',
       OUTING_SLA_CONFIGURATION_UNSUPPORTED:
-        'The configured approval clocks are unsupported. Contact an administrator.',
+        'Approval cannot be submitted. Contact an administrator to check the approval deadlines.',
       ATTENDANCE_ACTIVITY_CHANGED:
         'The attendance facts changed. Refresh to review them.',
     },

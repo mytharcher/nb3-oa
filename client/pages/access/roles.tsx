@@ -1,4 +1,5 @@
 import { ApplicationSearch } from '#components/application-search';
+import { PermissionGuide } from './permission-guide.js';
 import { ApplicationToolbar } from '#components/application-toolbar';
 import { useMemo } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
@@ -122,6 +123,7 @@ export default function RolesPage() {
       <p className='text-sm text-muted-foreground'>
         {t('access.baselineHelp')}
       </p>
+      <PermissionGuide />
       <ApplicationToolbar actions={<Refresh reload={reload} busy={busy} />}>
         <ApplicationSearch
           className='w-full sm:max-w-xs'

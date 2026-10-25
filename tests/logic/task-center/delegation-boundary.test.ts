@@ -10,6 +10,65 @@ import type { DatabaseConnection } from '@nocobase/db';
 import type { ApprovalStatisticsChanges } from '../../../server/providers/approval-runtime/statistics-contract.js';
 import { installDelegationWriteBoundary } from '../../../server/providers/approval-runtime/dependency-write-boundary.js';
 import { requireDelegationBoundary } from '../../../server/providers/approval-runtime/delegation-write-context.js';
+import { withAppLifecycleTransaction } from '../../../server/providers/approval-runtime/repository-store.js';
+
+it('passes the guard savepoint to external SDK writes and preserves an already joined SDK child', async () => {
+  const parent = {} as DatabaseConnection;
+  const guarded = {} as DatabaseConnection;
+  const sdkChild = {} as DatabaseConnection;
+  const create = vi.fn().mockResolvedValue({});
+  const fire = vi.fn().mockResolvedValue({});
+  const runtime = { create, fire } as unknown as LifecycleRuntime;
+  const approvals = {
+    perform: vi.fn(),
+    sweepReport: vi.fn(),
+  } as unknown as ApprovalService;
+  const dispose = installDelegationWriteBoundary(
+    runtime,
+    approvals,
+    {
+      guard: async (work: (tx: DatabaseConnection) => Promise<unknown>) =>
+        work(guarded),
+    } as unknown as ApprovalStatisticsChanges,
+    'proof.leave',
+  );
+  try {
+    await runtime.create(
+      'proof.leave',
+      { id: 'record' },
+      { actor: { id: 'owner' }, transaction: parent },
+    );
+    expect(create).toHaveBeenLastCalledWith(
+      'proof.leave',
+      { id: 'record' },
+      expect.objectContaining({ transaction: guarded }),
+    );
+    await runtime.fire('proof.leave', 'record', 'submit', {
+      actor: { id: 'owner' },
+      transaction: parent,
+    });
+    expect(fire).toHaveBeenLastCalledWith(
+      'proof.leave',
+      'record',
+      'submit',
+      expect.objectContaining({ transaction: guarded }),
+    );
+    await withAppLifecycleTransaction(parent, () =>
+      runtime.create(
+        'proof.leave',
+        { id: 'child' },
+        { actor: { id: 'owner' }, transaction: sdkChild },
+      ),
+    );
+    expect(create).toHaveBeenLastCalledWith(
+      'proof.leave',
+      { id: 'child' },
+      expect.objectContaining({ transaction: sdkChild }),
+    );
+  } finally {
+    dispose();
+  }
+});
 
 function fixture() {
   const store = new MemoryLifecycleStore();

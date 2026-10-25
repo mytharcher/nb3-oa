@@ -29,6 +29,11 @@ export interface NotificationDependencies {
 // their pages ship, but must never link their record ids to the leave detail page.
 function recordPath(recordId: string, kind = 'oa.leave'): string | undefined {
   const routes: Record<string, string> = {
+    'oa.recruitment': 'recruitment',
+    'oa.sealRequest': 'seal',
+    'oa.vehicleRequest': 'vehicle',
+    'oa.transfer': 'transfer',
+    'oa.certificateRequest': 'certificate',
     'oa.leave': 'leave',
     leave: 'leave',
     'oa.overtime': 'overtime',
@@ -68,7 +73,7 @@ export function createApprovalNotificationService(
     const config = deps.channels[name];
     return config?.enabled !== false &&
       config &&
-      providers.includes(config.provider)
+      providers.includes(config.type ?? config.provider)
       ? name
       : undefined;
   };
@@ -158,6 +163,22 @@ export function createApprovalNotificationService(
         subject: title,
         text: url ? `${body}\n${url}` : body,
       };
+    const im = deps.config.enterpriseMessaging;
+    const nativeUser = im?.users[user.id];
+    const imChannel = im ? channel(im.channel, ['oa-wecom-app']) : undefined;
+    if (imChannel && nativeUser && url) {
+      // Preserve the deep link and trim only explanatory text to the transport byte limit.
+      let remaining = 2048 - Buffer.byteLength(`\n${url}`, 'utf8');
+      if (remaining >= 0) {
+        let prefix = '';
+        for (const char of `${title}\n${body}`) {
+          remaining -= Buffer.byteLength(char, 'utf8');
+          if (remaining < 0) break;
+          prefix += char;
+        }
+        messages[imChannel] = { to: nativeUser, text: `${prefix}\n${url}` };
+      }
+    }
     if (!Object.keys(messages).length) return;
     await deps.notification.send({
       idempotencyKey,
@@ -188,7 +209,7 @@ export function createApprovalNotificationService(
       });
       // Copies are read-only; they are never delegated. Proxy delegation keeps the principal's own notice.
       if (task.kind !== 'decide') return;
-      const proxy = directory?.delegateOf?.(
+      const proxy = await directory?.delegateOf?.(
         task.assigneeId,
         kind ?? task.source,
         at ?? demoNow().toISOString(),
@@ -199,7 +220,7 @@ export function createApprovalNotificationService(
         proxy.mode !== 'forward' &&
         proxy.to !== applicantId &&
         proxy.to !== task.assigneeId &&
-        directory?.isActive(proxy.to)
+        (await directory?.isActive(proxy.to))
       ) {
         await send({
           key,

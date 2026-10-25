@@ -1,3 +1,4 @@
+import { asyncFilter } from '../approval-runtime/async-filter.js';
 import {
   allActivePeople,
   APPROVAL_COLLECTIONS,
@@ -410,10 +411,17 @@ export function createReimbursementService(d: ReimbursementDependencies) {
           ];
     return {
       ...page,
-      people: page.people.filter(
-        (person) =>
-          context.directory.isActive(person) &&
-          queries.some((spec) => context.eligible(person, spec).ok),
+      people: await asyncFilter(
+        page.people,
+        async (person) =>
+          (await context.directory.isActive(person)) &&
+          (
+            await Promise.all(
+              queries.map(
+                async (spec) => (await context.eligible(person, spec)).ok,
+              ),
+            )
+          ).some(Boolean),
       ),
     };
   };
@@ -423,7 +431,10 @@ export function createReimbursementService(d: ReimbursementDependencies) {
     validate: async (input, context) => {
       const basic = await appointAction.validate?.(input, context);
       if (basic) return basic;
-      if (typeof input.to !== 'string' || !context.directory.isActive(input.to))
+      if (
+        typeof input.to !== 'string' ||
+        !(await context.directory.isActive(input.to))
+      )
         return 'Choose an active eligible recipient.';
       const place =
         context.unassigned.find((p) => p.placeKey === input.place) ??
@@ -442,7 +453,7 @@ export function createReimbursementService(d: ReimbursementDependencies) {
             }
           : {}),
       };
-      return context.eligible(input.to, query).ok
+      return (await context.eligible(input.to, query)).ok
         ? null
         : 'Choose an eligible recipient for this place.';
     },
@@ -455,8 +466,8 @@ export function createReimbursementService(d: ReimbursementDependencies) {
       if (basic) return basic;
       return input.override === true ||
         typeof input.to !== 'string' ||
-        !context.directory.isActive(input.to) ||
-        !context.eligible(input.to, { replacing: true }).ok
+        !(await context.directory.isActive(input.to)) ||
+        !(await context.eligible(input.to, { replacing: true })).ok
         ? 'Choose an active eligible recipient without overriding qualification.'
         : null;
     },
@@ -474,8 +485,8 @@ export function createReimbursementService(d: ReimbursementDependencies) {
       defineApprovalAction({
         ...ccAction,
         people: (context, query) => allActivePeople().search(context, query),
-        validate: ({ to }, context) =>
-          typeof to === 'string' && context.directory.isActive(to)
+        validate: async ({ to }, context) =>
+          typeof to === 'string' && (await context.directory.isActive(to))
             ? null
             : 'Choose an active recipient.',
       }),
@@ -2083,9 +2094,72 @@ export function createReimbursementService(d: ReimbursementDependencies) {
         .repository<ReimbursementPayee>('reimbursementPayees')
         .findOne({ filter: { requestId: id } });
     },
+    /** Trusted attachment adapter: apply the same owner guard without loading approval history/actions. */
+    async attachmentRecord(
+      id: string,
+      actorId: string,
+      policy: RepositoryPolicy,
+    ) {
+      return canRead(id, actorId, policy);
+    },
     async accessFacts(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);
       return { applicantId: record.applicantId, status: record.status };
+    },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await canRead(id, actorId, policy);
+    },
+    /** Export only final accounting facts; field restrictions apply before projection. */
+    async financeExport(id: string, actorId: string, policy: RepositoryPolicy) {
+      const record = await canRead(id, actorId, policy);
+      const scoped = await d.db
+        .repository('reimbursementRequests')
+        .withPolicy(policy)
+        .findOne({ filter: { id } });
+      const fields = [
+        'id',
+        'number',
+        'status',
+        'applicantId',
+        'departmentId',
+        'totalCents',
+        'offsetCents',
+        'lines',
+      ];
+      if (!scoped || fields.some((field) => !(field in scoped)))
+        throw new ReimbursementError(
+          'REIMBURSEMENT_FIELDS_RESTRICTED',
+          'Accounting fields are outside this grant.',
+          'permission',
+        );
+      if (!['paid', 'forcedPaid'].includes(record.status) || !record.number)
+        throw new ReimbursementError(
+          'REIMBURSEMENT_NOT_PAID',
+          'Only final paid reimbursements may be sent to the finance system.',
+        );
+      return {
+        id: record.id,
+        number: record.number,
+        applicantId: record.applicantId,
+        departmentId: record.departmentId,
+        amountCents: record.totalCents,
+        offsetCents: record.offsetCents,
+        paidCents: record.totalCents - record.offsetCents,
+        forced: record.status === 'forcedPaid',
+        lines: record.lines.map(
+          ({ category, date, amountCents, invoiceNumber }) => ({
+            category,
+            date,
+            amountCents,
+            invoiceNumber,
+          }),
+        ),
+      };
     },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);

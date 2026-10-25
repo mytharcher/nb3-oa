@@ -13,6 +13,8 @@ export default {
     identityUnavailable: 'Organization name unavailable',
     catalogRequired:
       'Load the department and position names before closing this allocation.',
+    requisitionName:
+      '{{year}} / {{department}} / {{position}} recruitment requisition',
     preciseAllocationName:
       '{{year}} / {{department}} / {{position}} recruitment allocation',
 
@@ -107,6 +109,7 @@ export default {
     discardDescription: 'The changes in this form will be lost.',
     discardConfirm: 'Discard changes',
     fields: {
+      requisitionTitle: 'Requisition title',
       id: 'Identifier',
       requisitionId: 'Requisition ID',
       requestId: 'Source request ID',

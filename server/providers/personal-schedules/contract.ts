@@ -8,6 +8,7 @@ export const PERSONAL_SCHEDULE_FIELDS = [
   'startAt',
   'endAt',
   'version',
+  'sourceBookingId',
 ] as const;
 export interface PersonalSchedule {
   id: string;
@@ -17,6 +18,7 @@ export interface PersonalSchedule {
   startAt: Date;
   endAt: Date;
   version: number;
+  sourceBookingId: string | null;
 }
 export interface ScheduleInput {
   title: string;
@@ -25,10 +27,24 @@ export interface ScheduleInput {
   endAt: string;
 }
 export interface PersonalScheduleService {
+  /** Trusted meeting domain integration. Call only after authorizing a booking mutation, in its transaction. */
+  syncMeeting(
+    booking: {
+      id: string;
+      organizerUserId: string;
+      attendeeUserIds: string[];
+      title: string;
+      startAt: Date | string;
+      endAt: Date | string;
+      status: string;
+    },
+    connection: DatabaseConnection,
+  ): Promise<void>;
   list(
     actorId: string,
     connection: DatabaseConnection,
     policy: RepositoryPolicy,
+    interval?: { startAt: string; endAt: string },
   ): Promise<PersonalSchedule[]>;
   get(
     id: string,

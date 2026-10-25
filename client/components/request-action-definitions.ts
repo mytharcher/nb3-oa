@@ -224,3 +224,52 @@ export const defaultRequestActions: RequestActionKey[] = [
   'attendance',
   'general',
 ];
+
+/** Employee catalog intentionally excludes derived and functional documents. */
+export const employeeRequestActions = requestActionDefinitions.filter(
+  ({ key }) =>
+    ![
+      'cancellation',
+      'travelCancellation',
+      'recruitment',
+      'expensePlan',
+      'budget',
+    ].includes(key),
+);
+export const functionalRequestActions = requestActionDefinitions.filter(
+  ({ key }) => ['recruitment', 'expensePlan', 'budget'].includes(key),
+);
+export const requestCatalogGroups = [
+  'attendance',
+  'travel',
+  'expenses',
+  'people',
+  'administration',
+  'procurement',
+  'other',
+] as const;
+export const requestCatalogGroup: Partial<
+  Record<RequestActionKey, (typeof requestCatalogGroups)[number]>
+> = {
+  leave: 'attendance',
+  overtime: 'attendance',
+  outing: 'attendance',
+  attendance: 'attendance',
+  travel: 'travel',
+  reimbursement: 'expenses',
+  loan: 'expenses',
+  payment: 'expenses',
+  probation: 'people',
+  transfer: 'people',
+  departure: 'people',
+  certificate: 'people',
+  seal: 'administration',
+  vehicle: 'administration',
+  supplies: 'administration',
+  asset: 'administration',
+  purchase: 'procurement',
+  contract: 'procurement',
+  vendor: 'procurement',
+  general: 'other',
+  training: 'other',
+};

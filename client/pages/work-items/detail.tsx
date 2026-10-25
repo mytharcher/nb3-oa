@@ -72,6 +72,13 @@ function Body({ id }: { id: string }) {
   return (
     <>
       <RecordDetailDrawer
+        headerStatus={
+          d ? (
+            <StatusBadge tone={statusTone(d.status)}>
+              {t(`workItems.states.${d.status}`)}
+            </StatusBadge>
+          ) : null
+        }
         title={d?.title ?? t('workItems.detail')}
         footer={
           <div className='flex flex-wrap gap-2'>
@@ -142,21 +149,20 @@ function Body({ id }: { id: string }) {
           </>
         ) : d ? (
           <div className='flex flex-col gap-5'>
-            <div className='flex flex-wrap gap-2'>
-              <StatusBadge tone={statusTone(d.status)}>
-                {t(`workItems.states.${d.status}`)}
-              </StatusBadge>
-              {d.forced ? (
-                <StatusBadge tone='warning'>
-                  {t('workItems.forced')}
-                </StatusBadge>
-              ) : null}
-              {d.overdue ? (
-                <StatusBadge tone='warning'>
-                  {t('workItems.overdue')}
-                </StatusBadge>
-              ) : null}
-            </div>
+            {d.forced || d.overdue ? (
+              <div className='flex flex-wrap gap-2'>
+                {d.forced ? (
+                  <StatusBadge tone='warning'>
+                    {t('workItems.forced')}
+                  </StatusBadge>
+                ) : null}
+                {d.overdue ? (
+                  <StatusBadge tone='warning'>
+                    {t('workItems.overdue')}
+                  </StatusBadge>
+                ) : null}
+              </div>
+            ) : null}
             <dl className='flex flex-col gap-3'>
               {[
                 [

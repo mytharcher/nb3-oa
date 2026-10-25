@@ -1,5 +1,21 @@
 export default {
   reports: {
+    administrativeExportHint:
+      '导出包含当前可查看的全部记录，最多10,000行，不限于当前页。更大台账请联系管理员安排专门导出。',
+    administrativeColumns: {
+      number: '申请编号',
+      itemCode: '物品编号',
+      requestedQuantity: '申请数量',
+      actualQuantity: '发放数量',
+      recipient: '领用人',
+      operator: '登记人',
+      recordedAt: '登记时间',
+      sealName: '印章',
+      approvedCopies: '批准份数',
+      actualCopies: '实际份数',
+      applicant: '申请人',
+      sealedAt: '用印时间',
+    },
     noData: '暂无报表数据',
     title: '报表',
     description: '查看当前授权范围内的报表，并导出对应数据源。',
@@ -53,6 +69,14 @@ export default {
       statusHint: 'active / terminated',
     },
     datasets: {
+      'supply-ledger': {
+        title: '领用台账报表',
+        description: '查看并导出当前权限范围内已发放的物品。',
+      },
+      'seal-ledger': {
+        title: '用印台账报表',
+        description: '查看并导出当前台账和原申请权限范围内的用印登记。',
+      },
       'leave-monthly': {
         title: '请假月汇总',
         description:

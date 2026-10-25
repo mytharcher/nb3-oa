@@ -47,6 +47,11 @@ export interface VendorQualificationRecord
 }
 /** Narrow business facts facade; HTTP/security surface remains local to this module. */
 export interface VendorQualificationService {
+  searchVisible(
+    id: string,
+    actorId: string,
+    policy: import('@nocobase/db').RepositoryPolicy,
+  ): Promise<void>;
   listForCenter(
     actorId: string,
     view: 'all' | 'pending' | 'done' | 'copied',

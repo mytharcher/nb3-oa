@@ -1,5 +1,21 @@
 export default {
   access: {
+    guide: {
+      title: '角色与权限如何生效',
+      roles:
+        '在本页按部门、岗位或职责配置业务操作；成员获得相应权限。用户的直接授权和继承授权共同决定可用操作。',
+      setsTitle: '权限集合',
+      sets: '角色权限的底层保存单位，用于检查和复用授权。日常调整优先在角色页面完成。',
+      defaultTitle: '默认数据范围',
+      default:
+        '当业务操作未指定独立范围时，使用这里的基础范围；它本身不授予业务操作。',
+      sharingTitle: '共享规则',
+      sharing: '为已获操作权限的用户扩展可访问记录。',
+      restrictionTitle: '限制规则',
+      restriction: '对已获授权的记录进一步限制可见范围。',
+      inspectTitle: '权限检查',
+      inspect: '遇到看不到页面或单据的情况，检查实际生效的权限及来源。',
+    },
     permissionColumn: '权限名称',
     personalGranted: '已单独授予',
     personalTarget: '选择个人授权的保存位置',

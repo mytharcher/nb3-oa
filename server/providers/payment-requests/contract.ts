@@ -65,6 +65,16 @@ export interface PaymentPayee {
 }
 /** Trusted order-settlement proof, independently verifies authoritative payment facts in caller transaction. */
 export interface PaymentRequestSettlementService extends PurchasePaymentVerifier {
+  financeExport(
+    id: string,
+    actorId: string,
+    policy: RepositoryPolicy,
+  ): Promise<import('../finance-integration/contract.js').FinanceSourceFact>;
+  searchVisible(
+    id: string,
+    actorId: string,
+    policy: RepositoryPolicy,
+  ): Promise<void>;
   /** Public maintenance facade for departure task reassignment; mutation stays in this module's lifecycle. */
   readonly approvals: Pick<
     ApprovalService,

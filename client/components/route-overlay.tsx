@@ -177,7 +177,7 @@ export function RouteOverlay({
                 className='flex shrink-0 flex-col gap-2 border-b p-4 pr-12 sm:p-6 sm:pr-14'
               >
                 <div className='flex flex-wrap items-center gap-x-3 gap-y-2'>
-                  <DialogTitle className='min-w-0 break-words'>
+                  <DialogTitle className='min-w-0 break-words leading-snug'>
                     {title}
                   </DialogTitle>
                   {headerStatus}

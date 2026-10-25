@@ -30,12 +30,18 @@ import type { OaApprovalDirectory } from '../approval-directory/contract.js';
 import type { CalendarService } from '../platform/index.js';
 import type { createOaApprovalOperations } from '../approval-directory/operations.js';
 import { SEAL_KIND, type SealRequest, type SealState } from './contract.js';
-import { sealExecutionPolicy, completeSeal, unableSeal } from './handling.js';
+import {
+  sealExecutionPolicy,
+  completeSeal,
+  unableSeal,
+  completeElectronicSeal,
+} from './handling.js';
 export const SEAL_INPUT_FIELDS = [
   'contractId',
   'fileIds',
   'sealType',
   'copies',
+  'executionMode',
   'external',
   'returnDueAt',
   'purpose',
@@ -48,7 +54,14 @@ export const SEAL_FROZEN_FIELDS = [
   'departmentId',
 ] as const;
 export const sealFingerprint = (r: SealRequest) =>
-  hashOf(freezeOf(r, SEAL_FROZEN_FIELDS));
+  hashOf(
+    freezeOf(
+      r,
+      r.executionMode === 'electronic'
+        ? SEAL_FROZEN_FIELDS
+        : SEAL_FROZEN_FIELDS.filter((field) => field !== 'executionMode'),
+    ),
+  );
 export interface SealTypes {
   record: SealRequest;
   state: SealState;
@@ -61,6 +74,7 @@ export interface SealTypes {
 type Definition = Parameters<typeof defineApproval<SealTypes>>[0];
 type Transition = Definition['transitions'][string];
 export interface SealGraphHost {
+  electronicAllowed: (id: string) => boolean;
   calendar: CalendarService;
   operations: ReturnType<typeof createOaApprovalOperations>;
   submit(
@@ -75,7 +89,7 @@ export interface SealGraphHost {
     actorId: string,
     tx: DatabaseConnection,
     now: Date,
-  ): Promise<{ ledgerId: string }>;
+  ): Promise<{ ledgerId: string | null; electronicEvidenceId?: string }>;
   returnSeal(
     record: SealRequest,
     actorId: string,
@@ -153,6 +167,7 @@ export function sealGraph(host: SealGraphHost) {
           appointAction,
           reassignAction,
           completeSeal,
+          completeElectronicSeal(host.electronicAllowed),
           unableSeal,
           ...host.operations.filter(
             (a) => ('name' in a ? a.name : a.action.name) === 'urge',
@@ -267,6 +282,7 @@ export function sealGraph(host: SealGraphHost) {
           qualification: 'legal',
           assignees: ({ services }) => services.directory.roleMembers('legal'),
           covers: [
+            'executionMode',
             'contractId',
             'contractVersion',
             'contractTextVersionId',
@@ -283,6 +299,7 @@ export function sealGraph(host: SealGraphHost) {
           assignees: ({ services }) =>
             services.directory.roleMembers('financeManager'),
           covers: [
+            'executionMode',
             'contractId',
             'contractVersion',
             'contractTextVersionId',
@@ -296,7 +313,7 @@ export function sealGraph(host: SealGraphHost) {
           ...review,
           qualification: 'gm',
           assignee: ({ services }) => services.directory.uniqueRoleMember('gm'),
-          covers: ['sealType', 'external', 'returnDueAt'],
+          covers: ['executionMode', 'sealType', 'external', 'returnDueAt'],
         }),
       ),
       approvalState('stamping', execution()),

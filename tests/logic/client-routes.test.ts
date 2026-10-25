@@ -14,6 +14,17 @@ import {
 } from '../../client/routing/route-navigation.js';
 
 describe('app client routes', () => {
+  it('does not register prototype or sample management pages', () => {
+    const paths = pagePaths(resolveRoutes().routes);
+    expect(
+      paths.some(
+        (path) =>
+          path.startsWith('/workbenchPrototype') ||
+          path.startsWith('/demo-data'),
+      ),
+    ).toBe(false);
+  });
+
   it('registers role-only access management with user-owned permissions and explicit legacy redirects', () => {
     const walk = (
       routes: readonly AppClientRegisteredRoute[],
@@ -396,7 +407,6 @@ describe('app client routes', () => {
         // 通讯录 (employees module); the seeded `oa-directory` set grants it to every signed-in user.
         { name: 'oa-directory', authorizedAs: 'oa.employees.directory' },
         { name: 'oa-approvals', authorizedAs: 'oa.approvals' },
-        { name: 'oa-workbench-prototype', authorizedAs: 'oa.approvals' },
         ...[
           'oa-salary-grades',
           'oa-salary-grades-publish',
@@ -490,20 +500,15 @@ describe('app client routes', () => {
     const menu = buildRouteNavigation(routes, new Set());
     const businessGroups = {
       'oa-personal': [
+        'attendance-results',
+        'personal-schedules',
+        'team-calendar',
         'oa-directory',
         'oa-leave-balances',
         'oa-approval-delegations',
       ],
       'oa-office': ['announcements', 'work-items', 'oa-knowledge'],
-      'oa-organization': [
-        'org-departments',
-        'org-positions',
-        'org-grades',
-        'oa-employees',
-        'org-duty-roles',
-        'oa-headcounts',
-        'import-data',
-      ],
+      'oa-organization': ['oa-employees', 'oa-headcounts', 'import-data'],
       'oa-hr': [
         'oa-recruitment-requests',
         'oa-requisitions',
@@ -515,6 +520,7 @@ describe('app client routes', () => {
         'oa-certificates',
         'attendance-management',
         'attendance-import',
+        'wecom-attendance',
       ],
       'oa-finance': [
         'oa-reimbursement-requests',
@@ -558,7 +564,6 @@ describe('app client routes', () => {
     const visiblePages = new Set([
       'home',
       'oa-task-center',
-      'oa-approvals',
       'oa-directory',
       'inbox',
       'oa-leave-balances',
@@ -579,7 +584,6 @@ describe('app client routes', () => {
     expect(employeeMenu.map((item) => item.route.name)).toEqual([
       'home',
       'oa-task-center',
-      'oa-approvals',
       'inbox',
       'oa-personal',
     ]);
@@ -607,7 +611,26 @@ describe('app client routes', () => {
     const system = routes.find((route) => route.name === 'oa-system');
     expect(system?.navigation?.icon).toBe(Wrench);
     expect(
-      system?.children?.find((route) => route.name === 'schedules')?.path,
+      system?.children
+        ?.filter((route) => route.navigation)
+        .map((route) => route.name),
+    ).toEqual([
+      'oa-system-people',
+      'oa-system-connections',
+      'oa-system-operations',
+    ]);
+    expect(
+      system?.children
+        ?.find((route) => route.name === 'oa-system-people')
+        ?.children?.filter((route) => route.navigation)
+        .map((route) => route.name),
+    ).toEqual(
+      expect.arrayContaining(['users', 'oa-access', 'org-departments']),
+    );
+    expect(
+      system?.children
+        ?.find((route) => route.name === 'oa-system-operations')
+        ?.children?.find((route) => route.name === 'schedules')?.path,
     ).toBe('/schedules');
   });
 
@@ -622,6 +645,7 @@ describe('app client routes', () => {
       '/reports/leave-monthly',
       '/reports/leave-approval-efficiency',
       '/reports/expense-summary',
+      '/reports/process-operations',
     ]);
     expect(
       reports?.children?.every(
@@ -650,7 +674,6 @@ describe('app client routes', () => {
     expect(menu.map((route) => route.name)).toEqual([
       'home',
       'oa-task-center',
-      'oa-approvals',
       'inbox',
       'oa-personal',
       'oa-office',

@@ -1,3 +1,8 @@
+import {
+  contractSignatureSourceToken,
+  sealSignatureSourceToken,
+} from '../electronic-signatures/contract.js';
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { ServiceProvider } from '@nocobase/service-provider';
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken } from '@nocobase/db';
@@ -128,6 +133,7 @@ export default class SealsProvider extends ServiceProvider<Application> {
         sequences: c.resolve(sequenceServiceToken),
         dictionaries: c.resolve(dictionaryServiceToken),
         contracts: c.resolve(contractLedgerServiceToken),
+        contractSignatures: c.resolve(contractSignatureSourceToken),
         files: c.resolve(serverFileRepositoryManagerToken),
         drive: c.resolve(driveManagerToken),
         dispatcher: {
@@ -153,6 +159,33 @@ export default class SealsProvider extends ServiceProvider<Application> {
     c.singleton(sealServiceToken, () => get().ledger);
   }
   override async boot() {
+    this.app.container.singleton(sealSignatureSourceToken, () => {
+      const service = this.app.container.resolve(sealRequestServiceToken);
+      const access = (
+        a: import('../electronic-signatures/contract.js').SignatureSourceAccess,
+      ) => ({
+        requests: a.operate ?? a.view,
+        view: a.view,
+        contract: a.ledger,
+        contractView: a.contractView,
+      });
+      return {
+        source: (id, actor, a, tx, send) =>
+          service.signatureSource(id, actor, access(a), tx, send),
+        finalize: (source, proof, actor, a, tx) =>
+          service.finalizeElectronic(source.id, actor, proof, access(a), tx),
+      };
+    });
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.sealRequest',
+      resource: 'oa.sealRequests',
+      collection: 'sealRequests',
+      titleField: 'purpose',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(sealRequestServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     const c = this.app.container,
       a = c.resolve(authorizationToken);
     c.resolve(departureCustodyClearanceToken).register(

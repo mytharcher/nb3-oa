@@ -5,6 +5,7 @@ import {
   type AuthConfig,
 } from '@nocobase/app-plugin-authentication/server';
 import { bearer, deviceAuthorization, username } from 'better-auth/plugins';
+import { enterpriseOidcPlugin } from './enterprise-oidc-options.js';
 
 /**
  * The command-line clients that may sign in through the browser (`deviceAuthorization()`): `nocobase-cli`, the id
@@ -26,6 +27,7 @@ const auth: AppConfigFactory<AuthConfig> = defineAuthConfig({
         validateClient: (clientId) => CLI_CLIENT_IDS.includes(clientId),
       }),
       bearer(),
+      ...enterpriseOidcPlugin(),
     ],
     // OA accounts are provisioned by administrators and onboarding, not self-registration.
     emailAndPassword: {
@@ -35,7 +37,14 @@ const auth: AppConfigFactory<AuthConfig> = defineAuthConfig({
       minPasswordLength: 8,
     },
     session: { storeSessionInDatabase: true },
-    account: { encryptOAuthTokens: true },
+    account: {
+      encryptOAuthTokens: true,
+      accountLinking: {
+        enabled: true,
+        disableImplicitLinking: true,
+        allowDifferentEmails: false,
+      },
+    },
   }),
 });
 

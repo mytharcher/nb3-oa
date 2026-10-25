@@ -1,3 +1,12 @@
+import { digest as signatureDigest } from '../electronic-signatures/gateway.js';
+import type {
+  SignatureSourceService,
+  VerifiedSignature,
+} from '../electronic-signatures/contract.js';
+import {
+  readSignaturePdf,
+  type SignatureStoredFile,
+} from '../electronic-signatures/file.js';
 import { demoNow } from '../demo-data/context.js';
 import { runTaskViewsFor } from '../approval-runtime/task-views.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -61,6 +70,7 @@ export interface SealDependencies {
   sequences: SequenceService;
   dictionaries: DictionaryService;
   contracts: ContractLedgerService;
+  contractSignatures: SignatureSourceService;
   files: ServerFileRepositoryManager;
   drive: NocoBaseDriveManager;
   dispatcher?: EffectDispatcher;
@@ -70,6 +80,11 @@ export function createSealApplication(d: SealDependencies) {
   const clock = () => d.now?.() ?? demoNow(),
     physical = createSealLedger(d),
     accessContext = new AsyncLocalStorage<SealAccess>();
+  const electronic = new AsyncLocalStorage<{
+    tx: DatabaseConnection;
+    id: string;
+    proof: VerifiedSignature;
+  }>();
   function normalize(row: SealRequest): SealRequest {
     return Object.fromEntries(
       Object.entries(row).map(([k, v]) => [
@@ -197,7 +212,9 @@ export function createSealApplication(d: SealDependencies) {
   ) {
     if (
       !Number.isInteger(record.copies) ||
-      record.copies < 1 ||
+      record.copies < (record.executionMode === 'electronic' ? 0 : 1) ||
+      (record.executionMode === 'electronic' &&
+        (record.external || record.copies !== 0)) ||
       record.copies > 10000 ||
       !record.purpose.trim() ||
       record.purpose.length > 5000 ||
@@ -257,6 +274,7 @@ export function createSealApplication(d: SealDependencies) {
     d.db,
     d.directory,
     {
+      electronicAllowed: (id) => electronic.getStore()?.id === id,
       calendar: d.calendar,
       operations: createOaApprovalOperations({
         org: d.org,
@@ -302,6 +320,49 @@ export function createSealApplication(d: SealDependencies) {
         await attachments.validate(record, tx);
       },
       register: async (record, actorId, tx, now) => {
+        if (record.executionMode === 'electronic') {
+          const evidence = electronic.getStore();
+          if (!evidence || evidence.id !== record.id)
+            throw new Error('SIGNATURE_EVIDENCE_REQUIRED');
+          const proof = evidence.proof;
+          await tx.repository('electronicSealLedger').createOne({
+            values: {
+              id: proof.envelopeId,
+              requestId: record.id,
+              envelopeId: proof.envelopeId,
+              fileId: proof.fileId,
+              externalId: proof.externalId,
+              documentHash: proof.documentHash,
+              signedHash: proof.signedHash,
+              contractId: record.contractId,
+              contractVersion: record.contractVersion,
+              contractTextVersionId: record.contractTextVersionId,
+              signedAt: new Date(proof.signedAt),
+              confirmedById: actorId,
+              confirmedAt: now,
+            },
+          });
+          if (record.contractId)
+            await d.contracts.confirmSealed(
+              {
+                contractId: record.contractId,
+                expectedVersion: record.contractVersion!,
+                sealRecordId: proof.envelopeId,
+                actorId,
+                requestKey: `electronic-seal:${proof.envelopeId}`,
+                reason: 'Verified electronic signature archived',
+              },
+              async () => ({
+                contractId: record.contractId!,
+                contractVersion: record.contractVersion!,
+                sealRecordId: proof.envelopeId,
+                sealedAt: new Date(proof.signedAt),
+                status: 'completed',
+              }),
+              tx,
+            );
+          return { ledgerId: null, electronicEvidenceId: proof.envelopeId };
+        }
         await source(record, tx, accessContext.getStore()?.contract);
         const ledger = await physical.register(record, actorId, tx, now);
         if (!record.external)
@@ -353,13 +414,155 @@ export function createSealApplication(d: SealDependencies) {
     access: SealAccess,
     work: (tx: DatabaseConnection) => Promise<T>,
   ): Promise<T> {
-    return d.db.transaction((tx) =>
+    const execute = (tx: DatabaseConnection) =>
       accessContext.run(access, () =>
         engine.within(tx, () => engine.write(access.requests, () => work(tx))),
-      ),
-    );
+      );
+    const trusted = electronic.getStore();
+    return trusted ? execute(trusted.tx) : d.db.transaction(execute);
   }
   const requests: SealRequestService = {
+    async signatureSource(id, actorId, access, tx, send) {
+      let record = await read(id, tx, access.view ?? access.requests);
+      await lockSources(record, tx);
+      await tx
+        .repository('sealRequests')
+        .updateMany({
+          filter: { id },
+          values: { lifecycleVersion: { increment: 0 } },
+        });
+      record = await read(id, tx, access.view ?? access.requests);
+      if (record.executionMode !== 'electronic')
+        throw new Error('SIGNATURE_NOT_ELIGIBLE');
+      if (send) {
+        await employee(actorId, tx);
+        if (!(await d.org.hasDutyRole(actorId, 'sealKeeper', tx)))
+          throw new Error('SIGNATURE_ACCESS_DENIED');
+        if (
+          send === true &&
+          (record.status !== 'stamping' ||
+            record.external ||
+            record.approvedFingerprint !== sealFingerprint(record))
+        )
+          throw new Error('SIGNATURE_NOT_ELIGIBLE');
+        const tasks = await engine.read(
+          async () =>
+            (await engine.approvals.runViewsFor(SEAL_KIND, id)).flatMap(
+              (view) => view.tasks,
+            ),
+          tx,
+        );
+        if (
+          send === true &&
+          !tasks.some(
+            (t) =>
+              t.stage === 'stamping' &&
+              !t.closedAt &&
+              (!t.assigneeId || t.assigneeId === actorId),
+          )
+        )
+          throw new Error('SIGNATURE_ACCESS_DENIED');
+      }
+      if (record.fileIds.length !== 1)
+        throw new Error('SIGNATURE_PDF_REQUIRED');
+      const file = await tx
+        .repository<SignatureStoredFile>('sealFiles')
+        .findOne({ filter: { id: record.fileIds[0], requestId: id } });
+      if (!file) throw new Error('SIGNATURE_PDF_REQUIRED');
+      const bytes = await readSignaturePdf(d.drive, file);
+      if (record.contractId && send === true) {
+        if (!access.contractView) throw new Error('SIGNATURE_ACCESS_DENIED');
+        const contract = await d.contracts.source(record.contractId, tx);
+        if (
+          !contract ||
+          contract.version !== record.contractVersion ||
+          contract.facts.textVersionId !== record.contractTextVersionId
+        )
+          throw new Error('SIGNATURE_SOURCE_CHANGED');
+        const original = await d.contractSignatures.source(
+          contract.requestId,
+          actorId,
+          { view: access.contractView },
+          tx,
+          false,
+        );
+        if (signatureDigest(original.bytes) !== signatureDigest(bytes))
+          throw new Error('SIGNATURE_SOURCE_CHANGED');
+      }
+      return {
+        kind: 'seal',
+        id,
+        version: record.approvedFingerprint ?? '',
+        number: record.number,
+        filename: file.filename,
+        bytes,
+        contractId: record.contractId,
+        contractVersion: record.contractVersion,
+        textVersionId: record.contractTextVersionId,
+      };
+    },
+    async finalizeElectronic(id, actorId, proof, access, tx) {
+      const current = await read(id, tx, access.view ?? access.requests);
+      if (
+        current.status === 'completed' &&
+        current.electronicEvidenceId === proof.envelopeId
+      )
+        return;
+      const checked = await requests.signatureSource(
+        id,
+        actorId,
+        access,
+        tx,
+        true,
+      );
+      if (signatureDigest(checked.bytes) !== proof.documentHash)
+        throw new Error('SIGNATURE_SOURCE_CHANGED');
+      await electronic.run({ tx, id, proof }, async () => {
+        let detail = await engine.read(
+          () => engine.approvals.runViewsFor(SEAL_KIND, id),
+          tx,
+        );
+        let task = detail
+          .flatMap((v) => v.tasks)
+          .find(
+            (t) =>
+              t.stage === 'stamping' &&
+              !t.closedAt &&
+              (!t.assigneeId || t.assigneeId === actorId),
+          );
+        if (!task) throw new Error('SIGNATURE_ACCESS_DENIED');
+        if (!task.assigneeId || task.status === 'candidate') {
+          await requests.perform(
+            id,
+            actorId,
+            {
+              target: { taskId: task.id },
+              action: 'claim',
+              requestId: `electronic-claim:${proof.envelopeId}`,
+            },
+            access,
+          );
+          detail = await engine.read(
+            () => engine.approvals.runViewsFor(SEAL_KIND, id),
+            tx,
+          );
+          task = detail.flatMap((v) => v.tasks).find((t) => t.id === task!.id)!;
+        }
+        await requests.perform(
+          id,
+          actorId,
+          {
+            target: { taskId: task.id },
+            action: 'electronicComplete',
+            input: { sealedAt: proof.signedAt },
+            contentHash: detail.find((v) => v.run.id === task.runId)!.run
+              .contentHash,
+            requestId: `electronic-complete:${proof.envelopeId}`,
+          },
+          access,
+        );
+      });
+    },
     runtime: engine.runtime,
     approvalDefinition: engine.definition
       .approval as unknown as import('@nocobase/app-plugin-approval/server').Approval<never>,
@@ -466,6 +669,8 @@ export function createSealApplication(d: SealDependencies) {
           now = clock().toISOString();
         const record: SealRequest = {
           ...input,
+          executionMode: input.executionMode ?? 'physical',
+          electronicEvidenceId: null,
           id,
           applicantId: actorId,
           createdById: actorId,
@@ -579,6 +784,11 @@ export function createSealApplication(d: SealDependencies) {
       });
     },
     async perform(id, actorId, input, access) {
+      if (
+        input.action === 'electronicComplete' &&
+        electronic.getStore()?.id !== id
+      )
+        throw new Error('SIGNATURE_EVIDENCE_REQUIRED');
       return run(access, async (tx) => {
         const record = await read(id, tx, access.requests);
         await employee(actorId, tx);
@@ -682,6 +892,14 @@ export function createSealApplication(d: SealDependencies) {
           return performed;
         }, tx);
       });
+    },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      _actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await d.db.transaction((tx) => read(id, tx, policy));
     },
     async detail(id, _actorId, policy) {
       return d.db.transaction(async (tx) => {

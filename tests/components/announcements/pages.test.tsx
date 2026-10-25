@@ -1,5 +1,12 @@
 import { useEffect } from 'react';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router';
@@ -275,6 +282,48 @@ it('confirms only own effective receipt and sends no actor or version input', as
   );
   expect(call?.[0].json).toEqual({ requestId: expect.any(String) });
   expect(observed.hash).toBe('#source');
+});
+it.each(['pending', 'confirmed'])(
+  'distinguishes the %s personal receipt from the publication status',
+  async (status) => {
+    row.status = 'published';
+    row.capabilities = {
+      actions: [],
+      ownReceipt: {
+        status,
+        confirmedAt: status === 'confirmed' ? '2026-10-25T00:00:00Z' : null,
+      },
+    };
+    show('/announcements/a1');
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Security policy',
+    });
+    const stateLabel =
+      status === 'pending' ? 'Pending confirmation' : 'Confirmed';
+    await waitFor(() =>
+      expect(
+        within(dialog).getAllByText(stateLabel, { exact: true }),
+      ).toHaveLength(1),
+    );
+    const badge = within(dialog).getByText(stateLabel, { exact: true });
+    expect(badge.closest('[data-slot=route-overlay-header]')).toBeTruthy();
+    const publicationLabel = screen.getByText('Announcement status');
+    expect(publicationLabel.tagName).toBe('DT');
+    expect(publicationLabel.nextElementSibling?.textContent).toBe('Published');
+    expect(badge.closest('[data-slot=route-overlay-body]')).toBeNull();
+    if (status === 'confirmed') {
+      expect(await screen.findByText('Confirmed at')).toBeTruthy();
+    }
+  },
+);
+it('does not imply a personal pending task without a required own receipt', async () => {
+  show('/announcements/a1');
+  const label = await screen.findByText('Announcement status');
+  expect(label.nextElementSibling?.textContent).toBe('Draft');
+  const dialog = screen.getByRole('dialog', { name: 'Security policy' });
+  expect(
+    dialog.querySelector('[data-slot=route-overlay-header] [data-slot=badge]'),
+  ).toBeNull();
 });
 it('CAS conflict preserves draft and blocks another write until an explicit replacement reload', async () => {
   const u = userEvent.setup();

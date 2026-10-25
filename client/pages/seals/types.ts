@@ -14,6 +14,8 @@ export interface SealRequest {
   contractTextVersionId: string | null;
   fileIds: string[];
   sealType: string;
+  executionMode: 'physical' | 'electronic';
+  electronicEvidenceId: string | null;
   copies: number;
   external: boolean;
   returnDueAt: string | null;

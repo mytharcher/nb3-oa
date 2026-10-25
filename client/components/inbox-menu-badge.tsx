@@ -10,8 +10,6 @@ import { useSidebar } from '#components/ui/sidebar';
 /** Keeps the unread count live even while the viewer is outside the inbox. */
 export function InboxMenuBadge(): ReactElement | null {
   const { t } = useTranslation();
-  const { state, isMobile } = useSidebar();
-  const collapsed = state === 'collapsed' && !isMobile;
   // Event-driven invalidation on inbox changes, reconnect and focus; no polling.
   useInboxRefresh();
   const unread = useInboxUnreadCount();
@@ -19,12 +17,34 @@ export function InboxMenuBadge(): ReactElement | null {
   if (unread.isError || count <= 0) return null;
 
   return (
+    <MenuCountBadge value={count} label={t('inbox.unreadCount', { count })} />
+  );
+}
+
+/** A shared menu indicator: exact count when expanded, a dot in the desktop icon rail. */
+export function MenuCountBadge({
+  value,
+  label,
+}: {
+  value: number | undefined;
+  label: string;
+}): ReactElement | null {
+  const { state, isMobile } = useSidebar();
+  const collapsed = state === 'collapsed' && !isMobile;
+  if (value === 0) return null;
+  return (
     <span
       role='status'
-      aria-label={t('inbox.unreadCount', { count })}
+      aria-label={label}
       className={`pointer-events-none absolute rounded-full bg-primary ${collapsed ? 'top-0.5 right-0.5 size-2' : 'top-1/2 right-2 flex h-5 min-w-5 -translate-y-1/2 items-center justify-center px-1 text-xs font-medium text-primary-foreground tabular-nums'}`}
     >
-      {collapsed ? null : count > 99 ? '99+' : count}
+      {collapsed
+        ? null
+        : value === undefined
+          ? '—'
+          : value > 99
+            ? '99+'
+            : value}
     </span>
   );
 }
