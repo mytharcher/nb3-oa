@@ -1,3 +1,9 @@
+import { registerAttendanceSchedule } from './schedule.js';
+import { registerAttendanceResultPermissions } from './result-permissions.js';
+import {
+  attendanceActivitySourcesToken,
+  createAttendanceActivitySources,
+} from './activity-sources.js';
 import {
   authorizationToken,
   defineDatabasePermission,
@@ -22,8 +28,14 @@ export default class AttendanceProvider extends ServiceProvider<Application> {
   public readonly name = 'oa/attendance-provider';
   public override register(): void {
     const c = this.app.container;
+    c.singleton(
+      attendanceActivitySourcesToken,
+      createAttendanceActivitySources,
+    );
     c.singleton(attendanceEvaluationServiceToken, () =>
       createAttendanceEvaluationService({
+        sources: c.resolve(attendanceActivitySourcesToken),
+        attendance: c.resolve(attendanceServiceToken),
         db: c.resolve(databaseManagerToken),
         users: c.resolve(userAdministrationServiceToken),
         employees: c.resolve(employeeServiceToken),
@@ -43,6 +55,8 @@ export default class AttendanceProvider extends ServiceProvider<Application> {
     );
   }
   public override async boot(): Promise<void> {
+    registerAttendanceResultPermissions(this.app);
+    await registerAttendanceSchedule(this.app);
     const authz = this.app.container.resolve(authorizationToken);
     const title = (key: string) => ({
       key: `attendanceManagement.authz.${key}`,

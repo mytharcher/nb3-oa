@@ -397,6 +397,29 @@ describe('payment requests: authoritative orders and actual cashier settlement',
         .status,
     ).toBe('paid');
     expect(
+      await service.financeExport(normal.record.id, users.finance.user.id, {
+        read: true,
+        create: false,
+        update: false,
+        delete: false,
+      }),
+    ).toMatchObject({
+      id: normal.record.id,
+      amountCents: 6000,
+      offsetCents: 0,
+      paidCents: 6000,
+      forced: false,
+      lines: [],
+    });
+    await expect(
+      service.financeExport(normal.record.id, users.finance.user.id, {
+        read: { fields: ['id'], scope: true },
+        create: false,
+        update: false,
+        delete: false,
+      }),
+    ).rejects.toMatchObject({ code: 'PAYMENT_REQUEST_FIELDS_RESTRICTED' });
+    expect(
       await c
         .resolve(invoiceServiceToken)
         .forDocument(`oa.payment:${normal.record.id}`),

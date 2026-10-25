@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import {
   anyScope,
@@ -148,6 +149,17 @@ export default class RecruitmentProvider extends ServiceProvider<Application> {
     });
   }
   public override async boot() {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.recruitment',
+      resource: 'oa.recruitment',
+      collection: 'recruitmentRequests',
+      titleField: 'reason',
+      numberField: null,
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(recruitmentServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     const c = this.app.container,
       authz = c.resolve(authorizationToken);
     c.resolve(replacementNotificationsToken).register(

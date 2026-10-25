@@ -759,6 +759,14 @@ export function createGeneralRequestService(d: GeneralRequestDependencies) {
       const record = await canRead(id, actorId, policy);
       return { applicantId: record.applicantId, status: record.status };
     },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await canRead(id, actorId, policy);
+    },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);
       return readDirectory.run(outside.directory, async () => {

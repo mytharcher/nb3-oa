@@ -8,10 +8,7 @@ import {
 } from '../employees/helpers.js';
 import { organizationServiceToken } from '../../../server/providers/org/index.js';
 import { approvalDirectoryServiceToken } from '../../../server/providers/approval-directory/contract.js';
-import {
-  approvalQueryToken,
-  approvalStatisticsChangesToken,
-} from '../../../server/providers/approval-runtime/statistics-contract.js';
+import { approvalStatisticsChangesToken } from '../../../server/providers/approval-runtime/statistics-contract.js';
 import { withAppLifecycleTransaction } from '../../../server/providers/approval-runtime/repository-store.js';
 import {
   leaveServiceToken,
@@ -94,10 +91,7 @@ test('exhausts pending candidates before business-time paging, preserves delegat
         }),
       ),
   );
-  const queryRead = vi.spyOn(
-    container.resolve(approvalQueryToken),
-    'taskCandidates',
-  );
+  const queryRead = vi.spyOn(leave.approvals, 'tasksOf');
   const loanRead = vi.spyOn(container.resolve(loanRequestServiceToken), 'list');
   const client = await testApp.database.connection().client();
   let headcountWrites = 0;

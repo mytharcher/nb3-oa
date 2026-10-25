@@ -1,10 +1,12 @@
+import { FunctionalRequestLinks, PendingWork } from './role-workspaces.js';
+import { useRoleContext } from './role-workspace-data.js';
+import { TeamStatus } from './team-status.js';
 import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { PersonalCards } from './personal-cards.js';
-import { cn } from 'cn';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { ClipboardCheck, Info, TriangleAlert } from 'lucide-react';
+import { ArrowRight, ClipboardCheck, TriangleAlert } from 'lucide-react';
 import { FavoriteRequestActions } from '#components/request-actions';
 import { byUrgency, dueState } from './record-presentation.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -29,11 +31,6 @@ import {
   EmptyDescription,
 } from '#components/ui/empty';
 import { Skeleton } from '#components/ui/skeleton';
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from '#components/ui/tooltip';
 import { ErrorState } from '../approvals/states.js';
 import { WorkRow } from './work-row.js';
 import { useRequestAvailability } from './use-request-availability.js';
@@ -248,6 +245,7 @@ function Workbench() {
   const { session } = useAuthentication();
   // The bounded index preview is enriched with deadlines; overdue remains a
   // lower bound whenever not every pending entry fits in the preview.
+  const roles = useRoleContext();
   const pending = useWorkbenchResource({ view: 'pending', pageSize: '100' });
   const mine = useWorkbenchResource({
     view: 'mine',
@@ -278,6 +276,7 @@ function Workbench() {
   const refreshRef = useRef<HTMLButtonElement>(null);
   const { reload: reloadPending } = pending;
   const { reload: reloadMine } = mine;
+  const { reload: reloadRoles } = roles;
   // The clock behind deadlines, relative times and the greeting: ticks each minute and on refresh.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -289,7 +288,8 @@ function Workbench() {
     setPersonalRevision((revision) => revision + 1);
     reloadPending();
     reloadMine();
-  }, [reloadPending, reloadMine]);
+    reloadRoles();
+  }, [reloadPending, reloadMine, reloadRoles]);
   const context = useMemo(
     () => ({
       reload,
@@ -299,7 +299,7 @@ function Workbench() {
     }),
     [reload, base.pathname, location.search],
   );
-  const loading = pending.loading || mine.loading;
+  const loading = pending.loading || mine.loading || roles.loading;
   const pendingRows = pending.error ? [] : (pending.data ?? []);
   const unique = pendingRows
     .filter(
@@ -321,31 +321,6 @@ function Workbench() {
     : (mine.meta?.counts.revisions ?? 0);
   const recent =
     mine.meta?.attention?.submitted ?? (mine.data ?? []).slice(0, 5);
-  const number = new Intl.NumberFormat(i18n.language);
-  const metrics = [
-    {
-      key: 'pending',
-      value: pending.meta?.total,
-      error: pending.error,
-      to: '/approvals/todo',
-      tone: 'primary',
-    },
-    {
-      key: 'overdue',
-      value: pending.meta ? overdue : undefined,
-      suffix: overdueComplete ? '' : '+',
-      error: pending.error,
-      to: '/approvals/todo',
-      tone: 'destructive',
-    },
-    {
-      key: 'inProgress',
-      value: mine.meta?.counts.inProgress,
-      error: mine.error,
-      to: '/approvals/mine?category=inProgress',
-      tone: 'primary',
-    },
-  ] as const;
   const retry = () => {
     reload();
     refreshRef.current?.focus();
@@ -358,21 +333,23 @@ function Workbench() {
     month: 'long',
     day: 'numeric',
   }).format(now);
-  const summary =
-    pending.meta === undefined
-      ? today
-      : [
-          today,
-          t('workbench.summaryPending', { count: pending.meta.total }),
-          overdue
-            ? t('workbench.summaryOverdue', {
-                count: overdue,
-                suffix: overdueComplete ? '' : '+',
-              })
-            : null,
-        ]
-          .filter(Boolean)
-          .join(' · ');
+  const summary = [
+    today,
+    !pending.error && pending.meta
+      ? t('workbench.summaryPending', { count: pending.meta.total })
+      : null,
+    !mine.error && mine.meta
+      ? `${t('workbench.inProgress')} ${new Intl.NumberFormat(i18n.language).format(mine.meta.counts.inProgress)}`
+      : null,
+    !pending.error && pending.meta && overdue
+      ? t('workbench.summaryOverdue', {
+          count: overdue,
+          suffix: overdueComplete ? '' : '+',
+        })
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const settled = !pending.loading && !mine.loading;
   // One welcome panel instead of two empty cards when there is nothing at all to show.
   const nothingYet =
@@ -402,6 +379,7 @@ function Workbench() {
           />
         }
       />
+      <PersonalCards key={personalRevision} />
       {revisionCount > 0 ? (
         <Alert
           role='status'
@@ -426,83 +404,25 @@ function Workbench() {
       {revisionRows.error ? (
         <ErrorState context='query' error={revisionRows.error} retry={retry} />
       ) : null}
-      <div className='grid grid-cols-3 gap-3 sm:gap-4'>
-        {metrics.map((metric) => {
-          const active = !metric.error && (metric.value ?? 0) > 0;
-          const content = (
-            <Card className='h-full transition-colors group-hover:bg-muted/50'>
-              <CardHeader>
-                <CardDescription>
-                  {t(`workbench.${metric.key}`)}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {metric.error ? (
-                  <span className='text-sm text-muted-foreground'>
-                    {t('workbench.unavailable')}
-                  </span>
-                ) : metric.value === undefined ? (
-                  <Skeleton
-                    className='h-8 w-16'
-                    aria-label={t('workbench.loading')}
-                  />
-                ) : (
-                  <span
-                    className={cn(
-                      'text-2xl font-semibold tabular-nums sm:text-3xl',
-                      !active
-                        ? 'text-muted-foreground'
-                        : metric.tone === 'destructive'
-                          ? 'text-destructive'
-                          : 'text-foreground',
-                    )}
-                  >
-                    {number.format(metric.value)}
-                    {'suffix' in metric ? metric.suffix : ''}
-                  </span>
-                )}
-              </CardContent>
-            </Card>
-          );
-          return metric.error || metric.value === undefined ? (
-            <div key={metric.key}>{content}</div>
-          ) : (
-            <Link
-              key={metric.key}
-              to={metric.to}
-              className='group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring'
-              aria-label={`${t(`workbench.${metric.key}`)} ${metric.value}`}
-            >
-              {content}
-            </Link>
-          );
-        })}
-      </div>
       {loading && (pending.data || mine.data) ? (
         <p role='status' className='text-sm text-muted-foreground'>
           {t('workbench.refreshing')}
         </p>
       ) : null}
-      {nothingYet ? (
-        <Card>
-          <CardContent>
-            <Empty className='min-h-40'>
-              <EmptyHeader>
-                <EmptyMedia variant='icon'>
-                  <ClipboardCheck />
-                </EmptyMedia>
-                <EmptyTitle>{t('workbench.allClear')}</EmptyTitle>
-                <EmptyDescription>
-                  {t(
-                    canSubmit
-                      ? 'workbench.allClearDescription'
-                      : 'workbench.emptyMineRestricted',
-                  )}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          </CardContent>
-          <CardFooter className='mt-auto flex flex-wrap gap-2'>
+      <div className={nothingYet ? 'grid gap-4' : 'grid gap-4 lg:grid-cols-2'}>
+        <PendingWork
+          context={roles}
+          pending={pendingRows}
+          loading={pending.loading}
+          error={pending.error}
+          total={pending.meta?.total}
+          now={now}
+          retry={retry}
+          allClear={nothingYet}
+          canSubmit={canSubmit}
+        />
+        {nothingYet ? (
+          <div className='flex flex-wrap gap-2'>
             <ListLink to='/approvals/mine' label={t('workbench.viewMine')} />
             {(mine.meta?.counts.drafts ?? 0) > 0 ? (
               <ListLink
@@ -512,73 +432,20 @@ function Workbench() {
                 })}
               />
             ) : null}
-          </CardFooter>
-        </Card>
-      ) : (
-        <div className='flex flex-col items-stretch gap-4 md:flex-row'>
-          <Card className='min-w-0 flex-1'>
-            <CardHeader>
-              <CardTitle>
-                <div className='flex items-center gap-2'>
-                  <h2>{t('workbench.attention')}</h2>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Button
-                          variant='ghost'
-                          size='icon-sm'
-                          aria-label={t('approvalCenter.scope')}
-                        />
-                      }
-                    >
-                      <Info aria-hidden='true' />
-                    </TooltipTrigger>
-                    <TooltipContent>{t('approvalCenter.scope')}</TooltipContent>
-                  </Tooltip>
-                </div>
-              </CardTitle>
-              <CardDescription>
-                {t('workbench.attentionDescription')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='flex flex-col gap-4'>
-              {pending.error ? (
-                <ErrorState
-                  context='query'
-                  error={pending.error}
-                  retry={retry}
-                />
-              ) : null}
-              {unique.length ? (
-                <ul className='flex flex-col'>
-                  {unique.map((record) => (
-                    <WorkRow
-                      key={`${record.kind}:${record.id}`}
-                      record={record}
-                      now={now}
-                      showInitiator
-                      showApplicant
-                    />
-                  ))}
-                </ul>
-              ) : pending.loading ? (
-                <RowsSkeleton />
-              ) : !pending.error ? (
-                <EmptyCard kind='Attention' canSubmit={canSubmit} />
-              ) : null}
-            </CardContent>
-            <CardFooter className='mt-auto flex flex-wrap gap-2'>
-              <ListLink
-                to='/approvals/todo'
-                label={t('workbench.viewPending')}
-              />
-            </CardFooter>
-          </Card>
-          <Card className='min-w-0 flex-1'>
-            <CardHeader>
+          </div>
+        ) : (
+          <Card className='min-w-0'>
+            <CardHeader className='flex flex-wrap items-center justify-between gap-2'>
               <CardTitle>
                 <h2>{t('workbench.mine')}</h2>
               </CardTitle>
+              <Link
+                to='/approvals/mine'
+                className='inline-flex items-center gap-1 rounded-sm text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring'
+              >
+                {t('workbench.viewMine')}
+                <ArrowRight className='size-4' aria-hidden='true' />
+              </Link>
             </CardHeader>
             <CardContent>
               {mine.error ? (
@@ -599,27 +466,27 @@ function Workbench() {
                 <EmptyCard kind='Mine' canSubmit={canSubmit} />
               )}
             </CardContent>
-            <CardFooter className='mt-auto flex flex-wrap gap-2'>
-              <ListLink to='/approvals/mine' label={t('workbench.viewMine')} />
-              {(mine.meta?.counts.drafts ?? 0) > 0 ? (
+            {(mine.meta?.counts.drafts ?? 0) > 0 ? (
+              <CardFooter className='mt-auto flex flex-wrap gap-2'>
                 <ListLink
                   to='/approvals/mine?category=drafts'
                   label={t('workbench.viewDraftsCount', {
                     count: mine.meta?.counts.drafts,
                   })}
                 />
-              ) : null}
-            </CardFooter>
+              </CardFooter>
+            ) : null}
           </Card>
-        </div>
-      )}
+        )}
+      </div>
+      {roles.data?.manager && !roles.error ? (
+        <TeamStatus key={`team-${personalRevision}`} />
+      ) : null}
       {canSubmit ? (
         <section id='request-actions' aria-label={t('workbench.newRequest')}>
-          <NewRequestCard available={requests.available} />
+          <NewRequestCard available={requests.available} context={roles} />
         </section>
       ) : null}
-      {/* Reference information follows the work and the request entries. */}
-      <PersonalCards key={personalRevision} />
       <Outlet context={context} />
     </PageContainer>
   );
@@ -640,8 +507,10 @@ function ListLink({ to, label }: { to: string; label: string }) {
 /** This card contains business creation actions only; browsing belongs in the sidebar and summary footers. */
 function NewRequestCard({
   available,
+  context,
 }: {
   available: RequestActionAvailability;
+  context: ReturnType<typeof useRoleContext>;
 }) {
   const { t } = useTranslation();
 
@@ -655,8 +524,9 @@ function NewRequestCard({
           {t('workbench.newRequestDescription')}
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className='flex flex-col gap-4'>
         <FavoriteRequestActions available={available} />
+        <FunctionalRequestLinks context={context} available={available} />
       </CardContent>
     </Card>
   );
@@ -704,15 +574,11 @@ function RowsSkeleton() {
 function LoadingCards() {
   return (
     <div className='flex flex-col gap-4'>
-      <div className='grid grid-cols-3 gap-3 sm:gap-4'>
-        {[0, 1, 2].map((key) => (
-          <Card key={key}>
-            <CardContent>
-              <RowsSkeleton />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Card>
+        <CardContent>
+          <RowsSkeleton />
+        </CardContent>
+      </Card>
       <div className='grid gap-4 xl:grid-cols-2'>
         {[0, 1].map((key) => (
           <Card key={key}>

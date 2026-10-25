@@ -164,8 +164,8 @@ const copy = {
   attachmentInvalid:
     'Some selected attachments are invalid or do not belong to this request. Reload the request and select them again.',
   attachmentLimit:
-    'Attachments: PDF, JPEG, PNG or WebP, up to 5 MiB per file and 10 files. A valid draft is saved before the first upload.',
-  attachmentSize: 'Choose a nonempty file up to 5 MiB.',
+    'Attachments: PDF, JPEG, PNG or WebP, up to 5 MB per file and 10 files. A valid draft is saved before the first upload.',
+  attachmentSize: 'Choose a nonempty file up to 5 MB.',
   attachmentType:
     'Choose a PDF, JPEG, PNG or WebP file with a matching format.',
   attachmentCount: 'At most 10 attachments are allowed.',
@@ -187,7 +187,7 @@ const copy = {
   timeline: 'Approval history',
   saved: 'Saved leave request "{{name}}"',
   completed: '{{action}}: "{{name}}"',
-  actionTitle: '{{action}} leave request "{{name}}"',
+  actionTitle: '{{action}} request "{{name}}"',
   returnHint:
     'Return to the applicant; resubmission starts at the first stage.',
   confirmDescription:

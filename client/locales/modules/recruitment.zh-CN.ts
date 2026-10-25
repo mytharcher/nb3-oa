@@ -12,6 +12,7 @@ export default {
     },
     identityUnavailable: '组织名称不可用',
     catalogRequired: '请先读取部门与职位名称，再关闭此编制。',
+    requisitionName: '{{year}} 年 / {{department}} / {{position}}招聘单',
     preciseAllocationName:
       '{{year}} 年 / {{department}} / {{position}}招聘编制',
 
@@ -96,6 +97,7 @@ export default {
     discardDescription: '当前表单中的修改将丢失。',
     discardConfirm: '放弃修改',
     fields: {
+      requisitionTitle: '招聘单标题',
       id: '标识',
       requisitionId: '招聘单标识',
       requestId: '来源申请标识',

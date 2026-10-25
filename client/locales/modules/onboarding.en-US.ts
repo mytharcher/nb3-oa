@@ -65,7 +65,7 @@ export default {
     },
     reassignMentorNotice:
       'Assign this outstanding task to the current active department head. The deadline and saved facts remain unchanged; this does not complete the task.',
-    transferTarget: 'New handler in the same duty pool',
+    transferTarget: 'New handler in the same handling group',
     attachments: 'Attachments',
     fileLimit: 'PDF, PNG, JPEG or TXT; up to 10 files, 20 MB each.',
     upload: 'Upload attachment',
@@ -102,6 +102,10 @@ export default {
     assignee: 'Handled by',
     bank: 'Payroll account and social insurance',
     salary: 'Salary',
+    privateEmpty: {
+      bank: 'Payroll account and social insurance details have not been recorded. Check the finance task progress.',
+      salary: 'Salary details have not been recorded. Contact HR to check.',
+    },
     save: 'Submit',
     saved: 'Saved',
     unknown:

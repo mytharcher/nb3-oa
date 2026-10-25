@@ -12,9 +12,13 @@ import type {
   Lifecycle,
   ServicesOf,
 } from '@nocobase/lifecycle';
-import type { UserTaskWriter } from '@nocobase/app-plugin-task-center/server';
+import type {
+  UserTaskWriter,
+  UserTaskService,
+} from '@nocobase/app-plugin-task-center/server';
 
 interface TaskCenterServices {
+  reader: UserTaskService;
   contributor: ApprovalTaskContributor;
   applications: UserTaskWriter;
   workItems: UserTaskWriter;
@@ -26,6 +30,7 @@ interface TaskCenterServices {
 }
 const integrations = new WeakMap<DatabaseManager, TaskCenterServices>();
 const runtimeDefinitions = new WeakMap<LifecycleRuntime, Lifecycle<never>>();
+const runtimeDatabases = new WeakMap<LifecycleRuntime, DatabaseManager>();
 const runtimeServices = new WeakMap<LifecycleRuntime, object>();
 const integrationKey = Symbol('oa/task-center');
 
@@ -63,6 +68,7 @@ export function registerAppApproval<T extends LifecycleTypes>(
     return proxy as ServicesOf<T>;
   };
   runtimeServices.set(runtime, services);
+  runtimeDatabases.set(runtime, db);
   runtimeDefinitions.set(runtime, definition as unknown as Lifecycle<never>);
   runtime.register(definition, { services });
 }
@@ -71,6 +77,13 @@ export function taskCenterRuntimeServices(
   runtime: LifecycleRuntime,
 ): object | undefined {
   return runtimeServices.get(runtime);
+}
+
+export function taskCenterRuntimeDatabase(runtime: LifecycleRuntime) {
+  const database = runtimeDatabases.get(runtime);
+  if (!database)
+    throw new Error('Approval task index database is unavailable.');
+  return database;
 }
 
 /** Every OA approval shares the plugin's contributor and safe category-only titles. */

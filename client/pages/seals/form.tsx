@@ -250,10 +250,11 @@ function Fields({
     .object({
       contractId: z.string(),
       sealType: z.string().min(1, t('seals.required')),
+      executionMode: z.enum(['physical', 'electronic']),
       copies: z
         .number({ error: t('seals.required') })
         .int(t('seals.required'))
-        .min(1, t('seals.required'))
+        .min(0, t('seals.required'))
         .max(10000, t('seals.required')),
       external: z.boolean(),
       returnDueAt: z.string(),
@@ -272,6 +273,7 @@ function Fields({
       defaultValues: {
         contractId: record?.contractId ?? '',
         sealType: record?.sealType ?? '',
+        executionMode: record?.executionMode ?? 'physical',
         copies: record?.copies ?? 1,
         external: record?.external ?? false,
         returnDueAt: record?.returnDueAt ?? '',
@@ -281,6 +283,10 @@ function Fields({
     }),
     busy = form.formState.isSubmitting || cmd.busy || uploading;
   const external = useWatch({ control: form.control, name: 'external' });
+  const executionMode = useWatch({
+    control: form.control,
+    name: 'executionMode',
+  });
   const submission = useRequestFormSubmission<SealRequest>({
     replayUnknownCreate: true,
     resource: 'sealRequests',
@@ -297,8 +303,11 @@ function Fields({
   }, [busy, form.formState.isDirty, files, record, busyRef, dirtyRef, onBusy]);
   const payload = (v: z.infer<typeof schema>) => ({
     ...v,
+    copies: v.executionMode === 'electronic' ? 0 : v.copies,
+    external: v.executionMode === 'electronic' ? false : v.external,
     contractId: v.contractId || null,
-    returnDueAt: v.external ? v.returnDueAt : null,
+    returnDueAt:
+      v.executionMode !== 'electronic' && v.external ? v.returnDueAt : null,
     fileIds: files,
   });
   async function save(values: z.infer<typeof schema>) {
@@ -437,6 +446,13 @@ function Fields({
                 {t('seals.contractId')}
               </FieldLabel>
               <Select
+                items={[
+                  { value: 'none', label: t('seals.fileSource') },
+                  ...options.contracts.map((c) => ({
+                    value: c.id,
+                    label: c.number ?? t('seals.relatedUnavailable'),
+                  })),
+                ]}
                 value={field.value || 'none'}
                 onValueChange={(v) =>
                   field.onChange(v === 'none' ? '' : (v ?? ''))
@@ -477,57 +493,104 @@ function Fields({
             <FieldError errors={[form.formState.errors[name]]} />
           </Field>
         ))}
-        <Field>
-          <FieldLabel htmlFor='seal-copies'>{t('seals.copies')} *</FieldLabel>
-          <Input
-            id='seal-copies'
-            type='number'
-            min={1}
-            max={10000}
-            disabled={busy}
-            {...form.register('copies', { valueAsNumber: true })}
-          />
-          <FieldError errors={[form.formState.errors.copies]} />
-        </Field>
         <Controller
-          name='external'
+          name='executionMode'
           control={form.control}
           render={({ field }) => (
-            <Field orientation='horizontal'>
-              <FieldLabel htmlFor='seal-external'>
-                {t('seals.external')}
+            <Field>
+              <FieldLabel htmlFor='seal-execution-mode'>
+                {t('electronicSignatures.channel')}
               </FieldLabel>
-              <Switch
-                id='seal-external'
-                checked={field.value}
-                onCheckedChange={field.onChange}
+              <Select
+                value={field.value}
+                onValueChange={field.onChange}
                 disabled={busy}
-              />
+                items={[
+                  {
+                    value: 'physical',
+                    label: t('electronicSignatures.physical'),
+                  },
+                  {
+                    value: 'electronic',
+                    label: t('electronicSignatures.electronic'),
+                  },
+                ]}
+              >
+                <SelectTrigger id='seal-execution-mode'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='physical'>
+                    {t('electronicSignatures.physical')}
+                  </SelectItem>
+                  <SelectItem value='electronic'>
+                    {t('electronicSignatures.electronic')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className='text-xs text-muted-foreground'>
+                {t('electronicSignatures.channelHint')}
+              </p>
             </Field>
           )}
         />
-        {external ? (
-          <Controller
-            name='returnDueAt'
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field>
-                <FieldLabel htmlFor='seal-due'>
-                  {t('seals.returnDueAt')} *
-                </FieldLabel>
-                <DateTimePicker
-                  id='seal-due'
-                  value={field.value}
-                  onChange={field.onChange}
-                  timeZone={options.timeZone}
-                  timeLabel={t('seals.returnDueAt')}
-                  disabled={busy}
-                  invalid={!!fieldState.error}
-                />
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
+        {executionMode !== 'electronic' ? (
+          <>
+            <Field>
+              <FieldLabel htmlFor='seal-copies'>
+                {t('seals.copies')} *
+              </FieldLabel>
+              <Input
+                id='seal-copies'
+                type='number'
+                min={1}
+                max={10000}
+                disabled={busy}
+                {...form.register('copies', { valueAsNumber: true })}
+              />
+              <FieldError errors={[form.formState.errors.copies]} />
+            </Field>
+            <Controller
+              name='external'
+              control={form.control}
+              render={({ field }) => (
+                <Field orientation='horizontal'>
+                  <FieldLabel htmlFor='seal-external'>
+                    {t('seals.external')}
+                  </FieldLabel>
+                  <Switch
+                    id='seal-external'
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={busy}
+                  />
+                </Field>
+              )}
+            />
+            {external ? (
+              <Controller
+                name='returnDueAt'
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field>
+                    <FieldLabel htmlFor='seal-due'>
+                      {t('seals.returnDueAt')} *
+                    </FieldLabel>
+                    <DateTimePicker
+                      id='seal-due'
+                      value={field.value}
+                      onChange={field.onChange}
+                      timeZone={options.timeZone}
+                      timeLabel={t('seals.returnDueAt')}
+                      disabled={busy}
+                      invalid={!!fieldState.error}
+                    />
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+            ) : null}
+          </>
         ) : null}
         <Field>
           <FieldLabel htmlFor='seal-upload'>{t('seals.files')}</FieldLabel>

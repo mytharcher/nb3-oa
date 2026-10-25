@@ -4,12 +4,10 @@ import { ApprovalService } from '@nocobase/app-plugin-approval/server';
 import {
   approvalQuerySources,
   createAppApprovalService,
-  initializeApprovalQuery,
 } from '../../server/providers/approval-runtime/query-service.js';
-import type { ApprovalQuery } from '@nocobase/app-plugin-approval/server';
 
 describe('application approval query registration', () => {
-  it('shares registration and disposal through a read-context SDK proxy', async () => {
+  it('preserves runtime task bindings through a read-context SDK proxy', async () => {
     const runtime = {} as ConstructorParameters<typeof ApprovalService>[0];
     const approval = {
       name: 'oa.test',
@@ -28,18 +26,8 @@ describe('application approval query registration', () => {
           : value;
       },
     });
-    const register = vi.fn();
-    const query = { register } as unknown as ApprovalQuery;
-
     expect(approvalQuerySources(proxy)).toEqual(approvalQuerySources(service));
     expect(approvalQuerySources(proxy)[0].runtime).toBe(runtime);
-    const dispose = await initializeApprovalQuery(proxy, query);
-    expect(register).toHaveBeenCalledTimes(1);
-    expect(await initializeApprovalQuery(service, query)).toBeUndefined();
-    dispose!();
-    const disposeAgain = await initializeApprovalQuery(service, query);
-    expect(register).toHaveBeenCalledTimes(2);
-    disposeAgain!();
     expect(read).not.toHaveBeenCalled();
   });
 

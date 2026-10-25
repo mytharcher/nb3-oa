@@ -38,6 +38,11 @@ export type LoanRequestInput = Pick<
   'reason' | 'amountCents' | 'dueDate' | 'travelId'
 >;
 export interface LoanRequestService {
+  searchVisible(
+    id: string,
+    actorId: string,
+    policy: import('@nocobase/db').RepositoryPolicy,
+  ): Promise<void>;
   /** Optional display number; independently scoped, with no ledger mapping or balance disclosure. */
   nameForLedger(
     id: string,

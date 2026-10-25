@@ -1,3 +1,4 @@
+import { asyncFilter } from '../approval-runtime/async-filter.js';
 import {
   allActivePeople,
   appointAction as sdkAppoint,
@@ -15,9 +16,11 @@ export const reassignAction = defineApprovalAction({
     const page = await active.search(context, query);
     return {
       ...page,
-      people: page.people.filter(
-        (person) =>
-          context.eligible(person, { replacing: true, via: 'reassign' }).ok,
+      people: await asyncFilter(
+        page.people,
+        async (person) =>
+          (await context.eligible(person, { replacing: true, via: 'reassign' }))
+            .ok,
       ),
     };
   },
@@ -28,14 +31,17 @@ export const appointAction = defineApprovalAction({
     const page = await active.search(context, query);
     return {
       ...page,
-      people: page.people.filter(
-        (person) =>
-          context.eligible(person, {
-            replacing: false,
-            kind: 'decide',
-            role: 'member',
-            via: 'assign',
-          }).ok,
+      people: await asyncFilter(
+        page.people,
+        async (person) =>
+          (
+            await context.eligible(person, {
+              replacing: false,
+              kind: 'decide',
+              role: 'member',
+              via: 'assign',
+            })
+          ).ok,
       ),
     };
   },

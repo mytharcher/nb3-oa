@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 
 import {
@@ -100,6 +101,16 @@ export default class AttendanceChangeProvider extends ServiceProvider<Applicatio
     });
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.attendanceChange',
+      resource: 'oa.attendanceChange',
+      collection: 'attendanceChangeRequests',
+      titleField: 'reason',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(attendanceChangeServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     if (!this.app.container.has(authorizationToken)) return;
     const authz = this.app.container.resolve(authorizationToken);
     authz.database.collections.add({

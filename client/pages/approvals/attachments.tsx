@@ -87,7 +87,10 @@ export function LeaveAttachments({
             className='break-all text-primary underline underline-offset-4'
           >
             {file.filename}
-            {file.ext ? `.${file.ext}` : ''}
+            {file.ext &&
+            !file.filename.toLowerCase().endsWith(`.${file.ext.toLowerCase()}`)
+              ? `.${file.ext}`
+              : ''}
           </a>
         </li>
       ))}

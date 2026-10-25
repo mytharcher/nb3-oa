@@ -98,8 +98,8 @@ export default {
     privateTextHint: '正文按所属申请独立授权，不以台账权限替代',
     selectExisting: '选择已上传文件',
     removeFile: '取消选择“{{name}}”',
-    uploadHint: '正文仅限 PDF；附件支持 PDF、JPEG、PNG、WebP，单文件最多 5 MiB',
-    fileInvalid: '请选择格式匹配且不超过 5 MiB 的文件',
+    uploadHint: '正文仅限 PDF；附件支持 PDF、JPEG、PNG、WebP，单文件最多 5 MB',
+    fileInvalid: '请选择格式匹配且不超过 5 MB 的文件',
     uploadUnknown: '上传结果待核对，请选择已有文件；不要重复上传',
     fileMissing: '无法读取已选择文件，请核对授权与正文版本',
     noFiles: '暂无已上传文件',
@@ -171,7 +171,7 @@ export default {
       CONTRACT_CORRUPT_BALANCE: '合同付款余额不一致，请联系管理员核查。',
       CONTRACT_EMPLOYEE_REQUIRED: '申请人须为在职员工且已配置主部门。',
       CONTRACT_FIELDS_RESTRICTED: '必要的合同字段不在您的授权范围内。',
-      CONTRACT_FILE_SIZE: '请选择非空且不超过 5 MiB 的合同文件。',
+      CONTRACT_FILE_SIZE: '请选择非空且不超过 5 MB 的合同文件。',
       CONTRACT_FILE_TYPE:
         '合同文本须为 PDF；证明附件支持内容与类型一致的 PDF、JPEG、PNG 或 WebP。',
       CONTRACT_IDEMPOTENCY_CONFLICT:

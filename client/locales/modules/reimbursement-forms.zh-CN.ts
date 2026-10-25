@@ -48,8 +48,8 @@ export default {
     retryCreation: '重试创建草稿',
     upload: '上传证据',
     uploadHint:
-      '支持PDF、JPEG、PNG或WebP，单个不超过5MiB。移除选择仍保留已存证据。',
-    fileSize: '请选择非空且不超过5MiB的文件。',
+      '支持PDF、JPEG、PNG或WebP，单个不超过5MB。移除选择仍保留已存证据。',
+    fileSize: '请选择非空且不超过5MB的文件。',
     fileType: '请选择PDF、JPEG、PNG或WebP文件。',
     uploadFailed: '上传证据失败，已保留附件选择。',
     uploading: '正在上传证据',

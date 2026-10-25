@@ -24,7 +24,7 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from '#components/ui/alert-dialog';
-import { RouteDrawer } from '#components/route-drawer';
+import { RequestActionOverlay } from '#components/request-action-overlay';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
 import { Textarea } from '#components/ui/textarea';
@@ -244,7 +244,7 @@ function TransferActionContent() {
     });
   }
   return (
-    <RouteDrawer
+    <RequestActionOverlay
       title={title}
       description={t(
         operation === 'requestCancellation'
@@ -474,6 +474,6 @@ function TransferActionContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </RouteDrawer>
+    </RequestActionOverlay>
   );
 }

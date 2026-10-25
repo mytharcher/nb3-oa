@@ -4,7 +4,8 @@ import { StatusBadge } from '#components/status-badge';
 import { Timeline } from './timeline.js';
 import { Attachments } from './attachments.js';
 import { UserName } from '#components/user-name';
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import {
   Link,
   Outlet,
@@ -23,6 +24,7 @@ export default function Page() {
   return <Body key={useViewerKey()} />;
 }
 function Private({ id, kind }: { id: string; kind: 'bank' | 'salary' }) {
+  const panelId = useId();
   const { t } = useTranslation(),
     grant = useCan({
       resource,
@@ -35,28 +37,45 @@ function Private({ id, kind }: { id: string; kind: 'bank' | 'salary' }) {
     );
   return allowed ? (
     <section>
-      <Button variant='outline' onClick={() => setOpen((v) => !v)}>
+      <Button
+        type='button'
+        variant='outline'
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
+        onClick={() => setOpen((v) => !v)}
+      >
         {t(`onboarding.${kind}`)}
+        {open ? (
+          <ChevronUp data-icon='inline-end' />
+        ) : (
+          <ChevronDown data-icon='inline-end' />
+        )}
       </Button>
       {open ? (
-        r.loading ? (
-          <Loading />
-        ) : r.error ? (
-          <Failure module='onboarding' error={r.error} retry={r.reload} />
-        ) : (
-          <dl className='grid gap-x-4 gap-y-3 sm:grid-cols-[8rem_1fr]'>
-            {Object.entries(r.data?.data ?? {}).map(([key, value]) => (
-              <div key={key} className='contents'>
-                <dt className='text-sm text-muted-foreground'>
-                  {t(`onboarding.fields.${key}`)}
-                </dt>
-                <dd className='text-sm whitespace-pre-wrap break-words'>
-                  {value || '—'}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        )
+        <div id={panelId} className='pt-3'>
+          {r.loading ? (
+            <Loading />
+          ) : r.error ? (
+            <Failure module='onboarding' error={r.error} retry={r.reload} />
+          ) : !Object.keys(r.data?.data ?? {}).length ? (
+            <p role='status' className='text-sm text-muted-foreground'>
+              {t(`onboarding.privateEmpty.${kind}`)}
+            </p>
+          ) : (
+            <dl className='grid gap-x-4 gap-y-3 sm:grid-cols-[8rem_1fr]'>
+              {Object.entries(r.data?.data ?? {}).map(([key, value]) => (
+                <div key={key} className='contents'>
+                  <dt className='text-sm text-muted-foreground'>
+                    {t(`onboarding.fields.${key}`)}
+                  </dt>
+                  <dd className='text-sm whitespace-pre-wrap break-words'>
+                    {value || '—'}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </div>
       ) : null}
     </section>
   ) : null;

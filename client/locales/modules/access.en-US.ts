@@ -1,5 +1,23 @@
 export default {
   access: {
+    guide: {
+      title: 'How roles and permissions work',
+      roles:
+        'Configure operations by department, position or responsibility here. Members receive these permissions alongside their direct assignments.',
+      setsTitle: 'Permission sets',
+      sets: 'The stored grants behind roles, available for inspection and reuse. Use the role page for everyday changes.',
+      defaultTitle: 'Default record access',
+      default:
+        'Provides the baseline scope when an operation has no specific scope. It does not grant the operation itself.',
+      sharingTitle: 'Sharing rules',
+      sharing:
+        'Expands the records available to people who already have the operation permission.',
+      restrictionTitle: 'Restriction rules',
+      restriction: 'Further limits which authorized records are accessible.',
+      inspectTitle: 'Permission inspector',
+      inspect:
+        'Check effective grants and their sources when a page or record is unavailable.',
+    },
     permissionColumn: 'Permission',
     personalGranted: 'Personally granted',
     personalTarget: 'Choose personal grant destination',

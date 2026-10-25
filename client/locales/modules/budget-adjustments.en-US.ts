@@ -58,7 +58,7 @@ export default {
     disabled: 'Disabled',
     inactive: 'The applicant must be an active employee.',
     configuration:
-      'This approval clock configuration is unsupported. Contact an administrator.',
+      'Approval cannot be submitted. Contact an administrator to check the approval deadlines.',
     invalid: 'Review the account, adjustment type, amount and reason.',
     uncertainCreate:
       'The save result is uncertain. Close and check My requests before creating another draft.',

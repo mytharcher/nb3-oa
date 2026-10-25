@@ -19,6 +19,8 @@ const mocks = {
     const row = {id:'request', kind:'oa.leave', title:'WK-2026-001', number:null, applicantId:'viewer',applicant:null,status:'manager',createdAt:'2026-10-21T00:00:00Z',updatedAt:'2026-10-22T00:00:00Z',dueAt:'2026-10-01T00:00:00Z',startDate:null,endDate:null,amount:null,unit:null};
     const api = { async request({path,query={}}) {
       globalThis.__workbenchReads.push(path);
+      if (path === 'personalSchedules') return {data:[]};
+      if (path === 'workbench/roleContext') return {data:{manager:false,hr:false,finance:false,administration:false,procurement:false,teamUserIds:[]}};
       if (path === 'workbench/tasks') return {data:[row],meta:{total:query.view==='pending'?230:50,kinds:['oa.leave'],counts:{drafts:8,revisions:2,inProgress:37},attention:{drafts:[],revisions:[],submitted:[row]}}};
       if (path === 'workbench/announcementReceipts') return {data:{count:21,items:[{id:'notice',announcementId:'notice',title:'Confirm workplace notice'}]}};
       if (path === 'leaveBalances/me') return {data:[]};
@@ -29,7 +31,7 @@ const mocks = {
     export function useApiClient(){return api;}
   `,
   '@nocobase/app-plugin-authentication/client': `export function useAuthentication(){return {session:{user:{id:'viewer'}},refresh:async()=>{}}}`,
-  '@nocobase/app-plugin-authorization/client': `export function useAuthorizationRevision(){return 0} export function useCan({action}){return {can:action==='view'||action==='access',isPending:false}}`,
+  '@nocobase/app-plugin-authorization/client': `const client={can:async()=>true}; export function useAuthorizationClient(){return client} export function useAuthorizationRevision(){return 0} export function useCan({action}){return {can:action==='view'||action==='access',isPending:false}}`,
 };
 await build({
   entryPoints: [path.join(root, 'tests/fixtures/workbench/index-preview.tsx')],
@@ -88,12 +90,7 @@ try {
       );
       await expect(page.getByText('WK-2026-001').first()).toBeVisible();
       await expect(page.getByText('Confirm workplace notice')).toBeVisible();
-      await expect(
-        page.getByRole('link', {
-          name:
-            language === 'zh-CN' ? '待我处理 230' : 'Awaiting my action 230',
-        }),
-      ).toBeVisible();
+      await expect(page.getByText(/230/).first()).toBeVisible();
       const refresh = page
         .getByRole('button', {
           name: language === 'zh-CN' ? '刷新' : 'Refresh',

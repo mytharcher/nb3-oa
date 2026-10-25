@@ -52,7 +52,7 @@ export default {
     bankHolder: '账户姓名',
     bankAccount: '银行账号',
     loadingBank: '正在读取银行信息…',
-    bankNotSnapshot: '尚未生成付款银行快照。',
+    bankNotSnapshot: '尚未生成付款银行信息。',
     recordCash: '录入现金还款',
     invalidRepaymentAmount: '归还金额读取异常，请联系财务核查此记录。',
     noRepayments: '暂无归还记录',
@@ -129,7 +129,7 @@ export default {
     },
     errors: {
       inactive: '需有效员工档案。',
-      configuration: '审批时钟配置需管理员处理。',
+      configuration: '暂时无法提交审批，请联系管理员检查审批期限设置。',
       invalid: '请检查输入字段后重试。',
       quota: '借款将超过个人借款上限。',
       overdue: '存在逾期未偿借款，请先归还后再申请。',

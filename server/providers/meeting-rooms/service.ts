@@ -1,3 +1,4 @@
+import type { PersonalScheduleService } from '../personal-schedules/contract.js';
 import { demoNow } from '../demo-data/context.js';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
 import { createHash, randomUUID } from 'node:crypto';
@@ -54,6 +55,7 @@ const hash = (value: unknown) =>
     .digest('hex');
 export function createMeetingRoomService(d: {
   db: DatabaseManager;
+  schedules: PersonalScheduleService;
   dispatcher?: EffectDispatcher;
   notify?: (booking: MeetingBooking, key: string) => Promise<void>;
   audit: AuditService;
@@ -239,6 +241,7 @@ export function createMeetingRoomService(d: {
     after: MeetingBooking,
     tx: DatabaseConnection,
   ) {
+    await d.schedules.syncMeeting(after, tx);
     await tx.repository('meetingBookingHistory').createOne({
       values: {
         id: randomUUID(),

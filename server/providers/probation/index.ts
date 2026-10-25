@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { schedulerServiceToken } from '@nocobase/app-plugin-scheduler/server/tokens';
 import { i18nToken } from '@nocobase/app-server/i18n';
@@ -114,6 +115,16 @@ export default class ProbationProvider extends ServiceProvider<Application> {
     });
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.probation',
+      resource: 'oa.probation',
+      collection: 'probationRequests',
+      titleField: 'selfEvaluation',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(probationServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     if (!this.app.container.has(authorizationToken)) return;
     const authz = this.app.container.resolve(authorizationToken);
     authz.database.collections.add({

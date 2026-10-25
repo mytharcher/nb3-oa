@@ -24,7 +24,7 @@ export function createOaApprovalOperations(dependencies: {
   const recipients = definePeopleScope({
     search: (context, query) => active.search(context, query),
     async contains(context, person) {
-      if (!context.directory.isActive(person)) return false;
+      if (!(await context.directory.isActive(person))) return false;
       const principal = context.task?.assigneeId;
       if (!principal) return false;
       // ActionContext erases host services; this boundary is supplied by the leave store wrapper.
@@ -39,11 +39,14 @@ export function createOaApprovalOperations(dependencies: {
       const roles = await (connection ?? dependencies.db)
         .repository('dutyRoles')
         .findMany({ filter: { active: true } });
-      return roles.some(
-        (role) =>
-          context.directory.hasRole(principal, role.code as string) &&
-          context.directory.hasRole(person, role.code as string),
-      );
+      for (const role of roles) {
+        if (
+          (await context.directory.hasRole(principal, role.code as string)) &&
+          (await context.directory.hasRole(person, role.code as string))
+        )
+          return true;
+      }
+      return false;
     },
   });
   const urge = defineApprovalAction<

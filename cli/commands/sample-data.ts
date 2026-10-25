@@ -5,7 +5,7 @@ export default class SampleData extends AppCommand {
   static override summary =
     'Inspect OA sample data or export its account access file.';
   static override description =
-    'Generate samples with APP_SAMPLE_DATA=true pnpm nocobase db sample in a source checkout, or APP_SAMPLE_DATA=true on first installation.';
+    'Generate samples with pnpm nocobase db sample in a source checkout, or APP_SAMPLE_DATA=true on first installation.';
   static override flags = {
     'export-access': Flags.boolean({
       description:

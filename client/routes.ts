@@ -1,3 +1,8 @@
+import wecomAttendanceRoutes from './route-modules/wecom-attendance.js';
+import hrMasterDataRoutes from './route-modules/hr-master-data.js';
+import attendanceResultsRoutes from './route-modules/attendance-results.js';
+import processOperationsRoutes from './route-modules/process-operations.js';
+import personalSchedulesRoutes from './route-modules/personal-schedules.js';
 import headcountsRoutes from './route-modules/headcounts.js';
 import processManagementRoutes from './route-modules/process-management.js';
 import attendanceImportRoutes from './route-modules/attendance-import.js';
@@ -11,7 +16,6 @@ import announcementsRoutes from './route-modules/announcements.js';
 import { centerEntry } from './pages/approvals/center-entry.js';
 import workItemsRoutes from './route-modules/work-items.js';
 import taskCenterRoutes from './route-modules/task-center.js';
-import workbenchPrototypeRoutes from './route-modules/workbench-prototype.js';
 import knowledgeRoutes from './route-modules/knowledge.js';
 import certificateRoutes, {
   certificateViewChildren,
@@ -103,6 +107,13 @@ import orgRoutes from './route-modules/org.js';
 import platformRoutes from './route-modules/platform.js';
 
 const appRoutes: AppClientRouteContribution = defineAppRoutes([
+  {
+    name: 'global-search',
+    path: '/search',
+    auth: 'required',
+    authz: 'skip',
+    componentLoader: () => import('./pages/global-search/index.js'),
+  },
   {
     // Every signed-in user reaches the landing page. `authz: 'skip'` takes it out of page authorization entirely, so
     // no permission change can leave a user signed in with nowhere to land.
@@ -308,6 +319,36 @@ const appRoutes: AppClientRouteContribution = defineAppRoutes([
 // Pathless groups preserve existing URLs and each page's independent authorization.
 const managementRoutes: AppClientRouteContribution = defineAppRoutes([
   {
+    name: 'oa-system-people',
+    parent: 'oa-system',
+    navigation: {
+      title: 'oa.navigation.systemPeople',
+      icon: Building2,
+      order: 10,
+    },
+    children: [],
+  },
+  {
+    name: 'oa-system-connections',
+    parent: 'oa-system',
+    navigation: {
+      title: 'oa.navigation.systemConnections',
+      icon: Bell,
+      order: 30,
+    },
+    children: [],
+  },
+  {
+    name: 'oa-system-operations',
+    parent: 'oa-system',
+    navigation: {
+      title: 'oa.navigation.systemOperations',
+      icon: Wrench,
+      order: 40,
+    },
+    children: [],
+  },
+  {
     // Self-service pages every employee uses; kept apart from the domains administrators run.
     name: 'oa-personal',
     navigation: {
@@ -407,10 +448,14 @@ const routes: readonly AppClientRouteContribution[] = [
   announcementsRoutes,
   workItemsRoutes,
   taskCenterRoutes,
-  workbenchPrototypeRoutes,
+  personalSchedulesRoutes,
   knowledgeRoutes,
   certificateRoutes,
   attendanceManagementRoutes,
+  wecomAttendanceRoutes,
+  attendanceResultsRoutes,
+  processOperationsRoutes,
+  hrMasterDataRoutes,
   attendanceImportRoutes,
   processManagementRoutes,
   transferRoutes,

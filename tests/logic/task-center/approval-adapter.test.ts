@@ -13,6 +13,7 @@ import {
   type LifecycleRecord,
 } from '@nocobase/lifecycle';
 import type { UserTaskWriter } from '@nocobase/app-plugin-task-center/server';
+import { createUserTaskService } from '@nocobase/app-plugin-task-center/server';
 import {
   configureTaskCenter,
   defineAppApproval,
@@ -45,6 +46,7 @@ function fixture() {
   const contributor = {} as ApprovalTaskContributor;
   const db = {} as DatabaseManager;
   configureTaskCenter(db, {
+    reader: createUserTaskService(db),
     contributor,
     applications: writer,
     workItems: writer,

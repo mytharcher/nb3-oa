@@ -372,4 +372,36 @@ describe('OA approval notifications', () => {
     });
     expect(Object.keys(send.mock.calls[0]![0].messages)).toEqual(['inbox']);
   });
+  it('sends enterprise messages only to explicitly bound identities with a deep link', async () => {
+    const instance = service({
+      channels: {
+        inbox: { type: 'in-app' },
+        enterprise: { type: 'oa-wecom-app' },
+      },
+      config: {
+        inbox: 'inbox',
+        email: null,
+        alarm: null,
+        administrators: [],
+        enterpriseMessaging: {
+          channel: 'enterprise',
+          users: { reviewer: 'wecom-reviewer' },
+        },
+      },
+    });
+    await instance.task({ task, reason: 'assigned' });
+    expect(send.mock.calls[0]![0].messages.enterprise).toEqual({
+      to: 'wecom-reviewer',
+      text: expect.stringContaining(
+        'https://oa.example.com/main/approvals/mine/leave/leave%2F1',
+      ),
+    });
+    expect(send.mock.calls[0]![0].messages.inbox).toBeDefined();
+    send.mockClear();
+    await instance.task({
+      task: { ...task, assigneeId: 'proxy' },
+      reason: 'assigned',
+    });
+    expect(send.mock.calls[0]![0].messages.enterprise).toBeUndefined();
+  });
 });

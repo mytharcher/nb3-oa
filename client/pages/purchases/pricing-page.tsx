@@ -395,6 +395,10 @@ function PricingForm({
         <Field data-invalid={fieldState.invalid}>
           <FieldLabel htmlFor={id}>{t('purchases.vendor')} *</FieldLabel>
           <Select
+            items={(options.data?.vendors ?? []).map((v) => ({
+              value: v.id,
+              label: `${v.name} · ${v.category}${!v.active ? ` (${t('purchases.inactive')})` : ''}`,
+            }))}
             value={field.value}
             onValueChange={(value) => {
               field.onChange(value);

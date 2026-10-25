@@ -11,7 +11,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { Link, useLocation, useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
 import { parseISO } from 'date-fns';
-import { RouteDrawer } from '#components/route-drawer';
+import { RequestActionOverlay } from '#components/request-action-overlay';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { ApprovalRecipientPicker } from '#components/approval-recipient-picker';
 import { Button } from '#components/ui/button';
@@ -153,7 +153,7 @@ export default function ReimbursementActionDialog() {
   const name = resource.data?.record.number ?? t('approvals.draft'),
     label = t(`reimbursementRequests.actionForm.labels.${actionName}`);
   return (
-    <RouteDrawer
+    <RequestActionOverlay
       className={
         [
           'transfer',
@@ -241,7 +241,7 @@ export default function ReimbursementActionDialog() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </RouteDrawer>
+    </RequestActionOverlay>
   );
 }
 function ActionFooter({

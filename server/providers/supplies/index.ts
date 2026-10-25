@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 
 import {
@@ -97,6 +98,16 @@ export default class SupplyProvider extends ServiceProvider<Application> {
     });
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.supplies',
+      resource: 'oa.supplies',
+      collection: 'supplyRequests',
+      titleField: 'purpose',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(supplyServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     if (!this.app.container.has(authorizationToken)) return;
     const authz = this.app.container.resolve(authorizationToken);
     authz.database.collections.add({

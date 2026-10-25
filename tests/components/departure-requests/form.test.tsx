@@ -34,7 +34,17 @@ vi.mock('../../../client/components/use-route-overlay.js', () => ({
   useRouteOverlay: () => ({ close }),
 }));
 vi.mock('../../../client/pages/departure-requests/pickers.js', () => ({
-  HandoverPicker: () => null,
+  HandoverPicker: ({
+    id,
+    value,
+    onChange,
+  }: {
+    id: string;
+    value: string;
+    onChange: (v: string) => void;
+  }) => (
+    <input id={id} value={value} onChange={(e) => onChange(e.target.value)} />
+  ),
   DepartureEmployeePicker: ({
     id,
     value,
@@ -45,6 +55,23 @@ vi.mock('../../../client/pages/departure-requests/pickers.js', () => ({
     onChange: (v: string) => void;
   }) => (
     <input id={id} value={value} onChange={(e) => onChange(e.target.value)} />
+  ),
+}));
+vi.mock('../../../client/components/date-picker.js', () => ({
+  DatePicker: ({
+    id,
+    onChange,
+  }: {
+    id: string;
+    onChange: (date: Date) => void;
+  }) => (
+    <button
+      type='button'
+      id={id}
+      onClick={() => onChange(new Date(2026, 10, 1))}
+    >
+      Choose date
+    </button>
   ),
 }));
 const runtime = await createTestI18nRuntime({
@@ -82,6 +109,14 @@ function show(current = options) {
         <button form='departure-draft-form' type='submit'>
           Save
         </button>
+        <button
+          form='departure-draft-form'
+          type='submit'
+          name='requestIntent'
+          value='submit'
+        >
+          Submit
+        </button>
       </MemoryRouter>
     </TestI18nProvider>
   );
@@ -106,6 +141,22 @@ async function fill() {
     target: { value: 'Career change' },
   });
 }
+it('marks submission requirements and blocks an incomplete submission before saving a draft', async () => {
+  show();
+  await fill();
+
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Submit', exact: true }),
+  );
+  await screen.findByRole('dialog', { name: copy.form.confirmSubmission });
+  expect(api.request).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole('button', { name: copy.form.confirmSubmission }),
+  );
+  expect(await screen.findAllByText('Complete this field.')).toHaveLength(2);
+  expect(api.request).not.toHaveBeenCalled();
+  expect(readUnknownCreate('actor-1')).toBeNull();
+});
 it('keeps an unknown manual-create result locked across remount and empty mine lookup', async () => {
   api.request.mockRejectedValueOnce(new TypeError('lost response'));
   const rendered = show();
@@ -163,4 +214,46 @@ it('clears manual selections and reason when options withdraw the live manual gr
   expect(screen.getByLabelText('Employee *')).toHaveValue('');
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   expect(api.request).not.toHaveBeenCalled();
+});
+
+it('confirms submission in a small dialog before creating and submitting the draft', async () => {
+  const record = {
+    id: 'draft-1',
+    status: 'draft',
+    lifecycleVersion: 0,
+    number: 'LZ-1',
+  };
+  api.request
+    .mockResolvedValueOnce({ data: { record } })
+    .mockResolvedValueOnce({
+      data: { record: { ...record, status: 'manager', lifecycleVersion: 1 } },
+    });
+  show();
+  await fill();
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Submit', exact: true }),
+  );
+  await screen.findByRole('dialog', { name: copy.form.confirmSubmission });
+  expect(api.request).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Expected last working day' }),
+  );
+  fireEvent.change(
+    screen.getByRole('textbox', { name: 'Handover recipient' }),
+    {
+      target: { value: 'recipient' },
+    },
+  );
+  await userEvent.click(
+    screen.getByRole('button', { name: copy.form.confirmSubmission }),
+  );
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  expect(api.request.mock.calls[0][0].json).toMatchObject({
+    expectedLastWorkingDay: '2026-11-01',
+    handoverUserId: 'recipient',
+  });
+  expect(api.request.mock.calls[1][0].json).toMatchObject({
+    transition: 'submit',
+    version: 0,
+  });
 });

@@ -21,10 +21,12 @@ export async function startIsolatedBrowserApp({
   name,
   apiPort,
   vitePort,
+  config,
 }: {
   name: string;
   apiPort: number;
   vitePort: number;
+  config?: Parameters<typeof createTestApp>[0]['config'];
 }) {
   const apiOrigin = `http://127.0.0.1:${apiPort}`,
     origin = `http://127.0.0.1:${vitePort}`;
@@ -59,6 +61,7 @@ export async function startIsolatedBrowserApp({
         // Vite serves source code; a clean worktree has no dist/client HTML.
         spa: { indexPath: path.resolve('index.html') },
         secrets: { keys: [{ version: 1, key: 'b'.repeat(64) }] },
+        ...config,
       },
     });
     testApp = app;
@@ -173,7 +176,9 @@ export async function startIsolatedBrowserApp({
         );
         const page = await context.newPage();
         await page.addInitScript((locale) => {
-          localStorage.setItem('nocobase.locale', locale);
+          // Set the initial locale once; preserve later user changes across reloads.
+          if (!localStorage.getItem('nocobase.locale'))
+            localStorage.setItem('nocobase.locale', locale);
         }, options.locale ?? 'en-US');
         return page;
       },

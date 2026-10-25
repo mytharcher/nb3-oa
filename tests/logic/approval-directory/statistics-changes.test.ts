@@ -2,11 +2,10 @@
 import { randomUUID } from 'node:crypto';
 import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
 import { expect, vi } from 'vitest';
+import { userTaskServiceToken } from '@nocobase/app-plugin-task-center/server';
+import { approvalTaskContributorToken } from '@nocobase/app-plugin-approval/server';
 import { approvalDirectoryServiceToken } from '../../../server/providers/approval-directory/contract.js';
-import {
-  approvalQueryToken,
-  approvalStatisticsChangesToken,
-} from '../../../server/providers/approval-runtime/statistics-contract.js';
+import { approvalStatisticsChangesToken } from '../../../server/providers/approval-runtime/statistics-contract.js';
 import { ApprovalStatisticsChangeService } from '../../../server/providers/approval-runtime/statistics-changes.js';
 import { approvalQuerySources } from '../../../server/providers/approval-runtime/query-service.js';
 import {
@@ -29,7 +28,8 @@ test('unifies immediate, future and expired delegation changes against real pend
   const container = testApp.application.container;
   const directory = container.resolve(approvalDirectoryServiceToken);
   const changes = container.resolve(approvalStatisticsChangesToken);
-  const query = container.resolve(approvalQueryToken);
+  const tasks = container.resolve(userTaskServiceToken);
+  const contributor = container.resolve(approvalTaskContributorToken);
   const manager = await createEmployee(testApp, 'Statistics manager');
   const delegate = await createEmployee(testApp, 'Statistics delegate');
   const replacement = await createEmployee(testApp, 'Statistics replacement');
@@ -77,7 +77,10 @@ test('unifies immediate, future and expired delegation changes against real pend
   ).toBe(200);
 
   const pending = async (userId: string) =>
-    (await query.statistics([userId], [LEAVE_LIFECYCLE]))[0];
+    await tasks.statistics(userId, {
+      sourceType: 'approval.task',
+      subject: LEAVE_LIFECYCLE,
+    });
   const now = Date.now();
   const from = new Date(now + 60_000).toISOString();
   const to = new Date(now + 120_000).toISOString();
@@ -91,10 +94,8 @@ test('unifies immediate, future and expired delegation changes against real pend
     },
     { actorId: manager.userId },
   );
-  expect((await pending(manager.userId)).counts?.pendingRecords).toBe(1);
-  expect((await pending(delegate.userId)).counts?.pendingRecords).toBe(0);
-  // Dependency tracking/contributions are a separate migration, not implied by this trigger.
-  expect((await pending(delegate.userId)).exact).toBe(false);
+  expect((await pending(manager.userId)).pending).toBe(1);
+  expect((await pending(delegate.userId)).pending).toBe(0);
   expect(
     await testApp.database
       .repository(BOUNDARIES)
@@ -109,7 +110,7 @@ test('unifies immediate, future and expired delegation changes against real pend
   try {
     vi.setSystemTime(new Date(from));
     const fail = vi
-      .spyOn(query, 'recomputeInTransaction')
+      .spyOn(contributor, 'synchronizeBatch')
       .mockRejectedValueOnce(new Error('time recompute failed'));
     try {
       await expect(changes.processDue()).rejects.toThrow(
@@ -128,7 +129,7 @@ test('unifies immediate, future and expired delegation changes against real pend
       changes.processDue(),
     ]);
     expect(attempts.reduce((a, b) => a + b, 0)).toBe(1);
-    expect((await pending(delegate.userId)).counts?.pendingRecords).toBe(1);
+    expect((await pending(delegate.userId)).pending).toBe(1);
     await directory.updateManualDelegation(
       delegation.id,
       {
@@ -140,8 +141,8 @@ test('unifies immediate, future and expired delegation changes against real pend
       },
       { actorId: manager.userId },
     );
-    expect((await pending(delegate.userId)).counts?.pendingRecords).toBe(0);
-    expect((await pending(replacement.userId)).counts?.pendingRecords).toBe(1);
+    expect((await pending(delegate.userId)).pending).toBe(0);
+    expect((await pending(replacement.userId)).pending).toBe(1);
     expect(
       await testApp.database
         .repository(BOUNDARIES)
@@ -149,10 +150,7 @@ test('unifies immediate, future and expired delegation changes against real pend
     ).toBe(1);
 
     // A new dispatcher instance recovers pending boundaries from PostgreSQL.
-    const restarted = new ApprovalStatisticsChangeService(
-      testApp.database,
-      query,
-    );
+    const restarted = new ApprovalStatisticsChangeService(testApp.database);
     for (const source of approvalQuerySources(
       container.resolve(leaveServiceToken).approvals,
     ))
@@ -160,7 +158,7 @@ test('unifies immediate, future and expired delegation changes against real pend
     restarted.activate();
     vi.setSystemTime(new Date(to));
     expect(await restarted.processDue()).toBe(1);
-    expect((await pending(replacement.userId)).counts?.pendingRecords).toBe(0);
+    expect((await pending(replacement.userId)).pending).toBe(0);
     expect(await restarted.processDue()).toBe(0);
     expect(
       await testApp.database
@@ -178,7 +176,8 @@ test('rolls back dependency writes, audit and time events when synchronous recom
 }) => {
   const container = testApp.application.container;
   const directory = container.resolve(approvalDirectoryServiceToken);
-  const query = container.resolve(approvalQueryToken);
+  const tasks = container.resolve(userTaskServiceToken);
+  const contributor = container.resolve(approvalTaskContributorToken);
   const principal = await createEmployee(
     testApp,
     'Statistics rollback principal',
@@ -189,7 +188,7 @@ test('rolls back dependency writes, audit and time events when synchronous recom
   );
   const before = await testApp.database.repository(BOUNDARIES).count();
   const fail = vi
-    .spyOn(query, 'recomputeInTransaction')
+    .spyOn(contributor, 'synchronizeBatch')
     .mockRejectedValueOnce(new Error('recompute failed'));
   try {
     await expect(
@@ -214,8 +213,13 @@ test('rolls back dependency writes, audit and time events when synchronous recom
   ).toEqual([]);
   expect(await testApp.database.repository(BOUNDARIES).count()).toBe(before);
   expect(
-    (await query.statistics([delegate.userId], [LEAVE_LIFECYCLE]))[0].counts,
-  ).toBeNull();
+    (
+      await tasks.statistics(delegate.userId, {
+        sourceType: 'approval.task',
+        subject: LEAVE_LIFECYCLE,
+      })
+    ).pending,
+  ).toBe(0);
 });
 
 test('cancels future boundaries on disable and preserves outer transaction rollback', async ({

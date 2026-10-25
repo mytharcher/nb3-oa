@@ -8,10 +8,13 @@ import { PasswordLoginForm } from '#extensions/nocobase-auth-forms/password-logi
 import { AuthMethods } from '#extensions/nocobase-auth-methods/auth-methods';
 
 import { AuthPage } from './shared.js';
+import { useEnterpriseIdentity } from '#hooks/use-enterprise-identity';
+import { Alert, AlertDescription } from '#components/ui/alert';
 
 export default function LoginPage(): ReactElement {
   const { t } = useTranslation();
   const login = usePasswordLogin();
+  const enterprise = useEnterpriseIdentity();
   // The sign-up link follows the server: it is hidden while `auth.emailAndPassword` turns sign-up off.
   const signUpAvailable = useSignUpAvailable();
 
@@ -20,9 +23,28 @@ export default function LoginPage(): ReactElement {
       description={t('auth.loginDescription')}
       title={t('auth.welcome')}
     >
+      {enterprise.error ? (
+        <Alert variant='destructive'>
+          <AlertDescription>{t('enterpriseIdentity.failed')}</AlertDescription>
+        </Alert>
+      ) : null}
       {/* Add another sign-in method to `methods`, or SSO buttons as `providers`; the guest route redirects once
           the session exists. */}
       <AuthMethods
+        providers={
+          enterprise.enabled
+            ? [
+                {
+                  id: enterprise.providerId,
+                  label: enterprise.label,
+                  disabled: enterprise.isPending,
+                  onClick: () => {
+                    void enterprise.start();
+                  },
+                },
+              ]
+            : []
+        }
         labels={{
           continueWith: t('auth.continueWith'),
           methods: t('auth.methods'),

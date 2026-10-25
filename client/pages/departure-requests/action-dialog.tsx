@@ -1,3 +1,6 @@
+import { useRequestFormSubmission } from '#hooks/use-request-form-submission';
+import { HandoverPicker } from './pickers.js';
+import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { Missing } from './missing.js';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
@@ -10,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
-import { RouteDrawer } from '#components/route-drawer';
+import { RequestActionOverlay } from '#components/request-action-overlay';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { ApprovalRecipientPicker } from '#components/approval-recipient-picker';
 import { Button } from '#components/ui/button';
@@ -135,7 +138,7 @@ export default function DepartureActionDialog() {
       : t('departureRequests.title'),
     label = t(`departureRequests.actionForm.labels.${actionName}`);
   return (
-    <RouteDrawer
+    <RequestActionOverlay
       className={
         ['transfer', 'addSigner', 'cc', 'appoint', 'reassign'].includes(
           actionName,
@@ -220,7 +223,7 @@ export default function DepartureActionDialog() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </RouteDrawer>
+    </RequestActionOverlay>
   );
 }
 function ActionFooter({
@@ -274,6 +277,7 @@ export function ActionForm({
     toaster = useToaster(),
     { close } = useRouteOverlay(),
     parent = useOutletContext<DetailContext>();
+  const { session } = useAuthentication();
   const f = useCallback(
     (key: string) => t(`departureRequests.actionForm.${key}`),
     [t],
@@ -297,6 +301,8 @@ export function ActionForm({
       place: string;
       returnTarget: string;
       lastWorkingDay: string;
+      expectedLastWorkingDay: string;
+      handoverUserId: string;
       settlementDate: string;
       settlementNote: string;
     }>(undefined);
@@ -381,6 +387,15 @@ export function ActionForm({
         lastWorkingDay: z
           .string()
           .refine((v) => !hr || isValidLocalDate(v), f('required')),
+        expectedLastWorkingDay: z
+          .string()
+          .refine(
+            (v) => name !== 'submit' || isValidLocalDate(v),
+            f('required'),
+          ),
+        handoverUserId: z
+          .string()
+          .refine((v) => name !== 'submit' || !!v, f('required')),
         settlementDate: z
           .string()
           .refine(
@@ -409,6 +424,8 @@ export function ActionForm({
           ? targets[0]
           : '',
       lastWorkingDay: detail.record.expectedLastWorkingDay ?? '',
+      expectedLastWorkingDay: detail.record.expectedLastWorkingDay ?? '',
+      handoverUserId: detail.record.handoverUserId ?? '',
       settlementDate: '',
       settlementNote: '',
     },
@@ -434,6 +451,11 @@ export function ActionForm({
     () => onBlocked?.(committed || conflict || uncertain || unsupported),
     [onBlocked, committed, conflict, uncertain, unsupported],
   );
+  const submission = useRequestFormSubmission<DepartureDetail['record']>({
+    resource: 'departureRequests',
+    suffix: 'transitions',
+    initialIntent: 'submit',
+  });
   async function perform(v: Values, replay = false) {
     if (
       runningRef.current ||
@@ -477,16 +499,52 @@ export function ActionForm({
       attemptRef.current = { key, requestId: createRequestId(), body };
     attemptValuesRef.current = v;
     try {
-      const result = await api.request<{
-        data: { record: DepartureDetail['record'] };
-      }>({
-        method: 'POST',
-        path: `departureRequests/${encodeURIComponent(detail.record.id)}/${transition ? 'transitions' : 'actions'}`,
-        json: {
-          ...attemptRef.current!.body,
-          requestId: attemptRef.current!.requestId,
-        },
-      });
+      let result: { data: { record: DepartureDetail['record'] } };
+      if (name === 'submit') {
+        const input = {
+          departureType: detail.record.departureType,
+          reason: detail.record.reason,
+          expectedLastWorkingDay: v.expectedLastWorkingDay,
+          handoverUserId: v.handoverUserId,
+        };
+        const saved = await submission.save(
+          input,
+          detail.record,
+          async (record) => {
+            if (
+              record?.expectedLastWorkingDay === input.expectedLastWorkingDay &&
+              record.handoverUserId === input.handoverUserId
+            )
+              return record;
+            const { data } = await api.request<{
+              data: { record: DepartureDetail['record'] };
+            }>({
+              method: 'POST',
+              path: `departureRequests/${encodeURIComponent(detail.record.id)}/transitions`,
+              json: {
+                transition: 'edit',
+                version: record!.lifecycleVersion,
+                requestId: createRequestId(),
+                input,
+              },
+            });
+            parent.applyRecord(data.record);
+            return data.record;
+          },
+        );
+        result = { data: { record: await submission.finish(saved) } };
+      } else {
+        result = await api.request<{
+          data: { record: DepartureDetail['record'] };
+        }>({
+          method: 'POST',
+          path: `departureRequests/${encodeURIComponent(detail.record.id)}/${transition ? 'transitions' : 'actions'}`,
+          json: {
+            ...attemptRef.current!.body,
+            requestId: attemptRef.current!.requestId,
+          },
+        });
+      }
       if (result.data?.record) parent.applyRecord(result.data.record);
       setCommitted(true);
       setUncertain(false);
@@ -518,6 +576,8 @@ export function ActionForm({
           place: '',
           returnTarget: '',
           lastWorkingDay: '',
+          expectedLastWorkingDay: '',
+          handoverUserId: '',
           settlementDate: '',
           settlementNote: '',
         });
@@ -695,6 +755,65 @@ export function ActionForm({
         }}
       >
         <FieldGroup>
+          {name === 'submit' ? (
+            <>
+              <Controller
+                control={form.control}
+                name='expectedLastWorkingDay'
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor='submit-departure-date'>
+                      {t('departureRequests.expectedLastWorkingDay')} *
+                    </FieldLabel>
+                    <div
+                      ref={(node) => field.ref(node?.querySelector('button'))}
+                    >
+                      <DatePicker
+                        id='submit-departure-date'
+                        className='w-full'
+                        value={field.value ? parseISO(field.value) : undefined}
+                        onChange={(date) =>
+                          field.onChange(date ? format(date, 'yyyy-MM-dd') : '')
+                        }
+                        onBlur={field.onBlur}
+                        invalid={fieldState.invalid}
+                        disabled={locked}
+                      />
+                    </div>
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+              <Controller
+                control={form.control}
+                name='handoverUserId'
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor='submit-departure-handover'>
+                      {t('departureRequests.handoverUser')} *
+                    </FieldLabel>
+                    <HandoverPicker
+                      id='submit-departure-handover'
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      focusRef={field.ref}
+                      invalid={fieldState.invalid}
+                      disabled={locked}
+                      knownUser={detail.record.handoverUser}
+                      employeeId={
+                        session?.user.id !== detail.record.applicantId
+                          ? detail.record.employeeId
+                          : undefined
+                      }
+                    />
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+            </>
+          ) : null}
+
           <Field data-invalid={!!form.formState.errors.comment}>
             <FieldLabel htmlFor='action-comment'>
               {f('comment')}

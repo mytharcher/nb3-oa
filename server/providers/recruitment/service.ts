@@ -1263,6 +1263,14 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
       const record = await read(id, policy);
       return { applicantId: record.applicantId, status: record.status };
     },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      _actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await read(id, policy);
+    },
     async detail(
       id: string,
       actorId: string,

@@ -1,3 +1,4 @@
+import { asyncFilter } from '../approval-runtime/async-filter.js';
 import {
   allActivePeople,
   APPROVAL_COLLECTIONS,
@@ -272,8 +273,8 @@ export function createPaymentRequestService(d: PaymentRequestDependencies) {
   const cc = defineApprovalAction({
     ...ccAction,
     people: (ctx, query) => allActivePeople().search(ctx, query),
-    validate: ({ to }, ctx) =>
-      typeof to === 'string' && ctx.directory.isActive(to)
+    validate: async ({ to }, ctx) =>
+      typeof to === 'string' && (await ctx.directory.isActive(to))
         ? null
         : 'Choose an active recipient.',
   });
@@ -291,14 +292,17 @@ export function createPaymentRequestService(d: PaymentRequestDependencies) {
         const page = await allActivePeople().search(context, query);
         return {
           ...page,
-          people: page.people.filter(
-            (person) =>
-              context.eligible(person, {
-                replacing: false,
-                kind: 'decide',
-                role: 'member',
-                via: 'assign',
-              }).ok,
+          people: await asyncFilter(
+            page.people,
+            async (person) =>
+              (
+                await context.eligible(person, {
+                  replacing: false,
+                  kind: 'decide',
+                  role: 'member',
+                  via: 'assign',
+                })
+              ).ok,
           ),
         };
       },
@@ -309,9 +313,15 @@ export function createPaymentRequestService(d: PaymentRequestDependencies) {
         const page = await allActivePeople().search(context, query);
         return {
           ...page,
-          people: page.people.filter(
-            (person) =>
-              context.eligible(person, { replacing: true, via: 'reassign' }).ok,
+          people: await asyncFilter(
+            page.people,
+            async (person) =>
+              (
+                await context.eligible(person, {
+                  replacing: true,
+                  via: 'reassign',
+                })
+              ).ok,
           ),
         };
       },
@@ -1442,6 +1452,36 @@ export function createPaymentRequestService(d: PaymentRequestDependencies) {
         applicantId: record.applicantId,
         status: record.status,
         contractId: record.contractId,
+      };
+    },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await canRead(id, actorId, policy);
+    },
+    async financeExport(id: string, actorId: string, policy: RepositoryPolicy) {
+      const record = await canRead(id, actorId, policy);
+      if (!['paid', 'forcedPaid'].includes(record.status) || !record.number)
+        return fail(
+          'PAYMENT_REQUEST_NOT_PAID',
+          'Only final paid requests may be sent to the finance system.',
+        );
+      return {
+        id: record.id,
+        number: record.number,
+        applicantId: record.applicantId,
+        departmentId: record.departmentId,
+        amountCents: record.amountCents,
+        offsetCents: 0,
+        paidCents: record.amountCents,
+        vendorId: record.vendorId,
+        purchaseOrderId: record.sourceOrderId,
+        contractId: record.sourceContractId ?? record.contractId,
+        forced: record.status === 'forcedPaid',
+        lines: [],
       };
     },
     async detail(id: string, actorId: string, readPolicy?: RepositoryPolicy) {

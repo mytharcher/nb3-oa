@@ -21,12 +21,12 @@ export default {
     approversInvalid: '请选择 1 至 3 位不同的在职人员，不能选择申请人本人。',
     invalid: '请填写标题与申请正文，并检查长度限制。',
     inactive: '申请人须为在职员工。',
-    configuration: '当前审批时钟配置不受支持，请联系管理员。',
+    configuration: '暂时无法提交审批，请联系管理员检查审批期限设置。',
     uncertainCreate:
       '保存结果尚未确认，请关闭表单，先在“我发起的”核实是否已有草稿。',
     attachmentInvalid: '部分附件不属于此申请。',
     attachmentDenied: '没有访问这些附件的权限。',
     attachmentType: '请上传匹配的 PDF、JPEG、PNG 或 WebP 文件。',
-    attachmentSize: '附件不能为空，且不能超过 5 MiB。',
+    attachmentSize: '附件不能为空，且不能超过 5 MB。',
   },
 };

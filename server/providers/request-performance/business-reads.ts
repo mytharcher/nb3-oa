@@ -14,6 +14,10 @@ const reads = new AsyncLocalStorage<
   Map<object, Map<string, Promise<unknown>>>
 >();
 
+export function isBusinessRead(): boolean {
+  return !!reads.getStore();
+}
+
 /** Only immutable read facts in one GET; explicit transactions bypass callers. */
 export function withBusinessReads<T>(work: () => Promise<T>) {
   return reads.run(new Map(), work);

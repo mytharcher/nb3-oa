@@ -25,12 +25,12 @@ export default {
     invalid: 'Enter a title and request details within the allowed length.',
     inactive: 'The applicant must be an active employee.',
     configuration:
-      'This approval clock configuration is unsupported. Contact an administrator.',
+      'Approval cannot be submitted. Contact an administrator to check the approval deadlines.',
     uncertainCreate:
       'The save result is uncertain. Close and check My requests before creating another draft.',
     attachmentInvalid: 'Some attachments do not belong to this request.',
     attachmentDenied: 'You cannot access these attachments.',
     attachmentType: 'Use a matching PDF, JPEG, PNG or WebP file.',
-    attachmentSize: 'Attachments must be nonempty and at most 5 MiB.',
+    attachmentSize: 'Attachments must be nonempty and at most 5 MB.',
   },
 };

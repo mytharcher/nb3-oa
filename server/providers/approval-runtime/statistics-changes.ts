@@ -1,6 +1,5 @@
 import { synchronizeTaskDependencies } from './task-center.js';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
-import type { ApprovalQuery } from '@nocobase/app-plugin-approval/server';
 import type { LifecycleRuntime } from '@nocobase/lifecycle';
 import type {
   ApprovalStatisticsChange,
@@ -38,7 +37,6 @@ export class ApprovalStatisticsChangeService implements ApprovalStatisticsChange
 
   constructor(
     private readonly database: DatabaseManager,
-    private readonly query: ApprovalQuery,
     private readonly clock: () => Date = () => new Date(),
   ) {}
 
@@ -109,47 +107,25 @@ export class ApprovalStatisticsChangeService implements ApprovalStatisticsChange
   ): Promise<T> {
     const sources = this.selected(change);
     const users = [...new Set(change.userIds)].sort();
-    const enter = async (
-      index: number,
-      current: DatabaseConnection,
-    ): Promise<T> => {
-      if (index < sources.length) {
-        const source = sources[index];
-        return withAppLifecycleTransaction(current, () =>
-          source.runtime.transaction((tx) =>
-            this.query.transactionIn(source.business, tx, () =>
-              enter(index + 1, tx.handle as DatabaseConnection),
-            ),
-          ),
-        );
-      }
-      const result = await work(current);
-      if (!synchronize) return result;
-      // Re-enter each owner after the final write so its directory and guards see
-      // the new facts, rather than the snapshot captured while acquiring gates.
-      for (const source of users.length ? sources : [])
-        await withAppLifecycleTransaction(current, () =>
-          source.runtime.transaction(async (tx) => {
-            for (const userId of users)
-              await this.query.recomputeInTransaction(
-                source.business,
-                userId,
-                tx,
-              );
-          }),
-        );
-      for (const source of sources)
-        await synchronizeTaskDependencies(
-          this.database,
-          source.business,
-          current,
-          ['delegationChanged', 'delegationTimeChanged'].includes(change.reason)
-            ? { assigneeIds: users }
-            : undefined,
-        );
-      return result;
-    };
-    const run = (current: DatabaseConnection) => enter(0, current);
+    const run = (current: DatabaseConnection): Promise<T> =>
+      withAppLifecycleTransaction(current, async () => {
+        const result = await work(current);
+        if (!synchronize) return result;
+        // Dependency reconciliation remains transactional; removed statistics
+        // snapshots and their query gates are no longer read or maintained.
+        for (const source of sources)
+          await synchronizeTaskDependencies(
+            this.database,
+            source.business,
+            current,
+            ['delegationChanged', 'delegationTimeChanged'].includes(
+              change.reason,
+            )
+              ? { assigneeIds: users }
+              : undefined,
+          );
+        return result;
+      });
     // A savepoint also protects callers that catch a failure in an owned transaction.
     return connection
       ? connection.transaction(run)
@@ -212,6 +188,11 @@ export class ApprovalStatisticsChangeService implements ApprovalStatisticsChange
       const candidate = value as unknown as Boundary;
       processed += await this.change(candidate, async (connection) => {
         const repository = connection.repository(BOUNDARIES);
+        // Serialize competing dispatchers before reading the current identity.
+        await repository.updateMany({
+          filter: { id: candidate.id },
+          values: { id: candidate.id },
+        });
         const current = await repository.findOne({
           filter: { id: candidate.id },
         });

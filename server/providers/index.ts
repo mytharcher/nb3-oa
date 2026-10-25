@@ -1,3 +1,11 @@
+import InvoiceRecognitionProvider from './invoice-recognition/index.js';
+import ElectronicSignaturesProvider from './electronic-signatures/index.js';
+import WecomAttendanceProvider from './wecom-attendance/index.js';
+import RequestSearchProvider from './request-search/index.js';
+import ProcessOperationsProvider from './process-operations/index.js';
+import FinanceIntegrationProvider from './finance-integration/index.js';
+import HrMasterDataProvider from './hr-master-data/index.js';
+import EnterpriseMessagingProvider from './enterprise-messaging/index.js';
 import TaskCenterProvider from './task-center/index.js';
 import DemoDataProvider from './demo-data/index.js';
 import ProcessManagementProvider from './process-management/index.js';
@@ -86,8 +94,16 @@ const serviceProviders: readonly ApplicationServiceProviderConstructor[] = [
   HeadcountsProvider,
   AttendanceProvider,
   AttendanceManagementProvider,
+  WecomAttendanceProvider,
   ApprovalDirectoryProvider,
   FinanceAssignmentsProvider,
+  RequestSearchProvider,
+  ProcessOperationsProvider,
+  FinanceIntegrationProvider,
+  InvoiceRecognitionProvider,
+  ElectronicSignaturesProvider,
+  HrMasterDataProvider,
+  EnterpriseMessagingProvider,
   ApprovalNotificationsProvider,
   LeaveBalancesProvider,
   AnnualLeaveProvider,

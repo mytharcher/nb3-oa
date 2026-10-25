@@ -121,7 +121,7 @@ const settingsRoutes: AppClientRouteContribution = defineAppRoutes([
   },
   {
     auth: 'required',
-    parent: 'oa-system',
+    parent: 'oa-system-operations',
     name: 'platform-audit-logs',
     path: '/audit-logs',
     // No seed grants this item: only root sees the audit log until an administrator grants it (02 §9).

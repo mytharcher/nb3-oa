@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { ServiceProvider } from '@nocobase/service-provider';
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken } from '@nocobase/db';
@@ -139,6 +140,47 @@ export default class CertificatesProvider extends ServiceProvider<Application> {
     c.singleton(certificatePrintServiceToken, () => get().print);
   }
   override async boot() {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.certificateRequest',
+      resource: 'oa.certificateRequests',
+      collection: 'certificateRequests',
+      titleField: 'purpose',
+      numberField: null,
+      relatedNumber: {
+        referenceField: 'issueId',
+        matchingRequestIds: async (query) => {
+          const issues = await this.app.container
+            .resolve(databaseManagerToken)
+            .repository<{ requestId: string; number: string }>(
+              'certificateIssues',
+            )
+            .findMany({
+              select: (s) => s.fields('requestId'),
+              filter: (f) =>
+                f.string('number').includes(query, { mode: 'insensitive' }),
+              limit: 501,
+            });
+          return issues.map((issue) => String(issue.requestId));
+        },
+        value: async (record) => {
+          if (!record.issueId) return null;
+          const issue = await this.app.container
+            .resolve(databaseManagerToken)
+            .repository<{ id: string; requestId: string; number: string }>(
+              'certificateIssues',
+            )
+            .findOne({
+              filter: { id: record.issueId, requestId: record.id },
+              select: (s) => s.fields('number'),
+            });
+          return issue?.number ?? null;
+        },
+      },
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(certificateRequestServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     const a = this.app.container.resolve(authorizationToken);
     for (const name of ['certificateRequests', 'certificatePreparationPrivate'])
       a.database.collections.add({ name, title: title('requests') });

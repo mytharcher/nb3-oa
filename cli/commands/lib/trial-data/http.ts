@@ -3,6 +3,17 @@ import type { Application } from '@nocobase/app-server/application';
 import type { TrialRole } from './accounts.js';
 import { trialEmail } from './accounts.js';
 
+/** Only machine codes are retained; response messages may contain private data. */
+export class TrialRequestError extends Error {
+  readonly reason: string;
+  constructor(role: TrialRole, path: string, status: number, code?: string) {
+    const reason =
+      code && /^[A-Z][A-Z0-9_]{0,95}$/.test(code) ? code : `HTTP_${status}`;
+    super(`${role} ${path}: HTTP ${status} ${reason}`);
+    this.reason = reason;
+  }
+}
+
 export interface TrialSession {
   userId: string;
   request(
@@ -76,8 +87,11 @@ export async function trialSession(
       const error = answer.error as
         { reason?: string; code?: string; message?: string } | undefined;
       // Never echo request bodies, passwords, cookie values or private field responses.
-      throw new Error(
-        `${role} ${path}: HTTP ${response.status} ${error?.reason ?? error?.code ?? error?.message ?? 'request failed'}`,
+      throw new TrialRequestError(
+        role,
+        path,
+        response.status,
+        error?.reason ?? error?.code,
       );
     }
     return answer;

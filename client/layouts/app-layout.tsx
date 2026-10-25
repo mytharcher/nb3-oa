@@ -57,13 +57,13 @@ export function AppLayout({ routes }: AppLayoutProps): ReactElement {
             />
           </AppSidebar>
           <div className='flex min-w-0 flex-1 flex-col'>
-            <LayoutHeader className='sticky top-0 z-40 justify-between'>
-              <div className='flex min-w-0 items-center gap-3'>
+            <LayoutHeader className='sticky top-0 z-40 justify-between gap-2'>
+              <div className='flex min-w-0 items-center gap-2 sm:gap-3'>
                 <AppSidebarToggle />
-                <div className='md:hidden'>
+                <div className='shrink-0 md:hidden'>
                   <AppBrand />
                 </div>
-                <div className='h-5 w-px shrink-0 bg-border' />
+                <div className='hidden h-5 w-px shrink-0 bg-border md:block' />
                 {/* The current page's trail: the route tree's, or the one the page declares (`usePageBreadcrumb`). */}
                 <Breadcrumbs denied={denied} />
               </div>

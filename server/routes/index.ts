@@ -1,3 +1,13 @@
+import invoiceRecognitionRoutes from './invoice-recognition/index.js';
+import electronicSignaturesRoutes from './electronic-signatures/index.js';
+import wecomAttendanceRoutes from './wecom-attendance/index.js';
+import requestSearchRoutes from './request-search/index.js';
+import processOperationsRoutes from './process-operations/index.js';
+import financeIntegrationRoutes from './finance-integration/index.js';
+import hrMasterDataRoutes from './hr-master-data/index.js';
+import roleContextRoutes from './workbench/role-context.js';
+import attendanceResultsRoutes from './attendance-results/index.js';
+import requestPreferencesRoutes from './request-preferences/index.js';
 import taskCenterRoutes from './task-center/index.js';
 import processManagementRoutes from './process-management/index.js';
 import personalSchedulesRoutes from './personal-schedules/index.js';
@@ -62,8 +72,16 @@ import approvalEfficiencyRoutes from './reports/approval-efficiency.js';
 // Each OA module owns `server/routes/<module>/` and exports its contributions from its `index.ts`.
 const routes: readonly AppRouteContribution<Application>[] = [
   ...workbenchRoutes,
+  ...roleContextRoutes,
   ...processManagementRoutes,
   ...taskCenterRoutes,
+  ...requestPreferencesRoutes,
+  ...requestSearchRoutes,
+  ...processOperationsRoutes,
+  ...financeIntegrationRoutes,
+  ...invoiceRecognitionRoutes,
+  ...electronicSignaturesRoutes,
+  ...hrMasterDataRoutes,
   ...personalSchedulesRoutes,
   ...approvalReturnRateRoutes,
   ...accessRoutes,
@@ -87,6 +105,8 @@ const routes: readonly AppRouteContribution<Application>[] = [
   ...vehicleRoutes,
   ...headcountsRoutes,
   ...attendanceManagementRoutes,
+  ...wecomAttendanceRoutes,
+  ...attendanceResultsRoutes,
   ...attendanceChangeRoutes,
   ...outingsRoutes,
   ...attendanceChangeAttachmentsRoutes,

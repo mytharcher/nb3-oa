@@ -56,6 +56,11 @@ export type AssetRequestInput = Pick<
   | 'photos'
 >;
 export interface AssetRequestService {
+  searchVisible(
+    id: string,
+    actorId: string,
+    policy: import('@nocobase/db').RepositoryPolicy,
+  ): Promise<void>;
   list(
     actorId: string,
     view: 'mine' | 'pending' | 'done' | 'copied',

@@ -57,13 +57,15 @@ export function HandoverPicker({
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
   const [known, setKnown] = useState<Person | null>(null);
+  const [open, setOpen] = useState(false);
+  const searchReady = Array.from(search.trim()).length >= 2;
   useEffect(() => {
     const timer = setTimeout(() => setQ(search.trim()), 300);
     return () => clearTimeout(timer);
   }, [search]);
   // Keep the business eligibility endpoint; a general Users search does not enforce it.
   const resource = useDepartureResource<{ items: Person[]; total: number }>(
-    q && search.trim() === q && !disabled
+    open && searchReady && search.trim() === q && !disabled
       ? 'departureRequests/handoverCandidates'
       : null,
     {
@@ -73,9 +75,10 @@ export function HandoverPicker({
       ...(employeeId ? { employeeId } : {}),
     },
   );
-  const loading = !!search.trim() && (search.trim() !== q || resource.loading);
+  const loading =
+    open && searchReady && (search.trim() !== q || resource.loading);
   const items =
-    !loading && !resource.error && search.trim()
+    open && searchReady && !loading && !resource.error
       ? (resource.data?.items ?? [])
       : [];
   const selected = value
@@ -95,6 +98,7 @@ export function HandoverPicker({
           person.id === current.id
         }
         disabled={disabled}
+        open={open}
         onValueChange={(person: Person | null) => {
           setKnown(person);
           onChange(person?.id ?? '');
@@ -108,6 +112,7 @@ export function HandoverPicker({
             setSearch(text);
         }}
         onOpenChange={(open) => {
+          setOpen(open);
           if (!open) setSearch('');
         }}
       >
@@ -116,6 +121,7 @@ export function HandoverPicker({
           ref={focusRef}
           onBlur={onBlur}
           aria-invalid={invalid || undefined}
+          aria-required='true'
           placeholder={t('departureRequests.form.searchHandover')}
           showTrigger={false}
           showClear={!!selected && !disabled}
@@ -124,11 +130,11 @@ export function HandoverPicker({
         <ComboboxContent>
           <ComboboxEmpty>
             {t(
-              !search.trim()
-                ? 'departureRequests.form.searchHandover'
+              !searchReady
+                ? 'departureRequests.form.handoverSearchMinimum'
                 : loading
                   ? 'userPicker.searching'
-                  : 'userPicker.empty',
+                  : 'departureRequests.form.noHandoverCandidates',
             )}
           </ComboboxEmpty>
           <ComboboxList>
@@ -138,7 +144,10 @@ export function HandoverPicker({
               </ComboboxItem>
             )}
           </ComboboxList>
-          {!loading && !resource.error && (resource.data?.total ?? 0) > 20 ? (
+          {searchReady &&
+          !loading &&
+          !resource.error &&
+          (resource.data?.total ?? 0) > 20 ? (
             <p className='px-2 py-1.5 text-sm text-muted-foreground'>
               {t('departureRequests.form.refineHandoverSearch')}
             </p>

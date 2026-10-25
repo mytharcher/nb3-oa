@@ -90,7 +90,7 @@ export default {
       insufficient: 'This budget account has insufficient available funds.',
       inactive: 'The applicant must have an active employee archive.',
       configuration:
-        'This approval clock configuration is unsupported. Contact an administrator.',
+        'Approval cannot be submitted. Contact an administrator to check the approval deadlines.',
     },
   },
 };

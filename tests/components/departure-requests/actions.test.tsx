@@ -11,6 +11,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Outlet, Routes, Route } from 'react-router';
 import en from '../../../client/locales/en-US.js';
 import copy from '../../../client/locales/modules/departure.en-US.js';
@@ -26,6 +27,22 @@ vi.mock('@nocobase/app-client', async (original) => ({
   ...(await original<typeof import('@nocobase/app-client')>()),
   useApiClient: () => api,
   useToaster: () => ({ show: vi.fn() }),
+}));
+vi.mock('@nocobase/app-plugin-authentication/client', () => ({
+  useAuthentication: () => ({ session: { user: { id: 'employee-1' } } }),
+}));
+vi.mock('../../../client/pages/departure-requests/pickers.js', () => ({
+  HandoverPicker: ({
+    id,
+    value,
+    onChange,
+  }: {
+    id: string;
+    value: string;
+    onChange: (v: string) => void;
+  }) => (
+    <input id={id} value={value} onChange={(e) => onChange(e.target.value)} />
+  ),
 }));
 vi.mock('../../../client/components/use-route-overlay.js', () => ({
   useRouteOverlay: () => ({ close }),
@@ -86,6 +103,10 @@ const detail = {
     id: 'r1',
     number: 'R-1',
     applicant: { id: 'employee-1', name: 'Employee' },
+    applicantId: 'employee-1',
+    handoverUserId: 'recipient-1',
+    departureType: 'resignation',
+    reason: 'Career change',
     expectedLastWorkingDay: '2026-10-20',
     lifecycleVersion: 3,
     lines: [
@@ -203,7 +224,11 @@ it('submits from the action form without a second confirmation and prevents dupl
   );
   fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
   expect(screen.getByLabelText(copy.actionForm.comment)).toBeDisabled();
-  finish({ data: {} });
+  finish({
+    data: {
+      record: { ...detail.record, status: 'manager', lifecycleVersion: 4 },
+    },
+  });
   await waitFor(() => expect(close).toHaveBeenCalledOnce());
   fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
   expect(api.request).toHaveBeenCalledOnce();
@@ -417,4 +442,82 @@ it('HR cancellation requires a reason and sends the guarded business transition 
     version: 3,
     input: { reason: 'Retain employment after discussion' },
   });
+});
+
+it('saves submission fields and uses the returned version to submit from the confirmation', async () => {
+  const current = {
+    ...detail,
+    record: { ...detail.record, handoverUserId: null },
+    view: { available: [{ name: 'submit', allowed: true }] },
+  } as unknown as DepartureDetail;
+  api.request
+    .mockResolvedValueOnce({
+      data: {
+        record: {
+          ...detail.record,
+          handoverUserId: 'chosen',
+          lifecycleVersion: 4,
+        },
+      },
+    })
+    .mockResolvedValueOnce({
+      data: {
+        record: { ...detail.record, status: 'manager', lifecycleVersion: 5 },
+      },
+    });
+  show('submit', undefined, current);
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  await screen.findByText(copy.actionForm.required);
+  expect(api.request).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('Handover recipient *'), {
+    target: { value: 'chosen' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  expect(api.request.mock.calls[0][0].json).toMatchObject({
+    transition: 'edit',
+    version: 3,
+    input: { handoverUserId: 'chosen' },
+  });
+  expect(api.request.mock.calls[1][0].json).toMatchObject({
+    transition: 'submit',
+    version: 4,
+  });
+});
+
+it('retries the same uncertain submission without repeating its acknowledged draft edit', async () => {
+  const current = {
+    ...detail,
+    record: { ...detail.record, handoverUserId: null },
+    view: { available: [{ name: 'submit', allowed: true }] },
+  } as unknown as DepartureDetail;
+  api.request
+    .mockResolvedValueOnce({
+      data: {
+        record: {
+          ...detail.record,
+          handoverUserId: 'chosen',
+          lifecycleVersion: 4,
+        },
+      },
+    })
+    .mockRejectedValueOnce(new TypeError('lost submit response'))
+    .mockResolvedValueOnce({
+      data: {
+        record: { ...detail.record, status: 'manager', lifecycleVersion: 5 },
+      },
+    });
+  show('submit', undefined, current);
+  fireEvent.change(screen.getByLabelText('Handover recipient *'), {
+    target: { value: 'chosen' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  await userEvent.click(
+    await screen.findByRole('button', { name: copy.actionForm.replay }),
+  );
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  expect(api.request).toHaveBeenCalledTimes(3);
+  expect(api.request.mock.calls[1][0].json).toEqual(
+    api.request.mock.calls[2][0].json,
+  );
 });

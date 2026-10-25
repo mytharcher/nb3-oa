@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 
 import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
@@ -106,6 +107,17 @@ export default class GeneralRequestProvider extends ServiceProvider<Application>
     });
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.general',
+      resource: 'oa.general',
+      collection: 'generalRequests',
+      titleField: 'title',
+      titleType: 'string',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(generalServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     if (!this.app.container.has(authorizationToken)) return;
     const authz = this.app.container.resolve(authorizationToken);
     authz.database.collections.add({

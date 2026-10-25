@@ -17,6 +17,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  buildRouteNavigation,
   routeKey,
   type RouteNavigationItem,
 } from '../../client/routing/route-navigation.js';
@@ -347,6 +348,73 @@ describe('collapsed navigation', () => {
       ).not.toBeInTheDocument();
     },
   );
+});
+
+describe('system navigation sections', () => {
+  const section: RouteNavigationItem = {
+    route: { ...page('oa-system-people'), componentLoader: undefined },
+    children: [
+      { route: child, children: [] },
+      { route: sibling, children: [] },
+    ],
+  };
+  const system: RouteNavigationItem = {
+    route: { ...page('System'), componentLoader: undefined },
+    children: [section],
+  };
+
+  it.each(['expanded', 'collapsed', 'mobile'])(
+    'shows section links without a second disclosure in %s navigation',
+    async (mode) => {
+      const user = userEvent.setup();
+      if (mode === 'collapsed') setCollapsed(true);
+      if (mode === 'mobile') vi.stubGlobal('innerWidth', 375);
+      render(shell([system]), { wrapper: I18n });
+      if (mode === 'mobile')
+        await user.click(
+          screen.getByRole('button', { name: 'Open navigation' }),
+        );
+      if (mode === 'collapsed')
+        fireEvent.mouseEnter(screen.getByRole('button', { name: 'System' }));
+      else await user.click(screen.getByRole('button', { name: 'System' }));
+      const group = screen.getByRole('group', { name: 'oa-system-people' });
+      expect(
+        screen.queryByRole('button', { name: 'oa-system-people' }),
+      ).toBeNull();
+      const link = within(group).getByRole('link', { name: 'sibling' });
+      await waitFor(() => expect(link).toBeVisible());
+      expect(link).toHaveAttribute('href', '/sibling');
+      if (mode === 'collapsed') {
+        await user.keyboard('{Escape}');
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      } else if (mode === 'mobile') {
+        await user.click(link);
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      }
+    },
+  );
+
+  it('filters denied pages and removes empty sections and the empty system entry', () => {
+    const routes = [
+      {
+        ...system.route,
+        children: [{ ...section.route, children: [child, sibling] }],
+      },
+    ];
+    const partial = buildRouteNavigation(routes, new Set([routeKey(child)]));
+    render(shell(partial, routeKey(sibling)), { wrapper: I18n });
+    expect(screen.queryByRole('link', { name: 'child' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'sibling' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(
+      buildRouteNavigation(
+        routes,
+        new Set([routeKey(child), routeKey(sibling)]),
+      ),
+    ).toEqual([]);
+  });
 });
 
 describe('sidebar shell', () => {

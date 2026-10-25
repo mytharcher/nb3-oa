@@ -1,3 +1,4 @@
+import { ElectronicSignatureSection } from '#components/electronic-signature-section';
 import { statusTone } from './status-tone.js';
 import { PrintEntry } from '../template-print/entry.js';
 import type { LedgerDetail } from './types.js';
@@ -52,7 +53,9 @@ export default function SealDetail() {
       hash: location.hash,
     });
   const ledger = useSealResource<{ data: LedgerDetail }>(
-    d?.record.status === 'completed' && d.record.ledgerId
+    d?.record.status === 'completed' &&
+      d.record.executionMode !== 'electronic' &&
+      d.record.ledgerId
       ? `sealLedger/${encodeURIComponent(d.record.ledgerId)}`
       : null,
   );
@@ -160,6 +163,14 @@ export default function SealDetail() {
       {r.loading && !d ? <SealSkeleton /> : null}
       {d ? (
         <div className='flex flex-col gap-6'>
+          <p className='text-sm'>
+            {t('electronicSignatures.channel')}:{' '}
+            {t(
+              d.record.executionMode === 'electronic'
+                ? 'electronicSignatures.electronic'
+                : 'electronicSignatures.physical',
+            )}
+          </p>
           <dl className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
             {[
               'applicant',
@@ -179,57 +190,74 @@ export default function SealDetail() {
               'ledgerId',
               'exceptionReason',
               'administrativeReason',
-            ].map((field) => {
-              const v =
-                field === 'applicant'
-                  ? d.record.applicant.name
-                  : field === 'contractId' && d.record.contractId
-                    ? (d.relatedNames?.contractName ??
-                      t('seals.relatedUnavailable'))
-                    : field === 'sealId' && d.record.sealId
-                      ? (d.relatedNames?.sealName ??
+            ]
+              .filter(
+                (field) =>
+                  d.record.executionMode !== 'electronic' ||
+                  ![
+                    'copies',
+                    'external',
+                    'returnDueAt',
+                    'sealId',
+                    'actualCopies',
+                    'borrowedAt',
+                    'returnedAt',
+                    'ledgerId',
+                  ].includes(field),
+              )
+              .map((field) => {
+                const v =
+                  field === 'applicant'
+                    ? d.record.applicant.name
+                    : field === 'contractId' && d.record.contractId
+                      ? (d.relatedNames?.contractName ??
                         t('seals.relatedUnavailable'))
-                      : field === 'ledgerId' && d.record.ledgerId
-                        ? d.relatedNames?.registrationSourceNumber
-                          ? t('seals.registrationSource', {
-                              number: d.relatedNames.registrationSourceNumber,
-                            })
-                          : t('seals.relatedUnavailable')
-                        : d.record[field as keyof typeof d.record];
-              return (
-                <div key={field}>
-                  <dt className='text-muted-foreground'>
-                    {t(`seals.${field}`)}
-                  </dt>
-                  <dd className='mt-1 whitespace-pre-wrap break-words'>
-                    {v === null || v === ''
-                      ? '—'
-                      : typeof v === 'boolean'
-                        ? t(v ? 'seals.yes' : 'seals.no')
-                        : field === 'sealType' && typeof v === 'string'
-                          ? t(`seals.types.${v}`)
-                          : [
-                                'returnDueAt',
-                                'sealedAt',
-                                'borrowedAt',
-                                'returnedAt',
-                              ].includes(field) && typeof v === 'string'
-                            ? new Intl.DateTimeFormat(i18n.language, {
-                                dateStyle: 'medium',
-                                timeStyle: 'short',
-                                timeZone: cap?.timeZone ?? 'UTC',
-                              }).format(new Date(v))
-                            : typeof v === 'number'
-                              ? new Intl.NumberFormat(i18n.language).format(v)
-                              : typeof v === 'string'
-                                ? v
-                                : '—'}
-                  </dd>
-                </div>
-              );
-            })}
+                      : field === 'sealId' && d.record.sealId
+                        ? (d.relatedNames?.sealName ??
+                          t('seals.relatedUnavailable'))
+                        : field === 'ledgerId' && d.record.ledgerId
+                          ? d.relatedNames?.registrationSourceNumber
+                            ? t('seals.registrationSource', {
+                                number: d.relatedNames.registrationSourceNumber,
+                              })
+                            : t('seals.relatedUnavailable')
+                          : d.record[field as keyof typeof d.record];
+                return (
+                  <div key={field}>
+                    <dt className='text-muted-foreground'>
+                      {t(`seals.${field}`)}
+                    </dt>
+                    <dd className='mt-1 whitespace-pre-wrap break-words'>
+                      {v === null || v === ''
+                        ? '—'
+                        : typeof v === 'boolean'
+                          ? t(v ? 'seals.yes' : 'seals.no')
+                          : field === 'sealType' && typeof v === 'string'
+                            ? t(`seals.types.${v}`)
+                            : [
+                                  'returnDueAt',
+                                  'sealedAt',
+                                  'borrowedAt',
+                                  'returnedAt',
+                                ].includes(field) && typeof v === 'string'
+                              ? new Intl.DateTimeFormat(i18n.language, {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short',
+                                  timeZone: cap?.timeZone ?? 'UTC',
+                                }).format(new Date(v))
+                              : typeof v === 'number'
+                                ? new Intl.NumberFormat(i18n.language).format(v)
+                                : typeof v === 'string'
+                                  ? v
+                                  : '—'}
+                    </dd>
+                  </div>
+                );
+              })}
           </dl>
-          <p className='text-muted-foreground'>{t('seals.physicalNotice')}</p>
+          {d.record.executionMode !== 'electronic' ? (
+            <p className='text-muted-foreground'>{t('seals.physicalNotice')}</p>
+          ) : null}
           {d.record.fileIds.length ? (
             <section>
               <h3 className='font-medium'>{t('seals.files')}</h3>
@@ -255,7 +283,11 @@ export default function SealDetail() {
               >
                 <span>
                   <UserName name={a.actor.name} /> ·{' '}
-                  {t(`seals.actions.${a.name}`)}
+                  {t(
+                    a.name === 'electronicComplete'
+                      ? 'electronicSignatures.completedAction'
+                      : `seals.actions.${a.name}`,
+                  )}
                 </span>
                 <span>
                   {new Intl.DateTimeFormat(i18n.language, {
@@ -268,6 +300,13 @@ export default function SealDetail() {
             ))}
           </section>
         </div>
+      ) : null}
+      {d?.record.executionMode === 'electronic' ? (
+        <ElectronicSignatureSection
+          kind='seal'
+          id={d.record.id}
+          onComplete={reload}
+        />
       ) : null}
       <Outlet
         context={{

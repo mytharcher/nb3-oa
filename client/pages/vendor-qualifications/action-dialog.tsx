@@ -16,7 +16,7 @@ import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { offeredActions } from '@nocobase/app-plugin-approval/client';
 import { useOutletContext, useParams } from 'react-router';
-import { RouteDrawer } from '#components/route-drawer';
+import { RequestActionOverlay } from '#components/request-action-overlay';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { Button } from '#components/ui/button';
 import { Textarea } from '#components/ui/textarea';
@@ -64,7 +64,7 @@ export default function ActionDialog() {
   const [ready, setReady] = useState(false);
   const guard = useCloseGuard(busy);
   return (
-    <RouteDrawer
+    <RequestActionOverlay
       className='sm:max-w-2xl'
       title={t('vendorQualifications.confirmation', {
         name: parent.detail.record.name,
@@ -85,7 +85,7 @@ export default function ActionDialog() {
         stay={guard.stay}
         discard={guard.discard}
       />
-    </RouteDrawer>
+    </RequestActionOverlay>
   );
 }
 function Footer({ busy, ready }: { busy: boolean; ready: boolean }) {

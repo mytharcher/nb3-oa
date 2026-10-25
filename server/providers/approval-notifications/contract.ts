@@ -45,6 +45,11 @@ export const approvalNotificationServiceToken: ServiceToken<ApprovalNotification
 /** Channels are explicit names: configuring an unrelated channel never subscribes it to OA events. */
 export interface ApprovalNotificationConfig {
   readonly inbox: string | null;
+  /** Explicit deployment-owned user binding; no email/name guessing. */
+  readonly enterpriseMessaging?: {
+    channel: string;
+    users: Readonly<Record<string, string>>;
+  };
   readonly email: string | null;
   readonly alarm: string | null;
   readonly administrators: readonly string[];

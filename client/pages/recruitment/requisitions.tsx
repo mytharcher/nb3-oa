@@ -15,11 +15,37 @@ import type { Requisition } from './types.js';
 export default function Requisitions() {
   const { t, i18n } = useTranslation(),
     location = useLocation(),
-    r = useRecruitmentResource<{ data: Requisition[] }>('requisitions');
+    r = useRecruitmentResource<{ data: Requisition[] }>('requisitions'),
+    departments = useRecruitmentResource<{
+      data: { id: string; title: string }[];
+    }>('departments/options', { includeInactive: 'true' }),
+    positions = useRecruitmentResource<{
+      data: { id: string; title: string }[];
+    }>('positions/options', { includeInactive: 'true' });
+  const departmentNames = new Map(
+    departments.data?.data.map((item) => [String(item.id), item.title]),
+  );
+  const positionNames = new Map(
+    positions.data?.data.map((item) => [String(item.id), item.title]),
+  );
+  const departmentName = (row: Requisition) =>
+    departmentNames.get(String(row.departmentId)) ??
+    t('recruitment.identityUnavailable');
+  const positionName = (row: Requisition) =>
+    positionNames.get(String(row.positionId)) ??
+    t('recruitment.identityUnavailable');
+  const loading = r.loading || departments.loading || positions.loading;
+  const error = r.error ?? departments.error ?? positions.error;
+  const reload = () => {
+    r.reload();
+    departments.reload();
+    positions.reload();
+  };
   const columns: ColumnDef<Requisition>[] = [
     {
-      accessorKey: 'id',
-      header: t('recruitment.fields.requisitionId'),
+      id: 'title',
+      header: t('recruitment.fields.requisitionTitle'),
+      enableSorting: false,
       cell: ({ row }) => (
         <Link
           className='underline'
@@ -29,43 +55,44 @@ export default function Requisitions() {
             hash: location.hash,
           }}
         >
-          {row.original.id}
+          {t('recruitment.requisitionName', {
+            year: String(row.original.sourceYear),
+            department: departmentName(row.original),
+            position: positionName(row.original),
+          })}
         </Link>
       ),
     },
+    {
+      id: 'department',
+      header: t('recruitment.fields.departmentId'),
+      enableSorting: false,
+      cell: ({ row }) => departmentName(row.original),
+    },
+    {
+      id: 'position',
+      header: t('recruitment.fields.positionId'),
+      enableSorting: false,
+      cell: ({ row }) => positionName(row.original),
+    },
     ...(
-      [
-        'departmentId',
-        'positionId',
-        'sourceYear',
-        'originalQuantity',
-        'remaining',
-        'consumed',
-      ] as const
+      ['sourceYear', 'originalQuantity', 'remaining', 'consumed'] as const
     ).map((key): ColumnDef<Requisition> => ({
       accessorKey: key,
-      header: ({ column }) =>
-        ['sourceYear', 'originalQuantity', 'remaining', 'consumed'].includes(
-          key,
-        ) ? (
-          <DataTableColumnHeader
-            column={column}
-            title={t(`recruitment.fields.${key}`)}
-            className='justify-end text-right'
-          />
-        ) : (
-          t(`recruitment.fields.${key}`)
-        ),
-      enableSorting: [
-        'sourceYear',
-        'originalQuantity',
-        'remaining',
-        'consumed',
-      ].includes(key),
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t(`recruitment.fields.${key}`)}
+          className='justify-end text-right'
+        />
+      ),
+      enableSorting: true,
       cell: ({ row }) =>
         typeof row.original[key] === 'number' ? (
           <div className='text-right tabular-nums'>
-            {new Intl.NumberFormat(i18n.language).format(row.original[key])}
+            {key === 'sourceYear'
+              ? String(row.original[key])
+              : new Intl.NumberFormat(i18n.language).format(row.original[key])}
           </div>
         ) : (
           String(row.original[key])
@@ -86,11 +113,11 @@ export default function Requisitions() {
     <PageContainer>
       <PageHeader title={t('recruitment.requisitions')} />
       <ApplicationToolbar
-        actions={<Refresh busy={r.loading} onClick={r.reload} />}
+        actions={<Refresh busy={loading} onClick={reload} />}
       />
-      {r.error ? (
-        <ErrorState error={r.error} retry={r.reload} />
-      ) : r.loading ? (
+      {error ? (
+        <ErrorState error={error} retry={reload} />
+      ) : loading ? (
         <ApplicationTableSkeleton columns={columns.length} />
       ) : r.data ? (
         <DataTable
@@ -102,7 +129,7 @@ export default function Requisitions() {
           }
         />
       ) : null}
-      <Outlet context={{ reload: r.reload }} />
+      <Outlet context={{ reload }} />
     </PageContainer>
   );
 }

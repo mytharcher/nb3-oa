@@ -11,7 +11,7 @@ import { useMemo, useRef, useState, useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
-import { RouteDrawer } from '#components/route-drawer';
+import { RequestActionOverlay } from '#components/request-action-overlay';
 import { useRouteOverlay } from '#components/use-route-overlay';
 import { UserPicker } from '#components/user-picker';
 import { ApprovalRecipientPicker } from '#components/approval-recipient-picker';
@@ -90,7 +90,7 @@ export default function ApprovalActionDialog() {
         );
   const name = resource.data?.record.number ?? t('approvals.draft');
   return (
-    <RouteDrawer
+    <RequestActionOverlay
       title={t('approvals.actionTitle', {
         action: supplyActionLabel(actionName, t),
         name,
@@ -179,7 +179,7 @@ export default function ApprovalActionDialog() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </RouteDrawer>
+    </RequestActionOverlay>
   );
 }
 function ActionFooter({

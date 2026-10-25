@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { attendanceServiceToken } from '../attendance/contract.js';
 import { expenseAuthorizationServiceToken } from '../expense-authorizations/contract.js';
@@ -96,6 +97,16 @@ export default class TrainingProvider extends ServiceProvider<Application> {
     });
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.training',
+      resource: 'oa.training',
+      collection: 'trainingRequests',
+      titleField: 'reason',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(trainingServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     if (!this.app.container.has(authorizationToken)) return;
     const authz = this.app.container.resolve(authorizationToken);
     authz.database.collections.add({

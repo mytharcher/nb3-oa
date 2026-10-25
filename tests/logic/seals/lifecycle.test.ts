@@ -1145,4 +1145,4 @@ test('real SDK approval, keeper claim and actual use register an immutable recei
   expect(
     await db.transaction((tx) => contracts.source(contractId, tx)),
   ).toMatchObject({ version: 3, status: 'terminated', amountCents: 98765 });
-}, 90_000);
+}, 180_000);

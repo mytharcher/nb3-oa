@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import {
   lockUserForAdministration,
   userAdministrationServiceToken,
@@ -207,6 +208,16 @@ export default class AssetRequestsProvider extends ServiceProvider<Application> 
     );
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.assetRequest',
+      resource: 'oa.assetRequests',
+      collection: 'assetRequests',
+      titleField: 'purpose',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(assetRequestServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     const authz = this.app.container.resolve(authorizationToken);
     authz.database.collections.add({
       name: 'assetRequests',

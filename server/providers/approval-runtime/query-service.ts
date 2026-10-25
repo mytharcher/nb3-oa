@@ -1,20 +1,13 @@
-import { taskCenterRuntimeServices } from './task-center.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { ApprovalService } from '@nocobase/app-plugin-approval/server';
 import {
-  ApprovalQuery,
-  ApprovalService,
-  type ApprovalInvolvement,
-  type ApprovalRelations,
-  type ApprovalTaskReference,
-} from '@nocobase/app-plugin-approval/server';
+  taskCenterIntegration,
+  taskCenterRuntimeDatabase,
+  taskCenterRuntimeServices,
+} from './task-center.js';
 
 type Input = ConstructorParameters<typeof ApprovalService>;
 const inputs = new WeakMap<ApprovalService, Input>();
-const queries = new WeakMap<ApprovalService, ApprovalQuery>();
-const exactInvolvement = new WeakMap<
-  ApprovalService,
-  ApprovalService['involvementOf']
->();
 const serviceIdentity = Symbol('oa/approval-service-identity');
 function canonicalService(service: ApprovalService): ApprovalService {
   return (
@@ -22,166 +15,146 @@ function canonicalService(service: ApprovalService): ApprovalService {
     service
   );
 }
-const reads = new AsyncLocalStorage<
-  Map<ApprovalService, Map<string, Promise<readonly ApprovalRelations[]>>>
->();
-const taskReads = new AsyncLocalStorage<
-  Map<ApprovalService, Map<string, Promise<readonly ApprovalTaskReference[]>>>
->();
 
-/** Batches personal relation reads only inside a GET request. Mutation paths use
- * the SDK's fresh transactional checks; no decisions survive the request. */
-export function withApprovalQueryReads<T>(work: () => Promise<T>) {
-  return reads.run(new Map(), () => taskReads.run(new Map(), work));
+interface TaskTarget {
+  sourceType: string;
+  sourceKey: string;
+  subject: string;
+  recordId: string;
 }
+const reads = new AsyncLocalStorage<
+  Map<ApprovalService, Map<string, Promise<readonly TaskTarget[]>>>
+>();
 
-/** Reuse indexed relations already sampled by this GET's record authorization.
- * Never open a second candidate transaction solely for a small scoped source. */
-export function cachedApprovalRelations(
-  service: ApprovalService,
-  actorId: string,
-) {
-  return reads.getStore()?.get(canonicalService(service))?.get(actorId);
+/** Candidate caching is request-local. Every authorization still checks SDK facts. */
+export function withApprovalQueryReads<T>(work: () => Promise<T>) {
+  return reads.run(new Map(), work);
 }
 
 export function createAppApprovalService(...input: Input): ApprovalService {
   input[2] = taskCenterRuntimeServices(input[0]) ?? input[2];
   const service = new ApprovalService(...input);
-  // Application owner proxies forward non-function members. Keep their public
-  // SDK facade while registering the exact underlying observer owner once.
   Object.defineProperty(service, serviceIdentity, { value: service });
   inputs.set(service, input);
-  const original = service.involvementOf.bind(service);
-  exactInvolvement.set(service, original);
-  service.involvementOf = async (lifecycle, recordId, person) => {
-    const context = reads.getStore();
-    const query = queries.get(service);
-    if (!context || !query || input[1].length !== 1)
-      return original(lifecycle, recordId, person);
-    let cache = context.get(service);
-    if (!cache)
-      context.set(
-        service,
-        (cache = new Map<string, Promise<readonly ApprovalRelations[]>>()),
-      );
-    let pending = cache.get(person);
-    if (!pending) {
-      pending = query.involvement(input[1][0].name, person);
-      cache.set(person, pending);
-      void pending.catch(() => cache.delete(person));
-    }
-    const relations =
-      (await pending).find(
-        (row) =>
-          row.lifecycle === lifecycle && row.recordId === String(recordId),
-      )?.relations ?? [];
-    const result = new Set<ApprovalInvolvement>();
-    for (const relation of relations) {
-      if (
-        relation === 'applicant' ||
-        relation === 'assignee' ||
-        relation === 'copied' ||
-        relation === 'delegate'
-      )
-        result.add(relation);
-    }
-    // The batch API also includes run comments and administrative actors. Keep
-    // the SDK's narrower task-delegation meaning for this compatibility method.
-    if (relations.includes('actor'))
-      return original(lifecycle, recordId, person);
-    return (
-      ['applicant', 'assignee', 'delegate', 'copied'] as ApprovalInvolvement[]
-    ).filter((relation) => result.has(relation));
-  };
   return service;
 }
 
-async function personalTasks(
-  service: ApprovalService,
+/** Public application bindings; no ApprovalQuery registration or observers. */
+export function approvalTaskBindings(service: ApprovalService) {
+  const input = inputs.get(canonicalService(service));
+  if (!input)
+    throw new Error('Approval owner did not use the application SDK factory.');
+  return { runtime: input[0], approvals: input[1], services: input[2] };
+}
+
+export function approvalQuerySources(service: ApprovalService) {
+  const binding = approvalTaskBindings(service);
+  return binding.approvals.map((approval) => ({
+    business: approval.name,
+    kind: approval.kind,
+    runtime: binding.runtime,
+  }));
+}
+
+/** Read the owner's index only through its public API. Targets are application-owned.
+ * Closed entries remain candidates so former assignees and actual task actors retain
+ * historical access. A cancelled delegate entry alone never grants access. */
+async function personalTargets(
+  owner: ApprovalService,
   actorId: string,
-  relation: 'acted' | 'assigned' = 'acted',
-) {
-  const context = taskReads.getStore(),
-    query = queries.get(service),
-    input = inputs.get(service);
-  if (!context || !query || !input) return undefined;
-  let cache = context.get(service);
-  if (!cache)
-    context.set(
+): Promise<readonly TaskTarget[]> {
+  const service = canonicalService(owner);
+  const cache = reads.getStore();
+  let people = cache?.get(service);
+  if (cache && !people)
+    cache.set(
       service,
-      (cache = new Map<string, Promise<readonly ApprovalTaskReference[]>>()),
+      (people = new Map<string, Promise<readonly TaskTarget[]>>()),
     );
-  const key = `${relation}:${actorId}`;
-  let pending = cache.get(key);
-  if (!pending) {
-    pending = (async () => {
-      const result: ApprovalTaskReference[] = [];
-      for (const approval of input[1]) {
-        for (let offset = 0; ; offset += 1000) {
-          const page = await query.taskRelations(approval.name, actorId, {
-            relation,
-            limit: 1000,
-            offset,
+  const existing = people?.get(actorId);
+  if (existing) return existing;
+  const pending = (async () => {
+    const binding = approvalTaskBindings(service);
+    const db = taskCenterRuntimeDatabase(binding.runtime);
+    const integration = taskCenterIntegration(db);
+    if (!integration) throw new Error('Approval task index is not configured.');
+    const targets: TaskTarget[] = [];
+    for (const approval of binding.approvals) {
+      for (const sourceType of ['approval.task', 'approval.cc']) {
+        for (let page = 1; ; page++) {
+          const result = await integration.reader.list(actorId, {
+            subject: approval.name,
+            sourceType,
+            includeTotal: false,
+            page,
+            pageSize: 100,
           });
-          result.push(...page);
-          if (page.length < 1000) break;
+          if (result.data.length) {
+            const rows = await db
+              .repository<TaskTarget>('oaTaskCenterTargets')
+              .findMany({
+                filter: (f) =>
+                  f.and([
+                    f.string('sourceType').eq(sourceType),
+                    f.string('subject').eq(approval.name),
+                    f.or(
+                      result.data.map((entry) =>
+                        f.string('sourceKey').eq(entry.sourceKey),
+                      ),
+                    ),
+                  ]),
+              });
+            targets.push(...rows);
+          }
+          if (result.data.length < 100) break;
         }
       }
-      return result;
-    })();
-    cache.set(key, pending);
-    void pending.catch(() => cache.delete(key));
-  }
+    }
+    return targets;
+  })();
+  people?.set(actorId, pending);
+  void pending.catch(() => people?.delete(actorId));
   return pending;
 }
 
-/** A direct-assignment superset only; owners still check role and task status. */
+/** Optional acceleration must never suppress an authoritative business action check. */
 export async function hasApprovalAssignment(
   service: ApprovalService,
   lifecycle: string,
   recordId: string,
   actorId: string,
 ) {
-  const tasks = await personalTasks(service, actorId, 'assigned');
-  return (
-    tasks === undefined ||
-    tasks.some(
-      (task) => task.lifecycle === lifecycle && task.recordId === recordId,
-    )
+  if (!reads.getStore()) return true;
+  return (await personalTargets(service, actorId)).some(
+    (target) => target.subject === lifecycle && target.recordId === recordId,
   );
 }
 
-/** Candidate filtering is only a superset; the owner still asks actionsFor. */
 export async function hasApprovalCandidate(
   service: ApprovalService,
   lifecycle: string,
   recordId: string | undefined,
   actorId: string,
 ) {
-  if (recordId === undefined) return true;
-  if (!reads.getStore() || !queries.get(service)) return true;
-  const input = inputs.get(service);
-  if (input) {
-    try {
-      const services =
-        typeof input[2] === 'function'
-          ? (input[2] as (handle: unknown) => object)(undefined)
-          : input[2];
+  if (!reads.getStore() || recordId === undefined) return true;
+  const input = inputs.get(canonicalService(service));
+  if (!input) return true;
+  try {
+    const services =
+      typeof input[2] === 'function'
+        ? (input[2] as (handle: unknown) => object)(undefined)
+        : input[2];
+    for (const approval of input[1])
       if (
-        input[1].some((approval) =>
-          approval.options
-            .directory(services as never)
-            .hasRole(actorId, 'approval.admin'),
-        )
+        await approval.options
+          .directory(services as never)
+          .hasRole(actorId, 'approval.admin')
       )
         return true;
-    } catch {
-      // An owner requiring a transaction-only context keeps its original scan.
-      return true;
-    }
+  } catch {
+    // Transaction-only contexts keep the owning reader's authoritative checks.
+    return true;
   }
-  // Historical assignments are deliberately retained as a superset. There is
-  // no paged-candidate truncation; actionsFor rejects closed or ineligible work.
   return (await service.involvementOf(lifecycle, recordId, actorId)).some(
     (relation) => relation === 'assignee' || relation === 'delegate',
   );
@@ -193,87 +166,13 @@ export async function hasApprovalTaskActor(
   recordId: string,
   actorId: string,
 ) {
-  const tasks = await personalTasks(service, actorId);
-  if (tasks)
-    return tasks.some(
-      (task) => task.lifecycle === lifecycle && task.recordId === recordId,
-    );
   return (await service.tasksFor(lifecycle, recordId)).some(
     (task) => task.actorId === actorId,
   );
 }
 
-/** Called after owner startup, once per installed service; sources are explicit. */
-export async function initializeApprovalQuery(
-  service: ApprovalService,
-  sharedQuery?: ApprovalQuery,
-) {
-  service = canonicalService(service);
-  const input = inputs.get(service);
-  if (!input || queries.get(service)) return;
-  const query = sharedQuery ?? new ApprovalQuery();
-  for (const approval of input[1]) {
-    query.register({
-      business: approval.name,
-      approval,
-      runtime: input[0],
-      services: input[2],
-      definitionVersion: approval.options.version ?? 1,
-      pendingActions: [
-        'approve',
-        'reject',
-        'return',
-        'claim',
-        'complete',
-        'unable',
-        'provideMaterial',
-        'registerUsage',
-      ],
-      handledActions: [
-        'approve',
-        'reject',
-        'return',
-        'complete',
-        'unable',
-        'registerUsage',
-      ],
-    });
-  }
-  try {
-    if (!sharedQuery) await query.initialize();
-    queries.set(service, query);
-  } catch (error) {
-    if (!sharedQuery) query.dispose();
-    throw error;
-  }
-  return () => {
-    queries.delete(service);
-    if (!sharedQuery) query.dispose();
-  };
-}
-
-/** Explicit bindings captured when the owner constructs its public SDK. */
-export function approvalQuerySources(service: ApprovalService) {
-  const input = inputs.get(canonicalService(service));
-  if (!input)
-    throw new Error('Approval owner did not use the application SDK factory.');
-  return input[1].map((approval) => ({
-    business: approval.name,
-    kind: approval.kind,
-    runtime: input[0],
-  }));
-}
-
-/** Public application composition bindings for task synchronization, not business authorization. */
-export function approvalTaskBindings(service: ApprovalService) {
-  const input = inputs.get(canonicalService(service));
-  if (!input)
-    throw new Error('Approval owner did not use the application SDK factory.');
-  return { runtime: input[0], approvals: input[1], services: input[2] };
-}
-
-/** Fresh per resolution, including POST. Never treats comments/admin actions as
- * task participation. Delegate-only candidates need the SDK's decide-kind check. */
+/** Index entries locate candidates; precise current participation grants access.
+ * Applicant and creator predicates remain in the owning business scope. */
 export async function approvalReadableRecords(
   owner: ApprovalService,
   lifecycle: string,
@@ -281,51 +180,20 @@ export async function approvalReadableRecords(
   includeTaskActors: boolean,
 ): Promise<readonly string[]> {
   const service = canonicalService(owner);
-  if (!queries.has(service)) await initializeApprovalQuery(service);
-  const query = queries.get(service);
-  const input = inputs.get(service);
-  if (!query || !input) throw new Error('Approval query owner is unavailable.');
-  const ids = new Set<string>();
-  for (const approval of input[1]) {
-    const relations = await query.involvement(approval.name, actorId);
-    if (includeTaskActors) {
-      for (let offset = 0; ; offset += 1000) {
-        const tasks = await query.taskRelations(approval.name, actorId, {
-          relation: 'acted',
-          limit: 1000,
-          offset,
-        });
-        for (const task of tasks)
-          if (task.lifecycle === lifecycle) ids.add(task.recordId);
-        if (tasks.length < 1000) break;
-      }
-    }
-    for (const row of relations) {
-      if (row.lifecycle !== lifecycle || ids.has(row.recordId)) continue;
-      if (
-        row.relations.some((relation) =>
-          ['applicant', 'assignee', 'copied'].includes(relation),
-        )
-      ) {
-        ids.add(row.recordId);
-      } else if (
-        row.relations.includes('delegate') ||
-        (!includeTaskActors && row.relations.includes('actor'))
-      ) {
-        // The public batch reference omits task kind. Only this related subset
-        // needs a precise fallback; never enumerate business records here.
-        if (
-          (
-            await exactInvolvement.get(service)!(
-              lifecycle,
-              row.recordId,
-              actorId,
-            )
-          ).length
-        )
-          ids.add(row.recordId);
-      }
+  const candidates = new Set(
+    (await personalTargets(service, actorId))
+      .filter((target) => target.subject === lifecycle)
+      .map((target) => target.recordId),
+  );
+  const ids: string[] = [];
+  for (const recordId of candidates) {
+    if (
+      (await service.involvementOf(lifecycle, recordId, actorId)).length ||
+      (includeTaskActors &&
+        (await hasApprovalTaskActor(service, lifecycle, recordId, actorId)))
+    ) {
+      ids.push(recordId);
     }
   }
-  return [...ids];
+  return ids;
 }

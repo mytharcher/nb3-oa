@@ -1,3 +1,4 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { budgetServiceToken } from '../budgets/contract.js';
 import { dictionaryServiceToken } from '../platform/index.js';
@@ -98,6 +99,16 @@ export default class BudgetAdjustmentProvider extends ServiceProvider<Applicatio
     });
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.budgetAdjustment',
+      resource: 'oa.budgetAdjustment',
+      collection: 'budgetAdjustments',
+      titleField: 'reason',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(budgetAdjustmentServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     if (!this.app.container.has(authorizationToken)) return;
     const authz = this.app.container.resolve(authorizationToken);
     authz.database.collections.add({

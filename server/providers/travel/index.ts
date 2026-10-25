@@ -1,3 +1,6 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
+import { attendanceActivitySourcesToken } from '../attendance/activity-sources.js';
+import { travelAttendanceEvidence } from './attendance-evidence.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { attendanceServiceToken } from '../attendance/contract.js';
 import { expenseAuthorizationServiceToken } from '../expense-authorizations/contract.js';
@@ -114,6 +117,21 @@ export default class TravelProvider extends ServiceProvider<Application> {
     });
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.travel',
+      resource: 'oa.travel',
+      collection: 'travelRequests',
+      titleField: 'reason',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(travelServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
+    this.app.container
+      .resolve(attendanceActivitySourcesToken)
+      .register('travel', (userId, date, connection) =>
+        travelAttendanceEvidence(userId, date, connection),
+      );
     if (!this.app.container.has(authorizationToken)) return;
     const authz = this.app.container.resolve(authorizationToken);
     authz.database.collections.add({

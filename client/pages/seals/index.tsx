@@ -100,7 +100,9 @@ export default function SealRequests() {
       ),
       cell: ({ row }) => (
         <span className='block text-right tabular-nums'>
-          {row.original.copies.toLocaleString(i18n.language)}
+          {row.original.executionMode === 'electronic'
+            ? '—'
+            : row.original.copies.toLocaleString(i18n.language)}
         </span>
       ),
     },

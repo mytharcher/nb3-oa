@@ -10,6 +10,8 @@ const reports = [
   ['leave-monthly', 'reports.datasets.leave-monthly.title'],
   ['leave-approval-efficiency', 'reportsEfficiency.title'],
   ['expense-summary', 'reportsExpense.title'],
+  ['supply-ledger', 'reports.datasets.supply-ledger.title'],
+  ['seal-ledger', 'reports.datasets.seal-ledger.title'],
 ] as const satisfies readonly (readonly [ReportDataset, string])[];
 
 export default defineAppRoutes([

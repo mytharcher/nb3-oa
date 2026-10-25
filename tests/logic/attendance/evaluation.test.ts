@@ -1,3 +1,4 @@
+import { outingServiceToken } from '../../../server/providers/outings/index.js';
 // @vitest-environment node
 import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
 import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
@@ -370,6 +371,138 @@ describe('main PostgreSQL immutable attendance evaluation', () => {
         .findOne({ filter: { id: initial.id } }),
     ).toMatchObject({ result: { missingPunches: 1 } });
   });
+  it('clears a calculated overnight missing out only with a punch owned by that shift', async () => {
+    const c = app.testApp.application.container,
+      db = c.resolve(databaseManagerToken),
+      calendar = c.resolve(calendarServiceToken),
+      management = c.resolve(attendanceManagementServiceToken),
+      attendance = c.resolve(attendanceServiceToken),
+      evaluator = c.resolve(attendanceEvaluationServiceToken);
+    const nightDate = '2026-10-20',
+      nextDate = '2026-10-21';
+    const shift = await db.transaction((tx) =>
+      management.saveShift(
+        {
+          code: 'evaluation-night-evidence',
+          definition: {
+            name: 'Night evidence',
+            timeZone: calendar.timeZone(),
+            intervals: [
+              {
+                start: '22:00',
+                startDayOffset: 0,
+                end: '06:00',
+                endDayOffset: 1,
+              },
+            ],
+            lateToleranceMinutes: 5,
+            earlyToleranceMinutes: 5,
+            absenceThresholdMinutes: 240,
+          },
+          enabled: true,
+          expectedVersion: null,
+          actorId: userId,
+          reason: 'Night evidence fixture',
+        },
+        tx,
+      ),
+    );
+    await db.transaction((tx) =>
+      management.saveSchedule(
+        {
+          departmentId,
+          date: nightDate,
+          shiftRevisionId: shift.revision.id,
+          restDay: false,
+          expectedVersion: null,
+          actorId: userId,
+          reason: 'Night evidence fixture',
+        },
+        tx,
+      ),
+    );
+    await attendance.ingestBatch(
+      [
+        {
+          userId,
+          date: nightDate,
+          punchKind: 'in',
+          punchedAt: calendar
+            .resolveLocalDateTime(nightDate, '22:00')
+            .toISOString(),
+          source: 'synthetic-device',
+          sourceKey: 'night-evidence-in',
+          sourceData: {},
+        },
+      ],
+      { actorId: userId },
+    );
+    expect(
+      (
+        await evaluator.evaluate({
+          ...command('night-evidence'),
+          date: nightDate,
+        })
+      ).result,
+    ).toMatchObject({ status: 'exception', missingPunches: 1 });
+    // The calculated missing out belongs to the endpoint's own local date.
+    const [missing] = await db
+      .repository<
+        import('../../../server/providers/attendance/contract.js').AttendanceRecord
+      >('attendanceRecords')
+      .findMany({
+        filter: (f) =>
+          f.and([
+            f.string('userId').eq(userId),
+            f.date('date').on(nextDate),
+            f.string('source').eq('oa-evaluation'),
+          ]),
+      });
+    expect(missing).toMatchObject({ punchKind: 'out' });
+    expect(await attendance.isMissingEffective(missing)).toBe(true);
+    const lateOut = calendar
+      .resolveLocalDateTime(nextDate, '06:05')
+      .toISOString();
+    // A WeCom punch owned by another work date does not count for this shift.
+    await attendance.ingestBatch(
+      [
+        {
+          userId,
+          date: nextDate,
+          punchKind: 'out',
+          punchedAt: lateOut,
+          source: 'wecom-checkin',
+          sourceKey: 'night-evidence-foreign-wecom',
+          sourceData: { workDate: nextDate },
+        },
+      ],
+      { actorId: userId },
+    );
+    expect(await attendance.isMissingEffective(missing)).toBe(true);
+    await attendance.ingestBatch(
+      [
+        {
+          userId,
+          date: nextDate,
+          punchKind: 'out',
+          punchedAt: lateOut,
+          source: 'wecom-checkin',
+          sourceKey: 'night-evidence-owned-wecom',
+          sourceData: { workDate: nightDate },
+        },
+      ],
+      { actorId: userId },
+    );
+    expect(await attendance.isMissingEffective(missing)).toBe(false);
+    expect(
+      (
+        await evaluator.evaluate({
+          ...command('night-evidence-punched'),
+          date: nightDate,
+        })
+      ).result,
+    ).toMatchObject({ status: 'normal', missingPunches: 0 });
+  });
   it('blocks unsupported multi-interval matching and refuses absent or partial current policies', async () => {
     const c = app.testApp.application.container,
       db = c.resolve(databaseManagerToken),
@@ -429,9 +562,9 @@ describe('main PostgreSQL immutable attendance evaluation', () => {
       date: splitDate,
     });
     expect(revision.result).toMatchObject({
-      status: 'blocked',
-      reasons: ['multipleIntervalsRequireMatchingAdapter'],
-      absentMinutes: 0,
+      status: 'exception',
+      missingPunches: 4,
+      absentMinutes: 480,
     });
     const allow: RepositoryPolicy = {
       read: true,
@@ -570,5 +703,165 @@ describe('main PostgreSQL immutable attendance evaluation', () => {
       missingPunches: 0,
       reasons: [],
     });
+  });
+  it('uses real approved outing evidence, removes withdrawn coverage, and supersedes generated missing facts with device data', async () => {
+    const c = app.testApp.application.container,
+      db = c.resolve(databaseManagerToken),
+      calendar = c.resolve(calendarServiceToken),
+      management = c.resolve(attendanceManagementServiceToken),
+      evaluator = c.resolve(attendanceEvaluationServiceToken),
+      attendance = c.resolve(attendanceServiceToken),
+      outings = c.resolve(outingServiceToken);
+    const managerId = (await app.createUser('AttendanceOutingManager')).user.id;
+    await db.repository('employees').createOne({
+      values: {
+        id: 'attendance-outing-manager',
+        userId: managerId,
+        code: 'attendance-outing-manager',
+        name: 'Synthetic manager',
+        status: 'regular',
+        active: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    });
+    await db.repository('employees').updateOne({
+      filter: { userId },
+      values: { managerId: 'attendance-outing-manager' },
+    });
+    let day = calendar.addCalendarDays(calendar.localDate(new Date()), 2);
+    while (!calendar.isWorkday(day)) day = calendar.addCalendarDays(day, 1);
+    const shift = await db.transaction((tx) =>
+      management.saveShift(
+        {
+          code: 'approved-absence-day',
+          definition: {
+            name: 'Synthetic absence shift',
+            timeZone: calendar.timeZone(),
+            intervals: [
+              {
+                start: '09:00',
+                startDayOffset: 0,
+                end: '18:00',
+                endDayOffset: 0,
+              },
+            ],
+            lateToleranceMinutes: 5,
+            earlyToleranceMinutes: 5,
+            absenceThresholdMinutes: 240,
+          },
+          enabled: true,
+          expectedVersion: null,
+          actorId: userId,
+          reason: 'Approved absence test',
+        },
+        tx,
+      ),
+    );
+    await db.transaction((tx) =>
+      management.saveSchedule(
+        {
+          departmentId,
+          date: day,
+          shiftRevisionId: shift.revision.id,
+          restDay: false,
+          expectedVersion: null,
+          actorId: userId,
+          reason: 'Approved absence test',
+        },
+        tx,
+      ),
+    );
+    const startAt = calendar.resolveLocalDateTime(day, '09:00').toISOString(),
+      endAt = calendar.resolveLocalDateTime(day, '18:00').toISOString();
+    const draft = await outings.create(
+      {
+        startAt,
+        endAt,
+        location: 'Synthetic partner office',
+        reason: 'Synthetic business visit',
+      },
+      userId,
+    );
+    const id = String(draft.record.id);
+    await outings.transition(
+      id,
+      'submit',
+      userId,
+      Number(draft.record.lifecycleVersion),
+      'absence-submit',
+    );
+    const detail = await outings.detail(id, managerId);
+    const task = detail.taskActions.find((row) =>
+      row.actions.some((action) => action.name === 'approve'),
+    )!.task;
+    await outings.action(
+      id,
+      {
+        target: { taskId: task.id },
+        action: 'approve',
+        contentHash: detail.runs.at(-1)!.run.contentHash,
+        requestId: 'absence-approve',
+      },
+      managerId,
+    );
+    expect(
+      (await evaluator.evaluate({ ...command('approved-absence'), date: day }))
+        .result,
+    ).toMatchObject({ status: 'normal', missingPunches: 0 });
+    const approved = await outings.detail(id, userId);
+    await outings.transition(
+      id,
+      'withdraw',
+      userId,
+      Number(approved.record.lifecycleVersion),
+      'absence-withdraw',
+    );
+    expect(
+      (await evaluator.evaluate({ ...command('withdrawn-absence'), date: day }))
+        .result,
+    ).toMatchObject({ status: 'exception', missingPunches: 2 });
+    const missing = await db
+      .repository<
+        import('../../../server/providers/attendance/contract.js').AttendanceRecord
+      >('attendanceRecords')
+      .findMany({
+        filter: (f) =>
+          f.and([
+            f.string('userId').eq(userId),
+            f.date('date').on(day),
+            f.string('source').eq('oa-evaluation'),
+          ]),
+      });
+    expect(missing).toHaveLength(2);
+    expect(await attendance.isMissingEffective(missing[0])).toBe(true);
+    await attendance.ingestBatch(
+      [
+        {
+          userId,
+          date: day,
+          punchKind: 'in',
+          punchedAt: startAt,
+          source: 'synthetic-device',
+          sourceKey: 'actual-in',
+          sourceData: { synthetic: true },
+        },
+        {
+          userId,
+          date: day,
+          punchKind: 'out',
+          punchedAt: endAt,
+          source: 'synthetic-device',
+          sourceKey: 'actual-out',
+          sourceData: { synthetic: true },
+        },
+      ],
+      { actorId: userId },
+    );
+    expect(await attendance.isMissingEffective(missing[0])).toBe(false);
+    expect(
+      (await evaluator.evaluate({ ...command('late-device'), date: day }))
+        .result,
+    ).toMatchObject({ status: 'normal', missingPunches: 0 });
   });
 });

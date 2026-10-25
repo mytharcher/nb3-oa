@@ -1,3 +1,4 @@
+import { asyncFilter } from '../approval-runtime/async-filter.js';
 import { defineAppApproval as defineApproval } from '../approval-runtime/task-center.js';
 import {
   approvalState,
@@ -129,10 +130,15 @@ export function createRecruitmentApproval(hooks: RecruitmentApprovalHooks) {
           const page = await allActivePeople().search(context, query);
           return {
             ...page,
-            people: page.people.filter(
-              (person) =>
-                context.eligible(person, { replacing: true, via: 'reassign' })
-                  .ok,
+            people: await asyncFilter(
+              page.people,
+              async (person) =>
+                (
+                  await context.eligible(person, {
+                    replacing: true,
+                    via: 'reassign',
+                  })
+                ).ok,
             ),
           };
         },

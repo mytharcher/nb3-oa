@@ -64,7 +64,7 @@ export default {
     },
     reassignMentorNotice:
       '将待办理任务重新指派给当前有效部门负责人，保留期限和已有事实；重新指派不会完成任务。',
-    transferTarget: '同职责池的新办理人',
+    transferTarget: '同办理组的新办理人',
     attachments: '附件',
     fileLimit: '支持 PDF、PNG、JPEG、TXT；最多 10 个，每个 20 MB。',
     upload: '上传附件',
@@ -101,6 +101,10 @@ export default {
     assignee: '办理人',
     bank: '工资卡与社保',
     salary: '工资信息',
+    privateEmpty: {
+      bank: '暂未录入工资卡与社保信息，请查看财务任务办理进度。',
+      salary: '暂未录入工资信息，请联系人事核实。',
+    },
     save: '提交',
     saved: '已保存',
     unknown: '提交结果尚未确认。请重试同一命令，不要新建另一份申请。',

@@ -201,7 +201,7 @@ export default {
     completed: '{{action}} completed for purchase “{{name}}”',
     quoteBasisChanged:
       'The procurement requirements changed. Your draft inputs are preserved, but quote evidence must match the latest requirements.',
-    frozenRules: 'Submission rule snapshot',
+    frozenRules: 'Rules applied at submission',
     frozenRulesHint:
       'Only amounts strictly above these thresholds require the corresponding quote evidence or approval stage. Later rule changes do not alter this submission.',
     ruleLabels: {

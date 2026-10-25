@@ -1,3 +1,4 @@
+import { refreshPersonalWork } from '#lib/personal-work-refresh';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useAuthorizationRevision } from '@nocobase/app-plugin-authorization/client';
@@ -11,7 +12,11 @@ export function useWorkResource<T>(
   const api = useApiClient(),
     { session } = useAuthentication(),
     authorizationRevision = useAuthorizationRevision();
-  const [epoch, reload] = useReducer((n) => n + 1, 0);
+  const [epoch, reloadLocal] = useReducer((n) => n + 1, 0);
+  const reload = useCallback(() => {
+    reloadLocal();
+    refreshPersonalWork();
+  }, []);
   const queryKey = JSON.stringify(query),
     source = JSON.stringify([
       session?.user.id,

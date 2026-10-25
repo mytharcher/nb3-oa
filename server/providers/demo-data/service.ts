@@ -20,7 +20,7 @@ import {
   removeOwnedDemo,
   removeDemoFiles,
 } from './cleanup.js';
-import { demoError } from './errors.js';
+import { demoError, sampleFailureReason } from './errors.js';
 import type {
   DemoDataSet,
   DemoDataService,
@@ -298,13 +298,7 @@ export function createDemoDataService(app: Application): DemoDataService {
         failures: [
           {
             key: 'operation',
-            reason:
-              error &&
-              typeof error === 'object' &&
-              'reason' in error &&
-              error.reason === 'DEMO_REFERENCE_CONFLICT'
-                ? 'DEMO_REFERENCE_CONFLICT'
-                : 'DEMO_OPERATION_FAILED',
+            reason: sampleFailureReason(error, 'DEMO_OPERATION_FAILED'),
           },
         ],
         progress: 'failed',

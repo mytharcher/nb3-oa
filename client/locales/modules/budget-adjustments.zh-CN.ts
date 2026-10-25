@@ -49,7 +49,7 @@ export default {
     subjectInactive: '此科目已停用，请在提交前改选启用科目。',
     disabled: '已停用',
     inactive: '申请人必须为在职员工。',
-    configuration: '当前审批时钟配置不受支持，请联系管理员。',
+    configuration: '暂时无法提交审批，请联系管理员检查审批期限设置。',
     invalid: '请核对预算账户、调整类型、金额和原因。',
     uncertainCreate:
       '保存结果不确定，请关闭并先查看我的申请，避免重复创建草稿。',

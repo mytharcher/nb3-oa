@@ -23,7 +23,7 @@ export default {
         '借款冲抵信息已变化，请刷新借款并确认冲抵金额。',
       REIMBURSEMENT_TOTAL_TOO_LARGE:
         '报销合计超过支持范围，请减少金额或拆分申请。',
-      REIMBURSEMENT_FILE_SIZE: '请选择非空且不超过 5 MiB 的附件。',
+      REIMBURSEMENT_FILE_SIZE: '请选择非空且不超过 5 MB 的附件。',
       REIMBURSEMENT_FILE_TYPE:
         '请上传格式与扩展名一致的 PDF、JPEG、PNG 或 WebP 文件。',
     },
@@ -101,7 +101,7 @@ export default {
       conflict: '这笔报销有更新，请重新读取并复核后操作。',
       standardReason: '请逐行说明当日超出已批准标准的费用。',
       standardCategoryChanged:
-        '此分类不在原标准快照中，请新建申请采用当前政策。',
+        '此分类不在原申请适用标准中，请新建申请采用当前政策。',
       standardConfiguration: '已批准差旅标准不完整，请联系管理员核对配置。',
       invalid: '请核对报销内容及所需证据。',
       failed: '请求未完成，请重试。',

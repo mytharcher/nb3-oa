@@ -30,6 +30,17 @@ export type AttendanceIngestInput = Pick<
   | 'sourceData'
 >;
 export interface AttendanceService {
+  isMissingEffective(
+    record: AttendanceRecord,
+    connection?: DatabaseConnection,
+  ): Promise<boolean>;
+  /** Trusted integration: callers must authorize originating business records before exposing these intervals. */
+  effectiveActivities(
+    userId: string,
+    connection: DatabaseConnection,
+  ): Promise<
+    { kind: string; applicationId: string; startAt: string; endAt: string }[]
+  >;
   get(
     id: string,
     connection?: DatabaseConnection,
@@ -39,6 +50,8 @@ export interface AttendanceService {
     input: AttendanceIngestInput,
     context: {
       actorId: string;
+      /** Internal evaluator only; HTTP integrations cannot supply this flag. */
+      calculated?: boolean;
       connection?: DatabaseConnection;
       policy?: RepositoryPolicy;
     },

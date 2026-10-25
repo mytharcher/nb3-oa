@@ -1,8 +1,13 @@
+import invoiceRecognition from './invoice-recognition.js';
+import electronicSignatures from './electronic-signatures.js';
 import {
   defaultAppConfigs,
   type AppConfigFactory,
 } from '@nocobase/app-server/config';
 import auth from './auth.js';
+import wecomAttendance from './wecom-attendance.js';
+import enterpriseIdentity from './enterprise-identity.js';
+import financeIntegration from './finance-integration.js';
 import authorization from './authorization.js';
 import notification from './notification.js';
 import secrets from './secrets.js';
@@ -25,6 +30,11 @@ import oaApprovals from './oa-approvals.js';
 
 const defaultConfigs: AppConfigFactory<{
   auth: ReturnType<typeof auth>;
+  wecomAttendance: ReturnType<typeof wecomAttendance>;
+  enterpriseIdentity: ReturnType<typeof enterpriseIdentity>;
+  financeIntegration: ReturnType<typeof financeIntegration>;
+  invoiceRecognition: ReturnType<typeof invoiceRecognition>;
+  electronicSignatures: ReturnType<typeof electronicSignatures>;
   authorization: ReturnType<typeof authorization>;
   notification: ReturnType<typeof notification>;
   secrets: ReturnType<typeof secrets>;
@@ -46,6 +56,11 @@ const defaultConfigs: AppConfigFactory<{
   oaApprovals: ReturnType<typeof oaApprovals>;
 }> = defaultAppConfigs({
   auth,
+  wecomAttendance,
+  enterpriseIdentity,
+  financeIntegration,
+  invoiceRecognition,
+  electronicSignatures,
   authorization,
   notification,
   secrets,

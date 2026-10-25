@@ -2,6 +2,7 @@
 import { expect, it, vi } from 'vitest';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 import type { ApprovalTaskContributor } from '@nocobase/app-plugin-approval/server';
+import { createUserTaskService } from '@nocobase/app-plugin-task-center/server';
 import type {
   UserTask,
   UserTaskWriter,
@@ -36,6 +37,7 @@ function fixture(previous: Partial<UserTask>[] = []) {
   const db = {} as DatabaseManager;
   const dutyMembers = vi.fn().mockResolvedValue(['candidate-a', 'candidate-b']);
   configureTaskCenter(db, {
+    reader: createUserTaskService(db),
     contributor: {} as ApprovalTaskContributor,
     applications: writer,
     workItems: writer,

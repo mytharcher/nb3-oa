@@ -216,6 +216,82 @@ it('uses server task offers and never automatically loads private facades', asyn
     api.request.mock.calls.some(([r]) => /\/(salary|bank)$/.test(r.path)),
   ).toBe(false);
 });
+it.each([
+  ['bank', 'Payroll account and social insurance', null],
+  ['bank', 'Payroll account and social insurance', {}],
+  ['salary', 'Salary', null],
+] as const)(
+  'shows feedback when %s has no recorded facts (%j)',
+  async (kind, label, facts) => {
+    grants.add('viewBank');
+    api.request.mockImplementation(async ({ path }: { path: string }) => ({
+      data: path === `onboardings/o1/${kind}` ? facts : detail,
+    }));
+    mount(<Detail />, '/onboardings/o1');
+    const button = await screen.findByRole('button', {
+      name: label,
+      exact: true,
+    });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(button);
+    const message =
+      kind === 'bank'
+        ? 'Payroll account and social insurance details have not been recorded. Check the finance task progress.'
+        : 'Salary details have not been recorded. Contact HR to check.';
+    expect(await screen.findByText(message)).toBeVisible();
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      document.getElementById(button.getAttribute('aria-controls')!),
+    ).toHaveTextContent(message);
+    await userEvent.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+  },
+);
+it('loads private facts on demand and hides them on collapse and authorization revision', async () => {
+  api.request.mockImplementation(async ({ path }: { path: string }) => ({
+    data:
+      path === 'onboardings/o1/salary' ? { baseSalary: '12345.00' } : detail,
+  }));
+  mount(<Detail />, '/onboardings/o1');
+  const button = await screen.findByRole('button', {
+    name: 'Salary',
+    exact: true,
+  });
+  await userEvent.click(button);
+  expect(await screen.findByText('12345.00')).toBeVisible();
+  await userEvent.click(button);
+  expect(screen.queryByText('12345.00')).not.toBeInTheDocument();
+  await userEvent.click(button);
+  await screen.findByText('12345.00');
+  act(() => {
+    grants.delete('viewSalary');
+    identity.revision++;
+    identity.listeners.forEach((listener) => listener());
+  });
+  expect(screen.queryByText('12345.00')).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Salary', exact: true }),
+  ).not.toBeInTheDocument();
+});
+it('shows a retry after private facts fail to load', async () => {
+  let attempts = 0;
+  api.request.mockImplementation(async ({ path }: { path: string }) => {
+    if (path === 'onboardings/o1/salary') {
+      if (!attempts++) throw new Error('network');
+      return { data: { baseSalary: '12345.00' } };
+    }
+    return { data: detail };
+  });
+  mount(<Detail />, '/onboardings/o1');
+  await userEvent.click(
+    await screen.findByRole('button', { name: 'Salary', exact: true }),
+  );
+  await userEvent.click(
+    await screen.findByRole('button', { name: 'Retry', exact: true }),
+  );
+  expect(await screen.findByText('12345.00')).toBeVisible();
+});
 it('ordinary IT completion fixes created account and submits real facts plus task version', async () => {
   mount(<Action />);
   await screen.findByLabelText(fieldLabel('Device reference'));

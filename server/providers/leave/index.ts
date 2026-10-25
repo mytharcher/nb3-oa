@@ -1,3 +1,6 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
+import { attendanceActivitySourcesToken } from '../attendance/activity-sources.js';
+import { leaveAttendanceEvidence } from './attendance-evidence.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 
 import {
@@ -93,6 +96,26 @@ export default class LeaveProvider extends ServiceProvider<Application> {
     });
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.leave',
+      resource: 'oa.leave',
+      collection: 'leaveRequests',
+      titleField: 'reason',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(leaveServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
+    this.app.container
+      .resolve(attendanceActivitySourcesToken)
+      .register('leave', (userId, date, connection) =>
+        leaveAttendanceEvidence(
+          userId,
+          date,
+          connection,
+          this.app.container.resolve(calendarServiceToken),
+        ),
+      );
     if (!this.app.container.has(authorizationToken)) return;
     const authz = this.app.container.resolve(authorizationToken);
     authz.database.collections.add({

@@ -1,6 +1,6 @@
 import { statusTone } from './status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
-import { UserNameText } from '#components/user-name';
+import { DepartureRecordTitle } from './record-title.js';
 import { Missing } from './missing.js';
 import { useMemo } from 'react';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -196,7 +196,16 @@ export default function DepartureDetailPage() {
       }
       printable
       printDisabled={!data || resource.loading || !!resource.error}
-      title={<UserNameText text={name} name={data?.record.applicant?.name} />}
+      title={
+        data ? (
+          <DepartureRecordTitle
+            name={data.record.applicant?.name ?? t('approvals.unknownPerson')}
+            number={data.record.number ?? t('approvals.draft')}
+          />
+        ) : (
+          name
+        )
+      }
       description={t('departureRequests.description')}
       footer={actions}
     >

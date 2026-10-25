@@ -1,3 +1,4 @@
+import { TodayScheduleCard } from '../personal-schedules/today-card.js';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -38,6 +39,7 @@ export function PersonalCards() {
   return (
     // Phones swipe through the cards in one row instead of stacking three tall cards.
     <div className='-mx-4 flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0 lg:gap-4 lg:overflow-visible lg:pb-0 [&>*]:w-[85%] [&>*]:shrink-0 [&>*]:snap-start md:[&>*]:w-[calc(50%-0.375rem)] lg:[&>*]:w-auto lg:[&>*]:shrink'>
+      <TodayScheduleCard />
       <LeaveCard />
       {meetings.can && !meetings.isPending && !meetings.error ? (
         <MeetingCard
@@ -69,7 +71,7 @@ function SummaryCard({
 }) {
   const { t } = useTranslation();
   return (
-    <Card className='min-w-0 flex-1'>
+    <Card className='min-w-0 flex-none lg:flex-1'>
       <CardHeader>
         <CardTitle>
           <h2>{t(title)}</h2>
@@ -249,7 +251,7 @@ function AnnouncementCard() {
         {resource.data?.items.slice(0, 5).map((row) => (
           <li key={row.id} className='text-sm'>
             <Link
-              className='text-primary underline-offset-4 hover:underline break-words'
+              className='text-foreground underline-offset-4 hover:underline break-words'
               to={{
                 pathname: `announcement/${encodeURIComponent(row.announcementId)}`,
                 search: location.search,

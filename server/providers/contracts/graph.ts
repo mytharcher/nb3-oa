@@ -1,3 +1,4 @@
+import { asyncFilter } from '../approval-runtime/async-filter.js';
 import { defineAppApproval as defineApproval } from '../approval-runtime/task-center.js';
 import { z } from 'zod';
 import {
@@ -98,13 +99,20 @@ export function contractGraph(host: ContractGraphHost) {
       ? [placeOfTask(context.places, context.task)?.pool]
       : context.unassigned.map((p) => p.pool);
     return {
-      people: page.people.filter(
-        (person) =>
+      people: await asyncFilter(
+        page.people,
+        async (person) =>
           person !== context.applicantId &&
           (!pools.some((pool) => pool && ['legal', 'finance'].includes(pool)) ||
-            pools.some(
-              (pool) => pool && context.directory.hasRole(person, pool),
-            )) &&
+            (
+              await Promise.all(
+                pools.map(
+                  async (pool) =>
+                    Boolean(pool) &&
+                    (await context.directory.hasRole(person, pool!)),
+                ),
+              )
+            ).some(Boolean)) &&
           !context.stay.some(
             (t) =>
               t.assigneeId === person &&
@@ -123,7 +131,7 @@ export function contractGraph(host: ContractGraphHost) {
       const place = context.unassigned.find((p) => p.placeKey === input.place);
       return place?.pool &&
         ['legal', 'finance'].includes(place.pool) &&
-        !context.directory.hasRole(input.to ?? '', place.pool)
+        !(await context.directory.hasRole(input.to ?? '', place.pool))
         ? 'The appointed reviewer must qualify for this original pool.'
         : null;
     },
@@ -138,7 +146,7 @@ export function contractGraph(host: ContractGraphHost) {
       return place?.pool &&
         ['legal', 'finance'].includes(place.pool) &&
         (input.override ||
-          !context.directory.hasRole(input.to ?? '', place.pool))
+          !(await context.directory.hasRole(input.to ?? '', place.pool)))
         ? 'The replacement must retain the original pool qualification.'
         : null;
     },
@@ -336,7 +344,7 @@ export function contractGraph(host: ContractGraphHost) {
     assignment: [
       {
         name: 'contract.distinctReviewers',
-        apply(context) {
+        async apply(context) {
           if (
             (context.spec.depth ?? 0) === 0 &&
             context.spec.role === 'member' &&
@@ -347,7 +355,9 @@ export function contractGraph(host: ContractGraphHost) {
               (context.spec.order ?? context.replacing?.order) === 0
                 ? 'legal'
                 : 'finance';
-            if (!context.directory.hasRole(context.spec.assigneeId, role))
+            if (
+              !(await context.directory.hasRole(context.spec.assigneeId, role))
+            )
               return {
                 kind: 'refuse',
                 code: 'NOT_QUALIFIED',

@@ -1049,6 +1049,14 @@ export function createCertificateApplication(d: CertificateDependencies) {
         ),
       );
     },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      _actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await d.db.transaction((tx) => read(id, policy, tx));
+    },
     async detail(id: string, actorId: string, policy: RepositoryPolicy) {
       return d.db.transaction((tx) =>
         engine.within(tx, () =>

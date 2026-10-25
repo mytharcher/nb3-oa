@@ -70,7 +70,7 @@ export default {
   reasonLimit: 'Use no more than 5,000 characters.',
   futureDate: 'Choose a future company-local date.',
   photoRequired: 'Select at least one evidence photo.',
-  photoLimit: 'Up to 10 JPEG, PNG or WebP photos, at most 5 MiB each.',
+  photoLimit: 'Up to 10 JPEG, PNG or WebP photos, at most 5 MB each.',
   removeSelection: 'Remove selection',
   selectPhoto: 'Select existing evidence',
   uploadUnknown:
@@ -191,7 +191,7 @@ export default {
     ASSET_PHOTO_DENIED: 'The request or its photo field is not accessible.',
     ASSET_PHOTO_INVALID:
       'Choose at most ten valid photos linked to this request.',
-    ASSET_PHOTO_SIZE: 'Each photo must be no larger than 5 MiB.',
+    ASSET_PHOTO_SIZE: 'Each photo must be no larger than 5 MB.',
     ASSET_PHOTO_TYPE: 'Upload a valid JPEG, PNG or WebP image.',
     ASSET_STOCK_SHORTAGE:
       'There are not enough available units for this complete request.',
@@ -227,7 +227,7 @@ export default {
     ASSET_TARGET_MISMATCH: 'The approval target belongs to another request.',
     ASSET_DIRECTORY_UNAVAILABLE: 'A fresh approval directory is required.',
     ASSET_SLA_UNSUPPORTED:
-      'This release supports only the default 24/48 working-hour approval clocks.',
+      'Approval cannot be submitted. Ask an administrator to set the deadlines to 24/48 working hours.',
   },
   schedule: {
     title: 'Borrowed asset return reminders',

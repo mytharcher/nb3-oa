@@ -29,7 +29,7 @@ export default {
         'This payment is already settled. Refresh it to see the recorded result.',
       PAYMENT_REQUEST_CONTRACT_ACTUAL_PAYMENT_REQUIRED:
         'Record actual contract payment before completing this operation.',
-      PAYMENT_FILE_SIZE: 'Select a nonempty attachment no larger than 5 MiB.',
+      PAYMENT_FILE_SIZE: 'Select a nonempty attachment no larger than 5 MB.',
       PAYMENT_FILE_TYPE:
         'Upload a PDF, JPEG, PNG or WebP file with a matching file type.',
       PAYMENT_ATTACHMENT_INVALID:

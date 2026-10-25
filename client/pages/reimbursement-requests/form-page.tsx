@@ -1,3 +1,4 @@
+import { InvoiceTools } from './invoice-tools.js';
 import { useRouteFormCloseGuard } from '#hooks/use-route-form-close-guard';
 import { useRequestFormSubmission } from '#hooks/use-request-form-submission';
 import {
@@ -761,7 +762,9 @@ export function ReimbursementForm({
                               <Select
                                 items={categories}
                                 value={field.value}
-                                onValueChange={field.onChange}
+                                onValueChange={(value) => {
+                                  if (value !== null) field.onChange(value);
+                                }}
                                 disabled={disabled || !optionsReady}
                               >
                                 <SelectTrigger
@@ -879,6 +882,43 @@ export function ReimbursementForm({
                               ensureDraft={createEmpty}
                               disabled={disabled || !optionsReady}
                               onBusyChange={setUploading}
+                            />
+                            <InvoiceTools
+                              recordId={record?.id ?? draftId ?? ''}
+                              lineId={line.id}
+                              fileIds={field.value}
+                              operation='recognize'
+                              current={{
+                                number: values.lines?.[index]?.invoiceNumber,
+                                date: values.lines?.[index]?.date,
+                                amountCents:
+                                  parseCents(
+                                    values.lines?.[index]?.amount ?? '',
+                                  ) ?? undefined,
+                              }}
+                              disabled={disabled || !optionsReady}
+                              version={JSON.stringify(values.lines?.[index])}
+                              onApply={(facts) => {
+                                const current = form.getValues(
+                                  `lines.${index}`,
+                                );
+                                if (current.id !== line.id) return;
+                                form.setValue(
+                                  `lines.${index}.invoiceNumber`,
+                                  facts.number,
+                                  { shouldDirty: true, shouldValidate: true },
+                                );
+                                form.setValue(
+                                  `lines.${index}.date`,
+                                  facts.date,
+                                  { shouldDirty: true, shouldValidate: true },
+                                );
+                                form.setValue(
+                                  `lines.${index}.amount`,
+                                  centsText(facts.amountCents),
+                                  { shouldDirty: true, shouldValidate: true },
+                                );
+                              }}
                             />
                             <FieldError errors={[fieldState.error]} />
                           </>

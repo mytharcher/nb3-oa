@@ -27,6 +27,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppRouter } from '../../client/routing/app-router.tsx';
 import { AppThemeProvider } from '../../client/theme/index.ts';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Inbox transport is tested separately; shell tests exercise its real header entry.
+vi.mock('@nocobase/app-plugin-notification-in-app/client/inbox', () => ({
+  useInboxRefresh: () => {},
+  useInboxUnreadCount: () => ({ data: 0, refetch: vi.fn() }),
+}));
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -301,15 +308,21 @@ function renderApplication(
     },
   } as unknown as ClientApplication;
   render(
-    <ClientApplicationContext.Provider value={app}>
-      <AuthenticationProvider>
-        <MemoryRouter initialEntries={[initialEntry]}>
-          <AppThemeProvider>
-            <AppRouter clientRoutes={clientRoutes} />
-          </AppThemeProvider>
-        </MemoryRouter>
-      </AuthenticationProvider>
-    </ClientApplicationContext.Provider>,
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <ClientApplicationContext.Provider value={app}>
+        <AuthenticationProvider>
+          <MemoryRouter initialEntries={[initialEntry]}>
+            <AppThemeProvider>
+              <AppRouter clientRoutes={clientRoutes} />
+            </AppThemeProvider>
+          </MemoryRouter>
+        </AuthenticationProvider>
+      </ClientApplicationContext.Provider>
+    </QueryClientProvider>,
   );
 }
 
@@ -318,7 +331,11 @@ function createTestAuthClient(authenticated: boolean) {
     getSession: vi.fn().mockResolvedValue({
       data: authenticated
         ? {
-            session: null,
+            session: {
+              id: 'test-session',
+              userId: '1',
+              expiresAt: new Date(Date.now() + 3600000),
+            },
             user: {
               email: 'alice@example.com',
               id: '1',

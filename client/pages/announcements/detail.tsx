@@ -55,6 +55,13 @@ export default function AnnouncementDetail() {
   });
   return (
     <RecordDetailDrawer
+      headerStatus={
+        row?.requiresConfirmation && row.capabilities.ownReceipt ? (
+          <StatusBadge tone={statusTone(row.capabilities.ownReceipt.status)}>
+            {t(`announcements.${row.capabilities.ownReceipt.status}`)}
+          </StatusBadge>
+        ) : null
+      }
       title={row?.title ?? t('announcements.detail')}
       closeTo={link('..')}
       footer={
@@ -104,10 +111,11 @@ export default function AnnouncementDetail() {
         ) : null
       ) : (
         <div className='flex flex-col gap-4'>
-          <StatusBadge tone={statusTone(row.status)}>
-            {t(`announcements.status.${row.status}`)}
-          </StatusBadge>
           <dl className='grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-3'>
+            <dt className='text-muted-foreground'>
+              {t('announcements.publicationStatus')}
+            </dt>
+            <dd>{t(`announcements.status.${row.status}`)}</dd>
             <dt className='text-muted-foreground'>
               {t('announcements.publisher')}
             </dt>
@@ -120,6 +128,21 @@ export default function AnnouncementDetail() {
                   {t('announcements.timeZone')}
                 </dt>
                 <dd>{o.data.data.timeZone}</dd>
+                {row.requiresConfirmation &&
+                row.capabilities.ownReceipt?.confirmedAt ? (
+                  <>
+                    <dt className='text-muted-foreground'>
+                      {t('announcements.confirmedAt')}
+                    </dt>
+                    <dd>
+                      {dateLabel(
+                        row.capabilities.ownReceipt.confirmedAt,
+                        i18n.language,
+                        o.data.data.timeZone,
+                      )}
+                    </dd>
+                  </>
+                ) : null}
                 {(['validFrom', 'validUntil'] as const).map((k) => (
                   <div className='contents' key={k}>
                     <dt className='text-muted-foreground'>
@@ -161,20 +184,15 @@ export default function AnnouncementDetail() {
           {row.attachments.length ? (
             <Attachments announcementId={row.id} selected={row.attachments} />
           ) : null}
-          <p>
-            {t(
-              !row.requiresConfirmation
-                ? 'announcements.noConfirmation'
-                : row.capabilities.ownReceipt?.status === 'confirmed'
-                  ? 'announcements.confirmed'
-                  : row.capabilities.ownReceipt?.status === 'pending'
-                    ? 'announcements.pending'
-                    : 'announcements.noOwnReceipt',
-            )}
-            {row.capabilities.ownReceipt?.confirmedAt && o.data
-              ? ` · ${dateLabel(row.capabilities.ownReceipt.confirmedAt, i18n.language, o.data.data.timeZone)}`
-              : ''}
-          </p>
+          {!row.requiresConfirmation || !row.capabilities.ownReceipt ? (
+            <p>
+              {t(
+                !row.requiresConfirmation
+                  ? 'announcements.noConfirmation'
+                  : 'announcements.noOwnReceipt',
+              )}
+            </p>
+          ) : null}
         </div>
       )}
       <Outlet

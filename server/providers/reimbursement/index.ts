@@ -1,3 +1,10 @@
+import { driveManagerToken } from '@nocobase/app-server/drive';
+import { serverFileRepositoryManagerToken } from '@nocobase/app-plugin-file/server';
+import {
+  createReimbursementInvoiceSource,
+  reimbursementInvoiceSourceToken,
+} from './invoice-source.js';
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import {
   lockUserForAdministration,
   userAdministrationServiceToken,
@@ -151,6 +158,14 @@ export default class ReimbursementProvider extends ServiceProvider<Application> 
       });
       return service;
     });
+    c.singleton(reimbursementInvoiceSourceToken, () =>
+      createReimbursementInvoiceSource(
+        c.resolve(reimbursementAttachmentServiceToken),
+        c.resolve(reimbursementServiceToken),
+        c.resolve(serverFileRepositoryManagerToken),
+        c.resolve(driveManagerToken),
+      ),
+    );
     c.singleton(reimbursementAttachmentServiceToken, () =>
       createReimbursementAttachmentService(
         c.resolve(databaseManagerToken),
@@ -159,6 +174,16 @@ export default class ReimbursementProvider extends ServiceProvider<Application> 
     );
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.reimbursement',
+      resource: 'oa.reimbursement',
+      collection: 'reimbursementRequests',
+      titleField: 'reason',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(reimbursementServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     if (!this.app.container.has(authorizationToken)) return;
     const authz = this.app.container.resolve(authorizationToken);
     authz.database.collections.add({

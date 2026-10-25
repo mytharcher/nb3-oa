@@ -23,7 +23,7 @@ const zhCN: TaskCenterUiLocale = {
       earlier: '更早',
     },
     time: {
-      received: '{{time}}收到',
+      received: '{{time}}',
       closed: '{{time}}结束',
     },
     selection: {

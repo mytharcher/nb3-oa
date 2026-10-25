@@ -77,11 +77,6 @@ export function oaSampleData(app: Application): SampleDataRegistration {
     name: 'oa/demo-data',
     packageName: 'nb3-oa',
     async run() {
-      const minimum = app.config.get('auth.emailAndPassword.minPasswordLength');
-      if (typeof minimum !== 'number' || minimum > 6)
-        throw new Error(
-          'OA sample accounts require an explicit sample installation: run APP_SAMPLE_DATA=true pnpm nocobase db sample (or configure the sample environment password minimum as 6).',
-        );
       await ensureOaSample(
         app.container.resolve(demoDataServiceToken),
         app.config.get('i18n.defaultLocale') === 'en-US' ? 'en-US' : 'zh-CN',

@@ -57,7 +57,8 @@ export default {
     uncertainCreate:
       'The save result is unknown. Check My requests before creating another request.',
     inactive: 'An active employee archive is required.',
-    configuration: 'The approval clock configuration is unsupported.',
+    configuration:
+      'Approval cannot be submitted. Contact an administrator to check the approval deadlines.',
     invalid: 'Check the request fields and reload the latest record if needed.',
     stages: {
       manager: 'Direct manager',

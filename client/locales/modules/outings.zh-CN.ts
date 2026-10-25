@@ -20,7 +20,7 @@ export default {
       OUTING_INVALID_PERIOD: '结束时间须晚于开始时间，请检查外出时段。',
       OUTING_REQUIRED_FIELDS: '请填写外出地点和事由。',
       OUTING_SLA_CONFIGURATION_UNSUPPORTED:
-        '当前审批时钟规则不受支持，请联系管理员。',
+        '暂时无法提交审批，请联系管理员检查审批期限设置。',
       ATTENDANCE_ACTIVITY_CHANGED: '考勤事实已变化，请刷新后重新核对。',
     },
   },

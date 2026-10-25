@@ -1,6 +1,7 @@
 import {
   defineApprovalAction,
   offered,
+  unavailable,
   type StagePolicy,
 } from '@nocobase/app-plugin-approval/server';
 import type { SealRequest } from './contract.js';
@@ -45,7 +46,13 @@ export const completeSeal = defineApprovalAction<
   guards: [...guards],
   defaults: {},
   record: ['sealId', 'actualCopies', 'sealedAt', 'borrowedAt', 'returnedAt'],
-  available: () => offered(),
+  available: ({ record }) =>
+    (record as SealRequest).executionMode === 'electronic'
+      ? unavailable(
+          'NOT_ALLOWED',
+          'Electronic signing uses verified gateway evidence.',
+        )
+      : offered(),
   validate: (input, context) => {
     const record = context.record as SealRequest;
     if (typeof input.sealId !== 'string' || !input.sealId)
@@ -107,3 +114,41 @@ export const unableSeal = defineApprovalAction<
     },
   ],
 });
+
+export function completeElectronicSeal(allowed: (id: string) => boolean) {
+  return defineApprovalAction<{ sealedAt: string }, Record<string, never>>({
+    name: 'electronicComplete',
+    scope: 'task',
+    actors: ['assignee'],
+    guards: [...guards],
+    defaults: {},
+    record: ['sealedAt'],
+    available: ({ record }) =>
+      (record as SealRequest).executionMode === 'electronic' &&
+      allowed(String(record.id))
+        ? offered()
+        : unavailable(
+            'NOT_ALLOWED',
+            'Verified archived signature evidence is required.',
+          ),
+    validate: (input) =>
+      typeof input.sealedAt === 'string' &&
+      Number.isFinite(Date.parse(input.sealedAt))
+        ? null
+        : 'Verified signature time is required.',
+    plan: (input, { task }) => [
+      {
+        type: 'answer',
+        task: task!.id,
+        answer: 'completed',
+        data: {
+          sealId: null,
+          actualCopies: null,
+          sealedAt: input.sealedAt,
+          borrowedAt: null,
+          returnedAt: null,
+        },
+      },
+    ],
+  });
+}

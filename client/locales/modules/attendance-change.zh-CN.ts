@@ -29,8 +29,8 @@ export default {
         '申请人须为在职员工，请联系 HR 核对档案。',
       ATTENDANCE_CHANGE_REASON_REQUIRED: '请填写补卡原因。',
       ATTENDANCE_CHANGE_SLA_CONFIGURATION_UNSUPPORTED:
-        '当前审批时钟规则不受支持，请联系管理员。',
-      ATTENDANCE_CHANGE_FILE_SIZE: '附件不能为空且不超过 5 MiB。',
+        '暂时无法提交审批，请联系管理员检查审批期限设置。',
+      ATTENDANCE_CHANGE_FILE_SIZE: '附件不能为空且不超过 5 MB。',
       ATTENDANCE_CHANGE_FILE_TYPE:
         '仅支持内容与格式一致的 PDF、JPEG、PNG 和 WebP 附件。',
       ATTENDANCE_CHANGE_ATTACHMENT_DENIED: '没有查看或上传此证明附件的权限。',

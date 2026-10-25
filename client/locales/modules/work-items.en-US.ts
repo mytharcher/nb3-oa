@@ -53,7 +53,7 @@ export default {
     edit: 'Edit draft',
     more: 'More actions',
     back: 'Back to work items',
-    pool: 'Duty pool',
+    pool: 'Handling group',
     confirmation: 'Require completion confirmation',
     required: 'Required',
     notRequired: 'Not required',
@@ -63,7 +63,7 @@ export default {
     resultAttachments: 'Result attachments',
     completedAt: 'Completed at',
     fileMissing: 'Attachment unavailable',
-    fileLimit: 'Up to 10 files, 20 MiB each: PDF, PNG, JPEG, TXT',
+    fileLimit: 'Up to 10 files, 20 MB each: PDF, PNG, JPEG, TXT',
     saveBeforeUpload: 'Save the draft, then edit it to upload attachments',
     upload: 'Upload attachment',
     uploading: 'Uploading…',
@@ -80,7 +80,7 @@ export default {
       description: 'Use at most 100,000 characters',
       dueAt: 'Choose a valid due date and time',
       targetUserId: 'Choose an assignee',
-      dutyRoleCode: 'Choose a duty pool',
+      dutyRoleCode: 'Choose a handling group',
       reason: 'Enter a reason of 1–2,000 characters',
       result: 'Enter a result of 1–100,000 characters',
     },
@@ -105,7 +105,7 @@ export default {
       pending: 'Pending',
       created: 'Created by me',
       assigned: 'Assigned to me',
-      pool: 'Duty pools',
+      pool: 'Handling groups',
       all: 'All visible',
     },
     states: {
@@ -142,9 +142,10 @@ export default {
       complete:
         'Submitting a result either asks the confirmation owner to confirm or completes a task that needs no confirmation',
       dispatch:
-        'Dispatch freezes the draft and selected attachments and assigns handling to the employee or duty pool',
+        'Dispatch freezes the draft and selected attachments and assigns handling to the employee or handling group',
       claim: 'Claiming makes you responsible for handling this task',
-      release: 'Releasing returns the task to its duty pool for another member',
+      release:
+        'Releasing returns the task to its handling group for another member',
       confirm: 'Confirmation completes this task',
       return:
         'Returning clears the current candidate result and asks the handler to continue',

@@ -13,7 +13,7 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
-import { useOutletContext, useParams } from 'react-router';
+import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import { RouteDrawer } from '#components/route-drawer';
 import { useRouteOverlay } from '#components/use-route-overlay';
@@ -338,6 +338,12 @@ function BusinessForm({
     name: 'attachments',
   });
   const selectedDate = useWatch({ control: form.control, name: 'date' });
+  const [searchParams] = useSearchParams();
+  const requestedMissingPunch =
+    kind === 'attendanceChange' && !record
+      ? searchParams.get('missingPunchId')
+      : null;
+  const prefilledRef = useRef<string | null>(null);
   const applicantId = record?.applicantId || session?.user.id || '';
   const missing = useResource<
     Array<{
@@ -352,6 +358,22 @@ function BusinessForm({
       : null,
     { applicantId, ...(record ? { excludeRequestId: record.id } : {}) },
   );
+  useEffect(() => {
+    if (
+      !requestedMissingPunch ||
+      !missing.data ||
+      prefilledRef.current === requestedMissingPunch
+    )
+      return;
+    const match = missing.data.find(
+      (item) => item.id === requestedMissingPunch,
+    );
+    prefilledRef.current = requestedMissingPunch;
+    if (!match || form.getValues('originalAttendanceId')) return;
+    form.setValue('originalAttendanceId', match.id);
+    form.setValue('originalVersion', match.version);
+    form.setValue('date', match.date);
+  }, [requestedMissingPunch, missing.data, form]);
   useEffect(
     () => onDirty(form.formState.isDirty),
     [onDirty, form.formState.isDirty],
@@ -498,6 +520,17 @@ function BusinessForm({
         <FieldGroup inert={submission.submitUnknown || undefined}>
           {kind === 'attendanceChange' ? (
             <>
+              {requestedMissingPunch &&
+              missing.data &&
+              !missing.data.some(
+                (item) => item.id === requestedMissingPunch,
+              ) ? (
+                <Alert variant='destructive'>
+                  <AlertDescription>
+                    {t('attendanceResults.prefillUnavailable')}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
               {missing.error ? (
                 <ErrorState error={missing.error} retry={missing.reload} />
               ) : null}

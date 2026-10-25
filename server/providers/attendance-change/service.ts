@@ -312,6 +312,7 @@ export function createAttendanceChangeService(d: AttendanceChangeDependencies) {
       original.userId !== record.applicantId ||
       original.date !== record.date ||
       original.status !== 'missing' ||
+      !(await d.attendance.isMissingEffective(original, connection)) ||
       original.version !== record.originalVersion
     )
       refuse(
@@ -718,32 +719,48 @@ export function createAttendanceChangeService(d: AttendanceChangeDependencies) {
       const earliest = d.calendar.addCalendarDays(today, -7);
       const pending = await d.db
         .repository<AttendanceChangeRecord>('attendanceChangeRequests')
-        .findMany({ filter: { applicantId } });
+        .findMany({
+          filter: (f) =>
+            f.and([
+              f.string('applicantId').eq(applicantId),
+              f.or(
+                ['manager', 'revision', 'approved'].map((status) =>
+                  f.string('status').eq(status),
+                ),
+              ),
+            ]),
+        });
       const used = new Set(
         pending
-          .filter(
-            (record) =>
-              record.id !== excludeRequestId &&
-              ['manager', 'revision', 'approved'].includes(record.status),
-          )
+          .filter((record) => record.id !== excludeRequestId)
           .map((record) => record.originalAttendanceId),
       );
-      const rows = await d.db
-        .repository<import('../attendance/contract.js').AttendanceRecord>(
-          'attendanceRecords',
-        )
-        .findMany({ filter: { userId: applicantId, status: 'missing' } });
-      return rows
-        .filter(
-          (row) =>
-            row.date >= earliest && row.date <= today && !used.has(row.id),
-        )
-        .map((row) => ({
-          id: row.id,
-          date: row.date,
-          punchKind: row.punchKind,
-          version: row.version,
-        }));
+      // Only the open window is eligible; the evidence check costs several reads per
+      // row, so it runs last and one row at a time instead of across all history.
+      const rows = (
+        await d.db
+          .repository<import('../attendance/contract.js').AttendanceRecord>(
+            'attendanceRecords',
+          )
+          .findMany({
+            filter: (f) =>
+              f.and([
+                f.string('userId').eq(applicantId),
+                f.string('status').eq('missing'),
+                f.date('date').notBefore(earliest),
+                f.date('date').notAfter(today),
+              ]),
+          })
+      ).filter((row) => !used.has(row.id));
+      const effective: typeof rows = [];
+      for (const row of rows)
+        if (await d.attendance.isMissingEffective(row)) effective.push(row);
+      return effective.map((row) => ({
+        id: row.id,
+        date: row.date,
+        punchKind: row.punchKind,
+        version: row.version,
+      }));
     },
     async readableScope(actorId: string): Promise<DatabaseScope> {
       await refresh();
@@ -891,6 +908,14 @@ export function createAttendanceChangeService(d: AttendanceChangeDependencies) {
     async accessFacts(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);
       return { applicantId: record.applicantId, status: record.status };
+    },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await canRead(id, actorId, policy);
     },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);

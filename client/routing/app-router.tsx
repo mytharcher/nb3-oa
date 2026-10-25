@@ -1,7 +1,7 @@
 import {
-  GuestAuthentication,
-  RequiredAuthentication,
-} from '@nocobase/app-plugin-authentication/client';
+  AppGuestAuthentication as GuestAuthentication,
+  AppRequiredAuthentication as RequiredAuthentication,
+} from './app-authentication.js';
 import type { AppClientRegisteredRoute } from '@nocobase/app-client/plugins';
 import { useMemo, type ReactElement } from 'react';
 import { Navigate, Outlet, Route, Routes } from 'react-router';

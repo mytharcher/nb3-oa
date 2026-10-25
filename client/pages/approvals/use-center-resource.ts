@@ -1,8 +1,9 @@
+import { refreshPersonalWork } from '#lib/personal-work-refresh';
 import { sharedRead } from './shared-read.js';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useAuthorizationRevision } from '@nocobase/app-plugin-authorization/client';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
-import { useEffect, useReducer, useState } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 export interface CenterRecord {
   id: string;
   kind:
@@ -68,7 +69,11 @@ export function useCenterResource(
   path = 'approvalCenter',
 ) {
   const api = useApiClient();
-  const [generation, reload] = useReducer((v: number) => v + 1, 0);
+  const [generation, reloadLocal] = useReducer((v: number) => v + 1, 0);
+  const reload = useCallback(() => {
+    reloadLocal();
+    refreshPersonalWork();
+  }, []);
   const { session } = useAuthentication();
   const revision = useAuthorizationRevision();
   const queryKey = JSON.stringify(query);

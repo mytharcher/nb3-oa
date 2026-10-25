@@ -806,6 +806,14 @@ export function createContractService(d: Dependencies) {
         timeline: detail.timeline,
       };
     },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await read(id, actorId, policy);
+    },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await read(id, actorId, policy);
       return kit.read(async () => {

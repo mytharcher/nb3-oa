@@ -1,5 +1,21 @@
 export default {
   reports: {
+    administrativeExportHint:
+      'Export includes all records you can read, up to 10,000 rows, not just this page. Larger ledgers require a separate export arranged by your administrator.',
+    administrativeColumns: {
+      number: 'Request number',
+      itemCode: 'Item code',
+      requestedQuantity: 'Requested quantity',
+      actualQuantity: 'Issued quantity',
+      recipient: 'Recipient',
+      operator: 'Registered by',
+      recordedAt: 'Recorded at',
+      sealName: 'Seal',
+      approvedCopies: 'Approved copies',
+      actualCopies: 'Actual copies',
+      applicant: 'Applicant',
+      sealedAt: 'Sealed at',
+    },
     noData: 'No report data yet',
     title: 'Reports',
     description:
@@ -56,6 +72,15 @@ export default {
       statusHint: 'active / terminated',
     },
     datasets: {
+      'supply-ledger': {
+        title: 'Supplies ledger report',
+        description: 'Issued supplies within your current ledger access.',
+      },
+      'seal-ledger': {
+        title: 'Seal ledger report',
+        description:
+          'Registered stamping within your current ledger and request access.',
+      },
       'leave-monthly': {
         title: 'Monthly leave requests',
         description:

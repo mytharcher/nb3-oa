@@ -15,7 +15,11 @@ import type {
 export class PersonalScheduleError extends Error {
   constructor(
     public readonly code:
-      'ACCESS_DENIED' | 'NOT_FOUND' | 'INVALID_INPUT' | 'VERSION_CONFLICT',
+      | 'ACCESS_DENIED'
+      | 'NOT_FOUND'
+      | 'INVALID_INPUT'
+      | 'VERSION_CONFLICT'
+      | 'SOURCE_MANAGED',
   ) {
     super(code);
   }
@@ -98,17 +102,71 @@ export function createPersonalScheduleService(
     });
     const row = await get(id, actor, tx, p);
     if (row.version !== version) fail('VERSION_CONFLICT');
+    if (row.sourceBookingId) fail('SOURCE_MANAGED');
     return row;
   }
   return {
     get,
-    async list(actor, tx, p) {
+    async syncMeeting(booking, tx) {
+      const repo = tx.repository<PersonalSchedule>('personalSchedules');
+      const existing = await repo.findMany({
+        filter: { sourceBookingId: booking.id },
+      });
+      const owners =
+        booking.status === 'confirmed'
+          ? new Set([booking.organizerUserId, ...booking.attendeeUserIds])
+          : new Set<string>();
+      for (const row of existing) {
+        if (!owners.has(row.ownerUserId))
+          await repo.deleteOne({ filter: { id: row.id } });
+      }
+      for (const ownerUserId of owners) {
+        const row = existing.find((item) => item.ownerUserId === ownerUserId);
+        const next = {
+          title: booking.title,
+          description: '',
+          startAt: new Date(booking.startAt),
+          endAt: new Date(booking.endAt),
+        };
+        if (row) {
+          if (
+            row.title !== next.title ||
+            +new Date(row.startAt) !== +next.startAt ||
+            +new Date(row.endAt) !== +next.endAt
+          )
+            await repo.updateOne({
+              filter: { id: row.id },
+              values: { ...next, version: row.version + 1 },
+            });
+        } else {
+          await repo.createOne({
+            values: {
+              ...next,
+              id: randomUUID(),
+              ownerUserId,
+              sourceBookingId: booking.id,
+              version: 1,
+            },
+          });
+        }
+      }
+    },
+    async list(actor, tx, p, interval) {
       if (!p || !actor) fail('ACCESS_DENIED');
       const rows = await tx
         .repository<PersonalSchedule>('personalSchedules')
         .withPolicy(p)
         .findMany({
-          filter: { ownerUserId: actor },
+          filter: (f) =>
+            f.and([
+              f.string('ownerUserId').eq(actor),
+              ...(interval
+                ? [
+                    f.date('startAt').before(interval.endAt),
+                    f.date('endAt').after(interval.startAt),
+                  ]
+                : []),
+            ]),
           sort: (s) => s.field('startAt').asc(),
           limit: 1001,
         });

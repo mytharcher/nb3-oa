@@ -632,6 +632,51 @@ export function createOutingService(d: OutingDependencies) {
     }
   }
   return {
+    /** Calendar summaries must retain the original document's record and field policy. */
+    async calendarEntries(
+      policy: RepositoryPolicy,
+      connection: DatabaseConnection,
+      date: string,
+    ) {
+      const nextDay = new Date(`${date}T12:00:00Z`);
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+      const lower = d.calendar
+          .resolveLocalDateTime(date, '00:00')
+          .toISOString(),
+        upper = d.calendar
+          .resolveLocalDateTime(nextDay.toISOString().slice(0, 10), '00:00')
+          .toISOString();
+      const fields = [
+        'id',
+        'applicantId',
+        'status',
+        'startAt',
+        'endAt',
+      ] as const;
+      const rows = await connection
+        .repository<OutingRecord>('outingRequests')
+        .withPolicy(policy)
+        .findMany({
+          filter: (f) =>
+            f.and([
+              // Ended sources may still have an authorized, already elapsed activity prefix.
+              f.or(
+                ['approved', 'terminated', 'withdrawn'].map((status) =>
+                  f.string('status').eq(status),
+                ),
+              ),
+              f.date('startAt').before(upper),
+              f.date('endAt').after(lower),
+            ]),
+          select: (s) => s.fields(...fields),
+        });
+      return rows
+        .filter((row) => fields.every((field) => row[field] !== undefined))
+        .map((row) => ({
+          id: String(row.id),
+          userIds: [String(row.applicantId)],
+        }));
+    },
     initialize: refresh,
     options: () => ({ timeZone: d.calendar.timeZone() }),
     async readableScope(actorId: string): Promise<DatabaseScope> {
@@ -774,6 +819,14 @@ export function createOutingService(d: OutingDependencies) {
     async accessFacts(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);
       return { applicantId: record.applicantId, status: record.status };
+    },
+    /** Public search adapter reuses the detail record guard without loading approval history. */
+    async searchVisible(
+      id: string,
+      actorId: string,
+      policy: RepositoryPolicy,
+    ): Promise<void> {
+      await canRead(id, actorId, policy);
     },
     async detail(id: string, actorId: string, policy?: RepositoryPolicy) {
       const record = await canRead(id, actorId, policy);

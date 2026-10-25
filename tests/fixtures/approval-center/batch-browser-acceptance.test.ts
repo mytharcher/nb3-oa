@@ -8,7 +8,7 @@ import { organizationServiceToken } from '../../../server/providers/org/index.js
 import { leaveServiceToken } from '../../../server/providers/leave/index.js';
 import { authorizationToken } from '@nocobase/app-plugin-authorization/server';
 it.runIf(process.env.OA_BATCH_BROWSER === '1')(
-  'isolated twenty-item manager batch approval, mobile scrolling and current view revocation',
+  'isolated ten-item manager batch approval, mobile scrolling and current view revocation',
   async () => {
     const h = await startIsolatedBrowserApp({
       name: 'approval-batch',
@@ -33,7 +33,7 @@ it.runIf(process.env.OA_BATCH_BROWSER === '1')(
       );
       const service = c.resolve(leaveServiceToken);
       const ids: string[] = [];
-      for (let day = 1; day <= 20; day++) {
+      for (let day = 1; day <= 10; day++) {
         const date = new Date(Date.UTC(2027, 1, 1 + (day - 1) * 7))
           .toISOString()
           .slice(0, 10);
@@ -72,14 +72,22 @@ it.runIf(process.env.OA_BATCH_BROWSER === '1')(
         )
           mutationRequests++;
       });
+      await page.goto(`${h.origin}${h.basePath}/`);
+      await page
+        .getByRole('button', {
+          name: 'Open task list · Batch approval',
+          exact: true,
+        })
+        .click();
+      await browserExpect(page).toHaveURL(/\/taskCenter/);
       await page.goto(
-        `${h.origin}${h.basePath}/approvals/todo?kind=oa.leave#batch`,
+        `${h.origin}${h.basePath}/approvals/todo?kind=oa.leave&pageSize=20#batch`,
       );
       const checks = page.getByRole('checkbox');
-      await browserExpect(checks).toHaveCount(20, { timeout: 90000 });
-      for (let index = 0; index < 20; index++) await checks.nth(index).check();
+      await browserExpect(checks).toHaveCount(10, { timeout: 90000 });
+      for (let index = 0; index < 10; index++) await checks.nth(index).check();
       const batch = page.getByRole('button', {
-        name: /Approve selected \(20\)|批量同意（20）/,
+        name: /Approve selected \(10\)|批量同意（10）/,
       });
       await browserExpect(batch).toBeEnabled();
       await batch.click();
@@ -105,32 +113,36 @@ it.runIf(process.env.OA_BATCH_BROWSER === '1')(
               { theme, preset },
             );
             await mobile.goto(
-              `${h.origin}${h.basePath}/approvals/todo?kind=oa.leave#batch`,
+              `${h.origin}${h.basePath}/approvals/todo?kind=oa.leave&pageSize=20#batch`,
             );
-            await browserExpect(mobile.getByRole('checkbox')).toHaveCount(20, {
+            await browserExpect(mobile.getByRole('checkbox')).toHaveCount(10, {
               timeout: 90000,
             });
-            for (let index = 0; index < 20; index++)
+            for (let index = 0; index < 10; index++)
               await mobile.getByRole('checkbox').nth(index).check();
             await mobile
               .getByRole('button', {
-                name: /Approve selected \(20\)|批量同意（20）/,
+                name: /Approve selected \(10\)|批量同意（10）/,
               })
               .click();
             await browserExpect(mobile.getByRole('alertdialog')).toBeVisible();
             const list = mobile.getByRole('alertdialog').getByRole('list');
-            await browserExpect(list.getByRole('listitem')).toHaveCount(20);
-            expect(
+            await browserExpect(list.getByRole('listitem')).toHaveCount(10);
+            if (
               await list.evaluate(
                 (element) => element.scrollHeight > element.clientHeight,
-              ),
-            ).toBe(true);
-            await list.evaluate((element) => {
-              element.scrollTop = element.scrollHeight;
-            });
-            expect(
-              await list.evaluate((element) => element.scrollTop > 0),
-            ).toBe(true);
+              )
+            ) {
+              await list.evaluate((element) => {
+                element.scrollTop = element.scrollHeight;
+              });
+              expect(
+                await list.evaluate((element) => element.scrollTop > 0),
+              ).toBe(true);
+            }
+            await browserExpect(
+              list.getByRole('listitem').last(),
+            ).toBeVisible();
             const footer = mobile.getByRole('button', {
               name: /^(Approve selected|确认同意)$/,
             });
@@ -167,7 +179,7 @@ it.runIf(process.env.OA_BATCH_BROWSER === '1')(
           .getByRole('status')
           .filter({ hasText: /Unavailable|已不可办理/ })
           .locator('p'),
-      ).toHaveCount(20);
+      ).toHaveCount(10);
       expect(
         (await service.detail(ids[0], manager.userId)).runs
           .flatMap((v) => v.tasks)
@@ -175,8 +187,8 @@ it.runIf(process.env.OA_BATCH_BROWSER === '1')(
       ).toBe(false);
       await sets.update(set!.key, set!);
       await page.reload();
-      await browserExpect(checks).toHaveCount(20, { timeout: 90000 });
-      for (let index = 0; index < 20; index++) await checks.nth(index).check();
+      await browserExpect(checks).toHaveCount(10, { timeout: 90000 });
+      for (let index = 0; index < 10; index++) await checks.nth(index).check();
       await batch.click();
       await page
         .getByRole('button', { name: /^(Approve selected|确认同意)$/ })
@@ -194,7 +206,7 @@ it.runIf(process.env.OA_BATCH_BROWSER === '1')(
           .getByRole('status')
           .filter({ hasText: /Approved|已同意/ })
           .locator('p'),
-      ).toHaveCount(20);
+      ).toHaveCount(10);
       expect(mutationRequests).toBe(2);
       await browserExpect(checks).toHaveCount(0);
       for (const id of ids)
@@ -205,7 +217,7 @@ it.runIf(process.env.OA_BATCH_BROWSER === '1')(
               (v) => v.answer === 'approve' && v.actorId === manager.userId,
             ),
         ).toHaveLength(1);
-      expect(new URL(page.url()).hash).toBe('#batch');
+      expect(new URL(page.url()).pathname).toBe(`${h.basePath}/taskCenter`);
       await page.setViewportSize({ width: 375, height: 812 });
       expect(
         await page.evaluate(

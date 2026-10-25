@@ -27,7 +27,7 @@ export default {
     reason: 'Reason for this change',
     formDescription:
       'Vendor changes and bank details are audited. Disabling prevents new purchases and payments.',
-    disableHint: 'New purchases and payment snapshots will be blocked.',
+    disableHint: 'New purchases and payment account details will be blocked.',
     required: 'This field is required.',
     invalidCode: 'Use letters, digits, dots, hyphens or underscores.',
     invalidEmail: 'Enter a valid email address.',

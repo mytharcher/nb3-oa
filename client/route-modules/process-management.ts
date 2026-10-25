@@ -22,7 +22,7 @@ function executionChildren(owner: string): AppClientRouteDefinition[] {
 export default defineAppRoutes([
   {
     name: 'oa-process-management',
-    parent: 'oa-system',
+    parent: 'oa-system-operations',
     path: '/processManagement',
     auth: 'required',
     authz: {

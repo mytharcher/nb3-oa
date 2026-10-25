@@ -1,15 +1,20 @@
+import { refreshPersonalWork } from '#lib/personal-work-refresh';
 import { sharedRead } from './shared-read.js';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useAuthorizationRevision } from '@nocobase/app-plugin-authorization/client';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
-import { useEffect, useReducer, useState } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 /** Only a refresh of the same authorized resource retains content. Changing record/view or a final refusal clears it. */
 export function useResource<T>(
   path: string | null,
   query?: Record<string, string>,
 ) {
   const api = useApiClient();
-  const [generation, reload] = useReducer((v: number) => v + 1, 0);
+  const [generation, reloadLocal] = useReducer((v: number) => v + 1, 0);
+  const reload = useCallback(() => {
+    reloadLocal();
+    refreshPersonalWork();
+  }, []);
   const queryKey = JSON.stringify(query ?? {});
   const { session } = useAuthentication();
   const revision = useAuthorizationRevision();

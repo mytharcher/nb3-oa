@@ -14,6 +14,21 @@ export interface RouteNavigationItem {
   readonly children: readonly RouteNavigationItem[];
 }
 
+// Presentation belongs to the OA shell; keep the route tree and its permission boundaries intact.
+const sectionNames = new Set([
+  'oa-system-people',
+  'oa-system-connections',
+  'oa-system-operations',
+]);
+
+export function isNavigationSection(item: RouteNavigationItem): boolean {
+  return (
+    item.route.source === 'application' &&
+    !item.route.componentLoader &&
+    sectionNames.has(item.route.name ?? '')
+  );
+}
+
 export function buildRouteNavigation(
   routes: readonly AppClientRegisteredRoute[],
   denied: ReadonlySet<string>,

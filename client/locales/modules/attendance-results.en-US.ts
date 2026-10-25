@@ -1,0 +1,68 @@
+export default {
+  attendanceResults: {
+    title: 'Attendance results',
+    description:
+      'Review daily attendance, resolve missing punches and check your monthly summary.',
+    month: 'Month',
+    employee: 'Employee',
+    department: 'Department',
+    date: 'Date',
+    status: 'Status',
+    dailyResult: 'Daily attendance',
+    normalDays: 'Normal days',
+    exceptionDays: 'Days with exceptions',
+    blockedDays: 'Days needing review',
+    restDays: 'Rest days',
+    lateMinutes: 'Late (min)',
+    earlyMinutes: 'Early departure (min)',
+    missingPunches: 'Missing punches',
+    absentMinutes: 'Uncovered absence (min)',
+    approvedOvertimeMinutes: 'Approved overtime (min)',
+    statuses: {
+      normal: 'Normal',
+      exception: 'Exception',
+      blocked: 'Needs review',
+      rest: 'Rest day',
+    },
+    timeZone: 'Attendance dates follow the company time zone: {{zone}}.',
+    refresh: 'Refresh',
+    clear: 'Clear filters',
+    empty: 'No attendance results yet',
+    noResults: 'No matching results',
+    emptyDescription:
+      'Results appear after daily calculation. You can calculate an ended day, or ask HR to check the schedule.',
+    unnamed: 'Employee name unavailable',
+    denied: 'You do not have access to this attendance operation.',
+    calculate: 'Calculate my attendance',
+    recalculate: 'Recalculate',
+    calculateDescription:
+      'Select an ended day and explain the reason. Existing results remain in the calculation history.',
+    reason: 'Reason',
+    cancel: 'Cancel',
+    confirmCalculate: 'Calculate',
+    calculating: 'Calculating…',
+    calculated: 'Attendance calculation completed.',
+    calculateFailed:
+      'Could not calculate attendance. Check that the shift has ended and a valid schedule is available, then retry.',
+    correctIn: 'Request check-in correction',
+    correctOut: 'Request check-out correction',
+    export: 'Export month',
+    exporting: 'Exporting…',
+    exported: 'Attendance export downloaded.',
+    needsReview: 'Ask HR to check the schedule and attendance records.',
+    prefillUnavailable:
+      'This missing punch is no longer available for correction. Select another eligible record or ask HR for help.',
+    reasons: {
+      missingPrimaryDepartment: 'Your primary department needs to be set.',
+      missingSchedule: 'No schedule is available for this day.',
+      missingShiftRevision: 'The shift needs to be checked.',
+      calendarTimeZoneChanged:
+        'The attendance time settings changed. Ask HR to confirm them.',
+      unresolvableLocalTime: 'The clock time needs to be checked.',
+      missingCorrectionFact: 'An approved correction needs to be reconciled.',
+      invalidActivityTime: 'An approved absence has an invalid time range.',
+      unverifiedActivitySource:
+        'An absence requires verification before it can be used.',
+    },
+  },
+};

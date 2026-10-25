@@ -1,3 +1,6 @@
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
+import { attendanceActivitySourcesToken } from '../attendance/activity-sources.js';
+import { overtimeAttendanceEvidence } from './attendance-evidence.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 
 import {
@@ -96,6 +99,21 @@ export default class OvertimeProvider extends ServiceProvider<Application> {
     });
   }
   public override async boot(): Promise<void> {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.overtime',
+      resource: 'oa.overtime',
+      collection: 'overtimeRequests',
+      titleField: 'reason',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(overtimeServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
+    this.app.container
+      .resolve(attendanceActivitySourcesToken)
+      .register('overtime', (userId, date, connection) =>
+        overtimeAttendanceEvidence(userId, date, connection),
+      );
     if (!this.app.container.has(authorizationToken)) return;
     const authz = this.app.container.resolve(authorizationToken);
     authz.database.collections.add({

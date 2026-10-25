@@ -26,7 +26,7 @@ export default {
     reason: '本次变更原因',
     formDescription:
       '供应商及银行资料变更均留审计；停用后不可用于新的采购及付款。',
-    disableHint: '将禁止新的采购及付款账户快照。',
+    disableHint: '将禁止新的采购及付款账户信息。',
     required: '请填写此项。',
     invalidCode: '请使用字母、数字、点、连字符或下划线。',
     invalidEmail: '请填写有效邮箱。',

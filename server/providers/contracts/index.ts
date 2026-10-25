@@ -1,3 +1,7 @@
+import { driveManagerToken } from '@nocobase/app-server/drive';
+import { contractSignatureSourceToken } from '../electronic-signatures/contract.js';
+import { createContractSignatureSource } from './signature-source.js';
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import {
   anyScope,
@@ -130,6 +134,13 @@ export default class ContractsProvider extends ServiceProvider<Application> {
     c.singleton(contractServiceToken, () =>
       c.resolve(contractHttpServiceToken),
     );
+    c.singleton(contractSignatureSourceToken, () =>
+      createContractSignatureSource(
+        c.resolve(contractLedgerServiceToken),
+        c.resolve(orgServiceToken),
+        c.resolve(driveManagerToken),
+      ),
+    );
     c.singleton(contractAttachmentServiceToken, () =>
       createContractAttachmentService(
         c.resolve(databaseManagerToken),
@@ -138,6 +149,16 @@ export default class ContractsProvider extends ServiceProvider<Application> {
     );
   }
   override async boot() {
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.contract',
+      resource: 'oa.contract',
+      collection: 'contractRequests',
+      titleField: 'reason',
+      validate: (id, actorId, policy) =>
+        this.app.container
+          .resolve(contractHttpServiceToken)
+          .searchVisible(id, actorId, policy),
+    });
     const c = this.app.container,
       authz = c.resolve(authorizationToken);
     for (const name of ['contractRequests', 'contracts', 'contractVersions'])

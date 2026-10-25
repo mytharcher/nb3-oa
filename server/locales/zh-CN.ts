@@ -1,3 +1,11 @@
+import reportsLocale from '../../client/locales/modules/reports.zh-CN.js';
+import invoiceRecognitionLocale from '../../client/locales/modules/invoice-recognition.zh-CN.js';
+import electronicSignaturesLocale from './modules/electronic-signatures.zh-CN.js';
+import wecomAttendanceLocale from './modules/wecom-attendance.zh-CN.js';
+import hrMasterDataLocale from '../../client/locales/modules/hr-master-data.zh-CN.js';
+import attendanceResultsLocale from './modules/attendance-results.zh-CN.js';
+import processOperationsLocale from './modules/process-operations.zh-CN.js';
+import financeIntegrationLocale from '../../client/locales/modules/finance-integration.zh-CN.js';
 import accessLocale from '../../client/locales/modules/access.zh-CN.js';
 import demoData from '../../client/locales/modules/demo-data.zh-CN.js';
 import processManagementLocale from '../../client/locales/modules/process-management.zh-CN.js';
@@ -33,6 +41,14 @@ const zhCN: AppServerResource = {
   transfer: transferLocale,
   ...certificatesLocale,
   ...attendanceManagementLocale,
+  ...attendanceResultsLocale,
+  ...wecomAttendanceLocale,
+  ...processOperationsLocale,
+  ...financeIntegrationLocale,
+  ...invoiceRecognitionLocale,
+  ...reportsLocale,
+  ...electronicSignaturesLocale,
+  ...hrMasterDataLocale,
   ...knowledgeLocale,
   ...recruitmentLocale,
   ...onboardingLocale,

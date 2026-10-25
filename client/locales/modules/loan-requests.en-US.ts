@@ -43,7 +43,7 @@ export default {
       assign: 'Assign handler',
     },
     confirmRetry:
-      'Refresh your bank account snapshot and return this approved request to the cashier.',
+      'Refresh your bank account details and return this approved request to the cashier.',
     confirmPayment:
       'Confirm that payment has actually completed with this voucher. This creates the borrower’s debt.',
     confirmUnable:
@@ -141,7 +141,7 @@ export default {
     errors: {
       inactive: 'An active employee archive is required.',
       configuration:
-        'Approval clock configuration requires administrator attention.',
+        'Approval cannot be submitted. Contact an administrator to check the approval deadlines.',
       invalid: 'Check the input fields and try again.',
       quota: 'The personal loan limit would be exceeded.',
       overdue: 'Repay your overdue debt before applying for another loan.',

@@ -27,7 +27,7 @@ export default {
       'An active or approved overtime request already exists for this date.',
     inactive: 'The applicant must be an active employee.',
     configuration:
-      'The overtime approval clock configuration is unsupported. Contact an administrator.',
+      'Approval cannot be submitted. Contact an administrator to check the approval deadlines.',
     invalid: 'Review the overtime date, duration, settlement and reason.',
     schemaUnavailable:
       'The overtime database schema needs updating. This operation cannot be completed yet. Contact an administrator.',

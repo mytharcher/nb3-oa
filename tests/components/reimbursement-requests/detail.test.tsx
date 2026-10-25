@@ -2,6 +2,9 @@ vi.mock('@nocobase/app-plugin-authorization/client', () => ({
   useAuthorizationRevision: () => 0,
   useCan: () => ({ can: false, isPending: false }),
 }));
+vi.mock('#components/finance-integration-section', () => ({
+  FinanceIntegrationSection: () => null,
+}));
 import {
   createTestI18nRuntime,
   TestI18nProvider,
