@@ -1,5 +1,20 @@
 export default {
   onboarding: {
+    authz: {
+      resource: 'Onboarding',
+      readable: 'Onboarding participants',
+      view: 'View onboarding',
+      create: 'Create onboarding',
+      cancel: 'Cancel onboarding',
+      claim: 'Claim task',
+      reassignMentor: 'Reassign department head',
+      transfer: 'Transfer',
+      release: 'Release task',
+      complete: 'Complete task',
+      forceComplete: 'Force completion',
+      viewSalary: 'View onboarding salary',
+      viewBank: 'View onboarding banking details',
+    },
     noPeople: 'No employees match your search',
     loadLatest: 'Load latest',
     actionChanged:

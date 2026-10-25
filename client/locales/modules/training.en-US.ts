@@ -1,4 +1,13 @@
 export default {
+  // Existing permission titles use the collection name.
+  trainingRequests: {
+    authz: {
+      resource: 'Training and learning',
+      submit: 'Submit training request',
+      delegate: 'Submit on behalf of an employee',
+      view: 'View training requests',
+    },
+  },
   training: {
     actionForm: {
       title: '{{action}} training request "{{name}}"',

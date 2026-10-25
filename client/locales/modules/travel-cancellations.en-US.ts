@@ -1,4 +1,13 @@
 export default {
+  // Existing permission titles use the collection name.
+  travelCancellations: {
+    authz: {
+      resource: 'Trip cancellation requests',
+      submit: 'Submit trip cancellation request',
+      delegate: 'Submit on behalf of an employee',
+      view: 'View trip cancellation requests',
+    },
+  },
   travelCancellation: {
     fieldInvalid: 'Check {{field}}.',
 

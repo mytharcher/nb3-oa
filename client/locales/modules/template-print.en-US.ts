@@ -1,4 +1,17 @@
 export default {
+  templatePrint: {
+    authz: {
+      resource: 'Document templates',
+      manage: 'Manage templates',
+      use: 'Use templates',
+      leave: 'Print leave requests',
+      reimbursement: 'Print reimbursements',
+      payment: 'Print payment requests',
+      contracts: 'Print contract approvals',
+      certificates: 'Print certificates',
+      sealRegistration: 'Print seal registrations',
+    },
+  },
   templatePrintUI: {
     editTitle: 'Edit template',
     document: 'Document',

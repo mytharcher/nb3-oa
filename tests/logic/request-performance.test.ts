@@ -16,8 +16,28 @@ import {
   measureRequestScopes,
   withRequestRecordAccess,
 } from '../../server/providers/request-performance/record-access.js';
+import { isRequestRead } from '../../server/providers/request-performance/index.js';
 
 describe('request-local read deduplication', () => {
+  test('applies to GETs and the read-only inspector decisions, never to other writes', () => {
+    expect(isRequestRead('GET', '/api/leaveRequests')).toBe(true);
+    expect(
+      isRequestRead('POST', '/api/authorization/inspector/batchDecide'),
+    ).toBe(true);
+    expect(isRequestRead('POST', '/api/authorization/inspector/decide')).toBe(
+      true,
+    );
+    expect(
+      isRequestRead(
+        'POST',
+        '/api/authorization/inspector/subjects/user/resolve',
+      ),
+    ).toBe(false);
+    expect(isRequestRead('POST', '/api/leaveRequests')).toBe(false);
+    expect(
+      isRequestRead('PATCH', '/api/authorization/inspector/batchDecide'),
+    ).toBe(false);
+  });
   test('explicit root reads share facts while transaction reads and later requests remain fresh', async () => {
     const root = {},
       transaction = {};

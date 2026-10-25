@@ -1,5 +1,18 @@
 export default {
   announcements: {
+    authz: {
+      title: 'Announcements',
+      owned: 'Published by me',
+      readable: 'My publications and received notices',
+      view: 'Read announcements',
+      create: 'Create announcement drafts',
+      edit: 'Edit own draft',
+      publish: 'Publish own announcement',
+      revoke: 'Withdraw own announcement',
+      remind: 'Remind unconfirmed recipients',
+      receipts: 'Read own recipient roster',
+      confirm: 'Confirm own receipt',
+    },
     removeDepartment: 'Remove department "{{name}}"',
 
     confirmTitle: '{{action}} announcement "{{name}}"?',

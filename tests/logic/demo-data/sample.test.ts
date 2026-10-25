@@ -67,7 +67,7 @@ it.each(['importing', 'removing', 'removeFailed'] as const)(
   },
 );
 
-it('allows the six-character onboarding password only in a server-owned sample import', async () => {
+it('requires eight-character onboarding passwords even in a server-owned sample import', async () => {
   const { Create } =
     await import('../../../server/routes/onboarding/schemas.js');
   const { demoContext } =
@@ -85,12 +85,13 @@ it('allows the six-character onboarding password only in a server-owned sample i
     expect(password.safeParse('123456').success).toBe(false),
   );
   demoContext.run({ ...scope, operationToken: 'server-owned-import' }, () => {
-    expect(password.safeParse('123456').success).toBe(true);
+    expect(password.safeParse('123456').success).toBe(false);
+    expect(password.safeParse('12345678').success).toBe(true);
     expect(password.safeParse('abcdef').success).toBe(false);
   });
 });
 
-it('retains eight characters by default and opts in only for sample installation', async () => {
+it('retains eight characters for ordinary and sample installation', async () => {
   const { default: authConfig } =
     await import('../../../server/config/auth.js');
   expect(
@@ -103,5 +104,5 @@ it('retains eight characters by default and opts in only for sample installation
   expect(
     authConfig({ env: { APP_SAMPLE_DATA: 'true' } } as never).emailAndPassword
       ?.minPasswordLength,
-  ).toBe(6);
+  ).toBe(8);
 });

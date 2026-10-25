@@ -187,7 +187,11 @@ export class RowReader {
   }
 
   /** The account a username or email names, which must exist and be enabled. */
-  public user(key: string, users: UserIndex): string | null | undefined {
+  public user(
+    key: string,
+    users: UserIndex,
+    allowDisabled = false,
+  ): string | null | undefined {
     const text = this.text(key);
     if (text === undefined || text === null) return text;
     const user = users.find(text);
@@ -195,7 +199,7 @@ export class RowReader {
       this.error(key, 'USER_NOT_FOUND', text);
       return null;
     }
-    if (user.disabledAt) {
+    if (user.disabledAt && !allowDisabled) {
       this.error(key, 'USER_DISABLED', text);
       return null;
     }

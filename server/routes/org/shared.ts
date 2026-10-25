@@ -44,6 +44,8 @@ const STATUS: Record<OrgErrorCode, ApiErrorStatus> = {
   GRADE_NOT_FOUND: 'NOT_FOUND',
   GRADE_CODE_EXISTS: 'ALREADY_EXISTS',
   DUTY_ROLE_NOT_FOUND: 'NOT_FOUND',
+  DUTY_ROLE_INACTIVE: 'INVALID_ARGUMENT',
+  ROLE_FILTER_TOO_LARGE: 'INVALID_ARGUMENT',
 };
 
 function toApiError(error: OrgError): ApiError {

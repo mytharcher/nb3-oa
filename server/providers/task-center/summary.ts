@@ -1,6 +1,6 @@
 import type { DatabaseConnection } from '@nocobase/db';
 import { applicationCategory } from './application-category.js';
-import { taskReference } from './values.js';
+import { taskDate, taskReference } from './values.js';
 
 /** Application-owned presentation only. Never copy reasons, money or attachments. */
 export async function writeTaskSummary(
@@ -18,8 +18,10 @@ export async function writeTaskSummary(
     category: applicationCategory(status),
     number:
       typeof record.number === 'string' ? record.number.slice(0, 240) : null,
-    createdAt: record.createdAt ?? null,
-    dueAt: record.dueAt ?? null,
+    // Business datetime fields read as local wall-clock strings. Convert them to
+    // instants before writing the summary's datetimeTz fields.
+    createdAt: record.createdAt == null ? null : taskDate(record.createdAt),
+    dueAt: record.dueAt == null ? null : taskDate(record.dueAt),
   };
   await connection.repository('oaTaskCenterSummaries').upsertOne({
     filter: key,

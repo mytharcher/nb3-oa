@@ -1,12 +1,19 @@
+import { operationPolicyKey } from '../../../shared/access-grants.js';
 import type {
   ActionRow,
   AuthorizationOptions,
   PermissionSet,
 } from './types.js';
 export function resources(options: AuthorizationOptions) {
-  return options.sections.flatMap((section) =>
-    section.subsections.flatMap((subsection) => subsection.resources),
-  );
+  return options.sections
+    .flatMap((section) =>
+      section.subsections.flatMap((subsection) => subsection.resources),
+    )
+    .sort(
+      (left, right) =>
+        ['composite', 'settings', 'page'].indexOf(left.type) -
+        ['composite', 'settings', 'page'].indexOf(right.type),
+    );
 }
 export function actionRows(
   options: AuthorizationOptions,
@@ -28,7 +35,11 @@ export function actionRows(
         const scopes = (stored?.scopes ?? {}) as Record<string, unknown>;
         const available = resource.dataScopes?.[action.value] ?? [];
         const custom =
-          entries.length > 1 ||
+          new Set(
+            entries.map((entry) =>
+              operationPolicyKey(resource.type, entry.policy),
+            ),
+          ).size > 1 ||
           Boolean(
             stored &&
             (resource.type !== 'composite' ||
@@ -100,7 +111,7 @@ export function sensitiveSummary(
   set: PermissionSet,
 ): string[] {
   // Explicit OA sensitive actions/resources; labels still come from the registered catalog.
-  return actionRows(options, set)
+  return roleRows(options, [set])
     .filter(
       (row) =>
         row.enabled &&
@@ -116,4 +127,133 @@ export function sensitiveSummary(
           row.resource.value === 'oa.employees.compensation'),
     )
     .map((row) => `${row.resource.label} · ${row.label}`);
+}
+
+export function subjectSets(
+  snapshot: import('./types.js').AccessSnapshot,
+  subject: { type: string; id: string },
+) {
+  return snapshot.sets.filter((set) =>
+    snapshot.assignments.some(
+      (entry) =>
+        entry.permissionSet === set.key &&
+        entry.subject.type === subject.type &&
+        entry.subject.id === subject.id,
+    ),
+  );
+}
+
+/** Aggregate and route operations. Distinct module sets do not make unrelated actions read-only. */
+export function roleRows(
+  options: AuthorizationOptions,
+  sets: PermissionSet[],
+  _editable = true,
+): ActionRow[] {
+  const catalog = resources(options);
+  const rows = actionRows(options, { key: '', grants: [] });
+  const indexed = sets.map((set) => {
+    const expanded = {
+      ...set,
+      grants: set.grants.flatMap((grant) =>
+        grant.resource.id === '*'
+          ? catalog
+              .filter((resource) => resource.type === grant.resource.type)
+              .map((resource) => ({
+                ...grant,
+                resource: { type: resource.type, id: resource.value },
+              }))
+          : [grant],
+      ),
+    };
+    return {
+      set,
+      rows: new Map(actionRows(options, expanded).map((row) => [row.id, row])),
+      modules: new Set(
+        expanded.grants.map((grant) =>
+          JSON.stringify([grant.resource.type, grant.resource.id]),
+        ),
+      ),
+    };
+  });
+  return rows.map((row) => {
+    const sources = indexed.filter((entry) =>
+      entry.modules.has(
+        JSON.stringify([row.resource.type, row.resource.value]),
+      ),
+    );
+    const holders = sources.filter((entry) => entry.rows.get(row.id)!.enabled);
+    const entries = holders.map((entry) => entry.rows.get(row.id)!);
+    const policies = holders.flatMap(({ set }) =>
+      set.grants
+        .filter(
+          (grant) =>
+            grant.resource.type === row.resource.type &&
+            [row.resource.value, '*'].includes(grant.resource.id),
+        )
+        .flatMap((grant) =>
+          grant.actions.filter((entry) => entry.action === row.action),
+        ),
+    );
+    return {
+      ...(entries[0] ?? row),
+      sourceKeys: holders.map(({ set }) => set.key),
+      targetKeys: entries.length
+        ? []
+        : sources
+            .filter(
+              ({ set }) =>
+                !set.protection || set.protection.allow.includes('update'),
+            )
+            .map(({ set }) => set.key),
+      custom:
+        new Set(
+          policies.map((entry) =>
+            operationPolicyKey(row.resource.type, entry.policy),
+          ),
+        ).size > 1 ||
+        entries.some((entry) => entry.custom) ||
+        holders.some(({ set }) =>
+          set.grants.some(
+            (grant) =>
+              grant.resource.type === row.resource.type &&
+              grant.resource.id === '*' &&
+              grant.actions.some((entry) => entry.action === row.action),
+          ),
+        ) ||
+        holders.some(
+          ({ set }) =>
+            set.protection && !set.protection.allow.includes('update'),
+        ),
+    };
+  });
+}
+
+export function rowValue(
+  row: ActionRow,
+  none: string,
+  granted: string,
+  special: string,
+) {
+  if (row.custom) return special;
+  if (!row.enabled) return none;
+  const scopes = row.resource.dataScopes?.[row.action] ?? [];
+  return (
+    scopes
+      .map(
+        (scope) =>
+          `${scopes.length > 1 ? `${scope.label}: ` : ''}${scope.options.find((option) => option.value === row.scopes[scope.key])?.label ?? special}`,
+      )
+      .join(' · ') || granted
+  );
+}
+
+export function businessModuleCount(
+  options: AuthorizationOptions,
+  sets: PermissionSet[],
+): number {
+  return new Set(
+    roleRows(options, sets)
+      .filter((row) => row.enabled && row.resource.type === 'composite')
+      .map((row) => row.resource.value),
+  ).size;
 }

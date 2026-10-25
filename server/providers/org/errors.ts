@@ -11,7 +11,9 @@ export type OrgErrorCode =
   | 'POSITION_CODE_EXISTS'
   | 'GRADE_NOT_FOUND'
   | 'GRADE_CODE_EXISTS'
-  | 'DUTY_ROLE_NOT_FOUND';
+  | 'DUTY_ROLE_NOT_FOUND'
+  | 'DUTY_ROLE_INACTIVE'
+  | 'ROLE_FILTER_TOO_LARGE';
 
 /**
  * A rule of the organisation refused the operation. The service knows nothing about HTTP; the routes turn each code

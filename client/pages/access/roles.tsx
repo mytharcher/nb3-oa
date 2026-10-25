@@ -1,11 +1,9 @@
 import { ApplicationSearch } from '#components/application-search';
 import { ApplicationToolbar } from '#components/application-toolbar';
-import { useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
-import { useApiClient } from '@nocobase/app-client';
 import { TruncatedText } from '#components/truncated-text';
 import { useTranslation } from '@nocobase/i18n/client';
-import { useCan } from '@nocobase/app-plugin-authorization/client';
 import type { ColumnDef } from '@tanstack/react-table';
 import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
@@ -20,15 +18,12 @@ import {
   SelectValue,
 } from '#components/ui/select';
 import { useUrlSearch } from '#hooks/use-url-search';
-import type { DutyRole } from '../org/duty-roles/types.js';
-import { useCatalog, useDirectory, useLoad, useSnapshot } from './hooks.js';
-import { grantSummary } from './model.js';
-import { AccessTabs, Blank, ErrorState, Loading, Refresh } from './ui.js';
+import { useRoleDirectory } from './hooks.js';
+import { Blank, ErrorState, Loading, Refresh } from './ui.js';
 import type { SubjectRow } from './types.js';
 
 export default function RolesPage() {
   const { t, i18n } = useTranslation();
-  const api = useApiClient();
   const location = useLocation();
   const search = useUrlSearch({ resetParams: ['page'] });
   const page = Math.max(1, Number(search.searchParams.get('page')) || 1);
@@ -38,29 +33,9 @@ export default function RolesPage() {
     ? Number(search.searchParams.get('pageSize'))
     : 20;
   const sort =
-    search.searchParams.get('sort') === 'memberCount'
-      ? 'memberCount'
-      : search.searchParams.get('sort') === 'title'
-        ? 'title'
-        : 'category';
+    search.searchParams.get('sort') === 'title' ? 'title' : 'category';
   const desc = search.searchParams.get('direction') === 'desc';
-  const snapshot = useSnapshot();
-  const catalog = useCatalog();
-  const directory = useDirectory(catalog.options);
-  const canMembers = useCan({
-    resource: { type: 'settings', id: 'oa.org.dutyRoles' },
-    action: 'read',
-  }).can;
-  const roles = useLoad(
-    useCallback(
-      async () =>
-        canMembers
-          ? (await api.request<{ data: DutyRole[] }>({ path: 'dutyRoles' }))
-              .data
-          : [],
-      [api, canMembers],
-    ),
-  );
+  const directory = useRoleDirectory();
   const filter = search.searchParams.get('type') ?? 'all';
   const types = useMemo(
     () => [
@@ -73,72 +48,36 @@ export default function RolesPage() {
     ],
     [t],
   );
-  const data = [
-    ...(directory.data ?? []),
-    ...(snapshot.data?.sets
-      .filter((set) => set.unrestricted)
-      .map((set) => ({
-        type: 'system',
-        id: set.key,
-        title: t('access.systemAdmin'),
-        description: '',
-      })) ?? []),
-  ]
-    .filter(
-      (row) =>
-        (filter === 'all' ||
-          filter === row.type ||
-          (filter === 'automatic' &&
-            [
-              'authenticated',
-              'org.reportingManager',
-              'org.departmentHead',
-            ].includes(row.type))) &&
-        `${row.title} ${row.description ?? ''}`
-          .toLocaleLowerCase()
-          .includes(search.search.toLocaleLowerCase()),
-    )
-    .map((row) => {
-      const role =
-        row.type === 'org.dutyRole'
-          ? roles.data?.find((role) => role.code === row.id)
-          : undefined;
-      return {
-        ...row,
-        memberCount:
-          row.type === 'system'
-            ? snapshot.data?.assignments.filter(
-                (entry) => entry.permissionSet === row.id,
-              ).length
-            : role?.memberCount,
-        active: role?.active,
-      };
-    });
+  const data: SubjectRow[] = (directory.data ?? []).filter(
+    (row) =>
+      (filter === 'all' ||
+        filter === row.type ||
+        (filter === 'automatic' &&
+          [
+            'authenticated',
+            'org.reportingManager',
+            'org.departmentHead',
+          ].includes(row.type))) &&
+      `${row.title} ${row.description ?? ''}`
+        .toLocaleLowerCase()
+        .includes(search.search.toLocaleLowerCase()),
+  );
   // Sort the entire aggregated directory before slicing; page and sort survive detail navigation.
+  const order = [
+    'system',
+    'authenticated',
+    'org.dutyRole',
+    'org.departmentHead',
+    'org.reportingManager',
+    'org.position',
+    'org.department',
+  ];
   data.sort(
     (a, b) =>
-      (sort !== 'memberCount'
-        ? (sort === 'category'
-            ? [
-                'org.dutyRole',
-                'org.position',
-                'org.department',
-                'authenticated',
-                'org.reportingManager',
-                'org.departmentHead',
-                'system',
-              ].indexOf(a.type) -
-              [
-                'org.dutyRole',
-                'org.position',
-                'org.department',
-                'authenticated',
-                'org.reportingManager',
-                'org.departmentHead',
-                'system',
-              ].indexOf(b.type)
-            : 0) || a.title.localeCompare(b.title, i18n.language)
-        : (a.memberCount ?? -1) - (b.memberCount ?? -1)) * (desc ? -1 : 1),
+      ((sort === 'category'
+        ? order.indexOf(a.type) - order.indexOf(b.type)
+        : 0) || a.title.localeCompare(b.title, i18n.language)) *
+      (desc ? -1 : 1),
   );
   const columns = useMemo<ColumnDef<SubjectRow>[]>(
     () => [
@@ -166,87 +105,20 @@ export default function RolesPage() {
           </Badge>
         ),
       },
-      {
-        accessorKey: 'memberCount',
-        header: ({ column }) => (
-          <div className='flex justify-end'>
-            <DataTableColumnHeader
-              column={column}
-              title={t('access.members')}
-            />
-          </div>
-        ),
-        cell: ({ row }) => (
-          <div className='text-right tabular-nums'>
-            {row.original.type === 'system'
-              ? new Intl.NumberFormat(i18n.language).format(
-                  row.original.memberCount ?? 0,
-                )
-              : row.original.type === 'org.dutyRole'
-                ? roles.error
-                  ? t('access.membersFailed')
-                  : row.original.memberCount === undefined
-                    ? t('access.memberDenied')
-                    : row.original.memberCount === 0
-                      ? t('access.missingMembers')
-                      : new Intl.NumberFormat(i18n.language).format(
-                          row.original.memberCount,
-                        )
-                : t('access.byMembership')}
-          </div>
-        ),
-      },
-      {
-        id: 'permissions',
-        header: t('access.permissions'),
-        cell: ({ row }) => {
-          if (row.original.type === 'system')
-            return <Badge>{t('access.unrestricted')}</Badge>;
-          const sets =
-            snapshot.data?.sets.filter((set) =>
-              snapshot.data?.assignments.some(
-                (entry) =>
-                  entry.permissionSet === set.key &&
-                  entry.subject.type === row.original.type &&
-                  entry.subject.id === row.original.id,
-              ),
-            ) ?? [];
-          const summary = catalog.options
-            ? [
-                ...new Set(
-                  sets.flatMap((set) => grantSummary(catalog.options!, set)),
-                ),
-              ].join(i18n.language.startsWith('zh') ? '、' : ', ')
-            : '';
-          return <TruncatedText text={summary || t('access.none')} />;
-        },
-      },
       // The directory filters are translated only when the locale changes.
     ],
-    [
-      t,
-      i18n.language,
-      location.search,
-      roles.error,
-      snapshot.data,
-      catalog.options,
-      types,
-    ],
+    [t, location.search, types],
   );
   const reload = () => {
-    snapshot.reload();
-    catalog.reload();
     directory.reload();
-    roles.reload();
   };
-  const busy = snapshot.busy || catalog.busy || directory.busy || roles.busy;
+  const busy = directory.busy;
   return (
     <PageContainer>
       <PageHeader
         title={t('access.title')}
         description={t('access.description')}
       />
-      <AccessTabs />
       <p className='text-sm text-muted-foreground'>
         {t('access.baselineHelp')}
       </p>
@@ -289,12 +161,9 @@ export default function RolesPage() {
           </Button>
         ) : null}
       </ApplicationToolbar>
-      {snapshot.error || catalog.error || directory.error ? (
-        <ErrorState
-          error={snapshot.error ?? catalog.error ?? directory.error}
-          retry={reload}
-        />
-      ) : !snapshot.data || !catalog.options || !directory.data ? (
+      {directory.error ? (
+        <ErrorState error={directory.error} retry={reload} />
+      ) : !directory.data ? (
         <Loading />
       ) : (
         <DataTableServer
@@ -345,7 +214,13 @@ export default function RolesPage() {
           }
         />
       )}
-      <Outlet context={{ reload }} />
+      <Outlet
+        context={{
+          reload,
+          subjects: directory.data,
+          directoryError: directory.error,
+        }}
+      />
     </PageContainer>
   );
 }

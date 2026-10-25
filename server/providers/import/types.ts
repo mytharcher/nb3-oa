@@ -42,6 +42,7 @@ export const IMPORT_ERROR_CODES = [
   'MANAGER_INACTIVE',
   'MANAGER_CYCLE',
   'DUTY_ROLE_NOT_FOUND',
+  'DUTY_ROLE_INACTIVE',
   // A write the services refused after validation passed; the whole import was rolled back.
   'WRITE_FAILED',
 ] as const;

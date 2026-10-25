@@ -1,5 +1,12 @@
 export default {
   knowledge: {
+    authz: {
+      knowledgeDocuments: 'Knowledge documents',
+      knowledgeFolders: 'Knowledge folders',
+      knowledgeVersions: 'Document versions',
+      view: 'View',
+      manage: 'Manage',
+    },
     discardNamed: 'Discard changes to "{{name}}"?',
     reloadNamed: 'Reload "{{name}}" and discard local changes?',
 

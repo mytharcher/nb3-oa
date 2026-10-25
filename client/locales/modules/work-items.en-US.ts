@@ -1,5 +1,27 @@
 export default {
   workItems: {
+    authz: {
+      confirmationOwned: 'Tasks I confirm',
+      handoverConfirmation: 'Transfer confirmation responsibility',
+
+      title: 'Ordinary work items',
+      owned: 'Created by me',
+      readable: 'Tasks I create, own or qualify for',
+      view: 'view',
+      create: 'create',
+      edit: 'edit',
+      dispatch: 'dispatch',
+      claim: 'claim',
+      release: 'release',
+      complete: 'complete',
+      confirm: 'confirm',
+      return: 'return',
+      block: 'block',
+      resume: 'resume',
+      reassign: 'reassign',
+      cancel: 'cancel',
+      forceComplete: 'forceComplete',
+    },
     handoverTitle: 'Hand over confirmation',
     handoverTarget: 'New confirmation owner',
     handoverNotice:

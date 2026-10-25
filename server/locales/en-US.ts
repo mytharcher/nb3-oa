@@ -1,3 +1,4 @@
+import accessLocale from '../../client/locales/modules/access.en-US.js';
 import demoData from '../../client/locales/modules/demo-data.en-US.js';
 import processManagementLocale from '../../client/locales/modules/process-management.en-US.js';
 import personalSchedulesLocale from './modules/personal-schedules.en-US.js';
@@ -29,6 +30,7 @@ import annualLeave from './modules/annual-leave.en-US.js';
 // plugin's.
 const enUS = {
   demoData,
+  ...accessLocale,
   ...processManagementLocale,
   ...personalSchedulesLocale,
   transfer: transferLocale,

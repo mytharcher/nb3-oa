@@ -14,6 +14,47 @@ import {
 } from '../../client/routing/route-navigation.js';
 
 describe('app client routes', () => {
+  it('registers role-only access management with user-owned permissions and explicit legacy redirects', () => {
+    const walk = (
+      routes: readonly AppClientRegisteredRoute[],
+    ): AppClientRegisteredRoute[] =>
+      routes.flatMap((route) => [route, ...walk(route.children ?? [])]);
+    const routes = walk(resolveRoutes().routes);
+    const paths = pagePaths(resolveRoutes().routes);
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        '/access/roles',
+        '/users/:userId/permissions',
+        '/users/:userId/permissions/assign',
+      ]),
+    );
+    expect(paths.some((path) => path.startsWith('/access/modules'))).toBe(
+      false,
+    );
+    expect(
+      routes.some((route) => route.name.startsWith('oa-access-module')),
+    ).toBe(false);
+    expect(
+      routes.find((route) => route.name === 'oa-access-people'),
+    ).toBeUndefined();
+    expect(
+      routes.find((route) => route.name === 'user-permissions')?.authz,
+    ).toBe('skip');
+    expect(
+      routes.find((route) => route.name === 'oa-access-advanced')?.authz,
+    ).toBeUndefined();
+    expect(
+      routes
+        .filter((route) => route.name.startsWith('oa-access-legacy'))
+        .every(
+          (route) =>
+            !route.navigation &&
+            !route.path?.includes('*') &&
+            route.authz === 'skip',
+        ),
+    ).toBe(true);
+  });
+
   it('keeps independently authorized employee source overlays under every tab', () => {
     const walk = (
       routes: readonly AppClientRegisteredRoute[],

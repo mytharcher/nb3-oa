@@ -193,7 +193,10 @@ function NotificationLogsTable({
 
   return (
     <div className='min-w-0'>
-      <Table className='w-full min-w-[860px] text-sm'>
+      <Table
+        containerClassName='rounded-none! border-0!'
+        className='w-full min-w-[860px] text-sm'
+      >
         <thead className='bg-muted/35 text-left'>
           <tr className='border-b'>
             <th

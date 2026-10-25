@@ -157,6 +157,7 @@ const importZhCN: LocaleResource<ImportLocale> = {
       MANAGER_SELF: '直属上级不能是本人。',
       MANAGER_INACTIVE: '直属上级“{{value}}”已离职。',
       MANAGER_CYCLE: '直属上级关系形成了循环。',
+      DUTY_ROLE_INACTIVE: '该角色已停用，不能新增成员。',
       DUTY_ROLE_NOT_FOUND: '没有编码为“{{value}}”的角色。',
       WRITE_FAILED:
         '该行写入失败（{{reason}}），整个文件均未导入。请检查该行后重试。',

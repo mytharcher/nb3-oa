@@ -379,7 +379,7 @@ export function createDemoDataService(app: Application): DemoDataService {
         const passwords = Object.fromEntries(
           [...trialAccounts.map((a) => a.key), 'newhire'].map((key) => [
             key,
-            '123456',
+            '12345678',
           ]),
         ) as TrialPasswords;
         await tx.repository('demoDataSets').createOne({
@@ -455,7 +455,10 @@ export function createDemoDataService(app: Application): DemoDataService {
           .resolve(userAdministrationServiceToken)
           .withConnection(tx);
         for (const account of d.accounts) {
-          if (account.role === 'system' || passwords[account.role] === '123456')
+          if (
+            account.role === 'system' ||
+            passwords[account.role] === '12345678'
+          )
             continue;
           const owned = await tx.repository('demoDataRecords').exists({
             filter: {
@@ -465,7 +468,7 @@ export function createDemoDataService(app: Application): DemoDataService {
             },
           });
           if (!owned) demoError('DEMO_OWNERSHIP_MISSING');
-          await users.resetPassword(account.id, '123456');
+          await users.resetPassword(account.id, '12345678');
           await app.container.resolve(auditServiceToken).record(
             {
               actorId: null,
@@ -478,7 +481,7 @@ export function createDemoDataService(app: Application): DemoDataService {
           );
         }
         for (const role of Object.keys(passwords)) {
-          if (role !== 'system') passwords[role] = '123456';
+          if (role !== 'system') passwords[role] = '12345678';
         }
         await tx.repository('demoDataSets').updateOne({
           filter: { id: d.id },

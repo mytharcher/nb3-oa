@@ -1,18 +1,45 @@
+import {
+  parseRoleGrantTitle,
+  renderAccessTitle,
+} from '../../../../shared/access-titles.js';
 import type { UserRoleScopeOption, UserRoleValue } from './user-client.js';
 
 export function localizeRoleScopes(
   scopes: readonly UserRoleScopeOption[],
-  translate: (key: string, namespace?: string, defaultValue?: string) => string,
+  translate: (
+    key: string,
+    namespace?: string,
+    defaultValue?: string,
+    values?: Readonly<Record<string, unknown>>,
+  ) => string,
 ): readonly UserRoleScopeOption[] {
+  const text = (key: string, ns: string | undefined, fallback: string) => {
+    const title = { key, ns };
+    return parseRoleGrantTitle(title)
+      ? renderAccessTitle(
+          title,
+          (key, values) =>
+            translate(
+              key,
+              typeof values?.ns === 'string' ? values.ns : undefined,
+              typeof values?.defaultValue === 'string'
+                ? values.defaultValue
+                : undefined,
+              values,
+            ),
+          fallback,
+        )
+      : translate(key, ns, fallback);
+  };
   return scopes.map((scope) => ({
     ...scope,
     label: scope.labelI18nKey
-      ? translate(scope.labelI18nKey, scope.labelI18nNs, scope.label)
+      ? text(scope.labelI18nKey, scope.labelI18nNs, scope.label)
       : scope.label,
     options: scope.options.map((option) => ({
       ...option,
       label: option.labelI18nKey
-        ? translate(option.labelI18nKey, option.labelI18nNs, option.label)
+        ? text(option.labelI18nKey, option.labelI18nNs, option.label)
         : option.label,
     })),
   }));

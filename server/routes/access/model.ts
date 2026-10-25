@@ -197,3 +197,52 @@ export function applyChanges(
   }
   return grants;
 }
+
+/** Role-local configuration plus its baseline and shared audiences; never reads all definitions. */
+export async function subjectSnapshot(
+  sets: PermissionSetsApi<DatabaseConnection>,
+  subject: { type: string; id: string },
+): Promise<
+  Awaited<ReturnType<typeof snapshot>> & {
+    revisionScope: 'subject';
+    subject: { type: string; id: string };
+  }
+> {
+  const definitions =
+    subject.type === 'system'
+      ? [await sets.get(subject.id)].filter(
+          (set): set is NonNullable<typeof set> => set !== undefined,
+        )
+      : await sets.getEffective({ principal: subject });
+  const baseline =
+    subject.type === 'system' || subject.type === 'authenticated'
+      ? []
+      : await sets.getEffective({
+          principal: { type: 'authenticated', id: '*' },
+        });
+  const visible = [
+    ...new Map(
+      [...definitions, ...baseline]
+        .filter((set) => !sets.protection(set.key)?.hidden)
+        .map((set) => [set.key, set]),
+    ).values(),
+  ]
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map((set) => ({
+      ...set,
+      protection: sets.protection(set.key),
+      unrestricted: sets.protection(set.key)?.unrestricted ?? false,
+    }));
+  const assignments = (
+    await Promise.all(visible.map((set) => sets.listAssignments(set.key)))
+  )
+    .flat()
+    .sort((a, b) => a.id.localeCompare(b.id));
+  return {
+    sets: visible,
+    assignments,
+    revision: revision({ subject, definitions: visible, assignments }),
+    revisionScope: 'subject',
+    subject,
+  };
+}

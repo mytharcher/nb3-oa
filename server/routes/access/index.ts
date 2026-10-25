@@ -1,3 +1,9 @@
+import { accessCatalog } from './catalog.js';
+import { roleDirectory, roleMetadata } from './roles.js';
+import { roleGrantTitle } from '../../../shared/access-titles.js';
+import { ruleSummary } from './rules.js';
+import { z } from 'zod';
+import { accessDirectory, accessMembers } from './directory.js';
 import {
   PermissionSetProtectedError,
   PermissionSetLastAssignmentError,
@@ -23,7 +29,13 @@ import {
 import { databaseManagerToken } from '@nocobase/db';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { lockAccessWrites } from '../../providers/audit/access-lock.js';
-import { applyChanges, fail, setSnapshot, snapshot } from './model.js';
+import {
+  applyChanges,
+  fail,
+  setSnapshot,
+  snapshot,
+  subjectSnapshot,
+} from './model.js';
 import {
   Assignments,
   Changes,
@@ -31,7 +43,15 @@ import {
   SetSnapshot,
   Snapshot,
   SubjectParams,
+  SubjectGrants,
 } from './schemas.js';
+
+import {
+  roleTypes,
+  saveSubjectGrants,
+  planSubjectGrants,
+  validateSubjects,
+} from './subject-grants.js';
 
 export const accessApiRoutes = defineApiRoutes<Application>((app) => {
   const router = new Hono();
@@ -78,10 +98,7 @@ export const accessApiRoutes = defineApiRoutes<Application>((app) => {
       });
       await next();
     };
-  const describe = (
-    operationId: string,
-    schema: typeof Snapshot | typeof SetSnapshot,
-  ) =>
+  const describe = (operationId: string, schema: z.ZodType) =>
     describeRoute({
       tags: ['Access management'],
       summary: operationId,
@@ -95,10 +112,66 @@ export const accessApiRoutes = defineApiRoutes<Application>((app) => {
       },
     });
   routes.get(
+    '/roles',
+    requireAction('read'),
+    describe(
+      'getAccessRoleDirectory',
+      z.array(z.record(z.string(), z.unknown())),
+    ),
+    async (c) => c.json({ data: await roleDirectory(app, authz) }),
+  );
+  routes.get(
+    '/options',
+    requireAction('read'),
+    describe('getAccessMatrixOptions', z.record(z.string(), z.unknown())),
+    (c) => c.json({ data: accessCatalog(authz) }),
+  );
+  routes.get(
+    '/subjects/:type/:id',
+    requireAction('read'),
+    apiValidator('param', SubjectParams),
+    describe('getAccessRole', Snapshot),
+    async (c) => {
+      const subject = c.req.valid('param');
+      const [role, data, rules] = await Promise.all([
+        roleMetadata(app, authz, subject, { authz: c.get('authz') }),
+        subjectSnapshot(authz.permissionSets, subject),
+        ruleSummary(authz, c.get('authz')),
+      ]);
+      return c.json({ data: { ...data, role, rules } });
+    },
+  );
+  routes.get(
+    '/directory',
+    requireAction('read'),
+    describe('getAccessDirectory', z.array(z.record(z.string(), z.unknown()))),
+    async (c) => c.json({ data: await accessDirectory(app, authz) }),
+  );
+  routes.get(
+    '/subjects/:type/:id/members',
+    requireAction('read'),
+    apiValidator('param', SubjectParams),
+    describe('getAccessMembers', z.array(z.record(z.string(), z.unknown()))),
+    async (c) => {
+      await c
+        .get('authz')
+        .require({ resource: { type: 'user', id: '*' }, action: 'read' });
+      return c.json({
+        data: await accessMembers(app, authz, c.req.valid('param')),
+      });
+    },
+  );
+  routes.get(
     '/snapshot',
     requireAction('read'),
     describe('getAccessSnapshot', Snapshot),
-    async (c) => c.json({ data: await snapshot(authz.permissionSets) }),
+    async (c) =>
+      c.json({
+        data: {
+          ...(await snapshot(authz.permissionSets)),
+          rules: await ruleSummary(authz, c.get('authz')),
+        },
+      }),
   );
   routes.get(
     '/permissionSets/:key',
@@ -240,6 +313,84 @@ export const accessApiRoutes = defineApiRoutes<Application>((app) => {
         return snapshot(sets);
       });
       return c.json({ data });
+    },
+  );
+  routes.put(
+    '/subjects/:type/:id/grants',
+    requireAction('read'),
+    requireAction('update'),
+    requireAction('assign'),
+    describe('updateAccessSubjectGrants', Snapshot),
+    apiValidator('param', SubjectParams),
+    apiValidator('json', SubjectGrants),
+    async (c) => {
+      const subject = c.req.valid('param');
+      const input = c.req.valid('json');
+      if (!roleTypes.has(subject.type)) fail('UNSUPPORTED_SUBJECT');
+      const impact =
+        input.revisionScope === 'subject'
+          ? await subjectSnapshot(authz.permissionSets, subject)
+          : await snapshot(authz.permissionSets);
+      if (impact.revision !== input.expectedRevision)
+        fail('VERSION_CONFLICT', 'ABORTED');
+      const planned = planSubjectGrants(authz, impact, subject, input);
+      const keys = new Set(
+        planned.flatMap((plan) => (plan.source ? [plan.source.key] : [])),
+      );
+      await validateSubjects(
+        authz,
+        [
+          subject,
+          ...impact.assignments
+            .filter((entry) => keys.has(entry.permissionSet))
+            .map((entry) => entry.subject),
+        ],
+        { authz: c.get('authz') },
+      );
+      const administration = authz.subjects.get(subject.type)!.administration!;
+      const subjectTitle =
+        administration.selection.type === 'fixed'
+          ? administration.title
+          : (
+              await administration.selection.resolve([subject.id], {
+                authz: c.get('authz'),
+              })
+            )[0]?.title;
+      const rules = await ruleSummary(authz, c.get('authz'));
+      const data = await database.transaction(async (connection) => {
+        await lockAccessWrites(connection);
+        return saveSubjectGrants(
+          authz,
+          authz.permissionSets.withTransaction(connection),
+          subject,
+          input,
+          {
+            authorize: async (action) => {
+              await c.get('authz').require({
+                resource: {
+                  type: 'settings',
+                  id: 'authorization.permission-sets',
+                },
+                action,
+              });
+            },
+            titleFor: (resource, number) =>
+              roleGrantTitle({
+                number,
+                module:
+                  (resource.type === 'composite'
+                    ? authz.compositeResources
+                        .list()
+                        .find((entry) => entry.name === resource.id)?.title
+                    : authz.resourceTypes
+                        .get(resource.type)
+                        .items?.get(resource.id)?.title) ?? resource.id,
+                role: subjectTitle ?? subject.id,
+              }),
+          },
+        );
+      });
+      return c.json({ data: { ...data, rules } });
     },
   );
   router.route('/access', routes);

@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 
 import { createGradeRoutes, createPositionRoutes } from './catalog.js';
 import { createDepartmentRoutes } from './departments.js';
+import { createOrgUserRoutes } from './users.js';
 import { createDutyRoleRoutes } from './duty-roles.js';
 
 /**
@@ -18,6 +19,7 @@ import { createDutyRoleRoutes } from './duty-roles.js';
 export const orgApiRoutes: AppApiRouteContribution<Application> =
   defineApiRoutes((app) => {
     const router = new Hono();
+    router.route('/org/users', createOrgUserRoutes(app));
     router.route('/departments', createDepartmentRoutes(app));
     router.route('/positions', createPositionRoutes(app));
     router.route('/grades', createGradeRoutes(app));

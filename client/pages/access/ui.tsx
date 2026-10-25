@@ -1,6 +1,5 @@
-import { useCan } from '@nocobase/app-plugin-authorization/client';
 import type { ReactElement, ReactNode } from 'react';
-import { Link, useLocation } from 'react-router';
+import { Link } from 'react-router';
 import { ApiClientError } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { RefreshCw, ShieldCheck } from 'lucide-react';
@@ -23,34 +22,17 @@ import {
 import { SessionExpiredAlert } from '#components/session-expired-alert';
 export function AccessTabs(): ReactElement {
   const { t } = useTranslation();
-  const { pathname } = useLocation();
-  const canInspect = useCan({
-    resource: { type: 'settings', id: 'authorization.inspector' },
-    action: 'inspect',
-  }).can;
   return (
-    <nav aria-label={t('access.title')} className='flex gap-2'>
-      <Button
-        variant={pathname.includes('/people') ? 'ghost' : 'secondary'}
-        nativeButton={false}
-        aria-current={!pathname.includes('/people') ? 'page' : undefined}
-        render={<Link to='/access/roles' />}
-      >
-        {t('access.roles')}
-      </Button>
-      {canInspect ? (
-        <Button
-          variant={pathname.includes('/people') ? 'secondary' : 'ghost'}
-          nativeButton={false}
-          aria-current={pathname.includes('/people') ? 'page' : undefined}
-          render={<Link to='/access/people' />}
-        >
-          {t('access.people')}
-        </Button>
-      ) : null}
-    </nav>
+    <Button
+      variant='ghost'
+      nativeButton={false}
+      render={<Link to='/access/roles' />}
+    >
+      {t('access.roles')}
+    </Button>
   );
 }
+
 export function Loading(): ReactElement {
   const { t } = useTranslation();
   return (
@@ -81,23 +63,34 @@ export function ErrorState({
   if (status === 401) return <SessionExpiredAlert />;
   const reason = error instanceof ApiClientError ? error.reason : undefined;
   const message =
-    reason === 'IMPACT_UNAVAILABLE'
-      ? t('access.impactUnavailable')
-      : reason === 'LAST_ASSIGNMENT'
-        ? t('access.lastAdmin')
-        : reason === 'PROTECTED_PERMISSION_SET'
-          ? t('access.protectedHelp')
-          : reason === 'CUSTOM_POLICY_READ_ONLY'
-            ? t('access.specialReadOnly')
-            : reason === 'SUBJECT_NOT_ALLOWED'
-              ? t('access.subjectNotAllowed')
-              : status === 403
-                ? t('access.denied')
-                : status === 404
-                  ? t('access.missing')
-                  : status === 409
-                    ? t('access.conflict')
-                    : t('access.failed');
+    reason === 'DUTY_ROLE_INACTIVE'
+      ? t('access.roleAdditionBlocked')
+      : reason === 'ROLE_FILTER_TOO_LARGE'
+        ? t('access.roleFilterTooLarge')
+        : reason === 'MEMBER_NOT_FOUND'
+          ? t('access.membershipChanged')
+          : reason === 'DUTY_ROLE_NOT_FOUND'
+            ? t('access.roleFilterInvalid')
+            : reason === 'TARGET_REQUIRED'
+              ? t('access.targetRequired')
+              : reason === 'IMPACT_UNAVAILABLE'
+                ? t('access.impactUnavailable')
+                : reason === 'LAST_ASSIGNMENT'
+                  ? t('access.lastAdmin')
+                  : reason === 'PROTECTED_PERMISSION_SET'
+                    ? t('access.protectedHelp')
+                    : reason === 'CUSTOM_POLICY_READ_ONLY' ||
+                        reason === 'MULTIPLE_SOURCES'
+                      ? t('access.specialReadOnly')
+                      : reason === 'SUBJECT_NOT_ALLOWED'
+                        ? t('access.subjectNotAllowed')
+                        : status === 403
+                          ? t('access.denied')
+                          : status === 404
+                            ? t('access.missing')
+                            : status === 409
+                              ? t('access.conflict')
+                              : t('access.failed');
   return (
     <Alert variant='destructive'>
       <AlertDescription>

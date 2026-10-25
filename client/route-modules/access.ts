@@ -7,10 +7,6 @@ const permissions = {
   resource: { type: 'settings', id: 'authorization.permission-sets' },
   action: 'read',
 };
-const inspector = {
-  resource: { type: 'settings', id: 'authorization.inspector' },
-  action: 'inspect',
-};
 const assignment = (name: string): AppClientRouteDefinition => ({
   name,
   path: 'assign',
@@ -64,31 +60,19 @@ const views: AppClientRouteDefinition[] = [
       },
     ],
   },
+];
+// Optional module-oriented comparison shares the same permission workspace.
+export const moduleViews: AppClientRouteDefinition[] = [
   {
-    name: 'oa-access-people',
-    path: 'people',
-    auth: 'required',
-    authz: inspector,
-    componentLoader: () => import('../pages/access/people.js'),
+    name: 'oa-access-modules',
+    path: 'modules',
+    authz: permissions,
+    componentLoader: () => import('../pages/access/modules.js'),
     children: [
       {
-        name: 'oa-access-person',
-        path: ':userId',
-        componentLoader: () => import('../pages/access/person-detail.js'),
-        children: [
-          {
-            name: 'oa-access-person-sources',
-            path: 'sources',
-            componentLoader: () => import('../pages/access/tab.js'),
-            children: [assignment('oa-access-person-sources-assign')],
-          },
-          {
-            name: 'oa-access-person-personal',
-            path: 'personal',
-            componentLoader: () => import('../pages/access/tab.js'),
-            children: [assignment('oa-access-person-personal-assign')],
-          },
-        ],
+        name: 'oa-access-module',
+        path: ':resource',
+        componentLoader: () => import('../pages/access/module-detail.js'),
       },
     ],
   },
@@ -104,4 +88,22 @@ export default defineAppRoutes([
     componentLoader: () => import('../pages/access/index.js'),
     children: views,
   },
+  {
+    name: 'oa-access-legacy-people',
+    path: '/access/people',
+    auth: 'required',
+    parent: 'oa-system',
+    authz: 'skip',
+    componentLoader: () => import('../pages/access/legacy-redirect.js'),
+  },
+  ...['', '/sources', '/personal', '/sources/assign', '/personal/assign'].map(
+    (suffix, index): AppClientRouteDefinition => ({
+      name: `oa-access-legacy-user-${index}`,
+      path: `/access/people/:userId${suffix}`,
+      auth: 'required',
+      parent: 'oa-system',
+      authz: 'skip',
+      componentLoader: () => import('../pages/access/legacy-redirect.js'),
+    }),
+  ),
 ]);

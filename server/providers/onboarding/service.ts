@@ -1015,11 +1015,11 @@ export function createOnboardingService(d: {
           : null;
         if (input.mentorEmployeeId && !mentor)
           throw new OnboardingError('ONBOARDING_SOURCE_INVALID');
-        for (const userId of [
-          ...new Set([command.actorId, ...(mentor ? [mentor.userId] : [])]),
-        ].sort())
-          await lockUserForAdministration(outer, userId);
         return d.headcounts.within(outer, async (tx: DatabaseConnection) => {
+          for (const userId of [
+            ...new Set([command.actorId, ...(mentor ? [mentor.userId] : [])]),
+          ].sort())
+            await lockUserForAdministration(tx, userId);
           await requireActor(command.actorId, tx);
           if (
             !command.actorId ||

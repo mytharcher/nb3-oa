@@ -10,9 +10,9 @@ const existing = {
       cancellation: 'Leave cancellation',
       section: 'OA approvals',
       leave: 'Leave requests',
-      submit: 'Submit own leave',
-      delegate: 'Submit leave for an employee',
-      view: 'Read leave requests',
+      submit: 'Submit own request',
+      delegate: 'Submit a request for an employee',
+      view: 'Read requests',
       delegations: 'Approval delegations',
       read: 'Read',
       update: 'Manage',
@@ -281,6 +281,7 @@ export default {
     ...copy,
     authz: {
       ...existing.approvals.authz,
+      ownScope: 'My records',
       readableScope: 'Readable approval requests',
     },
     delegations: {

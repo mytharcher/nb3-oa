@@ -1,3 +1,4 @@
+import { renderAccessTitle } from '../../../../../shared/access-titles.js';
 import type {
   AuthorizationOptions,
   AuthorizationOptionsResponse,
@@ -12,10 +13,7 @@ import { AUTHORIZATION_NAMESPACE, type Translate } from '../i18n.js';
 /** Translates a server title in its own namespace, this plugin's by default. */
 export function localizedText(value: LocalizedText, t: Translate): string {
   if (typeof value === 'string') return value;
-  return t(value.key, {
-    ns: value.ns ?? AUTHORIZATION_NAMESPACE,
-    defaultValue: value.defaultValue ?? value.key,
-  });
+  return renderAccessTitle(value, t, value.defaultValue ?? value.key);
 }
 
 /** Turns an `options` response into the workspace model. */

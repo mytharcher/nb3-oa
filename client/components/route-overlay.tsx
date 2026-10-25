@@ -38,6 +38,8 @@ export interface RouteOverlayProps {
   readonly footer?: ReactNode;
   /** Where closing navigates. Defaults to the parent route, keeping the current search string. */
   readonly closeTo?: To;
+  /** Restore focus to an owning record or a list fallback after closing. */
+  readonly finalFocus?: () => HTMLElement | boolean;
   /** Runs before every close; resolving `false` keeps the overlay open, for example to guard unsaved changes. */
   readonly beforeClose?: () => boolean | Promise<boolean>;
   readonly className?: string;
@@ -64,6 +66,7 @@ export function RouteOverlay({
   children,
   footer,
   closeTo,
+  finalFocus,
   beforeClose,
   className,
   drawer = false,
@@ -150,6 +153,7 @@ export function RouteOverlay({
               data-slot='route-overlay-content'
               data-presentation={drawer ? 'drawer' : 'dialog'}
               finalFocus={() => {
+                if (finalFocus) return finalFocus();
                 const previous = previousFocusRef.current;
                 if (parentPopup?.current) {
                   return previous?.isConnected &&
@@ -184,7 +188,7 @@ export function RouteOverlay({
               </header>
               <div
                 data-slot='route-overlay-body'
-                className='min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6'
+                className='min-h-0 flex-1 overflow-y-auto overscroll-contain [--route-overlay-body-padding:calc(var(--spacing)*4)] p-(--route-overlay-body-padding) sm:[--route-overlay-body-padding:calc(var(--spacing)*6)]'
               >
                 {children}
               </div>

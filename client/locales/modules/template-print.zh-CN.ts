@@ -1,4 +1,17 @@
 export default {
+  templatePrint: {
+    authz: {
+      resource: '文档模板',
+      manage: '管理模板',
+      use: '使用模板',
+      leave: '打印请假单',
+      reimbursement: '打印报销单',
+      payment: '打印付款单',
+      contracts: '打印合同审批单',
+      certificates: '打印证明',
+      sealRegistration: '打印用印登记',
+    },
+  },
   templatePrintUI: {
     editTitle: '编辑模板',
     document: '文档',

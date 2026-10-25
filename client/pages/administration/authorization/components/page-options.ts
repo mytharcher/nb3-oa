@@ -55,12 +55,13 @@ export function grantablePages(
       !route.componentLoader && route.navigation ? route.name : group,
     ),
   ]);
-  const seen = new Set<string>();
-  return pages.filter((page) => {
-    if (seen.has(page.name)) return false;
-    seen.add(page.name);
-    return true;
-  });
+  const named = new Map<string, GrantablePage>();
+  for (const page of pages) {
+    const previous = named.get(page.name);
+    if (!previous || (previous.title === undefined && page.title !== undefined))
+      named.set(page.name, page);
+  }
+  return [...named.values()];
 }
 
 /**

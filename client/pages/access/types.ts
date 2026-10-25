@@ -13,6 +13,14 @@ export type {
   AuthorizationSubject,
 };
 export interface AccessSnapshot {
+  revisionScope?: 'subject';
+  subject?: { type: string; id: string };
+  role?: { title: string | { key: string; ns?: string }; memberCount?: number };
+  rules?: {
+    kind: string;
+    resource: { type: string; id: string };
+    count: number;
+  }[];
   revision: string;
   sets: PermissionSet[];
   assignments: PermissionSetAssignment[];
@@ -31,6 +39,9 @@ export interface SubjectRow {
   memberCount?: number;
 }
 export interface ActionRow {
+  sourceKeys?: string[];
+  targetKeys?: string[];
+  targetKey?: string;
   id: string;
   resource: ResourceOption;
   action: string;

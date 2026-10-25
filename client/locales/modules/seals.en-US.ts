@@ -1,5 +1,18 @@
 export default {
   seals: {
+    authz: {
+      requests: 'Seal requests',
+      view: 'View',
+      create: 'Create',
+      edit: 'Edit',
+      operate: 'Operate',
+      actualReturn: 'Actual exceptional return',
+      ledger: 'Seal ledger',
+      instances: 'Seal instances',
+      manage: 'Manage seal metadata',
+      owned: 'Own records',
+      readable: 'Own and participating records',
+    },
     registrationSource: 'Registration for request {{number}}',
     relatedUnavailable: 'Related record unavailable',
     copiesRange: 'Enter a whole number from 1 to {{max}}.',

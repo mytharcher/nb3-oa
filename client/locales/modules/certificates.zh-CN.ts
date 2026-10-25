@@ -1,5 +1,16 @@
 export default {
   certificates: {
+    authz: {
+      readable: '本人及参与的申请',
+      requests: '证明开具',
+      view: '查看',
+      create: '申请',
+      edit: '编辑',
+      operate: '审批与办理',
+      issue: '出具证明',
+      income: '收入证明私有信息',
+      owned: '本人申请',
+    },
     savedRecord: '已保存“{{name}}”的证明申请',
     issuedRecord: '已为“{{name}}”开具证明',
     submittedRecord: '已提交“{{name}}”的证明申请',

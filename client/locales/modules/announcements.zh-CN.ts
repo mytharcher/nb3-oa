@@ -1,5 +1,18 @@
 export default {
   announcements: {
+    authz: {
+      title: '公告与制度通知',
+      owned: '本人发布',
+      readable: '本人发布及接收的公告',
+      view: '查看公告',
+      create: '创建公告草稿',
+      edit: '编辑本人草稿',
+      publish: '发布本人公告',
+      revoke: '撤回本人公告',
+      remind: '催读未确认员工',
+      receipts: '查看本人公告接收名单',
+      confirm: '确认本人回执',
+    },
     removeDepartment: '移除部门“{{name}}”',
 
     confirmTitle: '{{action}}公告“{{name}}”？',

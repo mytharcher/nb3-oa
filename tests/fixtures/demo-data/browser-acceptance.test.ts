@@ -17,7 +17,6 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
   async () => {
     const h = await startIsolatedBrowserApp({
       name: 'demo-data',
-      samplePasswords: true,
       apiPort: 14271,
       vitePort: 14272,
     });

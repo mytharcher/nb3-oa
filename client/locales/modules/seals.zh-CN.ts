@@ -1,5 +1,18 @@
 export default {
   seals: {
+    authz: {
+      requests: '用印申请',
+      view: '查看',
+      create: '创建',
+      edit: '编辑',
+      operate: '办理',
+      actualReturn: '异常实际归还',
+      ledger: '用印台账',
+      instances: '印章台账',
+      manage: '管理印章资料',
+      owned: '本人记录',
+      readable: '本人及参与记录',
+    },
     registrationSource: '申请单 {{number}} 的用印登记',
     relatedUnavailable: '关联记录不可用',
     copiesRange: '请输入1至{{max}}之间的整数。',

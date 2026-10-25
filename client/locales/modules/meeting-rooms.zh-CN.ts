@@ -1,5 +1,20 @@
 export default {
   meetingRooms: {
+    authz: {
+      title: '会议室',
+      bookings: '会议预约',
+      view: '查看',
+      manage: '管理会议室',
+      create: '预约会议室',
+      edit: '修改预约',
+      cancel: '取消预约',
+      confirm: '行政确认',
+      reject: '行政拒绝',
+      checkIn: '签到',
+      owned: '我发起的会议',
+      participating: '我参加的会议',
+      readable: '我发起或参加的会议',
+    },
     backToList: '返回列表',
     finder: {
       title: '查找时段',
