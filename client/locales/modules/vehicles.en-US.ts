@@ -1,5 +1,11 @@
 export default {
   vehicles: {
+    authz: {
+      requests: 'Vehicle requests',
+      garage: 'Vehicle garage',
+      manage: 'Manage vehicle roster',
+      viewCost: 'View private fuel cost',
+    },
     backToList: 'Back to list',
     businessErrors: {
       VEHICLE_INVALID_INTERVAL:

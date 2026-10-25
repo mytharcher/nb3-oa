@@ -20,7 +20,7 @@ import { dictionaryServiceToken } from '../../../server/providers/platform/index
 import { randomUUID } from 'node:crypto';
 let fixture: OrgTestApp;
 beforeAll(async () => {
-  fixture = await startOrgTestApp({ samplePasswords: true });
+  fixture = await startOrgTestApp();
 }, 120000);
 afterAll(async () => {
   await fixture?.close();
@@ -202,7 +202,7 @@ it('imports a complete dataset with actionable scenarios and reports its actual 
   );
   expect(
     credentialsBefore.accounts.every(
-      (account) => account.password === '123456',
+      (account) => account.password === '12345678',
     ),
   ).toBe(true);
   // Simulate the durable state left by a process that stopped after its final checkpoint.
@@ -287,7 +287,7 @@ it('adopts existing samples, changes old sample passwords and preserves the admi
   const exported = JSON.parse(await readFile(file, 'utf8'));
   expect(
     exported.accounts.every(
-      (account: { password: string }) => account.password === '123456',
+      (account: { password: string }) => account.password === '12345678',
     ),
   ).toBe(true);
   const login = (password: string) =>
@@ -296,7 +296,7 @@ it('adopts existing samples, changes old sample passwords and preserves the admi
       json({ email: employee.email, password }),
     );
   expect((await login(oldPassword)).status).toBe(401);
-  expect((await login('123456')).status).toBe(200);
+  expect((await login('12345678')).status).toBe(200);
   await fixture.admin();
 }, 120000);
 
@@ -318,7 +318,7 @@ it('preflights, removes only the imported batch, revokes sign-in and allows a fr
   const inbox = c.resolve(inAppNotificationStoreToken);
   expect(await inbox.countUnread(employee.id)).toBeGreaterThan(0);
   expect(await inbox.countUnread(admin.user.id)).toBe(0);
-  expect(employee.password).toBe('123456');
+  expect(employee.password).toBe('12345678');
   const histories = await db
     .repository('generalRequests')
     .findMany({ filter: (f) => f.string('title').includes(' · ') });

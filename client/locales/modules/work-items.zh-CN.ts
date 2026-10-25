@@ -1,5 +1,27 @@
 export default {
   workItems: {
+    authz: {
+      confirmationOwned: '我负责确认的事项',
+      handoverConfirmation: '交接完成确认责任',
+
+      title: '普通协同任务',
+      owned: '本人创建',
+      readable: '本人参与或职责池任务',
+      view: '查看',
+      create: '创建',
+      edit: '编辑草稿',
+      dispatch: '指派',
+      claim: '认领',
+      release: '释放',
+      complete: '提交完成',
+      confirm: '确认完成',
+      return: '退回办理',
+      block: '标记无法办理',
+      resume: '恢复办理',
+      reassign: '重新指派',
+      cancel: '取消',
+      forceComplete: '强制完成',
+    },
     handoverTitle: '交接确认责任',
     handoverTarget: '新完成确认人',
     handoverNotice: '仅交接完成确认责任，创建人的管理权及办理责任保持不变。',

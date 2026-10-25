@@ -18,6 +18,17 @@ import {
 import { withBusinessReads } from './business-reads.js';
 import { withRequestUserSummaries } from './user-summaries.js';
 
+// The authorization plugin's inspector decides without performing anything, so its POSTs read like a GET.
+const READ_ONLY_POSTS: ReadonlySet<string> = new Set([
+  '/api/authorization/inspector/decide',
+  '/api/authorization/inspector/batchDecide',
+]);
+
+/** Requests that may reuse request-local read facts: GETs and the read-only inspector decisions. */
+export function isRequestRead(method: string, path: string): boolean {
+  return method === 'GET' || (method === 'POST' && READ_ONLY_POSTS.has(path));
+}
+
 /** Registered before route freezing, like the application's audit context. */
 export const requestPerformanceMiddleware = defineHttpMiddleware<Application>({
   name: 'oa/request-performance',
@@ -37,7 +48,7 @@ export const requestPerformanceMiddleware = defineHttpMiddleware<Application>({
       const run = () =>
         measureRequestScopes(() =>
           withRequestSchemaReads(() =>
-            context.req.method === 'GET'
+            isRequestRead(context.req.method, context.req.path)
               ? withRequestUserSummaries(() =>
                   withBusinessReads(() =>
                     withApprovalQueryReads(() =>

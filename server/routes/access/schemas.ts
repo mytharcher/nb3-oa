@@ -30,6 +30,20 @@ export const Assignments = z
   .strict();
 // Definitions and policies are plugin-owned JSON. Writes above accept only individual supported business changes.
 export const Snapshot = z.object({
+  revisionScope: z.literal('subject').optional(),
+  subject: SubjectParams.optional(),
+  role: z
+    .object({ title: z.unknown(), memberCount: z.number().optional() })
+    .optional(),
+  rules: z
+    .array(
+      z.object({
+        kind: z.string(),
+        resource: z.object({ type: z.string(), id: z.string() }),
+        count: z.number(),
+      }),
+    )
+    .optional(),
   revision: z.string(),
   sets: z.array(z.record(z.string(), z.unknown())),
   assignments: z.array(z.record(z.string(), z.unknown())),
@@ -39,3 +53,30 @@ export const SetSnapshot = z.object({
   definition: z.record(z.string(), z.unknown()),
   assignments: z.array(z.record(z.string(), z.unknown())),
 });
+
+export const SubjectGrants = z
+  .object({
+    revisionScope: z.literal('subject').optional(),
+    expectedRevision: z.string().length(64),
+    changes: z
+      .array(
+        z
+          .object({
+            resource: z.object({
+              type: z.enum(['composite', 'settings', 'page']),
+              id,
+            }),
+            action: id,
+            permissionSet: id.optional(),
+            value: z
+              .object({ scopes: z.record(z.string(), z.string()).optional() })
+              .strict()
+              .nullable(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(1000),
+    sharedSets: z.enum(['split', 'all']),
+  })
+  .strict();

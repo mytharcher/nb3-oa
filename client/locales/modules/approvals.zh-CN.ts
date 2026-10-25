@@ -11,9 +11,9 @@ const existing = {
       cancellation: '销假',
       section: 'OA 审批',
       leave: '请假申请',
-      submit: '提交本人请假',
-      delegate: '代员工发起请假',
-      view: '读取请假申请',
+      submit: '提交本人申请',
+      delegate: '代员工发起申请',
+      view: '读取申请',
       delegations: '审批委托',
       read: '读取',
       update: '管理',
@@ -241,7 +241,11 @@ export default {
   approvals: {
     ...existing.approvals,
     ...copy,
-    authz: { ...existing.approvals.authz, readableScope: '可读审批申请' },
+    authz: {
+      ...existing.approvals.authz,
+      ownScope: '本人记录',
+      readableScope: '可读审批申请',
+    },
     delegations: {
       ...copy.delegations,
       allScope: '全部审批',

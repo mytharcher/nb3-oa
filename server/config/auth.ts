@@ -13,7 +13,7 @@ import { bearer, deviceAuthorization, username } from 'better-auth/plugins';
 const CLI_CLIENT_IDS: readonly string[] = ['nocobase-cli'];
 
 const auth: AppConfigFactory<AuthConfig> = defineAuthConfig({
-  defaults: ({ env = {} }) => ({
+  defaults: () => ({
     plugins: [
       username({ displayUsername: false }),
       apiKey(),
@@ -32,8 +32,7 @@ const auth: AppConfigFactory<AuthConfig> = defineAuthConfig({
       enabled: true,
       autoSignIn: false,
       disableSignUp: true,
-      // Only an explicitly enabled sample installation accepts six-character passwords.
-      minPasswordLength: env.APP_SAMPLE_DATA === 'true' ? 6 : 8,
+      minPasswordLength: 8,
     },
     session: { storeSessionInDatabase: true },
     account: { encryptOAuthTokens: true },

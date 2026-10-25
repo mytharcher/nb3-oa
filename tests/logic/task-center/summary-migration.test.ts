@@ -42,6 +42,37 @@ describeMigration('202610220003_task_center_summaries', {
         filter: { subject: 'oa.leave', recordId: 'record' },
       }),
     ).toMatchObject({ applicantId: 'applicant', category: 'revisions' });
+    // Business datetime fields return local strings without an offset. Summary
+    // fields are datetimeTz and require instants, including on replay/update.
+    const localTime = '2026-10-23T17:00:00.000';
+    await writeTaskSummary(
+      connection,
+      'oa.workItem',
+      { id: 'work', status: 'open', createdAt: localTime, dueAt: localTime },
+      'applicant',
+    );
+    const work = await repository.findOne({
+      filter: { subject: 'oa.workItem', recordId: 'work' },
+    });
+    expect(new Date(String(work!.dueAt)).getTime()).toBe(
+      new Date(localTime).getTime(),
+    );
+    expect(new Date(String(work!.createdAt)).getTime()).toBe(
+      new Date(localTime).getTime(),
+    );
+    await writeTaskSummary(
+      connection,
+      'oa.workItem',
+      { id: 'work', status: 'open', dueAt: '2026-10-24T09:00:00.000+08:00' },
+      'applicant',
+    );
+    const updated = await repository.findOne({
+      filter: { subject: 'oa.workItem', recordId: 'work' },
+    });
+    expect(new Date(String(updated!.dueAt)).toISOString()).toBe(
+      '2026-10-24T01:00:00.000Z',
+    );
+    expect(updated!.createdAt).toBeNull();
     await expect(
       connection.transaction(async (tx) => {
         await writeTaskSummary(

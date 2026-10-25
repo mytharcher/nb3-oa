@@ -3,7 +3,7 @@ import {
   TestI18nProvider,
   createTestI18nRuntime,
 } from '@nocobase/i18n/testing';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,8 +12,6 @@ import zhCN from '../../client/locales/zh-CN.js';
 import RolesPage from '../../client/pages/access/roles.js';
 import EditPage from '../../client/pages/access/edit.js';
 import SubjectDetail from '../../client/pages/access/detail.js';
-import PeoplePage from '../../client/pages/access/people.js';
-import PersonDetail from '../../client/pages/access/person-detail.js';
 import AssignPage from '../../client/pages/access/assign.js';
 import { ErrorState } from '../../client/pages/access/ui.js';
 
@@ -175,6 +173,28 @@ beforeEach(() => {
     async ({ path, method }: { path: string; method?: string }) => {
       if (method === 'PUT') return { data: snapshot };
       if (path === 'access/snapshot') return { data: snapshot };
+      if (path === 'access/options')
+        return { data: await client.loadOptions('permissionSets') };
+      if (/^access\/subjects\/[^/]+\/[^/]+$/.test(path))
+        return {
+          data: {
+            ...snapshot,
+            revisionScope: 'subject',
+            role: { title: 'HR specialist', memberCount: 0 },
+          },
+        };
+      if (path === 'access/roles')
+        return {
+          data: [
+            {
+              type: 'org.dutyRole',
+              id: 'hr',
+              title: 'HR specialist',
+              memberCount: 0,
+            },
+            { type: 'authenticated', id: '*', title: 'All signed-in' },
+          ],
+        };
       if (path === 'dutyRoles')
         return { data: [{ code: 'hr', memberCount: 0, active: true }] };
       if (path === 'access/permissionSets/finance')
@@ -189,10 +209,72 @@ describe('OA access pages', () => {
     expect(
       await screen.findByRole('link', { name: 'HR specialist' }),
     ).toHaveAttribute('href', '/access/roles/org.dutyRole/hr/permissions');
-    expect(screen.getByText('No members assigned')).toBeInTheDocument();
-    expect(screen.getByText('Budget administration')).toBeInTheDocument();
+    expect(screen.getAllByRole('columnheader')).toHaveLength(2);
+    expect(
+      screen.queryByRole('columnheader', { name: 'Applies to' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('columnheader', { name: 'Configured modules' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('columnheader', { name: 'Sensitive access' }),
+    ).not.toBeInTheDocument();
+    expect(
+      api.request.mock.calls.every(([input]) => input.path === 'access/roles'),
+    ).toBe(true);
+    expect(client.loadOptions).not.toHaveBeenCalled();
     expect(
       screen.getByRole('link', { name: 'Signed-in baseline access' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('navigation', { name: enUS.access.title }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: enUS.access.modules }),
+    ).not.toBeInTheDocument();
+  });
+  it('fetches a scoped detail only after opening a role and keeps the list mounted', async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/access/roles',
+          element: <RolesPage />,
+          children: [
+            { path: ':type/:id/permissions', element: <SubjectDetail /> },
+          ],
+        },
+      ],
+      { initialEntries: ['/access/roles'] },
+    );
+    render(
+      <TestI18nProvider runtime={runtimes.en} namespace='nb3-oa'>
+        <RouterProvider router={router} />
+      </TestI18nProvider>,
+    );
+    const link = await screen.findByRole('link', { name: 'HR specialist' });
+    expect(api.request.mock.calls.map(([input]) => input.path)).toEqual([
+      'access/roles',
+    ]);
+    await userEvent.click(link);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(
+      await screen.findByRole('switch', {
+        name: /Adjust allocation/,
+      }),
+    ).toBeInTheDocument();
+    expect(api.request.mock.calls.map(([input]) => input.path)).toEqual(
+      expect.arrayContaining([
+        'access/subjects/org.dutyRole/hr',
+        'access/options',
+      ]),
+    );
+    expect(
+      api.request.mock.calls.some(
+        ([input]) => input.path === 'access/snapshot',
+      ),
+    ).toBe(false);
+    expect(
+      screen.getByRole('link', { name: 'HR specialist', hidden: true }),
     ).toBeInTheDocument();
   });
   it('renders Chinese and supports search without changing saved access', async () => {
@@ -213,11 +295,14 @@ describe('OA access pages', () => {
       api.request.mock.calls.some(([input]) => input.method === 'PUT'),
     ).toBe(false);
   });
-  it('keeps member absence distinct from missing permission', async () => {
+  it('shows role identities without loading counts or member maintenance permission', async () => {
     can.value = false;
     mount('roles');
     await screen.findByText('HR specialist');
-    expect(screen.getByText('Member access unavailable')).toBeInTheDocument();
+    expect(screen.getAllByRole('columnheader')).toHaveLength(2);
+    expect(
+      screen.queryByRole('columnheader', { name: 'Applies to' }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('No members assigned')).not.toBeInTheDocument();
   });
   it('labels every dynamic scope as required and localizes label punctuation', async () => {
@@ -305,16 +390,20 @@ describe('OA access pages', () => {
     expect(reload).toHaveBeenCalled();
   });
   it('shows conflict feedback and preserves the unsaved choice', async () => {
-    api.request.mockImplementation(async ({ method }: { method?: string }) => {
-      if (method === 'PUT')
-        throw new ApiClientError('private', {
-          status: 409,
-          method: 'PUT',
-          url: '/api/access',
-          reason: 'VERSION_CONFLICT',
-        });
-      return { data: setSnapshot };
-    });
+    api.request.mockImplementation(
+      async ({ path, method }: { path: string; method?: string }) => {
+        if (path === 'access/options')
+          return { data: await client.loadOptions('permissionSets') };
+        if (method === 'PUT')
+          throw new ApiClientError('private', {
+            status: 409,
+            method: 'PUT',
+            url: '/api/access',
+            reason: 'VERSION_CONFLICT',
+          });
+        return { data: setSnapshot };
+      },
+    );
     mount('edit');
     const user = userEvent.setup();
     await user.click(
@@ -387,206 +476,6 @@ describe('OA access pages', () => {
   });
 });
 
-function mountPerson() {
-  const router = createMemoryRouter(
-    [
-      {
-        path: '/',
-        element: <Parent />,
-        children: [
-          { path: 'access/people/:userId/sources', element: <PersonDetail /> },
-        ],
-      },
-    ],
-    { initialEntries: ['/access/people/employee/sources'] },
-  );
-  render(
-    <TestI18nProvider runtime={runtimes.en} namespace='nb3-oa'>
-      <RouterProvider router={router} />
-    </TestI18nProvider>,
-  );
-}
-describe('Person permission sources', () => {
-  it('groups user decisions by module without dropping source or conditional details', async () => {
-    client.loadOptions.mockResolvedValue({
-      ...catalog,
-      sections: [
-        {
-          ...catalog.sections[0],
-          subsections: [
-            ...catalog.sections[0].subsections,
-            {
-              name: 'hr',
-              title: 'HR',
-              resources: [
-                {
-                  type: 'settings',
-                  id: 'hr',
-                  title: 'HR administration',
-                  actions: [{ name: 'read', title: 'Read HR' }],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-    client.inspectConfigured.mockResolvedValue({
-      sets: [{ ...definition, sources: [{ type: 'org.dutyRole', id: 'hr' }] }],
-    });
-    client.getEffective.mockResolvedValue([definition]);
-    client.inspectBatch.mockImplementation(async (_subject, checks) =>
-      checks.map((check: { resource: { id: string } }) => ({
-        ...check,
-        decision: {
-          effect: check.resource.id === 'budget' ? 'conditional' : 'deny',
-        },
-      })),
-    );
-    mountPerson();
-    const hr = await screen.findByRole('tab', {
-      name: 'HR: 0 configured / 1 resources',
-    });
-    expect(screen.queryByText('Read HR')).toBeNull();
-    expect(screen.getByText('Read budget')).toBeVisible();
-    expect(
-      screen.getByText('Access sources: Finance responsibilities'),
-    ).toBeVisible();
-    await userEvent.click(hr);
-    expect(screen.getByText('Read HR')).toBeVisible();
-    expect(screen.getByText(enUS.access.deniedAction)).toBeVisible();
-    expect(screen.queryByText('Read budget')).toBeNull();
-    await userEvent.click(screen.getByRole('tab', { name: /All:/ }));
-    expect(screen.getByText('Read HR')).toBeVisible();
-    expect(screen.getByText('Read budget')).toBeVisible();
-  });
-  it('keeps unchecked results in their module rather than showing them as denied', async () => {
-    client.loadOptions.mockResolvedValue({
-      ...catalog,
-      sections: [
-        {
-          ...catalog.sections[0],
-          subsections: [
-            ...catalog.sections[0].subsections,
-            {
-              name: 'hr',
-              title: 'HR',
-              resources: [
-                {
-                  type: 'settings',
-                  id: 'hr',
-                  title: 'HR administration',
-                  actions: [{ name: 'read', title: 'Read HR' }],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-    client.inspectConfigured.mockResolvedValue({ sets: [] });
-    client.getEffective.mockResolvedValue([]);
-    client.inspectBatch.mockRejectedValue(new Error('Network unavailable'));
-    mountPerson();
-    await userEvent.click(await screen.findByRole('tab', { name: /HR:/ }));
-    expect(screen.getByText('Read HR')).toBeVisible();
-    expect(screen.getByText(enUS.access.unchecked)).toBeVisible();
-    expect(screen.queryByText('Read budget')).toBeNull();
-    expect(screen.queryByText(enUS.access.deniedAction)).toBeNull();
-    expect(screen.queryByText(enUS.access.none)).toBeNull();
-  });
-
-  it('shows inherited responsibilities as their actual source and conditional decisions', async () => {
-    client.resolveSubjects.mockImplementation(async (_surface, type) => [
-      {
-        id: type === 'user' ? 'employee' : 'hr',
-        title: type === 'user' ? 'Employee' : 'HR specialist',
-      },
-    ]);
-    client.inspectConfigured.mockResolvedValue({
-      sets: [{ ...definition, sources: [{ type: 'org.dutyRole', id: 'hr' }] }],
-    });
-    client.getEffective.mockResolvedValue([definition]);
-    client.inspectBatch.mockImplementation(async (_subject, checks) =>
-      checks.map((check: object) => ({
-        ...check,
-        decision: { effect: 'conditional' },
-      })),
-    );
-    mountPerson();
-    expect(await screen.findByText('HR specialist')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'HR specialist' })).toBeNull();
-    await waitFor(() =>
-      expect(screen.getAllByText(enUS.access.conditional)).toHaveLength(2),
-    );
-    expect(screen.queryByText(enUS.access.none)).not.toBeInTheDocument();
-  });
-  it('retains inspection results when supplementary source names are denied', async () => {
-    client.inspectConfigured.mockResolvedValue({
-      sets: [{ ...definition, sources: [{ type: 'org.dutyRole', id: 'hr' }] }],
-    });
-    client.getEffective.mockResolvedValue([definition]);
-    client.resolveSubjects.mockRejectedValue(
-      new ApiClientError('Denied', {
-        status: 403,
-        method: 'GET',
-        url: 'subjects',
-      }),
-    );
-    client.inspectBatch.mockImplementation(async (_subject, checks) =>
-      checks.map((check: object) => ({
-        ...check,
-        decision: { effect: 'conditional' },
-      })),
-    );
-    mountPerson();
-    await waitFor(() =>
-      expect(screen.getAllByText(enUS.access.conditional)).toHaveLength(2),
-    );
-    expect(screen.getByText(enUS.access.personUnknown)).toBeInTheDocument();
-    expect(screen.getByText(enUS.access.inherited)).toBeInTheDocument();
-  });
-  it('splits inspections at 100 and never presents failed checks as no access', async () => {
-    client.loadOptions.mockResolvedValue({
-      ...catalog,
-      sections: [
-        {
-          ...catalog.sections[0],
-          subsections: [
-            {
-              ...catalog.sections[0].subsections[0],
-              resources: [
-                {
-                  ...catalog.sections[0].subsections[0].resources[0],
-                  actions: Array.from({ length: 101 }, (_, index) => ({
-                    name: `action${index}`,
-                    title: `Action ${index}`,
-                  })),
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-    client.resolveSubjects.mockResolvedValue([
-      { id: 'employee', title: 'Employee' },
-    ]);
-    client.inspectConfigured.mockResolvedValue({ sets: [] });
-    client.getEffective.mockResolvedValue([]);
-    client.inspectBatch.mockRejectedValue(new Error('Network unavailable'));
-    mountPerson();
-    await waitFor(() => expect(client.inspectBatch).toHaveBeenCalledTimes(2));
-    expect(
-      client.inspectBatch.mock.calls.map((call) => call[1].length),
-    ).toEqual([100, 1]);
-    expect(
-      await screen.findByRole('button', { name: enUS.access.retry }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(enUS.access.none)).not.toBeInTheDocument();
-  });
-});
-
 function mountAt(element: React.ReactElement, path: string, initial: string) {
   const router = createMemoryRouter(
     [{ path: '/', element: <Parent />, children: [{ path, element }] }],
@@ -597,11 +486,100 @@ function mountAt(element: React.ReactElement, path: string, initial: string) {
       <RouterProvider router={router} />
     </TestI18nProvider>,
   );
+  return router;
 }
 describe('Independent loading blocks', () => {
+  it('isolates role identities even when the previous request finishes last', async () => {
+    let finishFirst!: (value: unknown) => void;
+    const first = new Promise((resolve) => {
+      finishFirst = resolve;
+    });
+    api.request.mockImplementation(async ({ path }) => {
+      if (path === 'access/options') return { data: catalog };
+      if (path.endsWith('/first')) return first;
+      return { data: { ...snapshot, role: { title: 'Second role' } } };
+    });
+    const router = mountAt(
+      <SubjectDetail />,
+      'access/roles/:type/:id/permissions',
+      '/access/roles/org.position/first/permissions',
+    );
+    await waitFor(() =>
+      expect(api.request).toHaveBeenCalledWith({
+        path: 'access/subjects/org.position/first',
+      }),
+    );
+    await act(() =>
+      router.navigate('/access/roles/org.position/second/permissions'),
+    );
+    expect(
+      await screen.findByRole('heading', { name: 'Second role' }),
+    ).toBeInTheDocument();
+    await act(async () => {
+      finishFirst({ data: { ...snapshot, role: { title: 'First role' } } });
+      await first;
+    });
+    expect(
+      screen.getByRole('heading', { name: 'Second role' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'First role' }),
+    ).not.toBeInTheDocument();
+  });
+  it('reloads detail counts after changing role members', async () => {
+    const member = {
+      userId: 'member-1',
+      user: { id: 'member-1', name: 'Member One' },
+    };
+    let removed = false;
+    api.request.mockImplementation(async ({ path, method }) => {
+      if (method === 'DELETE') {
+        removed = true;
+        return {};
+      }
+      if (path === 'dutyRoles/hr/members')
+        return { data: removed ? [] : [member] };
+      if (path === 'access/subjects/org.dutyRole/hr')
+        return {
+          data: {
+            ...snapshot,
+            role: { title: 'HR specialist', memberCount: removed ? 0 : 1 },
+          },
+        };
+      throw new Error(`unexpected request ${path}`);
+    });
+    mountAt(
+      <SubjectDetail />,
+      'access/roles/:type/:id/members',
+      '/access/roles/org.dutyRole/hr/members',
+    );
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Actions for "Member One"' }),
+    );
+    await user.click(await screen.findByRole('menuitem', { name: 'Remove' }));
+    await user.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', {
+        name: 'Remove',
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        api.request.mock.calls.filter(
+          ([input]) => input.path === 'access/subjects/org.dutyRole/hr',
+        ),
+      ).toHaveLength(2),
+    );
+    expect(
+      api.request.mock.calls.some(([input]) => input.path === 'access/options'),
+    ).toBe(false);
+  });
   it('shows a retryable catalog error in the subject detail', async () => {
     client.loadOptions.mockRejectedValue(new Error('Options unavailable'));
-    api.request.mockResolvedValue({ data: snapshot });
+    api.request.mockImplementation(async ({ path }) => {
+      if (path === 'access/options') throw new Error('Options unavailable');
+      return { data: { ...snapshot, role: { title: 'HR specialist' } } };
+    });
     mountAt(
       <SubjectDetail />,
       'access/roles/:type/:id/permissions',
@@ -614,50 +592,115 @@ describe('Independent loading blocks', () => {
       screen.queryByLabelText(enUS.access.loading),
     ).not.toBeInTheDocument();
   });
-  it('keeps the existing people table visible while a new search is pending', async () => {
-    let finish: (value: {
-      data: { id: string; name: string; email: string }[];
-      meta: { total: number };
-    }) => void = () => {};
-    api.request.mockImplementation(({ query }) =>
-      query.q
-        ? new Promise((resolve) => {
-            finish = resolve;
-          })
-        : Promise.resolve({
-            data: [
-              {
-                id: 'employee',
-                name: 'Employee',
-                email: 'employee@example.test',
-              },
-            ],
-            meta: { total: 1 },
-          }),
-    );
-    mountAt(<PeoplePage />, 'access/people', '/access/people');
-    await screen.findByRole('link', { name: 'Employee' });
-    await userEvent.type(
-      screen.getByPlaceholderText(enUS.access.searchPeople),
-      'new',
-    );
-    await waitFor(() =>
-      expect(
-        api.request.mock.calls.some((call) => call[0].query.q === 'new'),
-      ).toBe(true),
-    );
-    expect(screen.getByRole('link', { name: 'Employee' })).toBeInTheDocument();
-    finish({
-      data: [{ id: 'new', name: 'New colleague', email: 'new@example.test' }],
-      meta: { total: 1 },
-    });
-    expect(
-      await screen.findByRole('link', { name: 'New colleague' }),
-    ).toBeInTheDocument();
-  });
 });
 
 describe('Role permission module grouping', () => {
+  it.each(['en', 'zh'] as const)(
+    'filters assignment choices without losing hidden selections (%s)',
+    async (locale) => {
+      const copy = locale === 'zh' ? zhCN.access : enUS.access;
+      const other = {
+        key: 'other',
+        title: definition.title,
+        grants: [
+          {
+            resource: { type: 'settings', id: 'hr' },
+            actions: [{ action: 'read' }],
+          },
+        ],
+      };
+      client.loadOptions.mockResolvedValue({
+        ...catalog,
+        sections: [
+          {
+            ...catalog.sections[0],
+            subsections: [
+              ...catalog.sections[0].subsections,
+              {
+                name: 'hr',
+                title: 'HR',
+                resources: [
+                  {
+                    type: 'settings',
+                    id: 'hr',
+                    title: 'HR administration',
+                    actions: [{ name: 'read', title: 'Read HR' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      api.request.mockImplementation(async ({ path }) => ({
+        data:
+          path === 'access/options'
+            ? await client.loadOptions('permissionSets')
+            : { ...snapshot, sets: [definition, other] },
+      }));
+      mount('assign', locale);
+      const search = await screen.findByRole('textbox', {
+        name: copy.assignmentSearch,
+      });
+      expect(
+        screen.getAllByRole('checkbox', { name: /Finance responsibilities/ }),
+      ).toHaveLength(2);
+      const user = userEvent.setup();
+      await user.type(search, 'Read HR');
+      const remaining = screen.getByRole('checkbox', {
+        name: /Finance responsibilities/,
+      });
+      expect(remaining).not.toBeChecked();
+      await user.click(remaining);
+      await user.click(
+        screen.getByRole('combobox', { name: copy.businessModules }),
+      );
+      await user.click(
+        await screen.findByRole('option', { name: 'Budget', exact: true }),
+      );
+      expect(
+        screen.queryByRole('checkbox', { name: /Finance responsibilities/ }),
+      ).toBeNull();
+      expect(screen.getByText(copy.noResults)).toBeVisible();
+      await user.clear(search);
+      expect(
+        screen.getByRole('checkbox', { name: /Finance responsibilities/ }),
+      ).toBeChecked();
+      await user.click(
+        screen.getByRole('checkbox', { name: /Finance responsibilities/ }),
+      );
+      await user.click(
+        screen.getByRole('checkbox', { name: copy.assignmentOnlySelected }),
+      );
+      expect(
+        screen.queryByRole('checkbox', { name: /Finance responsibilities/ }),
+      ).toBeNull();
+      await user.click(screen.getByRole('button', { name: copy.clear }));
+      const choices = screen.getAllByRole('checkbox', {
+        name: /Finance responsibilities/,
+      });
+      expect(choices[0]).not.toBeChecked();
+      expect(choices[1]).toBeChecked();
+      await user.click(screen.getByRole('button', { name: copy.save }));
+      await user.click(
+        within(screen.getByRole('alertdialog')).getByRole('button', {
+          name: copy.save,
+        }),
+      );
+      await waitFor(() =>
+        expect(api.request).toHaveBeenCalledWith(
+          expect.objectContaining({
+            method: 'PUT',
+            json: {
+              expectedRevision: snapshot.revision,
+              managedPermissionSets: ['finance', 'other'],
+              permissionSets: ['other'],
+            },
+          }),
+        ),
+      );
+    },
+  );
   it('shows one module at a time in role details', async () => {
     client.loadOptions.mockResolvedValue({
       ...catalog,
@@ -693,24 +736,27 @@ describe('Role permission module grouping', () => {
       ],
     };
     api.request.mockImplementation(async ({ path }: { path: string }) => ({
-      data: path.includes('/members')
-        ? []
-        : { ...snapshot, sets: [groupedDefinition] },
+      data:
+        path === 'access/options'
+          ? await client.loadOptions('permissionSets')
+          : path.includes('/members')
+            ? []
+            : { ...snapshot, sets: [groupedDefinition] },
     }));
     mountAt(
       <SubjectDetail />,
       'access/roles/:type/:id/permissions',
       '/access/roles/org.dutyRole/hr/permissions',
     );
-    const hr = await screen.findByRole('tab', {
-      name: 'HR: 1 configured / 1 resources',
+    const hr = await screen.findByRole('button', {
+      name: /System administration/,
     });
     expect(screen.getByText('Read budget')).toBeVisible();
-    expect(screen.queryByText('Read HR')).toBeNull();
+    expect(screen.getByText('Read HR')).toBeVisible();
     await userEvent.click(hr);
     expect(screen.getByText('Read HR')).toBeVisible();
     expect(screen.queryByText('Read budget')).toBeNull();
-    await userEvent.click(screen.getByRole('tab', { name: /All:/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^All/ }));
     expect(screen.getByText('Read budget')).toBeVisible();
     expect(screen.getByText('Read HR')).toBeVisible();
   });

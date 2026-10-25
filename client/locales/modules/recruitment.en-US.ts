@@ -1,5 +1,15 @@
 export default {
   recruitment: {
+    authz: {
+      reviewEdit: 'Modify permitted reviewer fields',
+      resource: 'Recruitment requests',
+      requisitions: 'Recruitment allocations',
+      view: 'View recruitment',
+      submit: 'Create and submit recruitment',
+      operate: 'Act on recruitment approvals',
+      viewSalary: 'View private salary range',
+      close: 'Close remaining recruitment allocation',
+    },
     identityUnavailable: 'Organization name unavailable',
     catalogRequired:
       'Load the department and position names before closing this allocation.',

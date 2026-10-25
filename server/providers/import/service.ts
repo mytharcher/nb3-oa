@@ -1,3 +1,4 @@
+import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
 import { demoNow } from '../demo-data/context.js';
 import type { HeadcountService } from '../headcounts/contract.js';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
@@ -154,9 +155,21 @@ export function createImportService(
     try {
       const applyTransaction = async (connection: DatabaseConnection) => {
         // Inside the transaction: on SQLite it holds the only connection, so every read goes through it.
-        const users = await loadUserIndex(
+        let users = await loadUserIndex(
           deps.users().withConnection(connection),
         );
+        // Discover all referenced existing accounts before any employee/organization writes.
+        const accountIds = new Set<string>();
+        for (const row of sheet.rows)
+          for (const value of row.cells.values()) {
+            if (typeof value === 'string') {
+              const user = users.find(value);
+              if (user) accountIds.add(user.id);
+            }
+          }
+        for (const id of [...accountIds].sort())
+          await lockUserForAdministration(connection, id);
+        users = await loadUserIndex(deps.users().withConnection(connection));
         const plan = await planImport(kind, sheet, {
           connection,
           organization: deps.organization(),

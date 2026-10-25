@@ -128,6 +128,20 @@ export interface DutyRoleView {
  * commit tells each user whose subjects changed to refresh their permission snapshot.
  */
 export interface OrganizationService extends OrgService {
+  /** Bulk effective department, department-head and duty-role members for access administration. */
+  accessMemberships(
+    connection?: DatabaseConnection,
+  ): Promise<ReadonlyMap<string, readonly string[]>>;
+  /** Configured memberships, including roles currently inactive. */
+  dutyRoleMembershipsOf(
+    userId: string,
+    connection?: DatabaseConnection,
+  ): Promise<readonly string[]>;
+  /** Bounded lookup for the directory filter; never expose other members to the browser. */
+  dutyRoleMemberIdsForFilter(
+    code: string,
+    connection?: DatabaseConnection,
+  ): Promise<readonly string[]>;
   // Departments
   listTree(connection?: DatabaseConnection): Promise<readonly Department[]>;
   getDepartment(
@@ -552,11 +566,29 @@ export function createOrganizationService(
     );
   }
 
+  function validateUserId(
+    userId: unknown,
+    field = 'userId',
+  ): asserts userId is string {
+    if (typeof userId !== 'string' || !userId.trim() || userId.length > 64)
+      throw new OrgError('USER_NOT_FOUND', 'Invalid user reference.', field);
+  }
+  async function lockUsers(
+    connection: DatabaseConnection,
+    ids: readonly unknown[],
+  ) {
+    for (const id of ids) validateUserId(id);
+    for (const id of [...new Set(ids as string[])].sort())
+      await lockUserForAdministration(connection, id);
+  }
+
   async function requireEnabledUser(
     userId: unknown,
     field: string,
-    connection?: DatabaseConnection,
+    connection: DatabaseConnection,
   ): Promise<string> {
+    validateUserId(userId, field);
+    await lockUserForAdministration(connection, userId);
     // Inside a caller's transaction the lookup must go through it: on SQLite the transaction holds the only
     // connection, so a lookup outside it would wait for that connection forever (the import runs every write in one).
     const directory = connection ? users.withConnection(connection) : users;
@@ -918,6 +950,33 @@ export function createOrganizationService(
       return node ? toDepartment(node) : undefined;
     },
 
+    async accessMemberships(connection) {
+      const target = root(connection);
+      const tree = await loadTree(connection);
+      const result = new Map<string, Set<string>>();
+      const add = (key: string, userId: string) => {
+        const members = result.get(key) ?? new Set<string>();
+        members.add(userId);
+        result.set(key, members);
+      };
+      for (const row of await activeMemberships(target, {})) {
+        for (const department of activeChainOf(tree, row.departmentId) ?? [])
+          add(`org.department:${department.id}`, row.userId);
+      }
+      for (const node of tree.values())
+        if (activeChainOf(tree, node.id) && node.managerId)
+          add('org.departmentHead:*', node.managerId);
+      const roles = await service.listDutyRoles(connection);
+      for (const [code, members] of await service.dutyRoleMembersByCodes(
+        roles.map((role) => role.code),
+        connection,
+      ))
+        for (const userId of members) add(`org.dutyRole:${code}`, userId);
+      return new Map(
+        [...result].map(([key, members]) => [key, [...members].sort()]),
+      );
+    },
+
     async memberCounts(connection) {
       const counts = new Map<string, number>();
       for (const row of await activeMemberships(root(connection), {}))
@@ -933,23 +992,27 @@ export function createOrganizationService(
         input.sortOrder === undefined
           ? 0
           : normalizeInteger(input.sortOrder, 'sortOrder');
-      const managerId =
-        input.managerId == null
-          ? null
-          : await requireEnabledUser(
-              input.managerId,
-              'managerId',
-              context.connection,
-            );
-      const executiveId =
-        input.executiveId == null
-          ? null
-          : await requireEnabledUser(
-              input.executiveId,
-              'executiveId',
-              context.connection,
-            );
       return write(context, async (connection, record) => {
+        await lockUsers(
+          connection,
+          [input.managerId, input.executiveId].filter((id) => id != null),
+        );
+        const managerId =
+          input.managerId == null
+            ? null
+            : await requireEnabledUser(
+                input.managerId,
+                'managerId',
+                connection,
+              );
+        const executiveId =
+          input.executiveId == null
+            ? null
+            : await requireEnabledUser(
+                input.executiveId,
+                'executiveId',
+                connection,
+              );
         const tree = await loadTree(connection);
         validateParent(tree, undefined, parentId);
         if (parentId !== null && executiveId !== null)
@@ -995,26 +1058,30 @@ export function createOrganizationService(
         values.code = normalizeCode(input.code, false);
       if (input.sortOrder !== undefined)
         values.sortOrder = normalizeInteger(input.sortOrder, 'sortOrder');
-      if (input.managerId !== undefined)
-        values.managerId =
-          input.managerId === null
-            ? null
-            : await requireEnabledUser(
-                input.managerId,
-                'managerId',
-                context.connection,
-              );
-      if (input.executiveId !== undefined)
-        values.executiveId =
-          input.executiveId === null
-            ? null
-            : await requireEnabledUser(
-                input.executiveId,
-                'executiveId',
-                context.connection,
-              );
       if (input.parentId !== undefined) values.parentId = input.parentId;
       return write(context, async (connection, record) => {
+        await lockUsers(
+          connection,
+          [input.managerId, input.executiveId].filter((id) => id != null),
+        );
+        if (input.managerId !== undefined)
+          values.managerId =
+            input.managerId === null
+              ? null
+              : await requireEnabledUser(
+                  input.managerId,
+                  'managerId',
+                  connection,
+                );
+        if (input.executiveId !== undefined)
+          values.executiveId =
+            input.executiveId === null
+              ? null
+              : await requireEnabledUser(
+                  input.executiveId,
+                  'executiveId',
+                  connection,
+                );
         const tree = await loadTree(connection);
         const current = requireNode(tree, id);
         const changed: string[] = [];
@@ -1146,12 +1213,10 @@ export function createOrganizationService(
 
     async manageMember(input, context) {
       await root(context.connection).transaction(async (connection) => {
-        // Departure holds this public account lock before memberships and capacity release.
-        // Taking it first prevents guard -> member versus member -> guard inversion for this user.
-        // The public lock is a no-op for an absent row and also locks disabled accounts;
-        // preserve each underlying membership operation's existing validation semantics.
-        await lockUserForAdministration(connection, input.userId);
+        validateUserId(input.userId);
+        // Roster guard precedes every existing-account lock, including within a caller transaction.
         const run = async (tx: DatabaseConnection) => {
+          await lockUserForAdministration(tx, input.userId);
           const caller = { ...context, connection: tx };
           if (input.action === 'add')
             await service.addMember(
@@ -1181,12 +1246,13 @@ export function createOrganizationService(
     },
 
     async addMember(input, context) {
-      const userId = await requireEnabledUser(
-        input.userId,
-        'userId',
-        context.connection,
-      );
+      validateUserId(input.userId);
       await write(context, async (connection, record) => {
+        const userId = await requireEnabledUser(
+          input.userId,
+          'userId',
+          connection,
+        );
         requireNode(await loadTree(connection), input.departmentId);
         const existing = await connection.query
           .selectFrom('departmentMembers')
@@ -1610,6 +1676,34 @@ export function createOrganizationService(
       return activeDutyRoleMembers(target, code);
     },
 
+    async dutyRoleMembershipsOf(userId, connection) {
+      const rows = await root(connection)
+        .query.selectFrom('dutyRoleMembers')
+        .select('dutyRoleCode')
+        .where('userId', '=', userId)
+        .where('active', '=', true)
+        .execute();
+      return rows.map((row) => text(row.dutyRoleCode));
+    },
+    async dutyRoleMemberIdsForFilter(code, connection) {
+      const target = root(connection);
+      await loadDutyRole(target, code);
+      const rows = await target.query
+        .selectFrom('dutyRoleMembers')
+        .select('userId')
+        .where('dutyRoleCode', '=', code)
+        .where('active', '=', true)
+        .orderBy('userId', 'asc')
+        .limit(501)
+        .execute();
+      if (rows.length > 500)
+        throw new OrgError(
+          'ROLE_FILTER_TOO_LARGE',
+          'Role filter supports at most 500 members.',
+        );
+      return rows.map((row) => text(row.userId));
+    },
+
     async dutyRolesOf(userId, connection) {
       const target = root(connection);
       return requestConnectionRead(
@@ -1661,11 +1755,16 @@ export function createOrganizationService(
       return write(context, async (connection, record) => {
         const current = await loadDutyRole(connection, code);
         if (current.active === active) return { result: current };
-        await connection.query
-          .updateTable('dutyRoles')
-          .set({ active })
-          .where('code', '=', code)
-          .execute();
+        await connection.repository('dutyRoles').updateMany({
+          filter: { code, active: current.active },
+          values: { active },
+        });
+        const actual = await loadDutyRole(connection, code);
+        if (actual.active !== active)
+          throw new OrgError(
+            'INVALID_INPUT',
+            'Duty role state changed concurrently.',
+          );
         await record({
           action: active ? 'dutyRole.enable' : 'dutyRole.disable',
           targetType: 'dutyRoles',
@@ -1682,13 +1781,24 @@ export function createOrganizationService(
     },
 
     async addDutyRoleMember(code, userId, context) {
-      const user = await requireEnabledUser(
-        userId,
-        'userId',
-        context.connection,
-      );
+      validateUserId(userId);
       await write(context, async (connection, record) => {
-        await loadDutyRole(connection, code);
+        const user = await requireEnabledUser(userId, 'userId', connection);
+        const { updatedCount } = await connection
+          .repository('dutyRoles')
+          .updateMany({
+            filter: { code, active: true },
+            values: { active: true },
+          });
+        if (updatedCount > 1)
+          throw new OrgError('INVALID_INPUT', 'Duplicate duty role code.');
+        // Both matched-row and changed-row drivers hold the matching row lock for this no-op update.
+        const role = await loadDutyRole(connection, code);
+        if (!role.active)
+          throw new OrgError(
+            'DUTY_ROLE_INACTIVE',
+            'Cannot add members to an inactive role.',
+          );
         const existing = await connection.query
           .selectFrom('dutyRoleMembers')
           .select(['id', 'active'])

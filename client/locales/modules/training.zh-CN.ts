@@ -1,4 +1,13 @@
 export default {
+  // Existing permission titles use the collection name.
+  trainingRequests: {
+    authz: {
+      resource: '培训与外出学习',
+      submit: '发起培训申请',
+      delegate: '代员工发起培训',
+      view: '查看培训申请',
+    },
+  },
   training: {
     actionForm: {
       title: '{{action}}培训申请“{{name}}”',

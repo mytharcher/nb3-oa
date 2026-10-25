@@ -1,3 +1,4 @@
+import { renderAccessTitle } from '../../../../shared/access-titles.js';
 import { useTranslation } from '@nocobase/i18n/client';
 
 import { AUTHORIZATION_NAMESPACE } from './shared.js';
@@ -20,9 +21,5 @@ export function titleText(
   t: Translate,
   fallback = '',
 ): string {
-  if (typeof value !== 'object') return value ?? fallback;
-  return t(value.key, {
-    ns: value.ns ?? AUTHORIZATION_NAMESPACE,
-    defaultValue: value.key,
-  });
+  return renderAccessTitle(value, t, fallback);
 }

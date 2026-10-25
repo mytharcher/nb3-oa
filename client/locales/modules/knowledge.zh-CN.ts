@@ -1,5 +1,12 @@
 export default {
   knowledge: {
+    authz: {
+      knowledgeDocuments: '知识文档',
+      knowledgeFolders: '知识目录',
+      knowledgeVersions: '文档版本',
+      view: '查看',
+      manage: '管理',
+    },
     discardNamed: '放弃“{{name}}”的修改？',
     reloadNamed: '重新加载“{{name}}”并放弃本地修改？',
 

@@ -26,6 +26,16 @@ export interface PermissionEditorRow {
   readonly label: string;
   readonly hint?: string | undefined;
   readonly enabled: boolean;
+  readonly comparison?: {
+    inherited: ReactNode;
+    inheritedLabel: string;
+    personalLabel: string;
+    value: ReactNode;
+    scopeFields?: ReactNode;
+    editDescription?: string;
+    pendingLabel?: string;
+    readOnly: boolean;
+  };
   /** The levels a switched-on row can reach. None leaves the right column empty. */
   readonly levels?: readonly PermissionEditorLevel[] | undefined;
   /** The current level, one of `levels`' values. */
@@ -43,7 +53,8 @@ export interface PermissionEditorSection {
   readonly id: string;
   readonly title: string;
   readonly groups: readonly PermissionEditorGroup[];
-  /** A note under the section's rows. */
+  readonly action?: ReactNode;
+  /** Supplemental content under the section rows. */
   readonly footer?: ReactNode;
 }
 
@@ -120,6 +131,75 @@ function PermissionRow({
   readonly onEnabledChange: (rowId: string, enabled: boolean) => void;
   readonly onLevelChange: (rowId: string, level: string) => void;
 }): ReactElement {
+  if (row.comparison)
+    return (
+      <div
+        data-slot='permission-row'
+        className='grid gap-3 border-b py-3 last:border-0 @sm:grid-cols-2'
+      >
+        <div className='text-sm font-medium @sm:col-span-2'>
+          {row.label}
+          {row.hint ? (
+            <p className='text-xs text-muted-foreground'>{row.hint}</p>
+          ) : null}
+        </div>
+        <div
+          className={
+            row.comparison.readOnly && !row.enabled
+              ? 'min-w-0 text-sm @sm:col-span-2'
+              : 'min-w-0 text-sm'
+          }
+        >
+          <p className='mb-1 text-xs text-muted-foreground'>
+            {row.comparison.inheritedLabel}
+          </p>
+          {row.comparison.inherited}
+        </div>
+        {!row.comparison.readOnly || row.enabled ? (
+          <div className='min-w-0 text-sm'>
+            <p className='mb-1 text-xs text-muted-foreground'>
+              {row.comparison.personalLabel}
+            </p>
+            {row.comparison.readOnly ? (
+              row.comparison.value
+            ) : (
+              <div className='flex flex-col items-start gap-2'>
+                <Switch
+                  id={row.id}
+                  aria-label={row.label}
+                  aria-describedby={`${row.id}-personal-description`}
+                  checked={row.enabled}
+                  disabled={readOnly}
+                  onCheckedChange={(on) => onEnabledChange(row.id, on)}
+                />
+                <div
+                  id={`${row.id}-personal-description`}
+                  aria-live='polite'
+                  className='text-sm'
+                >
+                  <p>{row.comparison.editDescription}</p>
+                  {row.comparison.pendingLabel ? (
+                    <p className='text-xs text-muted-foreground'>
+                      {row.comparison.pendingLabel}
+                    </p>
+                  ) : null}
+                </div>
+                {row.enabled ? row.comparison.scopeFields : null}
+                {row.enabled && row.levels && !row.comparison.scopeFields ? (
+                  <LevelControl
+                    label={labels.levelFor(row.label)}
+                    levels={row.levels}
+                    value={row.level ?? ''}
+                    disabled={readOnly}
+                    onChange={(level) => onLevelChange(row.id, level)}
+                  />
+                ) : null}
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+    );
   return (
     <div
       data-slot='permission-row'
@@ -167,13 +247,21 @@ export function PermissionEditor({
   return (
     <div className='@container flex flex-col gap-4'>
       {sections.map((section) => (
-        <Collapsible key={section.id} defaultOpen className='rounded-lg border'>
-          <h2>
-            <CollapsibleTrigger className='group flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold'>
-              <ChevronDownIcon className='size-4 -rotate-90 text-muted-foreground transition-transform group-data-[panel-open]:rotate-0' />
-              {section.title}
-            </CollapsibleTrigger>
-          </h2>
+        <Collapsible
+          id={`permission-card-${encodeURIComponent(section.id)}`}
+          key={section.id}
+          defaultOpen
+          className='group/permission-card rounded-lg border'
+        >
+          <div className='flex items-center gap-2 pr-3'>
+            <h2 className='min-w-0 flex-1'>
+              <CollapsibleTrigger className='group flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold'>
+                <ChevronDownIcon className='size-4 -rotate-90 text-muted-foreground transition-transform group-data-[panel-open]:rotate-0' />
+                {section.title}
+              </CollapsibleTrigger>
+            </h2>
+            {section.action}
+          </div>
           <CollapsibleContent className='border-t px-4 pt-1 pb-3'>
             {section.groups.map((group) => (
               <div key={group.id}>
@@ -195,9 +283,9 @@ export function PermissionEditor({
               </div>
             ))}
             {section.footer ? (
-              <p className='pt-3 text-xs text-muted-foreground'>
+              <div className='pt-3 text-xs text-muted-foreground'>
                 {section.footer}
-              </p>
+              </div>
             ) : null}
           </CollapsibleContent>
         </Collapsible>

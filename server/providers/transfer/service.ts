@@ -233,7 +233,7 @@ export function createTransferService(d: TransferDependencies) {
                 { ...options, within: tx },
               );
             return within
-              ? join(within)
+              ? d.headcounts.within(within as DatabaseConnection, join)
               : readDirectory.getStore() || candidateDirectory()
                 ? join(undefined)
                 : d.headcounts.within(d.db.connection(), join);

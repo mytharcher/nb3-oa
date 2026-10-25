@@ -1,5 +1,11 @@
 export default {
   vehicles: {
+    authz: {
+      requests: '车辆申请',
+      garage: '车辆台账',
+      manage: '维护车辆与司机',
+      viewCost: '查看油费',
+    },
     backToList: '返回列表',
     businessErrors: {
       VEHICLE_INVALID_INTERVAL: '请填写有效的用车起止时间和正数乘车人数。',

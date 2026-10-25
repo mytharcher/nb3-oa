@@ -225,14 +225,14 @@ export function createDepartureService(d: DepartureDependencies) {
               );
             const within = options?.within ?? appLifecycleTransaction();
             if (
-              within ||
               !d.headcounts ||
               readDirectory.getStore() ||
               candidateDirectory()
             )
               return join(within);
-            return d.headcounts.within(d.db.connection(), (locked) =>
-              join(locked),
+            return d.headcounts.within(
+              (within as DatabaseConnection | undefined) ?? d.db.connection(),
+              (locked) => join(locked),
             );
           };
         if (key === 'createRecord' && mutationPolicy.getStore())

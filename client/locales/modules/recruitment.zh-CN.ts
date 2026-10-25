@@ -1,5 +1,15 @@
 export default {
   recruitment: {
+    authz: {
+      reviewEdit: '修改本环节允许的招聘字段',
+      resource: '招聘申请',
+      requisitions: '招聘单',
+      view: '查看招聘',
+      submit: '创建及提交招聘申请',
+      operate: '处理招聘审批任务',
+      viewSalary: '查看私有薪资区间',
+      close: '关闭招聘单剩余额度',
+    },
     identityUnavailable: '组织名称不可用',
     catalogRequired: '请先读取部门与职位名称，再关闭此编制。',
     preciseAllocationName:

@@ -167,6 +167,10 @@ export interface ApplyAssignmentInput {
 }
 
 export interface EmployeeService {
+  /** Bulk effective position and reporting-manager members for access administration. */
+  accessMemberships(
+    connection?: DatabaseConnection,
+  ): Promise<ReadonlyMap<string, readonly string[]>>;
   /** Trusted onboarding only: disabled account, fixed probation/active archive, unique immutable source. Caller holds the headcount guard and consumes its requisition in this same transaction. */
   createForOnboarding(
     input: OnboardingEmployeeInput,

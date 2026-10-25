@@ -962,6 +962,40 @@ export function createEmployeeService(
       });
     },
 
+    async accessMemberships(connection) {
+      const graph = await loadGraph(connection);
+      const rows = await conn(connection)
+        .query.selectFrom('employees')
+        .select(['userId', 'positionId', 'active'])
+        .execute();
+      const activePositions = new Set(
+        ((await deps.org()?.listPositions(connection)) ?? [])
+          .filter((position) => position.active)
+          .map((position) => position.id),
+      );
+      const result = new Map<string, Set<string>>();
+      const add = (key: string, userId: string) => {
+        const members = result.get(key) ?? new Set<string>();
+        members.add(userId);
+        result.set(key, members);
+      };
+      for (const row of rows)
+        if (
+          row.active &&
+          row.positionId &&
+          activePositions.has(str(row.positionId))
+        )
+          add(`org.position:${str(row.positionId)}`, str(row.userId));
+      for (const node of graph.byUserId.values())
+        if (
+          node.active &&
+          descendantsOf(graph, node.id).some((entry) => entry.active)
+        )
+          add('org.reportingManager:*', node.userId);
+      return new Map(
+        [...result].map(([key, members]) => [key, [...members].sort()]),
+      );
+    },
     loadGraph,
     async recruitmentReplacementCandidates(query, policy, connection) {
       const rows = await connection

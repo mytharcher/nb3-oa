@@ -1,3 +1,4 @@
+import { lockUserForAdministration } from '@nocobase/app-plugin-authentication';
 import type { DatabaseConnection } from '@nocobase/db';
 import type { EmployeeService } from '../employees/contract.js';
 import type { OrganizationService } from '../org/service.js';
@@ -37,6 +38,7 @@ export function transferExecutor(d: {
         throw new TransferError(reason);
       };
       const s = input.snapshot;
+      await lockUserForAdministration(tx, s.userId);
       const today = d.calendar.localDate(input.now);
       if (today < input.effectiveDate) refuse('TRANSFER_NOT_DUE');
       const current = await d.employees.getById(s.employeeId, tx);

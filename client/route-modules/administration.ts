@@ -21,6 +21,26 @@ const routes: AppClientRouteDefinition[] = [
     },
     componentLoader: () =>
       import('../pages/administration/users/pages/users-page.js'),
+    children: [
+      {
+        name: 'user-detail',
+        path: ':userId',
+        authz: { resource: { type: 'user', id: '*' }, action: 'read' },
+        componentLoader: () => import('../pages/access/user-detail.js'),
+      },
+      ...['permissions', 'permissions/assign', 'permissions/duty-roles'].map(
+        (path, index): AppClientRouteDefinition => ({
+          name: [
+            'user-permissions',
+            'user-permissions-assign',
+            'user-duty-roles',
+          ][index],
+          path: `:userId/${path}`,
+          authz: 'skip',
+          componentLoader: () => import('../pages/access/user-redirect.js'),
+        }),
+      ),
+    ],
   },
   {
     name: 'permission-sets',
@@ -153,7 +173,7 @@ const routes: AppClientRouteDefinition[] = [
     navigation: {
       title: 'oa.navigation.schedules',
       icon: CalendarClock,
-      order: 10,
+      order: 40,
     },
     componentLoader: () =>
       import('../pages/administration/scheduler/pages/schedules-page.js'),

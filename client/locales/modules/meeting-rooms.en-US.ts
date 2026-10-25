@@ -1,5 +1,20 @@
 export default {
   meetingRooms: {
+    authz: {
+      title: 'Meeting rooms',
+      bookings: 'Meeting bookings',
+      view: 'View',
+      manage: 'Manage meeting rooms',
+      create: 'Book a room',
+      edit: 'Edit bookings',
+      cancel: 'Cancel bookings',
+      confirm: 'Confirm administrative requests',
+      reject: 'Reject administrative requests',
+      checkIn: 'Check in',
+      owned: 'Organized by me',
+      participating: 'Meetings I attend',
+      readable: 'Meetings I organize or attend',
+    },
     backToList: 'Back to list',
     finder: {
       title: 'Find a time',

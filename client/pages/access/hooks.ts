@@ -1,4 +1,14 @@
-import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useMemo,
+  useRef,
+  createContext,
+  createElement,
+  useContext,
+  type ReactNode,
+} from 'react';
 import { useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useAuthorizationClient } from '../administration/authorization/use-authorization-client.js';
@@ -65,82 +75,217 @@ export function useLoad<T>(load: () => Promise<T>, retainData = false) {
     refresh,
   };
 }
-export function useSnapshot() {
+const SharedSnapshotContext = createContext<
+  ReturnType<typeof useLoad<AccessSnapshot>> | undefined
+>(undefined);
+const SharedCatalogContext = createContext<
+  | (ReturnType<
+      typeof useLoad<
+        import('../administration/authorization/authorization-client.js').AuthorizationOptionsResponse
+      >
+    > & { options?: AuthorizationOptions })
+  | undefined
+>(undefined);
+export function AccessDataProvider({ children }: { children: ReactNode }) {
+  const snapshot = useSnapshot();
+  const catalog = useCatalog();
+  return createElement(
+    SharedSnapshotContext.Provider,
+    { value: snapshot },
+    createElement(SharedCatalogContext.Provider, { value: catalog }, children),
+  );
+}
+export function useSnapshot(global = false) {
+  const context = useContext(SharedSnapshotContext);
+  const shared = global ? undefined : context;
+  const api = useApiClient();
+  const local = useLoad(
+    useCallback(
+      async () =>
+        shared
+          ? shared.data!
+          : (
+              await api.request<{ data: AccessSnapshot }>({
+                path: 'access/snapshot',
+              })
+            ).data,
+      [api, shared],
+    ),
+  );
+  return shared ?? local;
+}
+export function useCatalog(surface = 'permissionSets', enabled = true) {
+  const api = useApiClient();
+  const shared = useContext(SharedCatalogContext);
+  const client = useAuthorizationClient();
+  const { t } = useTranslation();
+  const state = useLoad(
+    useCallback(
+      () =>
+        shared && surface === 'permissionSets'
+          ? Promise.resolve(shared.data!)
+          : !enabled
+            ? Promise.resolve({
+                sections: [],
+                subjectTypes: [],
+                recordAccess: [],
+                collections: [],
+              })
+            : surface === 'permissionSets'
+              ? api
+                  .request<{
+                    data: import('../administration/authorization/authorization-client.js').AuthorizationOptionsResponse;
+                  }>({ path: 'access/options' })
+                  .then((result) => result.data)
+              : client.loadOptions(surface),
+      [api, client, surface, shared, enabled],
+    ),
+  );
+  const localized: AuthorizationOptions | undefined = useMemo(
+    () => state.data && localizeOptions(state.data, t),
+    [state.data, t],
+  );
+  const discovered = useResourceOptions(localized);
+  const options = useMemo(
+    () =>
+      discovered && {
+        ...discovered,
+        sections: discovered.sections.map((section) => ({
+          ...section,
+          subsections: section.subsections.map((subsection) => ({
+            ...subsection,
+            resources: subsection.resources.map((resource) =>
+              resource.type === 'page' &&
+              resource.value === 'oa.approvals' &&
+              resource.label === resource.value
+                ? { ...resource, label: t('approvals.navigation.center') }
+                : resource,
+            ),
+          })),
+        })),
+      },
+    [discovered, t],
+  );
+  const namedOptions = useMemo(
+    () =>
+      options && {
+        ...options,
+        sections: options.sections.map((section) => ({
+          ...section,
+          subsections: section.subsections.map((subsection) => ({
+            ...subsection,
+            resources: subsection.resources.map((resource) => ({
+              ...resource,
+              ...(resource.dataScopes
+                ? {
+                    dataScopes: Object.fromEntries(
+                      Object.entries(resource.dataScopes).map(
+                        ([action, scopes]) => [
+                          action,
+                          scopes.map((scope, index) => ({
+                            ...scope,
+                            label:
+                              scope.label !== scope.key
+                                ? scope.label
+                                : [
+                                      'paymentRequests',
+                                      'reimbursementRequests',
+                                      'leaveRequests',
+                                      'contractRequests',
+                                      'certificateRequests',
+                                      'sealRequests',
+                                      'printTemplates',
+                                      'printTemplateRevisions',
+                                      'knowledgeDocuments',
+                                      'knowledgeVersions',
+                                      'knowledgeFolders',
+                                      'sealLedger',
+                                      'sealReceipts',
+                                      'contracts',
+                                      'contractVersions',
+                                      'contractChanges',
+                                      'contractPayments',
+                                    ].includes(scope.key)
+                                  ? t(`access.scopeLabels.${scope.key}`)
+                                  : t('access.scopeNumber', {
+                                      number: index + 1,
+                                    }),
+                          })),
+                        ],
+                      ),
+                    ),
+                  }
+                : {}),
+              ...(resource.type === 'page' && !resource.actions
+                ? {
+                    actions: [
+                      { value: 'access', label: t('access.pageAccess') },
+                    ],
+                  }
+                : {}),
+            })),
+          })),
+        })),
+      },
+    [options, t],
+  );
+  return shared && surface === 'permissionSets'
+    ? shared
+    : { ...state, options: namedOptions };
+}
+export function useDirectory(_options: AuthorizationOptions | undefined) {
+  const api = useApiClient();
+  const { t } = useTranslation();
+  return useLoad(
+    useCallback(async (): Promise<SubjectRow[]> => {
+      const result = await api.request<{
+        data: (Omit<SubjectRow, 'title'> & {
+          title: string | { key: string; ns: string };
+        })[];
+      }>({ path: 'access/directory' });
+      return result.data.map((row) => ({
+        ...row,
+        title:
+          row.type === 'authenticated'
+            ? t('access.baseline')
+            : titleText(row.title, t),
+      }));
+    }, [api, t]),
+  );
+}
+
+export function useRoleSnapshot(type: string, id: string) {
   const api = useApiClient();
   return useLoad(
     useCallback(
       async () =>
         (
           await api.request<{ data: AccessSnapshot }>({
-            path: 'access/snapshot',
+            path: `access/subjects/${encodeURIComponent(type)}/${encodeURIComponent(id)}`,
           })
         ).data,
-      [api],
+      [api, type, id],
     ),
   );
 }
-export function useCatalog(surface = 'permissionSets') {
-  const client = useAuthorizationClient();
+export function useRoleDirectory(enabled = true) {
+  const api = useApiClient();
   const { t } = useTranslation();
-  const state = useLoad(
-    useCallback(() => client.loadOptions(surface), [client, surface]),
-  );
-  const localized: AuthorizationOptions | undefined = useMemo(
-    () => state.data && localizeOptions(state.data, t),
-    [state.data, t],
-  );
-  return { ...state, options: useResourceOptions(localized) };
-}
-export function useDirectory(options: AuthorizationOptions | undefined) {
-  const client = useAuthorizationClient();
-  const { t } = useTranslation();
-
   return useLoad(
     useCallback(async (): Promise<SubjectRow[]> => {
-      if (!options) return [];
-      const rows: SubjectRow[] = [];
-      for (const type of options.subjectTypes.filter((type) =>
-        [
-          'org.dutyRole',
-          'org.position',
-          'org.department',
-          'authenticated',
-          'org.reportingManager',
-          'org.departmentHead',
-        ].includes(type.value),
-      )) {
-        if (type.selection?.type === 'fixed')
-          rows.push({
-            type: type.value,
-            id: type.selection.id,
-            title:
-              type.value === 'authenticated'
-                ? t('access.baseline')
-                : type.label,
-          });
-        else {
-          for (let page = 1; page <= 100; page += 1) {
-            const result = await client.listSubjects(
-              'permissionSets',
-              type.value,
-              { page, pageSize: 100 },
-            );
-            rows.push(
-              ...result.items.map((entry) => ({
-                type: type.value,
-                id: entry.id,
-                title: titleText(entry.title, t),
-                ...(entry.description
-                  ? { description: titleText(entry.description, t) }
-                  : {}),
-              })),
-            );
-            if (page * 100 >= result.total) break;
-            if (page === 100) throw new Error('DIRECTORY_LIMIT');
-          }
-        }
-      }
-      return rows;
-    }, [client, options, t]),
+      if (!enabled) return [];
+      const result = await api.request<{
+        data: (Omit<SubjectRow, 'title'> & {
+          title: string | { key: string; ns?: string };
+        })[];
+      }>({ path: 'access/roles' });
+      return result.data.map((row) => ({
+        ...row,
+        title:
+          row.type === 'authenticated'
+            ? t('access.baseline')
+            : titleText(row.title, t),
+      }));
+    }, [api, t, enabled]),
   );
 }

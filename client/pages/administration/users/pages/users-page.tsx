@@ -1,3 +1,8 @@
+import { useLoad } from '../../../access/hooks.js';
+import type { DutyRole } from '../../../org/duty-roles/types.js';
+import { userListParams, userDetailLink } from '../../../access/user-url.js';
+import { titleText } from '../../authorization/i18n.js';
+import { useUserAffiliations } from '../../../access/user-affiliations.js';
 import { useFormDiscardGuard } from '#hooks/use-form-discard-guard';
 import {
   FormDrawerContent,
@@ -15,7 +20,7 @@ import { ApplicationToolbar } from '#components/application-toolbar';
 import { UserNameText } from '#components/user-name';
 import { UserName } from '#components/user-name';
 import { ResponsiveTable as Table } from '#components/responsive-table';
-import { Link } from 'react-router';
+import { Link, Outlet, useSearchParams, useLocation } from 'react-router';
 import { Spinner } from '#components/ui/spinner';
 import { useClientApplication } from '@nocobase/app-client';
 import { PermissionSelection } from '../components/permission-selection.js';
@@ -106,10 +111,7 @@ import {
   loadUserCapabilities,
   type UserCapabilities,
 } from '../user-permissions.js';
-import {
-  createRoleFilterOptions,
-  createStatusFilterOptions,
-} from '../filter-options.js';
+import { createStatusFilterOptions } from '../filter-options.js';
 import {
   UsersClient,
   type CreateUserInput,
@@ -131,7 +133,18 @@ import {
   selectedRoleScopeValues,
 } from '../role-scopes.js';
 
-const EMPTY_PAGE: ManagedUserPage = {
+type Account = Omit<ManagedUser, 'roleScopes'>;
+type UserPage =
+  | (ManagedUserPage & { source: 'managed' })
+  | {
+      source: 'directory';
+      items: readonly Account[];
+      total: number;
+      page: number;
+      pageSize: number;
+    };
+const EMPTY_PAGE: UserPage = {
+  source: 'managed',
   items: [],
   total: 0,
   page: 1,
@@ -169,19 +182,82 @@ function UsersManagement(): ReactElement {
   }).can;
   const [canInspect, setCanInspect] = useState(false);
   const [options, setOptions] = useState<UsersOptions>({ roleScopes: [] });
-  const [result, setResult] = useState<ManagedUserPage>(EMPTY_PAGE);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<'all' | 'enabled' | 'disabled'>('all');
-  const [role, setRole] = useState('all');
-  const [page, setPage] = useState(1);
+  const [result, setResult] = useState<UserPage>(EMPTY_PAGE);
+  const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const normalized = userListParams(params);
+  const search = normalized.get('search') ?? '';
+  const status =
+    (normalized.get('status') as 'enabled' | 'disabled' | null) ?? 'all';
+  const role = normalized.get('role') ?? 'all';
+  const page = Number(normalized.get('page') ?? 1);
+  const [searchDraft, setSearchDraft] = useState(search);
+  const [composing, setComposing] = useState(false);
+  const paramsWriterRef = useRef(setParams);
+  paramsWriterRef.current = setParams;
+  const updateFilters = useCallback(
+    (values: Record<string, string | number>) => {
+      paramsWriterRef.current(
+        (previous) => {
+          const next = new URLSearchParams(previous);
+          for (const [key, value] of Object.entries(values)) {
+            if (
+              value === '' ||
+              value === 'all' ||
+              (key === 'page' && value === 1)
+            )
+              next.delete(key);
+            else next.set(key, String(value));
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [],
+  );
+  const setPage = (value: number | ((page: number) => number)) =>
+    updateFilters({ page: typeof value === 'function' ? value(page) : value });
+  const [draftForSearch, setDraftForSearch] = useState(search);
+  // A committed URL change (including history traversal) starts a new input draft.
+  if (draftForSearch !== search) {
+    setDraftForSearch(search);
+    setSearchDraft(search);
+  }
+  useEffect(() => {
+    if (composing || searchDraft.trim() === search) return;
+    const timer = window.setTimeout(
+      () => updateFilters({ search: searchDraft.trim(), page: 1 }),
+      300,
+    );
+    return () => window.clearTimeout(timer);
+  }, [searchDraft, search, composing, updateFilters]);
+  useEffect(() => {
+    const next = userListParams(params);
+    if (!/\/users\/?$/.test(location.pathname))
+      for (const key of ['tab', 'edit', 'accessModule', 'permissionResource']) {
+        const value = params.get(key);
+        if (value) next.set(key, value);
+      }
+    if (next.toString() !== params.toString())
+      setParams(next, { replace: true });
+  }, [params, setParams, location.pathname]);
+  const detailLink = (id: string, tab?: string) => {
+    const next = userListParams(params);
+    if (searchDraft.trim() !== search) {
+      next.set('search', searchDraft.trim());
+      next.delete('page');
+    }
+    return userDetailLink(id, next, tab);
+  };
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<number>();
   const [mutationError, setMutationError] = useState<string>();
-  const [revokeUser, setRevokeUser] = useState<ManagedUser>();
+  const [revokeUser, setRevokeUser] = useState<Account>();
   const loadGenerationRef = useRef(0);
-  const [deleteUser, setDeleteUser] = useState<ManagedUser>();
+  const [deleteUser, setDeleteUser] = useState<Account>();
   const reportError = useCallback(
     (reason: unknown) => {
       const code = reason instanceof ApiClientError ? reason.reason : undefined;
@@ -203,8 +279,8 @@ function UsersManagement(): ReactElement {
     user: ManagedUser;
     scope: UserRoleScopeOption;
   }>();
-  const [passwordUser, setPasswordUser] = useState<ManagedUser>();
-  const [stateUser, setStateUser] = useState<ManagedUser>();
+  const [passwordUser, setPasswordUser] = useState<Account>();
+  const [stateUser, setStateUser] = useState<Account>();
   const [globalCapabilities, setGlobalCapabilities] =
     useState<UserCapabilities>(emptyUserCapabilities);
   const [userCapabilities, setUserCapabilities] = useState<
@@ -219,26 +295,80 @@ function UsersManagement(): ReactElement {
   const localizedOptions: UsersOptions = {
     roleScopes: localizeRoleScopes(
       options.roleScopes,
-      (key, namespace, defaultValue) =>
-        t(key, { ...(namespace ? { ns: namespace } : {}), defaultValue }),
+      (key, namespace, defaultValue, values) =>
+        t(key, {
+          ...values,
+          ...(namespace ? { ns: namespace } : {}),
+          defaultValue,
+        }),
     ),
   };
-  const roleChoices = localizedOptions.roleScopes.flatMap((scope) =>
-    scope.options.map((option) => ({ scope, option })),
+  const affiliations = useUserAffiliations(result.items, canInspect);
+  const { t: oaT } = useTranslation();
+  const visibleScopes = localizedOptions.roleScopes.filter(
+    (scope) => result.source === 'managed' && scope.key !== 'app',
   );
   const statusOptions = createStatusFilterOptions({
     all: t('page.allStatuses'),
     enabled: t('page.enabled'),
     disabled: t('page.disabled'),
   });
-  const roleFilterOptions = createRoleFilterOptions(
-    localizedOptions.roleScopes,
-    t('page.allRoles'),
+  const dutyPermission = useCan({
+    resource: { type: 'settings', id: 'oa.org.dutyRoles' },
+    action: 'read',
+  });
+  const dutyRead = dutyPermission.can;
+  const duties = useLoad(
+    useCallback(
+      async () =>
+        dutyRead
+          ? (await api.request<{ data: DutyRole[] }>({ path: 'dutyRoles' }))
+              .data
+          : [],
+      [api, dutyRead],
+    ),
   );
+  const roleFilterOptions = [
+    { value: 'all', label: oaT('access.dutyRoles') },
+    ...(duties.data ?? []).map((role) => ({
+      value: role.code,
+      label: titleText(role.title, oaT),
+    })),
+  ];
+  useEffect(() => {
+    if (dutyPermission.isPending || role === 'all') return;
+    if (
+      !dutyRead ||
+      (duties.data &&
+        !duties.busy &&
+        !duties.data.some((entry) => entry.code === role))
+    ) {
+      updateFilters({ role: 'all', page: 1 });
+      if (dutyRead)
+        toaster.show({ type: 'info', title: oaT('access.roleFilterInvalid') });
+    }
+  }, [
+    dutyPermission.isPending,
+    dutyRead,
+    duties.data,
+    duties.busy,
+    role,
+    updateFilters,
+    toaster,
+    oaT,
+  ]);
+  const filterReady =
+    !dutyPermission.isPending &&
+    (role === 'all' ||
+      (dutyRead && !!duties.data?.some((entry) => entry.code === role)));
+  const [filterError, setFilterError] = useState<string>();
   const load = useCallback(async () => {
+    if (!filterReady) return;
     const generation = ++loadGenerationRef.current;
+    let correctingPage = false;
     setLoading(true);
     setLoadError(undefined);
+    setFilterError(undefined);
     try {
       metadataRef.current ??= Promise.all([
         users.options(),
@@ -254,19 +384,40 @@ function UsersManagement(): ReactElement {
       const [[nextOptions, nextGlobalCapabilities, inspectAllowed], nextPage] =
         await Promise.all([
           metadataRef.current,
-          users.list({
-            page,
-            pageSize: 20,
-            ...(search.trim() ? { q: search.trim() } : {}),
-            ...(status === 'all' ? {} : { status }),
-            ...(role === 'all'
-              ? {}
-              : {
-                  roleScope: role.slice(0, role.indexOf(':')),
-                  role: role.slice(role.indexOf(':') + 1),
-                }),
-          }),
+          role === 'all'
+            ? users
+                .list({
+                  page,
+                  pageSize: 20,
+                  sort: 'name',
+                  order: 'asc',
+                  ...(search.trim() ? { q: search.trim() } : {}),
+                  ...(status === 'all' ? {} : { status }),
+                })
+                .then((page) => ({ ...page, source: 'managed' as const }))
+            : api
+                .request<{ data: Omit<UserPage, 'source'> }>({
+                  path: 'org/users',
+                  query: {
+                    role,
+                    page,
+                    pageSize: 20,
+                    ...(search ? { search } : {}),
+                    ...(status === 'all' ? {} : { status }),
+                  },
+                })
+                .then((response) => ({
+                  ...response.data,
+                  source: 'directory' as const,
+                })),
         ]);
+      if (generation !== loadGenerationRef.current) return;
+      const lastPage = Math.max(1, Math.ceil(nextPage.total / 20));
+      if (page > lastPage) {
+        correctingPage = true;
+        updateFilters({ page: lastPage });
+        return;
+      }
       const capabilityEntries: readonly (readonly [
         string,
         UserCapabilities,
@@ -305,6 +456,23 @@ function UsersManagement(): ReactElement {
       setLoaded(true);
     } catch (reason) {
       if (generation !== loadGenerationRef.current) return;
+      if (
+        reason instanceof ApiClientError &&
+        reason.reason === 'ROLE_FILTER_TOO_LARGE'
+      ) {
+        setFilterError(oaT('access.roleFilterTooLarge'));
+        return;
+      }
+      if (
+        reason instanceof ApiClientError &&
+        reason.reason === 'DUTY_ROLE_NOT_FOUND'
+      ) {
+        updateFilters({ role: 'all', page: 1 });
+        toaster.show({ type: 'info', title: oaT('access.roleFilterInvalid') });
+        return;
+      }
+      if (reason instanceof ApiClientError && reason.status === 403)
+        authorization.invalidate();
       const status = reason instanceof ApiClientError ? reason.status : 500;
       setLoadError(status);
       if ([401, 403, 404].includes(status)) {
@@ -328,14 +496,34 @@ function UsersManagement(): ReactElement {
       }
       reportError(reason);
     } finally {
-      if (generation === loadGenerationRef.current) setLoading(false);
+      if (generation === loadGenerationRef.current && !correctingPage)
+        setLoading(false);
     }
-  }, [authorization, page, role, search, status, users, reportError]);
+  }, [
+    api,
+    authorization,
+    page,
+    role,
+    search,
+    status,
+    users,
+    reportError,
+    filterReady,
+    updateFilters,
+    oaT,
+    toaster,
+  ]);
 
+  const cancelLoad = useCallback(() => {
+    ++loadGenerationRef.current;
+  }, []);
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 200);
-    return () => window.clearTimeout(timer);
-  }, [load]);
+    return () => {
+      window.clearTimeout(timer);
+      cancelLoad();
+    };
+  }, [load, cancelLoad]);
 
   useEffect(
     () =>
@@ -397,19 +585,18 @@ function UsersManagement(): ReactElement {
         }
       >
         <ApplicationSearch
+          id='user-directory-search'
           placeholder={t('page.search')}
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(1);
-          }}
+          value={searchDraft}
+          onCompositionStart={() => setComposing(true)}
+          onCompositionEnd={() => setComposing(false)}
+          onChange={(event) => setSearchDraft(event.target.value)}
         />
         <Select
           items={statusOptions}
           value={status}
           onValueChange={(value) => {
-            setStatus(value as typeof status);
-            setPage(1);
+            updateFilters({ status: String(value), page: 1 });
           }}
         >
           <SelectTrigger className='w-36'>
@@ -421,25 +608,20 @@ function UsersManagement(): ReactElement {
             <SelectItem value='disabled'>{t('page.disabled')}</SelectItem>
           </SelectContent>
         </Select>
-        {roleChoices.length ? (
+        {dutyRead ? (
           <Select
             items={roleFilterOptions}
             value={role}
             onValueChange={(value) => {
-              setRole(String(value));
-              setPage(1);
+              updateFilters({ role: String(value), page: 1 });
             }}
           >
             <SelectTrigger className='w-56'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
-              <SelectItem value='all'>{t('page.allRoles')}</SelectItem>
-              {roleChoices.map(({ scope, option }) => (
-                <SelectItem
-                  key={`${scope.key}:${option.value}`}
-                  value={`${scope.key}:${option.value}`}
-                >
+              {roleFilterOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
               ))}
@@ -448,14 +630,25 @@ function UsersManagement(): ReactElement {
         ) : null}
       </ApplicationToolbar>
 
-      {localizedOptions.roleScopes.some(
-        (scope) => scope.hasAuthenticatedDefaultAccess,
-      ) ? (
-        <p className='text-sm text-muted-foreground'>
-          {t('page.authenticatedDefaultAccess')}
-        </p>
+      {duties.error ? (
+        <Alert variant='destructive'>
+          <AlertDescription>{oaT('access.failed')}</AlertDescription>
+          <Button variant='outline' onClick={duties.reload}>
+            {t('page.retry')}
+          </Button>
+        </Alert>
       ) : null}
-
+      {filterError ? (
+        <Alert variant='destructive'>
+          <AlertDescription>{filterError}</AlertDescription>
+          <Button
+            variant='outline'
+            onClick={() => updateFilters({ role: 'all', page: 1 })}
+          >
+            {t('page.clearFilters')}
+          </Button>
+        </Alert>
+      ) : null}
       {loadError === 401 ? (
         <SessionExpiredAlert />
       ) : loadError ? (
@@ -483,9 +676,11 @@ function UsersManagement(): ReactElement {
             <TableRow>
               <TableHead>{t('page.columns.user')}</TableHead>
               <TableHead>{t('page.columns.status')}</TableHead>
-              {localizedOptions.roleScopes.map((scope) => (
+              {visibleScopes.map((scope) => (
                 <TableHead key={scope.key}>{scope.label}</TableHead>
               ))}
+              <TableHead>{oaT('access.dutyRoles')}</TableHead>
+              <TableHead>{oaT('access.organization')}</TableHead>
               <TableHead className='w-14'>
                 <span className='sr-only'>{t('page.columns.actions')}</span>
               </TableHead>
@@ -496,7 +691,7 @@ function UsersManagement(): ReactElement {
               Array.from({ length: 5 }, (_, row) => (
                 <TableRow key={row}>
                   {Array.from(
-                    { length: 3 + localizedOptions.roleScopes.length },
+                    { length: 5 + visibleScopes.length },
                     (_, column) => (
                       <TableCell key={column}>
                         <Skeleton className='h-4 w-24' />
@@ -505,6 +700,15 @@ function UsersManagement(): ReactElement {
                   )}
                 </TableRow>
               ))
+            ) : filterError || loadError || duties.error ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5 + visibleScopes.length}
+                  className='py-6 text-center text-muted-foreground'
+                >
+                  {filterError ?? t('errors.loadFailed')}
+                </TableCell>
+              </TableRow>
             ) : result.items.length ? (
               result.items.map((user) => {
                 const capabilities =
@@ -524,9 +728,18 @@ function UsersManagement(): ReactElement {
                 return (
                   <TableRow key={user.id}>
                     <TableCell>
-                      <div className='font-medium'>
+                      <Link
+                        data-user-detail={user.id}
+                        className='font-medium hover:underline'
+                        to={detailLink(user.id)}
+                      >
                         <UserName name={user.name} />
-                      </div>
+                      </Link>
+                      {affiliations.data?.[user.id]?.admin ? (
+                        <Badge variant='outline'>
+                          {oaT('access.systemAdmin')}
+                        </Badge>
+                      ) : null}
                       <div className='text-xs text-muted-foreground'>
                         {user.username ? `@${user.username} · ` : ''}
                         {user.email}
@@ -541,50 +754,81 @@ function UsersManagement(): ReactElement {
                           : t('page.enabled')}
                       </Badge>
                     </TableCell>
-                    {localizedOptions.roleScopes.map((scope) => (
-                      <TableCell key={scope.key}>
-                        {capabilities['assign-role'] &&
-                        (scope.key !== 'app' ||
-                          (canInspect && canReadAccess && canAssignAccess)) &&
-                        scope.options.some((option) =>
-                          roleOptionCanToggle(
-                            option,
-                            roleValues(user.roleScopes[scope.key] ?? ''),
-                          ),
-                        ) ? (
-                          <Button
-                            variant='ghost'
-                            className='h-auto max-w-72 justify-start px-2 py-1.5 text-left font-normal'
-                            disabled={busy}
-                            aria-label={`${t('assignment.title')} · ${user.name} · ${scope.label}`}
-                            nativeButton={scope.key !== 'app'}
-                            render={
-                              scope.key === 'app' ? (
-                                <Link
-                                  to={`/access/people/${encodeURIComponent(user.id)}/personal`}
+                    {'roleScopes' in user
+                      ? visibleScopes.map((scope) => (
+                          <TableCell key={scope.key}>
+                            {capabilities['assign-role'] &&
+                            (scope.key !== 'app' ||
+                              (canInspect &&
+                                canReadAccess &&
+                                canAssignAccess)) &&
+                            scope.options.some((option) =>
+                              roleOptionCanToggle(
+                                option,
+                                roleValues(user.roleScopes[scope.key] ?? ''),
+                              ),
+                            ) ? (
+                              <Button
+                                variant='ghost'
+                                className='h-auto max-w-72 justify-start px-2 py-1.5 text-left font-normal'
+                                disabled={busy}
+                                aria-label={`${t('assignment.title')} · ${user.name} · ${scope.label}`}
+                                nativeButton={scope.key !== 'app'}
+                                render={
+                                  scope.key === 'app' ? (
+                                    <Link to={detailLink(user.id, 'roles')} />
+                                  ) : undefined
+                                }
+                                onClick={
+                                  scope.key === 'app'
+                                    ? undefined
+                                    : () => setAssignment({ user, scope })
+                                }
+                              >
+                                <RoleValue
+                                  scope={scope}
+                                  value={user.roleScopes[scope.key] ?? ''}
                                 />
-                              ) : undefined
-                            }
-                            onClick={
-                              scope.key === 'app'
-                                ? undefined
-                                : () => setAssignment({ user, scope })
-                            }
-                          >
-                            <RoleValue
-                              scope={scope}
-                              value={user.roleScopes[scope.key] ?? ''}
-                            />
-                            <ChevronDown className='size-4 shrink-0 text-muted-foreground' />
-                          </Button>
-                        ) : (
-                          <RoleValue
-                            scope={scope}
-                            value={user.roleScopes[scope.key] ?? ''}
-                          />
-                        )}
-                      </TableCell>
-                    ))}
+                                <ChevronDown className='size-4 shrink-0 text-muted-foreground' />
+                              </Button>
+                            ) : (
+                              <RoleValue
+                                scope={scope}
+                                value={user.roleScopes[scope.key] ?? ''}
+                              />
+                            )}
+                          </TableCell>
+                        ))
+                      : null}
+                    <TableCell>
+                      <Link
+                        className='flex max-w-64 flex-wrap gap-1'
+                        to={detailLink(user.id, 'roles')}
+                      >
+                        {affiliations.error
+                          ? oaT('access.failed')
+                          : affiliations.busy
+                            ? oaT('access.loading')
+                            : affiliations.data?.[user.id]?.roles.length
+                              ? affiliations.data[user.id].roles.map((name) => (
+                                  <Badge key={name} variant='secondary'>
+                                    {name}
+                                  </Badge>
+                                ))
+                              : oaT('access.noRoles')}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <span className='block max-w-64 whitespace-normal'>
+                        {affiliations.error
+                          ? oaT('access.failed')
+                          : affiliations.busy
+                            ? oaT('access.loading')
+                            : affiliations.data?.[user.id]?.organization.join(
+                                ' · ',
+                              ) || oaT('access.noRoles')}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       {hasActions ? (
                         <DropdownMenu>
@@ -605,11 +849,11 @@ function UsersManagement(): ReactElement {
                             align='end'
                             className='w-auto min-w-40'
                           >
-                            {canInspect && canReadAccess && inspector && (
+                            {canInspect && inspector && (
                               <DropdownMenuItem
                                 render={
                                   <Link
-                                    to={`/access/people/${encodeURIComponent(user.id)}/sources`}
+                                    to={detailLink(user.id, 'permissions')}
                                   />
                                 }
                               >
@@ -621,7 +865,12 @@ function UsersManagement(): ReactElement {
                               <DropdownMenuItem
                                 onClick={() => {
                                   setMutationError(undefined);
-                                  setEditor(user);
+                                  setBusy(true);
+                                  void users
+                                    .get(user.id)
+                                    .then(setEditor)
+                                    .catch(reportError)
+                                    .finally(() => setBusy(false));
                                 }}
                               >
                                 {t('page.actions.edit')}
@@ -693,10 +942,13 @@ function UsersManagement(): ReactElement {
                           ? {
                               label: t('page.clearFilters'),
                               onClick: () => {
-                                setSearch('');
-                                setStatus('all');
-                                setRole('all');
-                                setPage(1);
+                                setSearchDraft('');
+                                updateFilters({
+                                  search: '',
+                                  status: 'all',
+                                  role: 'all',
+                                  page: 1,
+                                });
                               },
                             }
                           : undefined
@@ -934,6 +1186,15 @@ function UsersManagement(): ReactElement {
           }
         />
       ) : null}
+      <Outlet
+        context={{
+          users: result.items,
+          reload: () => {
+            void load();
+            affiliations.reload();
+          },
+        }}
+      />
     </PageContainer>
   );
 }
@@ -1257,7 +1518,7 @@ function PasswordDialog({
 }: {
   readonly busy: boolean;
   readonly error?: string;
-  readonly user: ManagedUser;
+  readonly user: Account;
   readonly onClose: () => void;
   readonly onSubmit: (password: string) => void;
 }): ReactElement {
@@ -1354,7 +1615,7 @@ function ConfirmStateDialog({
   onConfirm,
 }: {
   readonly busy: boolean;
-  readonly user: ManagedUser;
+  readonly user: Account;
   readonly onClose: () => void;
   readonly onConfirm: () => void;
 }): ReactElement {
@@ -1462,7 +1723,7 @@ export function ConfirmDeleteDialog({
   onClose,
   onConfirm,
 }: {
-  readonly user: ManagedUser;
+  readonly user: Account;
   readonly busy: boolean;
   readonly onClose: () => void;
   readonly onConfirm: () => void;

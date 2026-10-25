@@ -822,18 +822,38 @@ async function planDutyRoleMembers(
 ): Promise<ImportPlan> {
   const errors: ImportRowError[] = [];
   const { organization, connection, write } = ctx;
-  const roles = new Set(
-    (await organization.listDutyRoles(connection)).map((role) => role.code),
+  const roles = new Map(
+    (await organization.listDutyRoles(connection)).map((role) => [
+      role.code,
+      role,
+    ]),
   );
+  const memberships = new Map<string, Set<string>>();
+  for (const code of roles.keys())
+    memberships.set(
+      code,
+      new Set(await organization.listDutyRoleMembers(code, connection)),
+    );
   const duplicates = new DuplicateTracker();
   const rows: MemberRow[] = [];
   for (const reader of readers(sheet, errors)) {
     const roleCode = reader.code('roleCode');
     const userText = reader.text('user');
-    const userId = reader.user('user', ctx.users);
     const active = reader.boolean('active');
+    const userId = reader.user('user', ctx.users, true);
     if (roleCode && !roles.has(roleCode))
       reader.error('roleCode', 'DUTY_ROLE_NOT_FOUND', roleCode);
+    if (
+      roleCode &&
+      userId &&
+      active !== false &&
+      !memberships.get(roleCode)?.has(userId)
+    ) {
+      if (roles.get(roleCode)?.active === false)
+        reader.error('roleCode', 'DUTY_ROLE_INACTIVE', roleCode);
+      if (userText && ctx.users.find(userText)?.disabledAt)
+        reader.error('user', 'USER_DISABLED', userText);
+    }
     if (
       roleCode &&
       userId &&

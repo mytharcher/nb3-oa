@@ -179,6 +179,7 @@ const importEnUS = {
       MANAGER_SELF: 'An employee cannot be their own manager.',
       MANAGER_INACTIVE: 'The manager "{{value}}" has left.',
       MANAGER_CYCLE: 'The managers form a loop.',
+      DUTY_ROLE_INACTIVE: 'This role is inactive; new members cannot be added.',
       DUTY_ROLE_NOT_FOUND: 'No duty role with code "{{value}}".',
       WRITE_FAILED:
         'This row could not be written ({{reason}}), so nothing was imported. Check the row and try again.',

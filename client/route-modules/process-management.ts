@@ -29,7 +29,7 @@ export default defineAppRoutes([
       resource: { type: 'page', id: 'oa.processManagement' },
       action: 'access',
     },
-    navigation: { title: 'processManagement.title', icon: Workflow, order: 15 },
+    navigation: { title: 'processManagement.title', icon: Workflow, order: 30 },
     componentLoader: () => import('../pages/process-management/index.js'),
     children: [
       {

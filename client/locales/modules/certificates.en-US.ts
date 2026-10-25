@@ -1,5 +1,16 @@
 export default {
   certificates: {
+    authz: {
+      readable: 'Own and participating requests',
+      requests: 'Certificate requests',
+      view: 'View',
+      create: 'Create',
+      edit: 'Edit',
+      operate: 'Operate',
+      issue: 'Issue',
+      income: 'Income',
+      owned: 'Owned',
+    },
     savedRecord: 'Saved certificate request for "{{name}}"',
     issuedRecord: 'Issued certificate for "{{name}}"',
     submittedRecord: 'Submitted certificate request for "{{name}}"',

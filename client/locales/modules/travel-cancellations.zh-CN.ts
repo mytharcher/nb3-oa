@@ -1,4 +1,13 @@
 export default {
+  // Existing permission titles use the collection name.
+  travelCancellations: {
+    authz: {
+      resource: '出差取消',
+      submit: '发起出差取消申请',
+      delegate: '代员工发起出差取消',
+      view: '查看出差取消申请',
+    },
+  },
   travelCancellation: {
     fieldInvalid: '请检查{{field}}。',
 
