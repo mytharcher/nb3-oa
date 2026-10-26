@@ -2,6 +2,8 @@ import { useTranslation } from '@nocobase/i18n/client';
 import { PanelLeft, X } from 'lucide-react';
 import {
   useEffect,
+  useRef,
+  type RefObject,
   type CSSProperties,
   type ReactElement,
   type ReactNode,
@@ -88,14 +90,20 @@ export function AppSidebar({
   children,
   footer,
   label,
+  navigationFocusTarget,
 }: {
   readonly children: ReactNode;
   readonly footer?: ReactNode;
   /** The accessible name of the sidebar, and the title of the phone's sheet. */
   readonly label: string;
+  readonly navigationFocusTarget?: RefObject<HTMLElement | null>;
 }): ReactElement {
   const { t } = useTranslation();
   const { isMobile, openMobile, setOpenMobile, state } = useSidebar();
+  const openedLabelRef = useRef(label);
+  useEffect(() => {
+    if (openMobile) openedLabelRef.current = label;
+  }, [openMobile, label]);
   // A sheet left open on a phone must not reappear when the window narrows again after widening.
   useEffect(() => {
     if (!isMobile && openMobile) setOpenMobile(false);
@@ -123,7 +131,7 @@ export function AppSidebar({
     <>
       {header}
       {/* The primitive hides the icon mode's overflow; a long menu still scrolls there. */}
-      <SidebarContent className='app-navigation group-data-[collapsible=icon]:overflow-y-auto [&_[data-slot=sidebar-menu-button]]:h-10 [&_[data-slot=sidebar-menu-button]]:px-3'>
+      <SidebarContent className='app-navigation group-data-[collapsible=icon]:overflow-y-auto'>
         {children}
       </SidebarContent>
       {footer}
@@ -139,6 +147,12 @@ export function AppSidebar({
       <Sheet open={openMobile} onOpenChange={setOpenMobile}>
         {/* The attributes and classes of the primitive's own mobile branch, so `sidebar-*` styles apply alike. */}
         <SheetContent
+          // A mode switch removes the chosen link; restore focus after the sheet animation to the stable content.
+          finalFocus={() =>
+            openedLabelRef.current !== label
+              ? (navigationFocusTarget?.current ?? true)
+              : true
+          }
           data-sidebar='sidebar'
           data-slot='sidebar'
           data-mobile='true'

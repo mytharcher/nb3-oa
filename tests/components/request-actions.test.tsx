@@ -42,7 +42,7 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ data: { favorites: ['leave'], recent: [] } });
 });
-it('groups searchable employee actions and excludes derived and functional requests even with all permissions', async () => {
+it('groups authorized functional requests in the shared catalog and excludes derived cancellations', async () => {
   open();
   expect(
     screen.queryByRole('button', {
@@ -54,19 +54,23 @@ it('groups searchable employee actions and excludes derived and functional reque
       name: enUS.approvalCenter.kinds.travelCancellation,
     }),
   ).toBeNull();
+  for (const name of [
+    enUS.approvalCenter.kinds.budgetAdjustment,
+    enUS.approvalCenter.kinds.expensePlan,
+  ]) {
+    expect(
+      within(
+        screen.getByRole('region', {
+          name: enUS.workbench.catalogGroups.expenses,
+        }),
+      ).getByRole('button', { name }),
+    ).toBeInTheDocument();
+  }
   expect(
-    screen.queryByRole('button', {
-      name: enUS.approvalCenter.kinds.budgetAdjustment,
-    }),
-  ).toBeNull();
-  expect(
-    screen.queryByRole('button', { name: enUS.recruitment.title }),
-  ).toBeNull();
-  expect(
-    screen.queryByRole('button', {
-      name: enUS.approvalCenter.kinds.expensePlan,
-    }),
-  ).toBeNull();
+    within(
+      screen.getByRole('region', { name: enUS.workbench.catalogGroups.people }),
+    ).getByRole('button', { name: enUS.recruitment.title }),
+  ).toBeInTheDocument();
   expect(
     within(
       screen.getByRole('region', {
@@ -99,7 +103,7 @@ it('filters legacy values and clears browser storage only after migration succee
   expect(api.request).toHaveBeenCalledWith(
     expect.objectContaining({
       path: 'requestPreferences/migrate',
-      json: { favorites: ['loan'] },
+      json: { favorites: ['loan', 'budget'] },
     }),
   );
 });

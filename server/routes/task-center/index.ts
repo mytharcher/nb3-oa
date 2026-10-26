@@ -100,17 +100,33 @@ export default [
             reason: 'INVALID_CATEGORY',
             message: 'Drafts belong to personal applications.',
           });
-        const page = await app.container
-          .resolve(userTaskServiceToken)
-          .center(userId, {
+        const service = app.container.resolve(userTaskServiceToken);
+        const [page, counts, categories] = await Promise.all([
+          service.list(userId, {
             sourceType: query.source,
             subject: query.subject,
-            status: query.status,
+            status:
+              query.status === 'all'
+                ? undefined
+                : query.status === 'closed'
+                  ? ['completed', 'cancelled']
+                  : 'pending',
             page: query.page,
             pageSize: query.pageSize,
+            includeTotal: true,
             orderBy: query.status === 'pending' ? 'createdAt' : 'updatedAt',
             direction: 'desc',
-          });
+          }),
+          service.statistics(userId, {
+            sourceType: query.source,
+            subject: query.subject,
+          }),
+          service.categoryStatistics(userId),
+        ]);
+        const facets = categories.map(({ count, ...category }) => ({
+          ...category,
+          pending: count,
+        }));
         const db = app.container.resolve(databaseManagerToken);
         if (query.category === 'drafts') {
           const summaries = db.repository('oaTaskCenterSummaries');
@@ -149,7 +165,7 @@ export default [
               })),
               total: query.status === 'closed' ? 0 : total,
               counts: { pending: total, closed: 0, all: total },
-              facets: page.facets,
+              facets,
             },
           });
         }
@@ -224,14 +240,11 @@ export default [
             })),
             total: page.meta.total,
             counts: {
-              pending: page.counts.pending,
-              closed: page.counts.completed + page.counts.cancelled,
-              all:
-                page.counts.pending +
-                page.counts.completed +
-                page.counts.cancelled,
+              pending: counts.pending,
+              closed: counts.completed + counts.cancelled,
+              all: counts.pending + counts.completed + counts.cancelled,
             },
-            facets: page.facets,
+            facets,
           },
         });
       },

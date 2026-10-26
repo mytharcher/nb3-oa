@@ -2,8 +2,8 @@ import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { Link } from 'react-router';
 import { Card, CardHeader, CardTitle, CardContent } from '#components/ui/card';
+import { CardViewAllLink } from '#components/card-view-all-link';
 import { Skeleton } from '#components/ui/skeleton';
-import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { useScheduleResource } from './resource';
 import {
   type Schedule,
@@ -24,12 +24,11 @@ export function TodayScheduleCard() {
   if (!allowed) return null;
   return (
     <Card className='min-w-0 flex-none lg:flex-1'>
-      <CardHeader className='flex flex-row items-center justify-between gap-2'>
+      <CardHeader className='flex min-h-8 flex-wrap items-center justify-between gap-2'>
         <CardTitle>{t('personalSchedules.todayTitle')}</CardTitle>
-        <ApplicationRefreshButton
-          label={t('personalSchedules.refresh')}
-          loading={r.loading}
-          onClick={r.reload}
+        <CardViewAllLink
+          to='/personal-schedules'
+          label={t('workbench.viewSource')}
         />
       </CardHeader>
       <CardContent className='space-y-3'>
@@ -55,12 +54,6 @@ export function TodayScheduleCard() {
             </li>
           ))}
         </ul>
-        <Link
-          className='text-sm underline underline-offset-4'
-          to='/personal-schedules'
-        >
-          {t('personalSchedules.viewAll')}
-        </Link>
       </CardContent>
     </Card>
   );

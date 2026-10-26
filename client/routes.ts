@@ -109,6 +109,13 @@ import platformRoutes from './route-modules/platform.js';
 
 const appRoutes: AppClientRouteContribution = defineAppRoutes([
   {
+    name: 'oa-system-entry',
+    path: '/system',
+    auth: 'required',
+    authz: 'skip',
+    componentLoader: () => import('./pages/system/index.js'),
+  },
+  {
     name: 'global-search',
     path: '/search',
     auth: 'required',

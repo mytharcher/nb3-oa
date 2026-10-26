@@ -208,6 +208,8 @@ const zhCN = {
   ...approvalsZhCN,
   oa: {
     navigation: {
+      backToApplication: '返回到应用',
+      systemLabel: '系统管理导航',
       systemPeople: '用户与组织',
       systemAccess: '角色与权限',
       systemConnections: '通知与集成',

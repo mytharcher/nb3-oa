@@ -209,6 +209,8 @@ const enUS = {
   ...approvalsEnUS,
   oa: {
     navigation: {
+      backToApplication: 'Back to application',
+      systemLabel: 'System administration navigation',
       systemPeople: 'Users and organization',
       systemAccess: 'Roles and permissions',
       systemConnections: 'Notifications and integrations',

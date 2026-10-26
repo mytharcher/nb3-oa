@@ -9,7 +9,7 @@ import postcss from 'postcss';
 import tailwind from '@tailwindcss/postcss';
 import { chromium, expect } from '@playwright/test';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const output = path.join(root, 'storage/ui-workflow/workbench-simplification');
+const output = path.join(root, 'storage/ui-workflow/workbench-request-catalog');
 const appRequire = createRequire(path.join(root, 'package.json'));
 const { build } = createRequire(appRequire.resolve('vite'))('esbuild');
 await mkdir(path.join(output, 'screenshots'), { recursive: true });
@@ -137,10 +137,33 @@ try {
             exact: true,
           });
           await expect(heading).toBeVisible();
+          for (const target of [
+            '/personal-schedules',
+            '/leaveBalances',
+            '/meeting-rooms',
+            '/announcements?mode=pending',
+          ]) {
+            const link = page.locator(
+              `[data-slot="card-header"] a[href="${target}"]`,
+            );
+            await expect(link).toHaveCount(1);
+            await expect(link).toHaveText(
+              language === 'zh-CN' ? '查看全部' : 'View all',
+            );
+            await expect(link.locator('svg')).toHaveCount(1);
+          }
           const pending = heading.locator(
             'xpath=ancestor::*[@data-slot="card"]',
           );
           await expect(pending.getByRole('listitem')).toHaveCount(6);
+          const header = pending.locator('[data-slot="card-header"]');
+          await expect(
+            header.getByRole('group', {
+              name:
+                language === 'zh-CN' ? '职责筛选' : 'Filter by responsibility',
+            }),
+          ).toHaveCount(1);
+
           const mine = page
             .getByRole('heading', {
               name: language === 'zh-CN' ? '我的申请' : 'My requests',
@@ -261,12 +284,21 @@ try {
             `${language}/${theme}/${dark}/${width}: ${columns} request columns; no common links`,
           );
           await expect(
-            page
-              .getByRole('region', {
-                name: language === 'zh-CN' ? '职能申请' : 'Functional requests',
-              })
-              .getByRole('link'),
-          ).toHaveCount(3);
+            page.getByRole('region', {
+              name: language === 'zh-CN' ? '职能申请' : 'Functional requests',
+            }),
+          ).toHaveCount(0);
+          await allRequests.click();
+          const drawer = page.getByRole('dialog');
+          for (const target of [
+            'newRecruitment',
+            'newExpensePlan',
+            'newBudgetAdjustment',
+          ]) {
+            await expect(drawer.locator(`[href*="${target}"]`)).toHaveCount(1);
+          }
+          await page.keyboard.press('Escape');
+          await expect(drawer).toBeHidden();
           const reads = await page.evaluate(() => globalThis.__workbenchReads);
           expect(reads.includes('reports/datasets')).toBe(false);
           expect(
@@ -306,8 +338,35 @@ try {
       await expect(
         page.getByRole('region', { name: 'Functional requests' }),
       ).toHaveCount(0);
-    if (scenario === 'empty')
+    if (scenario === 'empty') {
       await expect(page.getByText('You are all caught up')).toBeVisible();
+      const mine = page
+        .getByRole('heading', { name: 'My requests', exact: true })
+        .locator('xpath=ancestor::*[@data-slot="card"]');
+      await expect(
+        mine.getByRole('link', { name: 'View all my requests' }),
+      ).toBeVisible();
+      await expect(mine.locator('[data-slot="card-footer"]')).toHaveCount(0);
+      for (const width of [1365, 1920]) {
+        await page.setViewportSize({ width, height: 900 });
+        const pending = page
+          .getByRole('heading', { name: 'Needs my attention', exact: true })
+          .locator('xpath=ancestor::*[@data-slot="card"]');
+        const left = await pending.locator('[data-slot="empty"]').boundingBox();
+        const right = await mine.locator('[data-slot="empty"]').boundingBox();
+        expect(Math.abs(left.y - right.y)).toBeLessThan(1);
+        expect(
+          Math.abs(left.y + left.height - right.y - right.height),
+        ).toBeLessThan(1);
+        const name = `scenario-empty-aligned-${width}.png`;
+        await page.screenshot({
+          path: path.join(output, 'screenshots', name),
+          fullPage: true,
+        });
+        evidence.screenshots.push(name);
+      }
+      await page.setViewportSize({ width: 375, height: 900 });
+    }
     if (['error', 'roleerror'].includes(scenario))
       await expect(page.getByRole('alert').first()).toBeVisible();
     if (scenario === 'denied')

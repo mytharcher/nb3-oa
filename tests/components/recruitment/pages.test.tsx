@@ -9,6 +9,7 @@ import {
   waitFor,
   fireEvent,
   act,
+  within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router';
@@ -230,6 +231,120 @@ it('ordinary detail with no salary grant never requests private amounts', async 
       ([r]) => !String((r as Request).path).endsWith('/salary'),
     ),
   ).toBe(true);
+});
+it('shows shared empty approval states before submission', async () => {
+  serve();
+  show('/detail/r1');
+  expect(await screen.findByText('No approval has started yet.')).toBeVisible();
+  expect(screen.getByText('Nothing has happened yet.')).toBeVisible();
+});
+it('shows stage outcomes and folds system history while retaining approval comments', async () => {
+  const at = '2026-10-26T04:36:24Z';
+  const systemEntry = (id: string, kind: string) => ({
+    type: 'system',
+    event: { id, kind, at, actorId: null, data: {}, message: null },
+  });
+  serve((request) =>
+    request.path === 'recruitmentRequests/r1'
+      ? {
+          data: {
+            ...detail,
+            users: [...detail.users, { id: 'hr', name: 'HR reviewer' }],
+            runs: [
+              {
+                run: {
+                  id: 'run1',
+                  status: 'approved',
+                  startedAt: at,
+                  endedAt: at,
+                },
+                stages: [
+                  {
+                    key: 'hrbp',
+                    title: 'HRBP',
+                    state: 'done',
+                    policy: 'any',
+                    pools: [],
+                  },
+                ],
+                tasks: [
+                  {
+                    id: 'task1',
+                    stage: 'hrbp',
+                    kind: 'approval',
+                    assigneeId: 'hr',
+                    status: 'completed',
+                    enteredVersion: 1,
+                    comment: 'Hiring agreed',
+                    dueAt: null,
+                  },
+                ],
+                events: [],
+              },
+            ],
+            timeline: {
+              runs: [
+                {
+                  entries: [
+                    systemEntry('start', 'run.started'),
+                    systemEntry('assign', 'task.assigned'),
+                  ],
+                  stages: [
+                    {
+                      entries: [
+                        {
+                          type: 'action',
+                          action: {
+                            id: 'approval1',
+                            name: 'approve',
+                            actorId: 'hr',
+                            onBehalfOf: null,
+                            at,
+                            comment: 'Hiring agreed',
+                            input: {},
+                            summary: {},
+                            effects: [],
+                          },
+                          events: [
+                            {
+                              id: 'concluded',
+                              kind: 'stage.concluded',
+                              data: {},
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        }
+      : undefined,
+  );
+  show('/detail/r1');
+  const progress = (
+    await screen.findByRole('heading', { name: 'Approval progress' })
+  ).parentElement!;
+  expect(within(progress).getByText('HRBP')).toBeVisible();
+  expect(within(progress).getByText('HR reviewer')).toBeVisible();
+  expect(within(progress).getByText('Answered')).toBeVisible();
+  const timeline = screen.getByRole('heading', {
+    name: 'Timeline',
+  }).parentElement!;
+  expect(within(timeline).getByText('Hiring agreed')).toBeVisible();
+  const system = within(timeline).getByRole('button', {
+    name: '2 system updates',
+  });
+  expect(system).toHaveAttribute('aria-expanded', 'false');
+  await userEvent.click(system);
+  expect(system).toHaveAttribute('aria-expanded', 'true');
+  const changes = within(timeline).getByRole('button', {
+    name: 'What changed (1)',
+  });
+  await userEvent.click(changes);
+  expect(changes).toHaveAttribute('aria-expanded', 'true');
 });
 it('does not fetch reviewer form options without a current approve offer', async () => {
   grants.add('reviewEdit');
