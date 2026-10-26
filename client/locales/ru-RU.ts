@@ -321,6 +321,8 @@ const ruRU: AppResource = {
   },
   oa: {
     navigation: {
+      backToApplication: 'Вернуться в приложение',
+      systemLabel: 'Навигация по администрированию системы',
       systemPeople: 'Пользователи и организация',
       systemAccess: 'Роли и права',
       systemConnections: 'Уведомления и интеграции',

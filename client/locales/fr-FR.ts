@@ -212,6 +212,8 @@ const frFR: AppResource = {
   },
   oa: {
     navigation: {
+      backToApplication: 'Retour à l’application',
+      systemLabel: 'Navigation de l’administration système',
       systemPeople: 'Utilisateurs et organisation',
       systemAccess: 'Rôles et autorisations',
       systemConnections: 'Notifications et intégrations',

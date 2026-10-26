@@ -321,6 +321,8 @@ const koKR: AppResource = {
   },
   oa: {
     navigation: {
+      backToApplication: '애플리케이션으로 돌아가기',
+      systemLabel: '시스템 관리 탐색',
       systemPeople: '사용자 및 조직',
       systemAccess: '역할 및 권한',
       systemConnections: '알림 및 연동',
