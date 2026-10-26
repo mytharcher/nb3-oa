@@ -1,3 +1,4 @@
+import { externalIntegrationsEnabled } from '../../../shared/external-integrations.js';
 import { useEffect, useRef, useState } from 'react';
 import { useApiClient } from '@nocobase/app-client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
@@ -34,7 +35,7 @@ interface Result {
     checkedAt?: string;
   } | null;
 }
-export function InvoiceTools({
+function AvailableInvoiceTools({
   recordId,
   lineId,
   fileIds,
@@ -307,4 +308,12 @@ export function InvoiceTools({
       </Dialog>
     </section>
   );
+}
+
+export function InvoiceTools(
+  props: Parameters<typeof AvailableInvoiceTools>[0],
+) {
+  return externalIntegrationsEnabled ? (
+    <AvailableInvoiceTools {...props} />
+  ) : null;
 }

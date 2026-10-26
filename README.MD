@@ -10,6 +10,8 @@ This application implements a company OA system. The tracked [documentation inde
 
 OA production configuration, release artifacts, persistence and upgrade verification are described in [the OA deployment guide](docs/guides/deployment.md).
 
+Finance gateway synchronization, invoice recognition and verification, electronic signatures, and WeCom attendance synchronization are temporarily withdrawn through [the shared availability flag](shared/external-integrations.ts). Their UI controls, API routes, and configuration variable declarations are excluded; retained WeCom schedules skip execution. Existing records and permissions remain, while new electronic seal requests are rejected. Manual invoice entry, OA payment handling, contract approvals, physical seals, and attendance management remain available. Restore the flag only after configuring and verifying the external services, then rebuild and deploy.
+
 ## Default and Examples
 
 Default provides the application shell and product capabilities without example plugins or business demo pages. Application-owned routes start empty, and new databases receive no article sample data. Its built-in Users integration lists direct Authorization Permission Sets as application roles, while access assigned to all authenticated users remains separate. Use `app-template-examples` for article management and runnable plugin demonstrations.

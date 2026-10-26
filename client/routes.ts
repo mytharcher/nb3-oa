@@ -1,3 +1,4 @@
+import { externalIntegrationsEnabled } from '../shared/external-integrations.js';
 import wecomAttendanceRoutes from './route-modules/wecom-attendance.js';
 import hrMasterDataRoutes from './route-modules/hr-master-data.js';
 import attendanceResultsRoutes from './route-modules/attendance-results.js';
@@ -452,7 +453,7 @@ const routes: readonly AppClientRouteContribution[] = [
   knowledgeRoutes,
   certificateRoutes,
   attendanceManagementRoutes,
-  wecomAttendanceRoutes,
+  ...(externalIntegrationsEnabled ? [wecomAttendanceRoutes] : []),
   attendanceResultsRoutes,
   processOperationsRoutes,
   hrMasterDataRoutes,

@@ -11,7 +11,10 @@ import {
   type NotificationConfig,
 } from '@nocobase/app-plugin-notification/server';
 import { InAppChannel } from '@nocobase/app-plugin-notification-in-app/server';
-import { type AppIdentityConfig } from '@nocobase/app-server/config';
+import {
+  buildVariablesManifest,
+  type AppIdentityConfig,
+} from '@nocobase/app-server/config';
 import { type AppDatabaseConfig } from '@nocobase/app-server/database';
 import { resolveStandaloneAppRuntime } from '@nocobase/app-server/node';
 import type { AppJobsConfig } from '@nocobase/app-server/jobs';
@@ -38,6 +41,29 @@ describe('application config', () => {
   });
   afterAll(async () => {
     await rm(configRoot, { recursive: true, force: true });
+  });
+
+  it('omits withdrawn integration variables even when old environment settings remain', async () => {
+    const runtime = await resolveStandaloneAppRuntime(appRuntime, {
+      rootDir: templateRootDir,
+      configPath,
+      env: {
+        OA_FINANCE_ENABLED: 'true',
+        OA_SIGNATURE_ENABLED: 'true',
+        OA_INVOICE_ENABLED: 'true',
+        OA_WECOM_ATTENDANCE_ENABLED: 'true',
+      },
+    });
+    const manifest = buildVariablesManifest({
+      app: { name: 'nb3-oa' },
+      variables: runtime.config.environmentVariableMappings(),
+      defaults: runtime.config.layers().defaults,
+    });
+    expect(
+      manifest.variables.some(({ name }) =>
+        /^OA_(FINANCE|SIGNATURE|INVOICE|WECOM_ATTENDANCE)_/u.test(name),
+      ),
+    ).toBe(false);
   });
 
   it.each(['provider', 'type'])(

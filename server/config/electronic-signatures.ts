@@ -12,13 +12,16 @@ export default defineAppConfig<SignatureConfig>({
       description: 'Enable the enterprise electronic-signature gateway.',
     }),
     OA_SIGNATURE_INSTANCE_ID: envString('instanceId', {
+      required: false,
       description:
         'Stable signature tenant identity; never rotate for retries.',
     }),
     OA_SIGNATURE_BASE_URL: envString('baseUrl', {
+      required: false,
       description: 'HTTPS signature gateway base URL.',
     }),
     OA_SIGNATURE_TOKEN: envString('token', {
+      required: false,
       description: 'Server-only signature gateway bearer secret.',
       secret: true,
     }),

@@ -1,3 +1,4 @@
+import { externalIntegrationsEnabled } from '../../shared/external-integrations.js';
 import { useRef, useState } from 'react';
 import { useApiClient, ApiClientError } from '@nocobase/app-client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
@@ -31,7 +32,7 @@ interface Status {
   updatedAt: string | null;
   busy: boolean;
 }
-export function FinanceIntegrationSection({
+function AvailableFinanceIntegrationSection({
   kind,
   record,
 }: {
@@ -226,4 +227,12 @@ export function FinanceIntegrationSection({
       ) : null}
     </section>
   );
+}
+
+export function FinanceIntegrationSection(
+  props: Parameters<typeof AvailableFinanceIntegrationSection>[0],
+) {
+  return externalIntegrationsEnabled ? (
+    <AvailableFinanceIntegrationSection {...props} />
+  ) : null;
 }

@@ -1,5 +1,8 @@
 // @vitest-environment node
-import { it, expect } from 'vitest';
+import { it, expect, vi } from 'vitest';
+vi.mock('../../../shared/external-integrations.js', () => ({
+  externalIntegrationsEnabled: true,
+}));
 import { startOrgTestApp,json } from '../org/helpers.js';
 it('protects source status and synchronization independently and exposes no credentials or identity mappings',async()=>{
  const app=await startOrgTestApp();
