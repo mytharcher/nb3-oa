@@ -1,4 +1,5 @@
 import { ServiceProvider } from '@nocobase/service-provider';
+import { demoLocaleFor } from '../demo-data/context.js';
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken } from '@nocobase/db';
 import {
@@ -59,7 +60,7 @@ export default class KnowledgeProvider extends ServiceProvider<Application> {
         dispatcher: this.jobs,
         delivery: async () => {
           const i18n = c.resolve(i18nToken),
-            locale = i18n.getDefaultLocale();
+            locale = demoLocaleFor() ?? i18n.getDefaultLocale();
           await i18n.ensureLocaleLoaded(locale);
           const t = i18n.getFixedT('nb3-oa', locale);
           return {

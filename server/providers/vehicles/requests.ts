@@ -473,8 +473,8 @@ export function createVehicleRequestService(d: VehicleRequestDependencies) {
       approvalState(
         'head',
         stage.single({
-          assignee: ({ record, directory }) =>
-            (directory as OaApprovalDirectory).headOf(record.applicantId),
+          assignee: ({ record, services }) =>
+            services.directory.headOf(record.applicantId),
           onEmpty: 'hold',
           actions: [
             approve(),

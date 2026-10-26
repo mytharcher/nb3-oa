@@ -464,4 +464,16 @@ OA 试用数据使用下述原生 Sample 入口；默认安装不自动加入业
 
 OA demonstration data uses the native sample registry. On a fresh database, explicitly set `APP_SAMPLE_DATA=true`; in a source checkout, use `pnpm nocobase db sample` to load skipped samples. Built deployments reject that command. There is no demo management page or HTTP import endpoint.
 
-Inspect progress with `pnpm nocobase app sample-data --json`; export account details with `pnpm nocobase app sample-data --export-access --json`. The private file is `storage/sample-data/<datasetId>/access.json`. Sample user passwords are `12345678`; the initial administrator is unchanged and the generator service account cannot sign in. All environments retain an eight-character password minimum, including sample imports and onboarding. Existing managed demo datasets are adopted without regenerating their scenarios. Legacy unowned `trial.*` data is not automatically converted or removed. The old `app trial-data` command now points to `db sample`.
+Sample scenarios share one generator with Chinese and English content. Select the content language with `APP_SAMPLE_LOCALE=zh-CN` or `APP_SAMPLE_LOCALE=en-US` (configuration: `app.sampleLocale`). If omitted, samples follow `i18n.defaultLocale`; the existing fallback uses English for `en-US` and Chinese otherwise. The sample language does not change the interface language.
+
+```bash
+# Choose one language for a fresh/skipped sample dataset in a source checkout.
+APP_SAMPLE_LOCALE=zh-CN pnpm nocobase db sample
+APP_SAMPLE_LOCALE=en-US pnpm nocobase db sample
+```
+
+For automatic generation on first installation, set both `APP_SAMPLE_DATA=true` and `APP_SAMPLE_LOCALE` in the installation environment. Existing successful datasets are reused, failed imports resume in their original language, and switching the interface or environment does not translate stored business records. Use separate databases/instances to demonstrate both languages side by side; running the two commands above consecutively does not create two datasets. See the [sample content contract](docs/designs/oa/sample-data-design.md#双语示例内容2026-10-26-asiasingapore).
+
+Notifications generated for sample recipients also follow the dataset language, including background approval effects, announcements and work-item updates. Knowledge-version and recruitment replacement notices capture the sample language when enqueued. Previously persisted notifications retain their original text; rerunning `db sample` does not translate or resend them. Restart a running server after updating this notification integration so new events use it.
+
+Inspect progress with `pnpm nocobase app sample-data --json`; export account details with `pnpm nocobase app sample-data --export-access --json`. The private file is `storage/sample-data/<datasetId>/access.json`. Sample user passwords are `12345678`; the initial administrator is unchanged and the generator service account cannot sign in. All environments retain an eight-character password minimum, including sample imports and onboarding. Existing managed demo datasets are adopted without regenerating their scenarios. The separate `oa/role-coverage-v1` sample supplements missing workflows for each representative account, using actual permissions and business eligibility. Run `pnpm nocobase db sample` to add this coverage to an existing dataset; existing workflow progress is preserved. Legacy unowned `trial.*` data is not automatically converted or removed. The old `app trial-data` command now points to `db sample`.

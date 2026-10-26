@@ -24,6 +24,7 @@ import {
   type LifecycleJobs,
 } from '@nocobase/lifecycle/jobs';
 import { ServiceProvider } from '@nocobase/service-provider';
+import { demoLocaleFor } from '../demo-data/context.js';
 import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
 import { approvalNotificationServiceToken } from '../approval-notifications/contract.js';
 import { auditServiceToken } from '../audit/index.js';
@@ -178,7 +179,7 @@ export default class RecruitmentProvider extends ServiceProvider<Application> {
           null,
         delivery: async () => {
           const i18n = c.resolve(i18nToken),
-            locale = i18n.getDefaultLocale();
+            locale = demoLocaleFor() ?? i18n.getDefaultLocale();
           await i18n.ensureLocaleLoaded(locale);
           const t = i18n.getFixedT('nb3-oa', locale);
           return {

@@ -1,3 +1,4 @@
+import { signIn } from '@nocobase/app-plugin-authentication/testing';
 import { readFile, stat } from 'node:fs/promises';
 import { secretsServiceToken } from '@nocobase/app-server/secrets';
 import {
@@ -243,13 +244,111 @@ it('imports a complete dataset with actionable scenarios and reports its actual 
   expect(generated.executed).toContain('oa/demo-data');
   const repeated = await samples.run();
   expect(repeated.executed).toEqual([]);
-  const result = await service.status();
+  let result = await service.status();
   expect(result.safeFailures).toEqual([]);
   expect(result.state).toBe('ready');
   expect(result.accounts.length).toBeGreaterThanOrEqual(26);
   expect(result.completedSteps).toBe(result.totalSteps);
   const db =
     fixture.testApp.application.container.resolve(databaseManagerToken);
+  const dataset = await db
+    .repository('demoDataSets')
+    .findOne({ filter: { id: result.datasetId! } });
+  const coverage = Object.values(
+    dataset!.scenarios as Record<
+      string,
+      { actor: string; path: string; id: string; status: string }
+    >,
+  );
+  for (const account of result.accounts) {
+    if (account.role === 'newhire') continue;
+    for (const collection of [
+      'leaveRequests',
+      'overtimeRequests',
+      'attendanceChangeRequests',
+      'outingRequests',
+      'supplyRequests',
+      'generalRequests',
+      'certificateRequests',
+      'sealRequests',
+      'trainingRequests',
+      'expensePlans',
+      'budgetAdjustments',
+      'travelRequests',
+      'loanRequests',
+      'reimbursementRequests',
+      'purchaseRequests',
+      'paymentRequests',
+      'contractRequests',
+      'assetRequests',
+      'vehicleRequests',
+      'departureRequests',
+    ]) {
+      const scenario = coverage.find(
+        (row) => row.actor === account.role && row.path === `/${collection}`,
+      );
+      expect(scenario, `${account.role}: ${collection}`).toBeDefined();
+      const record = await db
+        .repository(collection)
+        .findOne({ filter: { id: scenario!.id } });
+      expect(record, `${account.role}: ${collection} persisted`).toBeDefined();
+      if ('applicantId' in record!)
+        expect(record!.applicantId).toBe(account.id);
+    }
+  }
+  for (const [actor, paths] of [
+    ['hr', ['/probationRequests', '/transferRequests', '/onboardings']],
+    ['head', ['/recruitmentRequests']],
+    ['sales', ['/recruitmentRequests']],
+    ['purchasing', ['/vendorQualifications']],
+    ['purchasing2', ['/vendorQualifications']],
+  ] as const) {
+    for (const path of paths)
+      expect(
+        coverage.some((row) => row.actor === actor && row.path === path),
+        `${actor}: ${path}`,
+      ).toBe(true);
+  }
+  // Ready datasets are supplemented without duplicate records or advancing drafts.
+  const changed = coverage.find(
+    (row) => row.actor === 'manager' && row.path === '/overtimeRequests',
+  )!;
+  const currentRecord = await db
+    .repository('overtimeRequests')
+    .findOne({ filter: { id: changed.id } });
+  const session = await signIn(fixture.testApp, {
+    email: result.accounts.find((account) => account.role === 'manager')!.email,
+    password: '12345678',
+  });
+  expect(
+    (
+      await session.fetch(
+        `/overtimeRequests/${changed.id}/transition`,
+        json({
+          transition: 'withdraw',
+          version: currentRecord!.lifecycleVersion,
+          requestId: randomUUID(),
+          input: {},
+        }),
+      )
+    ).status,
+  ).toBe(200);
+  changed.status = 'withdrawn';
+  const coverageBefore = JSON.stringify(dataset!.scenarios);
+  const recordsBefore = await db
+    .repository('demoDataRecords')
+    .count({ filter: { datasetId: result.datasetId! } });
+  await service.enrichRoleCoverage();
+  result = await service.status();
+  const enriched = await db
+    .repository('demoDataSets')
+    .findOne({ filter: { id: result.datasetId! } });
+  expect(JSON.stringify(enriched!.scenarios)).toBe(coverageBefore);
+  expect(
+    await db
+      .repository('demoDataRecords')
+      .count({ filter: { datasetId: result.datasetId! } }),
+  ).toBe(recordsBefore);
   const credentialsBefore = await service.credentials(
     result.datasetId!,
     result.version,

@@ -1,5 +1,5 @@
 import { sampleDataToken } from '@nocobase/app-server/sample-data';
-import { oaSampleData } from '../../samples/oa.js';
+import { oaSampleData, oaRoleCoverageSample } from '../../samples/oa.js';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { installDemoIdentityTracking } from './identities.js';
 import { ServiceProvider } from '@nocobase/service-provider';
@@ -26,6 +26,7 @@ export default class DemoDataProvider extends ServiceProvider<Application> {
   override async boot() {
     const c = this.app.container;
     c.resolve(sampleDataToken).register(oaSampleData(this.app));
+    c.resolve(sampleDataToken).register(oaRoleCoverageSample(this.app));
     c.resolve(secretsServiceToken).registerStore(
       createSecretsTableStore({
         name: 'oa-demo-data',

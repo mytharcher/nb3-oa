@@ -64,6 +64,7 @@ export interface DemoPreview {
 }
 export interface DemoDataService {
   status(): Promise<DemoStatus>;
+  enrichRoleCoverage(): Promise<void>;
   useSamplePasswords(): Promise<void>;
   presence(): Promise<{ present: boolean; busy: boolean }>;
   import(
