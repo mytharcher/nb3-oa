@@ -1,13 +1,37 @@
 import { useLocale } from '@nocobase/i18n/client';
 import type { Locale } from 'react-day-picker';
-import { enUS, zhCN } from 'react-day-picker/locale';
+import {
+  de,
+  enUS,
+  es,
+  fr,
+  id,
+  ja,
+  ko,
+  ptBR,
+  ru,
+  vi,
+  zhCN,
+  zhTW,
+} from 'react-day-picker/locale';
 
-/**
- * The calendar locale for the interface language. react-day-picker's locales are date-fns locales plus the
- * calendar's own labels ("Go to next month"), so the trigger text and the calendar's buttons follow the language.
- * Add a line when the application adds a language.
- */
+const calendarLocales: Record<string, Locale> = {
+  'en-US': enUS,
+  'es-ES': es,
+  'fr-FR': fr,
+  'de-DE': de,
+  'pt-BR': ptBR,
+  'ru-RU': ru,
+  'id-ID': id,
+  'vi-VN': vi,
+  'zh-CN': zhCN,
+  'zh-TW': zhTW,
+  'ja-JP': ja,
+  'ko-KR': ko,
+};
+
+/** Calendar labels and month names follow the selected interface language. */
 export function useDatePickerLocale(): Locale {
   const { locale } = useLocale();
-  return locale.startsWith('zh') ? zhCN : enUS;
+  return calendarLocales[locale] ?? enUS;
 }

@@ -65,7 +65,7 @@ type Result = {
 
 function Report({ dataset }: { dataset: Dataset }) {
   const api = useApiClient(),
-    { t } = useTranslation();
+    { t, i18n } = useTranslation();
   const dateLocale = useDatePickerLocale();
   const thirdFilterId = useId();
   const yearFilterId = useId();
@@ -166,7 +166,7 @@ function Report({ dataset }: { dataset: Dataset }) {
     if (dataset === 'leave-monthly') {
       query.sort = sort.field;
       query.direction = sort.direction;
-      query.locale = dateLocale.code === 'zh-CN' ? 'zh-CN' : 'en-US';
+      query.locale = i18n.language;
     }
     if (filters.first)
       query[dataset === 'contract-ledger' ? 'search' : 'departmentId'] =
@@ -193,7 +193,7 @@ function Report({ dataset }: { dataset: Dataset }) {
           !abort.signal.aborted && setResult({ error, loading: false }),
       );
     return () => abort.abort();
-  }, [api, dataset, filters, generation, page, sort, dateLocale.code]);
+  }, [api, dataset, filters, generation, page, sort, i18n.language]);
   const rows = result.data?.data ?? [];
   const columns: readonly string[] = {
     'budget-balances': [
@@ -283,7 +283,7 @@ function Report({ dataset }: { dataset: Dataset }) {
     if (dataset === 'leave-monthly') {
       query.sort = sort.field;
       query.direction = sort.direction;
-      query.locale = dateLocale.code === 'zh-CN' ? 'zh-CN' : 'en-US';
+      query.locale = i18n.language;
     }
     if (filters.first)
       query[dataset === 'contract-ledger' ? 'search' : 'departmentId'] =
@@ -604,9 +604,7 @@ function Report({ dataset }: { dataset: Dataset }) {
                             (
                               row.subjectLabel as
                                 Record<string, string> | undefined
-                            )?.[
-                              dateLocale.code === 'zh-CN' ? 'zh-CN' : 'en-US'
-                            ] ??
+                            )?.[i18n.language] ??
                               (typeof row.subject === 'string'
                                 ? row.subject
                                 : '—'),

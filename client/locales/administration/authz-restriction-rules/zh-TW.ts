@@ -1,0 +1,38 @@
+export default {
+  resourceTitle: '限制規則',
+  navigation: { title: '限制規則' },
+  restrictionRules: {
+    noResources:
+      '尚未定義支援記錄範圍的業務資源。可以讓 AI 定義業務權限和記錄範圍，開發後即可在這裡設定規則。',
+    page: {
+      title: '限制規則',
+      description: '限制指定使用者可訪問的記錄範圍，本身不授予權限。',
+    },
+    notice: '限制規則僅限制已有權限，不授予新的權限。',
+    search: '按規則名稱、標識或資源搜尋',
+    create: '新增限制規則',
+    ruleHeader: '規則',
+    appliesToHeader: '適用於',
+    restrictedActionsHeader: '受限的操作',
+    allowedScopeHeader: '允許的範圍',
+    emptyNone: '暫無限制規則。可為指定使用者設定記錄訪問範圍的上限。',
+    emptySearch: '沒有匹配搜尋條件的限制規則。',
+    pagerLabel: '限制規則',
+    editTitle: '編輯限制規則',
+    newTitle: '新增限制規則',
+    editorDescription: '為指定使用者設定記錄訪問範圍的上限。',
+    ruleHeading: '基本資訊',
+    ruleDescription: '為規則命名，並選擇要限制的資源。',
+    ruleName: '規則名稱',
+    assignmentsHeading: '適用物件',
+    assignmentsDescription: '選擇誰受這條限制約束。',
+    reason: '說明',
+    accessHeading: '操作與記錄範圍',
+    accessDescription: '為每個操作分別設定記錄範圍的上限。',
+    deleteRule: '刪除規則',
+    save: '儲存限制規則',
+    confirmDeleteTitle: '刪除規則「{{title}}」？',
+    confirmDeleteBody:
+      '刪除限制規則「{{title}}」。實際訪問範圍由剩餘權限集和規則決定。',
+  },
+};

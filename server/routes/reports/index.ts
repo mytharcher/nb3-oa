@@ -1,3 +1,4 @@
+import { getReportTranslator } from './i18n.js';
 import { orgServiceToken } from '../../providers/org/contract.js';
 import { dictionaryServiceToken } from '../../providers/platform/dictionaries.js';
 import { Hono, type Context } from 'hono';
@@ -427,6 +428,12 @@ const routes: readonly AppRouteContribution<Application>[] = [
       ),
       apiValidator('query', S.LeaveMonthlyQuery),
       async (ctx) => {
+        const { t, locale } = await getReportTranslator(
+          app,
+          ctx,
+          ctx.req.query('locale'),
+        );
+
         const query = ctx.req.valid('query');
         // The owner bounds source records before grouping; load once to avoid repeated full aggregation.
         const { data: rows } = await leaveRows(ctx, {
@@ -437,16 +444,33 @@ const routes: readonly AppRouteContribution<Application>[] = [
         return xlsx(
           rows,
           [
-            { header: 'Year', key: 'year' },
-            { header: 'Start month', key: 'month' },
-            { header: 'Leave type', key: 'leaveType' },
-            { header: 'Approved request count', key: 'approvedRequestCount' },
             {
-              header: 'Approved requested days (before cancellation)',
+              header: t('reportExports.leaveMonthly.fields.year'),
+              key: 'year',
+            },
+            {
+              header: t('reportExports.leaveMonthly.fields.month'),
+              key: 'month',
+            },
+            {
+              header: t('reportExports.leaveMonthly.fields.leaveType'),
+              key: 'leaveType',
+            },
+            {
+              header: t(
+                'reportExports.leaveMonthly.fields.approvedRequestCount',
+              ),
+              key: 'approvedRequestCount',
+            },
+            {
+              header: t(
+                'reportExports.leaveMonthly.fields.approvedRequestedDays',
+              ),
               key: 'approvedRequestedDays',
             },
           ],
           'leave-monthly.xlsx',
+          { locale, sheetName: t('reportExports.sheet') },
         );
       },
     );
@@ -486,6 +510,12 @@ const routes: readonly AppRouteContribution<Application>[] = [
       exportDoc('exportBudgetBalances', 'Export authorized budget balances'),
       apiValidator('query', S.ListQuery),
       async (ctx) => {
+        const { t, locale } = await getReportTranslator(
+          app,
+          ctx,
+          ctx.req.query('locale'),
+        );
+
         const query = ctx.req.valid('query');
         const rows = await allRows((page) =>
           budgetRows(ctx, { ...query, page, pageSize: 100 }),
@@ -493,15 +523,37 @@ const routes: readonly AppRouteContribution<Application>[] = [
         return xlsx(
           rows,
           [
-            { header: 'Department', key: 'departmentName' },
-            { header: 'Year', key: 'year' },
-            { header: 'Subject', key: 'subject' },
-            { header: 'Allocated cents', key: 'allocatedCents' },
-            { header: 'Held cents', key: 'heldCents' },
-            { header: 'Used cents', key: 'usedCents' },
-            { header: 'Available cents', key: 'availableCents' },
+            {
+              header: t('reportExports.budgetBalances.fields.departmentName'),
+              key: 'departmentName',
+            },
+            {
+              header: t('reportExports.budgetBalances.fields.year'),
+              key: 'year',
+            },
+            {
+              header: t('reportExports.budgetBalances.fields.subject'),
+              key: 'subject',
+            },
+            {
+              header: t('reportExports.budgetBalances.fields.allocatedCents'),
+              key: 'allocatedCents',
+            },
+            {
+              header: t('reportExports.budgetBalances.fields.heldCents'),
+              key: 'heldCents',
+            },
+            {
+              header: t('reportExports.budgetBalances.fields.usedCents'),
+              key: 'usedCents',
+            },
+            {
+              header: t('reportExports.budgetBalances.fields.availableCents'),
+              key: 'availableCents',
+            },
           ],
           'budget-balances.xlsx',
+          { locale, sheetName: t('reportExports.sheet') },
         );
       },
     );
@@ -513,6 +565,12 @@ const routes: readonly AppRouteContribution<Application>[] = [
       ),
       apiValidator('query', S.HeadcountListQuery),
       async (ctx) => {
+        const { t, locale } = await getReportTranslator(
+          app,
+          ctx,
+          ctx.req.query('locale'),
+        );
+
         const query = ctx.req.valid('query');
         const rows = await allRows((page) =>
           headcountRows(ctx, { ...query, page, pageSize: 100 }),
@@ -520,21 +578,69 @@ const routes: readonly AppRouteContribution<Application>[] = [
         return xlsx(
           rows,
           [
-            { header: 'Department', key: 'departmentName' },
-            { header: 'Position', key: 'positionName' },
-            { header: 'Year', key: 'year' },
-            { header: 'Limit', key: 'limit' },
-            { header: 'Initialized', key: 'initialized' },
-            { header: 'Used', key: 'used' },
-            { header: 'Pending', key: 'pending' },
-            { header: 'Allocated', key: 'allocated' },
-            { header: 'Replacement pending', key: 'replacementPending' },
-            { header: 'Replacement allocated', key: 'replacementAllocated' },
-            { header: 'Replacement blocked', key: 'replacementBlocked' },
-            { header: 'Available', key: 'available' },
-            { header: 'Capacity state', key: 'capacityState' },
+            {
+              header: t(
+                'reportExports.headcountBalances.fields.departmentName',
+              ),
+              key: 'departmentName',
+            },
+            {
+              header: t('reportExports.headcountBalances.fields.positionName'),
+              key: 'positionName',
+            },
+            {
+              header: t('reportExports.headcountBalances.fields.year'),
+              key: 'year',
+            },
+            {
+              header: t('reportExports.headcountBalances.fields.limit'),
+              key: 'limit',
+            },
+            {
+              header: t('reportExports.headcountBalances.fields.initialized'),
+              key: 'initialized',
+            },
+            {
+              header: t('reportExports.headcountBalances.fields.used'),
+              key: 'used',
+            },
+            {
+              header: t('reportExports.headcountBalances.fields.pending'),
+              key: 'pending',
+            },
+            {
+              header: t('reportExports.headcountBalances.fields.allocated'),
+              key: 'allocated',
+            },
+            {
+              header: t(
+                'reportExports.headcountBalances.fields.replacementPending',
+              ),
+              key: 'replacementPending',
+            },
+            {
+              header: t(
+                'reportExports.headcountBalances.fields.replacementAllocated',
+              ),
+              key: 'replacementAllocated',
+            },
+            {
+              header: t(
+                'reportExports.headcountBalances.fields.replacementBlocked',
+              ),
+              key: 'replacementBlocked',
+            },
+            {
+              header: t('reportExports.headcountBalances.fields.available'),
+              key: 'available',
+            },
+            {
+              header: t('reportExports.headcountBalances.fields.capacityState'),
+              key: 'capacityState',
+            },
           ],
           'headcount-balances.xlsx',
+          { locale, sheetName: t('reportExports.sheet') },
         );
       },
     );
@@ -546,6 +652,12 @@ const routes: readonly AppRouteContribution<Application>[] = [
       ),
       apiValidator('query', S.ContractListQuery),
       async (ctx) => {
+        const { t, locale } = await getReportTranslator(
+          app,
+          ctx,
+          ctx.req.query('locale'),
+        );
+
         const query = ctx.req.valid('query');
         const rows = await allRows((page) =>
           contractRows(ctx, { ...query, page, pageSize: 100 }),
@@ -553,21 +665,61 @@ const routes: readonly AppRouteContribution<Application>[] = [
         return xlsx(
           rows,
           [
-            { header: 'Number', key: 'number' },
-            { header: 'Department', key: 'departmentName' },
-            { header: 'Status', key: 'status' },
-            { header: 'Amount cents', key: 'amountCents' },
-            { header: 'Held cents', key: 'heldCents' },
-            { header: 'Paid cents', key: 'paidCents' },
-            { header: 'Available cents', key: 'availableCents' },
-            { header: 'Starts on', key: 'startsOn' },
-            { header: 'Ends on', key: 'endsOn' },
-            { header: 'As of', key: 'asOf' },
-            { header: 'Expiry state', key: 'expiryState' },
-            { header: 'Payment state', key: 'paymentState' },
-            { header: 'Paid basis points', key: 'paidBasisPoints' },
+            {
+              header: t('reportExports.contractLedger.fields.number'),
+              key: 'number',
+            },
+            {
+              header: t('reportExports.contractLedger.fields.departmentName'),
+              key: 'departmentName',
+            },
+            {
+              header: t('reportExports.contractLedger.fields.status'),
+              key: 'status',
+            },
+            {
+              header: t('reportExports.contractLedger.fields.amountCents'),
+              key: 'amountCents',
+            },
+            {
+              header: t('reportExports.contractLedger.fields.heldCents'),
+              key: 'heldCents',
+            },
+            {
+              header: t('reportExports.contractLedger.fields.paidCents'),
+              key: 'paidCents',
+            },
+            {
+              header: t('reportExports.contractLedger.fields.availableCents'),
+              key: 'availableCents',
+            },
+            {
+              header: t('reportExports.contractLedger.fields.startsOn'),
+              key: 'startsOn',
+            },
+            {
+              header: t('reportExports.contractLedger.fields.endsOn'),
+              key: 'endsOn',
+            },
+            {
+              header: t('reportExports.contractLedger.fields.asOf'),
+              key: 'asOf',
+            },
+            {
+              header: t('reportExports.contractLedger.fields.expiryState'),
+              key: 'expiryState',
+            },
+            {
+              header: t('reportExports.contractLedger.fields.paymentState'),
+              key: 'paymentState',
+            },
+            {
+              header: t('reportExports.contractLedger.fields.paidBasisPoints'),
+              key: 'paidBasisPoints',
+            },
           ],
           'contract-ledger.xlsx',
+          { locale, sheetName: t('reportExports.sheet') },
         );
       },
     );

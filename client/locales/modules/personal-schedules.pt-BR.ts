@@ -1,0 +1,72 @@
+export default {
+  personalSchedules: {
+    team: {
+      companyTime: 'Horário da empresa',
+      todayTitle: 'Status da equipe hoje',
+      todayEmpty: 'Nenhuma ausência aprovada da equipe visível para hoje.',
+      preview:
+        'Exibindo {{shown}} de {{total}} ocorrências. As pessoas são contadas separadamente por tipo.',
+      viewTeam: 'Visualizar calendário da equipe',
+      title: 'Calendário da equipe',
+      hint: 'Ausências aprovadas que você pode visualizar, ajustadas para cancelamentos e términos antecipados.',
+      all: 'Todos os departamentos visíveis',
+      department: 'Departamento',
+      empty: 'Nenhuma ausência visível',
+      emptyHint: 'Tente outra data ou departamento.',
+      leave: 'Licença',
+      travel: 'Viagem a trabalho',
+      outing: 'Saída externa',
+    },
+    title: 'Minha agenda',
+    create: 'Novo compromisso',
+    editTitle: 'Editar compromisso',
+    edit: 'Editar',
+    delete: 'Excluir',
+    save: 'Salvar',
+    saving: 'Salvando…',
+    saved: 'Compromisso salvo',
+    deleted: 'Compromisso excluído',
+    deleting: 'Excluindo…',
+    cancel: 'Cancelar',
+    back: 'Voltar à agenda',
+    retry: 'Tentar novamente',
+    refresh: 'Atualizar',
+    day: 'Data',
+    today: 'Hoje',
+    todayTitle: 'Agenda de hoje',
+    viewAll: 'Visualizar todos os compromissos',
+    loading: 'Carregando agenda',
+    empty: 'Nenhum compromisso neste dia',
+    emptyHint:
+      'Crie um compromisso pessoal; reuniões confirmadas também aparecem aqui.',
+    meeting: 'Reunião',
+    managed:
+      'Este compromisso vem de uma reserva de reunião. Altere ou cancele nos detalhes da reunião.',
+    openMeeting: 'Visualizar reunião',
+    timeZone: 'Horários exibidos em {{zone}}',
+    noDescription: 'Sem descrição',
+    invalid:
+      'Informe um título e os dois horários. O término deve ser posterior ao início.',
+    deleteTitle: 'Excluir o compromisso “{{title}}”?',
+    deleteHint: 'Esta ação não pode ser desfeita.',
+    discardTitle: 'Descartar alterações do compromisso?',
+    discardHint: 'As alterações não salvas serão perdidas.',
+    keepEditing: 'Continuar editando',
+    discard: 'Descartar',
+    fields: {
+      title: 'Título',
+      description: 'Descrição',
+      start: 'Horário inicial',
+      end: 'Horário final',
+    },
+    errors: {
+      denied: 'Você não pode visualizar este compromisso. Volte à sua agenda.',
+      missing:
+        'Este compromisso não existe ou foi excluído. Volte à sua agenda.',
+      conflict:
+        'Este compromisso mudou ou é gerenciado por uma reunião. Atualize antes de tentar novamente.',
+      failed:
+        'Não foi possível carregar ou salvar o compromisso. Tente novamente.',
+    },
+  },
+};

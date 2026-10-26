@@ -1,0 +1,193 @@
+export default {
+  onboarding: {
+    authz: {
+      resource: 'Incorporación',
+      readable: 'Participantes en la incorporación',
+      view: 'Ver incorporaciones',
+      create: 'Crear incorporación',
+      cancel: 'Cancelar incorporación',
+      claim: 'Asumir tarea',
+      reassignMentor: 'Reasignar responsable de departamento',
+      transfer: 'Transferir',
+      release: 'Liberar tarea',
+      complete: 'Completar tarea',
+      forceComplete: 'Forzar finalización',
+      viewSalary: 'Ver salario de incorporación',
+      viewBank: 'Ver datos bancarios de incorporación',
+    },
+    noPeople: 'No hay empleados que coincidan con la búsqueda',
+    loadLatest: 'Cargar última versión',
+    actionChanged:
+      'Esta acción ya no está disponible. Los datos introducidos se conservan; cierra el formulario y revisa el registro actualizado.',
+
+    confirmAction: 'Confirmar',
+    noMatches:
+      'No hay registros de incorporación que coincidan con los filtros',
+
+    directoryCap:
+      'Se muestran las primeras 100 coincidencias. Restringe la búsqueda.',
+    organizationLabel: '{{department}} / {{position}} / {{grade}}',
+    historicalPersonUnavailable: 'Persona histórica no disponible',
+    allocationLabel:
+      '{{department}} / {{position}} / {{grade}} / {{year}} · {{count}} restantes',
+    namedAction: '¿{{action}} para «{{name}}»?',
+    completedAction: '{{action}} completada para «{{name}}»',
+    createAction: 'Crear',
+    created: 'Se ha creado la incorporación de «{{name}}»',
+
+    businessErrors: {
+      ONBOARDING_SOURCE_INVALID:
+        'El origen de incorporación o los datos del empleado ya no son válidos. Actualiza y comprueba el origen, la identidad y los datos obligatorios.',
+      ONBOARDING_IDEMPOTENCY_CONFLICT:
+        'Esta operación ya se ha utilizado con otro contenido. Actualiza para comprobar el resultado antes de continuar.',
+    },
+
+    clear: 'Borrar filtros',
+    timeline: {
+      unknownActor: 'Gestor histórico no disponible',
+      parentCompleted: 'Incorporación completada',
+      accountEnabled: 'Cuenta del empleado habilitada',
+      title: 'Cronología',
+      empty: 'No hay eventos registrados',
+      historyNotice:
+        'Solo se muestran hechos registrados. Los eventos antiguos pueden carecer de detalles. La aceptación de una notificación no acredita su entrega.',
+      system: 'Sistema',
+      from: 'Gestor anterior',
+      to: 'Nuevo gestor',
+      create: 'Incorporación creada',
+      cancel:
+        'Incorporación cancelada; se han creado tareas de recuperación para el trabajo completado',
+      claim: 'Tarea asumida',
+      release: 'Tarea liberada',
+      transfer: 'Tarea transferida',
+      reassignMentor: 'Responsable de departamento reasignado',
+      complete: 'Tarea completada',
+      forceComplete: 'Tarea completada de forma forzada',
+      queued: 'Recordatorio de vencimiento en cola',
+      sent: 'Notificación de vencimiento aceptada',
+    },
+    reassignMentorNotice:
+      'Asigna esta tarea pendiente al responsable activo actual del departamento. El plazo y los datos guardados se conservan; esto no completa la tarea.',
+    transferTarget: 'Nuevo gestor del mismo grupo',
+    attachments: 'Adjuntos',
+    fileLimit: 'PDF, PNG, JPEG o TXT; hasta 10 archivos de 20 MB cada uno.',
+    upload: 'Subir adjunto',
+    uploading: 'Subiendo…',
+    removeFile: 'Quitar archivo {{number}}',
+    fileMissing: 'Adjunto no disponible',
+    assetUnits: 'Activos reales',
+    assetUnitsHelp:
+      'Introduce el código y número de serie de cada activo real. La recuperación requiere todos los artículos de la entrega original. Dejar esta lista vacía registra que no se entregaron activos.',
+    assetCode: 'Código de activo',
+    assetSerial: 'Número de serie',
+    removeAsset: 'Quitar',
+    addAsset: 'Añadir activo',
+
+    employeeSearch: 'Buscar por nombre o código de empleado',
+    mentorDenied: 'Se requiere permiso de directorio para elegir un empleado',
+    loading: 'Enviando…',
+    requiredField: 'Introduce {{field}}.',
+    chooseSource:
+      'Elige una asignación de contratación con capacidad restante.',
+    invalidEmail: 'Introduce un correo válido para la cuenta.',
+    invalidPassword:
+      'Utiliza al menos 8 caracteres para la contraseña inicial.',
+    invalidSalary: 'Introduce un salario base con exactamente dos decimales.',
+    title: 'Incorporación',
+    description:
+      'Crea incorporaciones de empleados y gestiona tareas paralelas',
+    employee: 'Empleado',
+    creator: 'Creado por',
+    status: 'Estado',
+    refresh: 'Actualizar',
+    new: 'Nueva incorporación',
+    detail: 'Detalles de incorporación',
+    empty: 'No hay registros de incorporación',
+    forced: 'Finalización forzada',
+    dueDate: 'Fecha de vencimiento',
+    assignee: 'Gestionado por',
+    bank: 'Cuenta de nómina y seguridad social',
+    salary: 'Salario',
+    privateEmpty: {
+      bank: 'No se han registrado los datos de cuenta de nómina y seguridad social. Consulta el progreso de la tarea financiera.',
+      salary:
+        'No se han registrado los datos salariales. Contacta con RR. HH. para comprobarlo.',
+    },
+    save: 'Enviar',
+    saved: 'Guardado',
+    unknown:
+      'El resultado es desconocido. Reintenta el mismo comando para confirmarlo; no crees una nueva solicitud.',
+    retryExact: 'Reintentar el mismo comando',
+    discard: 'Descartar cambios',
+    discardDescription: 'Se perderán los cambios sin guardar.',
+    stay: 'Seguir editando',
+    unavailable: 'Operación no disponible',
+    invalid:
+      'Comprueba los campos obligatorios y el formato del salario (dos decimales).',
+    reason: 'Motivo',
+    forceNotice:
+      'La finalización forzada registra el motivo y puede habilitar la cuenta. No acredita la entrega de equipos.',
+    cancelNotice:
+      'La cancelación libera capacidad real y deja el trabajo completado pendiente de recuperación. No marca los artículos como devueltos.',
+    createNotice:
+      'Esto crea un empleado real con una cuenta desactivada y consume una plaza de contratación. El departamento, el puesto y el nivel vienen fijados por la asignación.',
+    remaining: '{{count}} restantes',
+    noSources:
+      'No hay asignaciones de contratación legibles con capacidad restante',
+    userPickerDenied:
+      'Se requiere permiso de búsqueda de usuarios para seleccionar un responsable.',
+    states: {
+      all: 'Todos los estados',
+      handling: 'Gestión',
+      completed: 'Completado',
+      cancelled: 'Cancelado',
+      open: 'Abrir',
+      claimed: 'Asumido',
+    },
+    actions: {
+      claim: 'Asumir',
+      reassignMentor: 'Reasignar mentor',
+      transfer: 'Transferir',
+      release: 'Liberar',
+      complete: 'Completar',
+      forceComplete: 'Forzar finalización',
+      cancel: 'Cancelar incorporación',
+    },
+    kinds: {
+      it: 'Cuenta y equipos',
+      administration: 'Puesto de trabajo y acreditación',
+      finance: 'Cuenta de pago y seguridad social',
+      mentor: 'Mentor y plan de 30 días',
+      recovery: 'Tarea de recuperación',
+    },
+    fields: {
+      name: 'Nombre del empleado',
+      email: 'Correo de la cuenta',
+      password: 'Contraseña inicial',
+      code: 'Código de empleado',
+      hireDate: 'Fecha de contratación',
+      careerStartDate: 'Fecha de inicio de la vida laboral',
+      probationEndDate: 'Fecha de fin del período de prueba',
+      baseSalary: 'Salario base',
+      reason: 'Motivo de creación',
+      requisitionId: 'Asignación de contratación',
+      managerId: 'Responsable directo',
+      accountId: 'Cuenta creada',
+      deviceReference: 'Referencia de dispositivo',
+      workstationRequirement: 'Necesidades del puesto de trabajo',
+      workstation: 'Puesto de trabajo',
+      badgeReference: 'Referencia de tarjeta de acceso',
+      bankName: 'Banco',
+      bankAccount: 'Cuenta bancaria',
+      bankAccountName: 'Titular de la cuenta',
+      socialInsuranceReference: 'Referencia de seguridad social',
+      mentorEmployeeId: 'Empleado mentor',
+      plan: 'Plan de incorporación de 30 días',
+      assetReceiptId: 'Recibo de activos',
+      returnReceipt: 'Recibo de recuperación',
+      compensationId: 'Referencia de remuneración',
+      gradeId: 'Nivel',
+      effectiveFrom: 'Vigente desde',
+    },
+  },
+};

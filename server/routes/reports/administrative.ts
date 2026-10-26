@@ -275,6 +275,10 @@ export function registerAdministrativeReports(
             )(`reports.administrativeColumns.${key}`),
           })),
           `${dataset}.xlsx`,
+          {
+            locale,
+            sheetName: i18n.getFixedT('nb3-oa', locale)('reportExports.sheet'),
+          },
         );
       },
     );

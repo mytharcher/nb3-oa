@@ -1,0 +1,96 @@
+export default {
+  supplies: {
+    namedRowActions: '「{{name}}」的操作',
+
+    businessErrors: {
+      SUPPLY_REQUIRED_FIELDS: '請新增至少一項領用品並填寫用途。',
+      SUPPLY_ITEM_UNAVAILABLE:
+        '所選領用品已停用或不存在，請重新選擇啟用的物品。',
+      SUPPLY_CONTENT_CHANGED:
+        '已批准的領用內容已變化，請重新整理申請後再登記發放。',
+    },
+
+    rowActions: '記錄操作',
+    number: '申請編號',
+    unknownEdit: '儲存結果未確認，請先載入最新單據後再修改。',
+    emptyCatalog: '沒有可用物品，請聯絡行政設定。',
+    ledgerDetail: '發放記錄',
+    ledgerDescription:
+      '記錄實際發放及管理員強制關閉，未確認數量不代表已經送達。',
+    entryMissing: '發放記錄不存在或無權查看。',
+    authz: {
+      resource: '物品領用',
+      ledger: '查看領用發放臺帳',
+    },
+    navigation: '領用臺帳',
+    new: '新增領用申請',
+    edit: '修改領用申請',
+    formDescription: '填寫物品及數量，經直屬上層批准後由行政領取任務併發放。',
+    purpose: '用途',
+    item: '物品',
+    items: '物品明細',
+    quantity: '數量',
+    quantityValue: '數量：{{quantity}}',
+    chooseItem: '選擇物品',
+    line: '物品 {{number}}',
+    remove: '移除物品 {{number}}',
+    addItem: '新增物品',
+    quantityInvalid: '填寫1至100,000的整數數量。',
+    duplicate: '同一物品只能填寫一行。',
+    emailInvalid: '填寫有效電子郵件地址。',
+    printRequired: '補全名片必填列印資訊。',
+    print: {
+      name: '姓名',
+      title: '職位',
+      phone: '電話',
+      email: '電子郵件',
+      address: '地址',
+      department: '部門（選填）',
+    },
+    approvedAt: '上層批準時間',
+    issuingStage: '行政發放',
+    resubmitHint:
+      '物品和用途未改時重提直接還原行政發放；修改後需重新提交上層簽核，原批准事實保留在歷史中。',
+    forcedHint:
+      '簽核管理員已強制關閉此申請，未確認實際發放，實際數量記為未確認。',
+    uncertainCreate:
+      '儲存結果未確認，請關閉並檢查「我的申請」，確認前不要再次新增。',
+    invalid: '檢查用途、物品及整數數量。',
+    itemUnavailable: '物品已停用或不存在，修改後提交前請重新整理。',
+    inactive: '申請人必須有有效在職人員檔案。',
+    configuration: '目前簽核時限設定暫不支援，請聯絡管理員。',
+    contentChanged: '內容已與上層批准不符，請載入最新版本。',
+    reasonRequired: '請填寫原因。',
+    actions: {
+      claim: '領取發放任務',
+      release: '釋放領取',
+      assign: '指定處理人',
+      complete: '確認已發放',
+      unable: '無法發放',
+      forceComplete: '強制關閉',
+    },
+    actionHints: {
+      complete: '確認所有物品已按申請數量實際發放，此操作登記發放臺帳。',
+      unable: '填寫缺貨或無法發放的原因，申請進入異常處理，保留上層批准事實。',
+      release: '釋放目前領取，由其他行政處理人領取發放任務。',
+      forceComplete:
+        '管理員強制關閉，不確認物品實際送達，實際發放量登記為「未確認」，必須填寫原因。',
+    },
+    states: {
+      issuing: '待行政發放',
+      exception: '發放異常',
+      issued: '已實際發放',
+      forcedClosed: '管理員已關閉',
+    },
+    ledgerTitle: '領用發放臺帳',
+    requestedQuantity: '申請量',
+    actualQuantity: '實際發放量',
+    outcome: '處理結果',
+    recipient: '領用人',
+    issuer: '處理人',
+    unconfirmed: '未確認',
+    reason: '原因',
+    emptyLedger: '暫無發放記錄',
+    viewRequest: '查看領用申請',
+  },
+};

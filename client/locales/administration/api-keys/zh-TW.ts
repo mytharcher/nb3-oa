@@ -1,0 +1,73 @@
+import type { ApiKeysResource } from './en-US.js';
+
+const zhTW: ApiKeysResource = {
+  'common.close': '關閉',
+  nav: { apiKeys: 'API 金鑰' },
+  page: {
+    search: '按金鑰名稱搜尋',
+    retry: '重試',
+    clear: '清除篩選',
+    noResults: '沒有符合搜尋條件的金鑰。',
+    loading: '載入中',
+    title: 'API 金鑰',
+    description: '建立金鑰，讓指令碼和第三方集成以你的身分呼叫本應用程式。',
+    add: '建立金鑰',
+    empty: '你還沒有建立 API 金鑰。',
+    unnamed: '未命名金鑰',
+    never: '永不過期',
+    unused: '從未使用',
+    active: '有效',
+    expired: '已過期',
+    disabled: '已停用',
+    columns: {
+      name: '名稱',
+      key: '金鑰',
+      status: '狀態',
+      lastUsed: '最近使用',
+      expires: '過期時間',
+      actions: '操作',
+    },
+    actions: { revoke: '吊銷', menu: '「{{name}}」的操作' },
+  },
+  form: {
+    title: '建立 API 金鑰',
+    description: '金鑰以你的身分呼叫介面，擁有的權限與你的帳號完全一致。',
+    name: '名稱',
+    namePlaceholder: '每晚匯出任務',
+    expiry: '過期時間',
+    expiryChoices: {
+      never: '永不過期',
+      '7': '7 天後',
+      '30': '30 天後',
+      '90': '90 天後',
+      '365': '1 年後',
+    },
+    cancel: '取消',
+    create: '建立',
+  },
+  reveal: {
+    title: '請立即複製金鑰',
+    description: '「{{name}}」已建立。金鑰只會顯示這一次。',
+    usage: '請通過 x-api-key 請求頭傳送。',
+    copy: '複製金鑰',
+    done: '完成',
+  },
+  revoke: {
+    success: '已吊銷金鑰「{{name}}」',
+    title: '吊銷金鑰「{{name}}」？',
+    description: '使用「{{name}}」的請求將立即失敗，且無法還原。',
+    cancel: '取消',
+    confirm: '吊銷',
+  },
+  errors: {
+    forbidden: '您已無權查看金鑰，請聯絡管理員。',
+    notFound: '金鑰管理不可用，請返回工作台。',
+    nameRequired: '請輸入金鑰名稱。',
+    copyFailed: '複製失敗，請選中金鑰後手動複製。',
+    loadFailed: '無法載入你的 API 金鑰。',
+    createFailed: '無法建立 API 金鑰。',
+    revokeFailed: '無法吊銷 API 金鑰。',
+  },
+};
+
+export default zhTW;

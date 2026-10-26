@@ -1,0 +1,50 @@
+export default {
+  processOperations: {
+    title: 'Operasional proses',
+    hint: 'Permintaan diajukan berdasarkan tanggal perusahaan dan departemen utama pemohon saat ini.',
+    refresh: 'Muat ulang',
+    range: 'Tanggal pengajuan pertama',
+    process: 'Proses',
+    department: 'Departemen',
+    all: 'Semua proses yang diizinkan',
+    clear: 'Hapus filter',
+    back: 'Kembali ke beranda kerja',
+    retry: 'Coba lagi',
+    summary: 'Ringkasan proses',
+    naturalTime:
+      'Waktu kalender berlalu mencakup penantian antara pengembalian dan pengajuan ulang. Permintaan ditarik dan dibatalkan dikecualikan dari rata-rata penyelesaian.',
+    stages: 'Durasi tahap',
+    stageHint:
+      'Tugas paralel berbagi satu interval tahap; entri berulang dihitung terpisah.',
+    overdue: 'Tugas lewat tenggat',
+    overdueHint:
+      'Hanya tugas terbuka dengan tenggat yang dikonfigurasi yang diperingkatkan.',
+    empty: 'Tidak ada permintaan diajukan',
+    emptyHint: 'Coba rentang tanggal, proses, atau departemen lain.',
+    noStages: 'Tidak ada tahap persetujuan dalam rentang ini.',
+    noOverdue:
+      'Tidak ada tugas lewat tenggat dengan tenggat yang dikonfigurasi.',
+    generated: 'Diperbarui {{at}}',
+    submitted: 'Diajukan',
+    completed: 'Selesai',
+    returned: 'Permintaan dikembalikan',
+    average: 'Rata-rata waktu berlalu',
+    returnRate: 'Tingkat pengembalian',
+    stage: 'Tahap',
+    endedStages: 'Entri tahap berakhir',
+    averageStay: 'Durasi rata-rata',
+    waiting: 'Entri menunggu',
+    oldestWait: 'Penantian terlama saat ini',
+    number: 'Nomor permintaan',
+    noNumber: 'Permintaan tanpa nomor',
+    due: 'Tenggat',
+    overdueTime: 'Durasi keterlambatan',
+    hours: '{{value}} jam',
+    errors: {
+      denied: 'Anda tidak memiliki akses ke laporan ini dan rekaman bisnisnya.',
+      broad:
+        'Pilih rentang valid maksimal 93 hari. Persempit proses atau departemen jika permintaan terlalu banyak.',
+      failed: 'Laporan tidak dapat dimuat. Silakan coba lagi.',
+    },
+  },
+};

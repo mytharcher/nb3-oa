@@ -81,6 +81,19 @@ test('monthly approved request report enforces current row/field policies, origi
     '/reports/leave-monthly.xlsx?year=2026&month=1',
   );
   expect(response.status).toBe(200);
+  const koreanResponse = await reader.fetch(
+    '/reports/leave-monthly.xlsx?year=2026&month=1&locale=ko-KR',
+  );
+  expect(koreanResponse.status).toBe(200);
+  const koreanBook = new ExcelJS.Workbook();
+  await koreanBook.xlsx.load(await koreanResponse.arrayBuffer());
+  expect(koreanBook.worksheets[0].getCell('A1').value).toBe('연도');
+  const koreanRow = koreanBook.worksheets[0].getRow(2).values.slice(1);
+  expect([koreanRow[0], koreanRow[1], koreanRow[3], koreanRow[4]]).toEqual([
+    2026, 1, 2, 3,
+  ]);
+  // Dictionary labels are application data; absent Korean data follows its existing metadata fallback.
+  expect(koreanRow[2]).toEqual(expect.any(String));
   expect(response.headers.get('cache-control')).toBe('no-store');
   const book = new ExcelJS.Workbook();
   await book.xlsx.load(await response.arrayBuffer());

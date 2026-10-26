@@ -1,0 +1,145 @@
+export default {
+  reports: {
+    administrativeExportHint:
+      'La exportación incluye todos los registros que puedes leer, hasta 10 000 filas, no solo esta página. Los registros más grandes requieren una exportación separada organizada por tu administrador.',
+    administrativeColumns: {
+      number: 'Número de solicitud',
+      itemCode: 'Código de artículo',
+      requestedQuantity: 'Cantidad solicitada',
+      actualQuantity: 'Cantidad entregada',
+      recipient: 'Destinatario',
+      operator: 'Registrado por',
+      recordedAt: 'Fecha de registro',
+      sealName: 'Sello',
+      approvedCopies: 'Copias aprobadas',
+      actualCopies: 'Copias reales',
+      applicant: 'Solicitante',
+      sealedAt: 'Fecha de sellado',
+    },
+    noData: 'Aún no hay datos del informe',
+    title: 'Informes',
+    description:
+      'Consulta los informes autorizados actuales y exporta sus datos de origen.',
+    invalidFilters:
+      'Introduce un año entre 1900 y 9999 y un mes entre 1 y 12 o borra los filtros.',
+    monthlyForbidden:
+      'No tienes acceso al origen actual de solicitudes de ausencia. Contacta con un administrador para comprobar los permisos del origen.',
+    clearFilters: 'Borrar filtros',
+    monthlyEmpty: 'Aún no hay solicitudes de ausencia aprobadas',
+    monthlyEmptyHint:
+      'Solo se incluyen solicitudes aprobadas actualmente autorizadas. Comprueba el año y el mes o pide a un administrador que verifique los permisos del origen.',
+    sourceLimit:
+      'Este intervalo supera las 10 000 solicitudes aprobadas autorizadas. Selecciona un mes u otro año y vuelve a intentarlo.',
+    refresh: 'Actualizar',
+    exporting: 'Exportando…',
+    export: 'Exportar Excel',
+    exportFailed:
+      'La exportación ha fallado. Comprueba los permisos o los filtros y vuelve a intentarlo.',
+    retry: 'Reintentar',
+    forbidden: 'No tienes permiso para leer este origen de informe.',
+    failed: 'No se ha podido cargar este informe. Vuelve a intentarlo.',
+    empty: 'No hay registros coincidentes.',
+    total: '{{count}} registros',
+    generatedAt: 'Generado {{value}}',
+    previous: 'Anterior',
+    next: 'Siguiente',
+    basisPoints: '{{value}} pb',
+    capacityNotice:
+      'La capacidad sin inicializar no se puede utilizar. Las sustituciones bloqueadas requieren resolución empresarial y nunca añaden capacidad disponible.',
+    states: {
+      activePendingSeal: 'Activo, sellado pendiente',
+      active: 'Activo',
+      uninitialized: 'Sin inicializar',
+      blocked: 'Sustitución bloqueada',
+      ready: 'Inicializado',
+      terminated: 'Terminado',
+      expired: 'Caducado',
+      current: 'Sin caducar',
+      unpaid: 'Sin pagar',
+      partial: 'Pagado parcialmente',
+      paid: 'Pagado',
+      overpaid: 'Pagado en exceso',
+    },
+    filters: {
+      month: 'Mes de inicio (1–12, opcional)',
+      position: 'Puesto',
+      positionFailed: 'No se han podido cargar las opciones de puestos.',
+      positionEmpty: 'No hay puestos coincidentes.',
+      endsBefore: 'Finaliza el o antes del',
+      department: 'Departamento',
+      year: 'Año',
+      search: 'Buscar número de contrato',
+      status: 'Estado del contrato',
+      statusHint: 'activo / terminado',
+    },
+    datasets: {
+      'supply-ledger': {
+        title: 'Informe de registro de material',
+        description:
+          'Material entregado dentro de tu acceso actual al registro.',
+      },
+      'seal-ledger': {
+        title: 'Informe de registro de sellos',
+        description:
+          'Sellados registrados dentro de tu acceso actual al registro y a las solicitudes.',
+      },
+      'leave-monthly': {
+        title: 'Solicitudes mensuales de ausencia',
+        description:
+          'Días originales solicitados y aprobados por mes de inicio, antes de cancelaciones; no representa el uso real de asistencia.',
+      },
+      'budget-balances': {
+        title: 'Saldos presupuestarios',
+        description:
+          'Saldos presupuestarios anuales por departamento y partida.',
+      },
+      'contract-ledger': {
+        title: 'Registro de contratos',
+        description:
+          'Fechas de vencimiento inmutables actuales y progreso verificado de liquidación según los permisos de registro y visualización ordinaria.',
+      },
+      'headcount-balances': {
+        title: 'Saldos de plantilla',
+        description:
+          'Saldos de capacidad anual autorizada por departamento y puesto.',
+      },
+    },
+    fields: {
+      departmentName: 'Departamento',
+      positionName: 'Puesto',
+      subjectName: 'Partida presupuestaria',
+      month: 'Mes de inicio',
+      leaveType: 'Tipo de ausencia',
+      approvedRequestCount: 'Solicitudes aprobadas',
+      approvedRequestedDays: 'Días originales solicitados aprobados',
+      startsOn: 'Comienza el',
+      endsOn: 'Finaliza el',
+      asOf: 'A fecha de (calendario de empresa)',
+      expiryState: 'Estado de vencimiento',
+      paymentState: 'Progreso del pago',
+      paidBasisPoints: 'Pagado (puntos básicos; 10000 = 100 %)',
+      capacityState: 'Estado de capacidad',
+      departmentId: 'Identificador de departamento',
+      positionId: 'Identificador de puesto',
+      year: 'Año',
+      subject: 'Sujeto',
+      allocatedCents: 'Asignado (CNY)',
+      heldCents: 'Reservado (CNY)',
+      usedCents: 'Utilizado (CNY)',
+      availableCents: 'Disponible (CNY)',
+      number: 'Número de contrato',
+      status: 'Estado',
+      amountCents: 'Importe (CNY)',
+      paidCents: 'Pagado (CNY)',
+      limit: 'Límite',
+      initialized: 'Inicializado',
+      used: 'Utilizado',
+      pending: 'Pendiente',
+      allocated: 'Asignado',
+      replacementPending: 'Sustitución pendiente',
+      replacementAllocated: 'Sustitución asignada',
+      replacementBlocked: 'Sustitución bloqueada',
+      available: 'Disponible',
+    },
+  },
+};

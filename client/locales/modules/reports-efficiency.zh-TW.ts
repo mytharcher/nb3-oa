@@ -1,0 +1,35 @@
+export default {
+  exported: 'Excel 下載已開始。',
+  title: '請假決策任務自然耗時',
+  description:
+    '僅統計已完成請假決策任務從建立至關閉的自然毫秒，包含等待和歷史重提，按原申請開始月份歸集；不代表工作時、SLA、退回率或整流程耗時。',
+  year: '開始年份',
+  month: '開始月份（可選）',
+  clear: '清除篩選',
+  export: '匯出 Excel',
+  exporting: '正在匯出…',
+  refresh: '重新整理',
+  selectYear: '選擇原申請開始年份以載入報表。',
+  invalid: '請輸入1900至9998的年份，月份可留空或輸入1至12。',
+  forbidden: '目前請假記錄或欄位權限不允許查看此報表，請聯絡管理員。',
+  precondition:
+    '來源數量上限或任務時間校驗未通過，請縮小年/月範圍，或聯絡管理員檢查來源時間。',
+  failed: '報表載入失敗，請重試。',
+  retry: '重試',
+  exportFailed: 'Excel 匯出失敗，請重試。',
+  empty: '暫無已完成決策任務',
+  noResults: '該月份沒有匹配任務',
+  emptyHint:
+    '僅統計目前可讀請假申請中的已完成決策任務，可選擇其他開始年份或月份。',
+  total: '共 {{count}} 個環節分組',
+  generatedAt: '生成於 {{value}}',
+  previous: '上一頁',
+  next: '下一頁',
+  fields: {
+    stage: '環節',
+    completedTaskCount: '已完成決策任務數',
+    totalElapsedMs: '自然總耗時毫秒',
+    averageElapsedMs: '自然平均耗時毫秒',
+  },
+  stages: { manager: '直屬上層', head: '部門負責人', hr: '人力資源' },
+};

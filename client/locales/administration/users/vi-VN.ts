@@ -1,0 +1,215 @@
+import type { LocaleResource } from '@nocobase/i18n';
+
+const enUS = {
+  'common.close': 'Đóng',
+  nav: { users: 'Quản lý người dùng' },
+  assignment: {
+    saved: 'Đã cập nhật quyền cho "{{name}}"',
+    inspect: 'Kiểm tra quyền có hiệu lực',
+    keepEditing: 'Tiếp tục chỉnh sửa',
+    discardChanges: 'Bỏ thay đổi',
+    showMore: 'Hiển thị thêm',
+    title: 'Lượt gán quyền',
+    description:
+      'Quản lý quyền được gán trực tiếp cho người dùng này. Thay đổi áp dụng khi lưu.',
+    search: 'Tìm tên hoặc mô tả',
+    selectedOnly: 'Chỉ mục đã chọn',
+    selected: 'Đã chọn {{count}}',
+    changes: 'Đã thêm {{added}}, đã gỡ {{removed}}',
+    noChanges: 'Không có thay đổi',
+    empty: 'Không có tùy chọn phù hợp',
+    protected: 'Lượt gán này được bảo vệ và không thể thay đổi tại đây',
+    failed: 'Không thể lưu. Vui lòng thử lại.',
+    discard: 'Bỏ thay đổi chưa lưu?',
+  },
+  sessions: {
+    title: 'Thu hồi phiên của "{{name}}"?',
+    description: 'Người dùng cần đăng nhập lại trên mọi thiết bị.',
+    confirm: 'Thu hồi',
+    success: 'Đã thu hồi phiên của "{{name}}"',
+  },
+  page: {
+    noMatches: 'Không có người dùng khớp bộ lọc.',
+    clearFilters: 'Xóa bộ lọc',
+    emptyDescription:
+      'Tạo người dùng tại đây hoặc yêu cầu quản trị viên thêm tài khoản.',
+    retry: 'Thử lại',
+    loading: 'Đang tải',
+    title: 'Người dùng',
+    description: 'Quản lý tài khoản, lượt gán quyền và phiên đang hoạt động.',
+    add: 'Thêm người dùng',
+    search: 'Tìm tên, tên đăng nhập hoặc email',
+    allStatuses: 'Tất cả trạng thái',
+    allRoles: 'Tất cả bộ quyền',
+    enabled: 'Đang hoạt động',
+    disabled: 'Đã đóng băng',
+    noUsers: 'Không tìm thấy người dùng.',
+    total: '{{count}} người dùng',
+    previous: 'Trước',
+    next: 'Tiếp',
+    selectRole: 'Chọn bộ quyền',
+    roles: 'Bộ quyền',
+    systemAdministrator: 'Quản trị viên hệ thống',
+    noDirectRoles: 'Chưa được gán trực tiếp',
+    protectedRole: 'Lượt gán được bảo vệ',
+    authenticatedDefaultAccess:
+      'Chỉ hiển thị lượt gán trực tiếp. Quyền nhận qua tất cả người dùng đã đăng nhập, đội nhóm hoặc chủ thể khác không được liệt kê.',
+    columns: { user: 'Người dùng', status: 'Trạng thái', actions: 'Thao tác' },
+    actions: {
+      menuFor: 'Thao tác cho {{name}}',
+      edit: 'Chỉnh sửa',
+      resetPassword: 'Đặt lại mật khẩu',
+      revokeSessions: 'Thu hồi phiên',
+      enable: 'Kích hoạt tài khoản',
+      delete: 'Xóa',
+      disable: 'Đóng băng tài khoản',
+    },
+  },
+  form: {
+    roleRequired: 'Chọn giá trị cho {{name}}.',
+    nameRequired: 'Nhập tên.',
+    emailInvalid: 'Nhập địa chỉ email hợp lệ.',
+    passwordRequired: 'Nhập mật khẩu.',
+    saved: 'Đã lưu người dùng "{{name}}"',
+    addTitle: 'Thêm người dùng',
+    editTitle: 'Chỉnh sửa người dùng',
+    addDescription: 'Tạo tài khoản và gán quyền.',
+    editDescription: 'Cập nhật hồ sơ tài khoản.',
+    name: 'Tên',
+    username: 'Tên đăng nhập',
+    email: 'Email',
+    password: 'Mật khẩu',
+    cancel: 'Hủy',
+    save: 'Lưu',
+    create: 'Tạo',
+  },
+  password: {
+    saved: 'Đặt lại mật khẩu cho "{{name}}"',
+    title: 'Đặt lại mật khẩu',
+    description: 'Đặt mật khẩu mới cho {{name}}. Tất cả phiên sẽ bị thu hồi.',
+    newPassword: 'Mật khẩu mới',
+    submit: 'Đặt lại mật khẩu',
+  },
+  state: {
+    enabled: 'Đã kích hoạt tài khoản "{{name}}"',
+    disabled: 'Đã đóng băng tài khoản "{{name}}"',
+    enableTitle: 'Kích hoạt tài khoản "{{name}}"?',
+    disableTitle: 'Đóng băng tài khoản "{{name}}"?',
+    enableDescription:
+      'Hạn chế đăng nhập của {{name}} sẽ được gỡ. Quy tắc truy cập hiện có vẫn áp dụng.',
+    disableDescription:
+      '{{name}} sẽ bị chặn đăng nhập và đăng xuất khỏi mọi thiết bị. Cấu hình phân quyền được giữ lại; đóng băng không đồng nghĩa với nghỉ việc.',
+    enable: 'Kích hoạt tài khoản',
+    disable: 'Đóng băng tài khoản',
+  },
+  deletion: {
+    title: 'Xóa người dùng "{{name}}"?',
+    description:
+      'Tất cả phiên và khóa API của {{name}} sẽ bị thu hồi. Hoạt động lịch sử được giữ lại. Không thể hoàn tác thao tác này.',
+    success: 'Đã xóa người dùng "{{name}}"',
+  },
+  invite: {
+    open: 'Mời người dùng',
+    title: 'Mời người dùng',
+    description:
+      'Mỗi địa chỉ chưa có tài khoản sẽ nhận email chứa liên kết tạo tài khoản.',
+    emails: 'Địa chỉ email',
+    emailsHint:
+      'Mỗi dòng một địa chỉ hoặc ngăn cách bằng dấu phẩy hay khoảng trắng. Tối đa 50 địa chỉ mỗi lần.',
+    emailsRequired: 'Nhập ít nhất một địa chỉ email.',
+    emailsInvalid: 'Địa chỉ email không hợp lệ: {{emails}}',
+    emailsTooMany: 'Mỗi lần chỉ mời tối đa 50 địa chỉ.',
+    roles: 'Quyền sau khi tham gia',
+    send: 'Gửi lời mời',
+    sent: 'Đã gửi lời mời.',
+    done: 'Hoàn tất',
+    link: 'Liên kết mời',
+    copy: 'Sao chép liên kết',
+    copied: 'Đã sao chép',
+    copyFailed: 'Không thể sao chép liên kết.',
+    outcome: {
+      sent: 'Đã gửi email',
+      notSent: 'Chưa gửi email: sao chép liên kết bên dưới',
+      existingUser: 'Đã có tài khoản',
+    },
+  },
+  invitations: {
+    title: 'Lời mời đang chờ',
+    empty: 'Không có lời mời đang chờ.',
+    email: 'Email',
+    invitedBy: 'Người mời',
+    expires: 'Hết hạn',
+    status: 'Trạng thái',
+    pending: 'Đang chờ',
+    expired: 'Đã hết hạn',
+    notSent: 'Chưa gửi',
+    resend: 'Gửi lại',
+    revoke: 'Thu hồi',
+    actionsFor: 'Thao tác cho lời mời đến {{email}}',
+    resent: 'Đã gửi lại lời mời.',
+    revoked: 'Đã thu hồi lời mời.',
+    revokeTitle: 'Thu hồi lời mời cho "{{email}}"?',
+    revokeDescription: 'Liên kết đã gửi đến {{email}} sẽ không còn hoạt động.',
+  },
+  accept: {
+    title: 'Chấp nhận lời mời',
+    description: '{{inviter}} đã mời bạn.',
+    summary: 'Bạn cũng sẽ tham gia: {{items}}',
+    loading: 'Đang tải lời mời…',
+    email: 'Email',
+    name: 'Tên',
+    password: 'Mật khẩu',
+    nameRequired: 'Nhập tên của bạn.',
+    passwordTooShort: 'Mật khẩu cần ít nhất {{min}} ký tự.',
+    submit: 'Tạo tài khoản và tham gia',
+    submitting: 'Đang tham gia…',
+    signedIn:
+      'Bạn đang đăng nhập dưới tên {{name}}. Hãy đăng xuất để chấp nhận lời mời bằng tài khoản mới.',
+    signOut: 'Đăng xuất',
+    signOutFailed: 'Không thể đăng xuất.',
+    existingAccount:
+      'Địa chỉ này đã có tài khoản. Hãy đăng nhập bằng tài khoản đó để tiếp tục.',
+    goToLogin: 'Đến trang đăng nhập',
+    errors: {
+      notFound: 'Liên kết mời này không hợp lệ.',
+      expired: 'Lời mời này đã hết hạn. Hãy yêu cầu lời mời mới.',
+      accepted: 'Lời mời này đã được chấp nhận.',
+      revoked: 'Lời mời này đã bị thu hồi.',
+      password: 'Mật khẩu không đáp ứng yêu cầu.',
+      accountConflict: 'Không thể tạo tài khoản bằng địa chỉ này.',
+      failed: 'Đã xảy ra lỗi. Vui lòng thử lại.',
+    },
+  },
+  errors: {
+    loadFailed: 'Không thể tải người dùng. Vui lòng thử lại.',
+    loadForbidden:
+      'Bạn không còn quyền xem người dùng. Hãy liên hệ quản trị viên.',
+    loadNotFound:
+      'Quản lý người dùng không khả dụng. Hãy quay lại bàn làm việc.',
+    SELF_DELETE_NOT_ALLOWED: 'Bạn không thể xóa tài khoản của chính mình.',
+    LAST_ASSIGNMENT:
+      'Đây là người dùng cuối cùng giữ bộ quyền bắt buộc phải có người được gán.',
+    USER_HAS_APPS:
+      'Chuyển giao hoặc xóa ứng dụng của người dùng trước khi xóa người dùng.',
+    HUB_ADMIN_REQUIRED: 'Chỉ quản trị viên nền tảng mới có thể xóa người dùng.',
+    PROTECTED_ROLE_ASSIGNMENT:
+      'Không thể gán hoặc gỡ vai trò này từ Quản lý người dùng.',
+    USER_NOT_FOUND: 'Người dùng không còn tồn tại.',
+    USER_DELETION_NOT_CONFIGURED:
+      'Ứng dụng này chưa cấu hình chức năng xóa người dùng.',
+    USER_EMAIL_CONFLICT: 'Đã tồn tại người dùng có email này.',
+    USER_USERNAME_CONFLICT: 'Đã tồn tại người dùng có tên đăng nhập này.',
+    USER_IDENTITY_CONFLICT:
+      'Đã tồn tại người dùng có email hoặc tên đăng nhập này.',
+    PASSWORD_TOO_SHORT: 'Mật khẩu quá ngắn.',
+    PASSWORD_TOO_LONG: 'Mật khẩu quá dài.',
+    operationFailed: 'Thao tác người dùng thất bại.',
+  },
+};
+
+/**
+ * English is the source of truth for this plugin's locale shape.
+ */
+export type UsersResource = LocaleResource<typeof enUS>;
+
+export default enUS;

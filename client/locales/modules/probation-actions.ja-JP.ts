@@ -1,0 +1,70 @@
+export default {
+  actionForm: {
+    limit: '値が長すぎます。',
+    evaluation: '上司評価',
+    conclusion: '結論',
+    regular: '本採用を確認',
+    deferred: '試用期間を延長',
+    declined: '本採用を見送り',
+    deferredTo: '延長後の試用期間終了日',
+    dateRequired:
+      '提出時の試用期間終了日より後の有効な日付を選択してください。',
+    grade: '等級',
+    baseSalary: '基本給',
+    salaryInvalid: '整数部14桁、小数部2桁以内で金額を入力してください。',
+    privateDenied: '報酬を閲覧できません。人事承認を確定できません。',
+    approveConsequence:
+      '提示された承認を記録しました。最終承認により承認済みの雇用結果を適用します。',
+
+    uncertain:
+      '結果が未確認です。入力を保持し、同じ操作を再試行してください。内容を変更したリクエストを送信しないでください。',
+    replay: '同じ操作を再試行',
+    title: '試用期間申請「{{name}}」を{{action}}',
+    unavailable:
+      'この操作は利用できなくなりました。最新の試用期間申請を確認してください。',
+    unsupported: 'この操作にはこのページで未対応の入力契約が必要です。',
+    comment: '意見または理由',
+    person: '受信者',
+    mode: '承認者の位置',
+    place: '承認枠',
+    returnTarget: '差し戻し先',
+    confirm: '{{action}}を確認',
+    confirmDescription: '「{{name}}」への操作を確認します。{{consequence}}',
+    releaseConsequence:
+      '未処理承認タスクを解放します。ここでは取り消せません。',
+    returnConsequence: '修正のため申請を差し戻し、現在の未処理作業を閉じます。',
+    submitConsequence: '提出内容を固定して承認へ進みます。',
+    genericConsequence:
+      'サーバーが提示された操作を選択した承認対象に適用します。',
+    latest: '最新バージョンを読む',
+    conflict:
+      '試用期間申請が変更されました。入力は保持されています。最新バージョンを読み、確認して再確認してください。',
+    completed: '「{{name}}」の{{action}}が完了しました',
+    committed:
+      '操作が完了しました。次の操作前に試用期間申請を更新してください。',
+    before: '前',
+    after: '後',
+    alongside: '並行',
+    revision: '申請者による訂正',
+    required: 'この項目を入力してください。',
+    labels: {
+      approve: '承認',
+      reject: '却下',
+      return: '訂正のため差し戻す',
+      returnTo: '訂正のため差し戻す',
+      submit: '承認に提出',
+      withdraw: '取り下げ',
+      terminate: '終了',
+      claim: '引き受け',
+      release: '解放',
+      transfer: '転送',
+      addSigner: '承認者を追加',
+      cc: '共有',
+      appoint: '指名',
+      reassign: '再割り当て',
+      comment: 'コメント',
+      read: '既読にする',
+      urge: 'リマインド',
+    },
+  },
+};

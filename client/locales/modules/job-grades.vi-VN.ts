@@ -1,0 +1,87 @@
+export default {
+  jobGrades: {
+    authz: {
+      resource: 'Bảng ngạch lương',
+      view: 'Xem lịch sử công bố',
+      viewSalary: 'Đọc khoảng lương',
+      manage: 'Công bố bảng ngạch lương',
+    },
+
+    title: 'Bảng ngạch lương',
+    description:
+      'Kiểm tra lịch sử công bố bất biến và công bố khoảng lương đầy đủ.',
+    publish: 'Công bố phiên bản mới',
+    publishing: 'Đang công bố…',
+    search: 'Tìm số phiên bản chính xác',
+    empty: 'Chưa công bố bảng lương',
+    emptyDescription: 'Công bố bảng ngạch lương đầy đủ đầu tiên.',
+    emptyReadonly: 'Nhờ nhân sự công bố bảng ngạch lương đầu tiên.',
+    noMatches: 'Không có phiên bản phù hợp',
+    noMatchesDescription: 'Xóa tìm kiếm phiên bản để xem lịch sử công bố.',
+    replacement:
+      'Công bố thay thế toàn bộ bảng hiện tại. Chứng từ đã gửi trước giữ phiên bản của chúng.',
+    privateDenied:
+      'Bạn không thể đọc khoảng lương. Nhờ quản trị viên cấp quyền.',
+    publishDenied:
+      'Bạn không thể công bố bảng ngạch lương. Nhờ quản trị viên cấp quyền.',
+    unknown: 'Chưa xác nhận kết quả công bố. Thử lại lần công bố gốc.',
+    conflict: 'Bảng hiện tại đã thay đổi. Tải bảng mới nhất trước khi công bố.',
+    inactive: 'Cấp bậc không khả dụng. Gỡ hoặc chọn cấp bậc đang hoạt động.',
+    success: 'Đã công bố bảng lương “Phiên bản {{version}}”',
+    version: 'Phiên bản {{version}}',
+    versionColumn: 'Phiên bản',
+    publisher: 'Người công bố',
+    publishedAt: 'Đăng lúc',
+    refresh: 'Làm mới',
+    retry: 'Thử lại',
+    retryPublication: 'Thử lại lần công bố gốc',
+    clear: 'Xóa bộ lọc',
+    loading: 'Đang tải bảng ngạch lương',
+    view: 'Xem phiên bản',
+    rowActions: 'Thao tác cho phiên bản {{version}}',
+    grade: 'Cấp bậc',
+    gradeCode: 'Mã cấp bậc',
+    gradeTitle: 'Tên cấp bậc',
+    rank: 'Thứ hạng cố định',
+    minimum: 'Tối thiểu',
+    maximum: 'Tối đa',
+    reason: 'Lý do công bố',
+    addGrade: 'Thêm cấp bậc',
+    remove: 'Gỡ cấp bậc {{index}}',
+    selectGrade: 'Chọn cấp bậc đang hoạt động',
+    removeDescription:
+      'Gỡ dòng chỉ thay đổi bảng mới đề xuất. Phiên bản lịch sử giữ nguyên.',
+    cancel: 'Hủy',
+    loadLatest: 'Tải bảng mới nhất',
+    currentVersion: 'Phiên bản nguồn: {{version}}',
+    notFound: 'Bảng ngạch lương không khả dụng. Quay lại lịch sử công bố.',
+    failed: 'Không thể tải bảng ngạch lương. Vui lòng thử lại.',
+    writeFailed: 'Công bố bị từ chối. Kiểm tra trường và thử lại.',
+    storageFailure:
+      'Không thể lưu an toàn lần công bố gốc trong thẻ này. Công bố bị chặn; kiểm tra bộ nhớ trình duyệt và tải lại.',
+    unsavedTitle: 'Bỏ thay đổi bảng lương?',
+    unsavedDescription: 'Thay đổi chưa công bố của bạn sẽ bị mất.',
+    discard: 'Bỏ thay đổi',
+    stay: 'Tiếp tục chỉnh sửa',
+    replaceTitle: 'Thay bảng đề xuất?',
+    replaceDescription:
+      'Tải bảng mới nhất sẽ bỏ đề xuất này và bắt đầu từ bảng hiện tại đầy đủ.',
+    confirmReplace: 'Thay thế và tải mới nhất',
+    noGrades:
+      'Không có cấp bậc đang hoạt động. Nhờ quản trị viên tổ chức cấu hình cấp bậc.',
+    reasonHint: 'Giải thích việc công bố toàn bộ bảng (tối đa 2.000 ký tự).',
+    immutable:
+      'Phiên bản đã công bố bất biến. Định danh và khoảng cấp bậc được cố định.',
+    validation: {
+      required: 'Trường này là bắt buộc.',
+      amount:
+        'Nhập số tiền không âm tối đa hai chữ số thập phân trong phạm vi hỗ trợ.',
+      range: 'Tối đa phải lớn hơn hoặc bằng tối thiểu.',
+      duplicate: 'Mỗi cấp bậc chỉ được xuất hiện một lần.',
+      inactive: 'Cấp bậc không khả dụng. Gỡ hoặc chọn cấp bậc đang hoạt động.',
+      nonempty: 'Bao gồm ít nhất một cấp bậc đang hoạt động.',
+      reasonLength: 'Dùng tối đa 2.000 ký tự.',
+      server: 'Kiểm tra trường này và thử lại.',
+    },
+  },
+};

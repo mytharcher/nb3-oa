@@ -1,0 +1,110 @@
+export default {
+  budgets: {
+    create: 'Tạo',
+
+    title: 'Quản lý ngân sách',
+    description:
+      'Tài chính ghi ngân sách năm và thay đổi thủ công có kiểm toán; tiền giữ và đã dùng đến từ chứng từ nghiệp vụ.',
+    new: 'Ngân sách năm mới',
+    newDescription:
+      'Tạo một tài khoản ngân sách cho phòng ban, năm và khoản mục.',
+    adjustTitle: 'Điều chỉnh ngân sách',
+    adjustDescription:
+      'Ghi thay đổi phân bổ thủ công kèm lý do. Khoản giữ và chi tiêu hiện có được giữ trong sổ.',
+    detail: 'Tài khoản ngân sách',
+    detailDescription: 'Kiểm tra số dư và thay đổi ngân sách bất biến.',
+    accountTitle: '{{department}} · {{year}} · {{subject}}',
+    department: 'Phòng ban',
+    year: 'Năm',
+    subject: 'Chủ thể',
+    allocatedCents: 'Đã phân bổ',
+    heldCents: 'Đã giữ',
+    usedCents: 'Đã dùng',
+    availableCents: 'Khả dụng',
+    amount: 'Phân bổ năm',
+    changeAmount: 'Thay đổi phân bổ',
+    amountHint: 'Đơn vị tiền tệ, số dương, tối đa hai chữ số thập phân.',
+    deltaHint:
+      'Số dương thêm tiền; số âm giảm tiền. Không thể giảm tiền đã giữ và đã dùng.',
+    reason: 'Lý do',
+    ledger: 'Thay đổi ngân sách',
+    kind: 'Loại thay đổi',
+    at: 'Thời gian',
+    reference: 'Nguồn',
+    actor: 'Người thao tác',
+    allocatedDelta: 'Thay đổi phân bổ',
+    heldDelta: 'Thay đổi khoản giữ',
+    usedDelta: 'Thay đổi sử dụng',
+    allSubjects: 'Tất cả khoản mục',
+    selectSubject: 'Chọn chủ thể',
+    yearPlaceholder: 'Lọc theo năm',
+    refresh: 'Làm mới',
+    clear: 'Xóa bộ lọc',
+    cancel: 'Hủy',
+    save: 'Lưu',
+    adjust: 'Điều chỉnh',
+    view: 'Xem',
+    retry: 'Thử lại',
+    loading: 'Đang tải',
+    rowActions: 'Thao tác cho {{name}}',
+    saved: 'Đã lưu ngân sách cho "{{name}}"',
+    currentAccount:
+      '{{department}} · {{year}} · {{subject}} · phân bổ {{amount}}',
+    openExisting: 'Mở tài khoản hiện có',
+    required: 'Điền trường bắt buộc này.',
+    invalidYear: 'Nhập năm từ 1900 đến 9999.',
+    invalidAmount:
+      'Nhập số tiền khác không, tối đa hai chữ số thập phân trong giới hạn xu nguyên an toàn.',
+    positiveAmount:
+      'Nhập số tiền dương, tối đa hai chữ số thập phân trong giới hạn xu nguyên an toàn.',
+    longReason: 'Lý do không quá 4.000 ký tự.',
+    invalidField: 'Kiểm tra trường này và thử lại.',
+    kinds: {
+      consume: 'Quyết toán một phần',
+      allocate: 'Phân bổ',
+      hold: 'Giữ khoản',
+      release: 'Đã giải phóng',
+      settle: 'Quyết toán',
+      transferOut: 'Chuyển ra',
+      transferIn: 'Chuyển vào',
+    },
+    empty: {
+      accountsTitle: 'Chưa có ngân sách',
+      accountsDescription: 'Tạo phân bổ năm để bật kiểm soát ngân sách.',
+      readonlyTitle: 'Chưa có ngân sách',
+      readonlyDescription: 'Nhờ tài chính nhập ngân sách năm.',
+      filteredTitle: 'Không có ngân sách phù hợp',
+      filteredDescription: 'Xóa hoặc thay đổi bộ lọc để tìm tài khoản.',
+      ledgerTitle: 'Chưa có thay đổi',
+      ledgerDescription:
+        'Thay đổi ngân sách hiển thị tại đây khi được ghi nhận.',
+    },
+    error: {
+      failed:
+        'Không thể tải hoặc lưu ngân sách. Thử lại với cùng nội dung nhập.',
+      forbidden: 'Bạn không có quyền ngân sách. Liên hệ quản trị viên.',
+      missing: 'Ngân sách này không còn tồn tại. Quay lại danh sách.',
+      BUDGET_NOT_FOUND: 'Ngân sách này không còn tồn tại. Quay lại danh sách.',
+      BUDGET_ALREADY_EXISTS:
+        'Tài khoản này đã có ngân sách. Mở và dùng Điều chỉnh.',
+      BUDGET_IDEMPOTENCY_CONFLICT:
+        'Mã yêu cầu này đã xác định thay đổi khác. Kiểm tra nội dung và lưu lại.',
+      BUDGET_INSUFFICIENT:
+        'Điều chỉnh sẽ làm ngân sách khả dụng quá thấp. Giảm mức cắt giảm.',
+      BUDGET_INVALID_DEPARTMENT: 'Chọn phòng ban đang hoạt động.',
+      BUDGET_INVALID_SUBJECT: 'Chọn khoản mục ngân sách đang hoạt động.',
+      BUDGET_INVALID_AMOUNT:
+        'Kiểm tra số tiền và dùng tối đa hai chữ số thập phân.',
+      BUDGET_INVALID_COMMAND: 'Kiểm tra lý do bắt buộc và chi tiết yêu cầu.',
+      BUDGET_INVALID_ACCOUNT: 'Kiểm tra phòng ban, năm và khoản mục.',
+      BUDGET_INVALID_PAGE: 'Kiểm tra trang và kích thước trang.',
+      invalid: 'Kiểm tra trường bắt buộc và sửa giá trị được đánh dấu.',
+    },
+    authz: {
+      title: 'Quản lý ngân sách',
+      read: 'Đọc tài khoản và thay đổi ngân sách',
+      update: 'Tạo ngân sách và ghi điều chỉnh thủ công',
+      permissionSet: 'Quản lý ngân sách tài chính',
+    },
+  },
+};
