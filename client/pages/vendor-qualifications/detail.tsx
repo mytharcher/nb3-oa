@@ -8,7 +8,6 @@ import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { offeredActions } from '@nocobase/app-plugin-approval/client';
 import {
-  Link,
   Outlet,
   useLocation,
   useNavigate,
@@ -349,13 +348,6 @@ export default function QualificationDrawer() {
           </>
         )}
         {context && <Outlet context={context} />}
-        <Button
-          variant='outline'
-          nativeButton={false}
-          render={<Link to={{ pathname: '..', search: location.search }} />}
-        >
-          {t('vendorQualifications.common.cancel')}
-        </Button>
       </div>
     </RecordDetailDrawer>
   );

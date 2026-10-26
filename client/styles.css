@@ -397,14 +397,10 @@ body:has(
   padding-right: calc(var(--spacing) * 24);
 }
 
-/* Compact content can stay dense while the primary navigation remains comfortable.
-   The primitive's important icon-mode sizes still control the collapsed rail. */
-:root[data-theme='compact'] .app-navigation [data-slot='sidebar-menu-button'] {
-  height: calc(var(--spacing) * 12);
-  padding-inline: calc(var(--spacing) * 4);
-}
-:root[data-theme='compact'] .app-navigation [data-slot='sidebar-menu'] {
-  gap: calc(var(--spacing) * 1.5);
+/* NocoCRM dd523703 uses a 0.225rem compact spacing unit. Scope that reference density
+   to navigation so business pages retain the OA compact preset. */
+:root[data-theme='compact'] .app-navigation {
+  --spacing: 0.225rem;
 }
 
 /* Brand tint belongs to the application shell, independent of each page's content. */
@@ -630,7 +626,6 @@ body:has(
 
 /* Nested items keep a comfortable rhythm independently of compact content. */
 .app-navigation [data-slot='sidebar-menu-sub-button'] {
-  height: calc(var(--spacing) * 10);
   padding-inline: calc(var(--spacing) * 3);
 }
 .app-navigation [data-slot='sidebar-menu-sub'] {

@@ -57,6 +57,13 @@ test('preferences are private, migrate once, and preserve concurrent recent sele
       )
     ).status,
   ).toBe(400);
+  const functional = ['recruitment', 'expensePlan', 'budget'];
+  const saved = await first.fetch(
+    '/requestPreferences',
+    write('PUT', { favorites: functional }),
+  );
+  expect(saved.status).toBe(200);
+  expect((await saved.json()).data.favorites).toEqual(functional);
   const results = await Promise.all(
     ['leave', 'loan', 'travel'].map((key) =>
       first.fetch('/requestPreferences/recent', write('POST', { key })),

@@ -21,6 +21,9 @@ export const employeeRequestKeys = [
   'vendor',
   'general',
   'training',
+  'recruitment',
+  'expensePlan',
+  'budget',
 ] as const;
 export type EmployeeRequestKey = (typeof employeeRequestKeys)[number];
 export interface RequestPreferences {

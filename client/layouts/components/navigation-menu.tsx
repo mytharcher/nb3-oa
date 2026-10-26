@@ -19,6 +19,7 @@ import {
 import {
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuAction,
   SidebarMenuButton,
@@ -40,6 +41,10 @@ import {
 const SELECTED =
   'data-active:bg-sidebar-primary data-active:text-sidebar-primary-foreground data-active:hover:bg-sidebar-primary data-active:hover:text-sidebar-primary-foreground';
 
+// Application row height adds one spacing unit to the NocoCRM reference; primitives stay unchanged.
+const ROW = 'h-9.5';
+const MENU_ROWS = 'gap-0.5';
+
 /**
  * A permission-filtered route tree as the sidebar's menu, drawn with shadcn's Sidebar primitives. Groups and parents
  * with a page are collapsible sub-menus. In the desktop icon mode the labels hide, every entry carries its label as a
@@ -54,21 +59,40 @@ export function NavigationMenu({
   readonly label: string;
   readonly selectedKey: string | undefined;
 }): ReactElement {
+  // As in NocoCRM, plain entries share a group and each static section owns its own standard group.
+  const runs: (RouteNavigationItem | RouteNavigationItem[])[] = [];
+  for (const item of items) {
+    if (isNavigationSection(item)) runs.push(item);
+    else if (Array.isArray(runs.at(-1)))
+      (runs.at(-1) as RouteNavigationItem[]).push(item);
+    else runs.push([item]);
+  }
   return (
     <nav aria-label={label}>
-      <SidebarGroup>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {items.map((item) => (
-              <NavigationItem
-                key={routeKey(item.route)}
-                item={item}
-                selectedKey={selectedKey}
-              />
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      {runs.map((run) =>
+        Array.isArray(run) ? (
+          <SidebarGroup key={routeKey(run[0].route)}>
+            <SidebarGroupContent>
+              <SidebarMenu className={MENU_ROWS}>
+                {run.map((item) => (
+                  <NavigationItem
+                    key={routeKey(item.route)}
+                    item={item}
+                    selectedKey={selectedKey}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : (
+          <NavigationSection
+            key={routeKey(run.route)}
+            item={run}
+            selectedKey={selectedKey}
+            topLevel
+          />
+        ),
+      )}
     </nav>
   );
 }
@@ -120,6 +144,7 @@ function NavigationItem({
         item={item}
         selectedKey={selectedKey}
         inPopover={inPopover}
+        topLevel
         onNavigate={navigate}
       />
     );
@@ -152,7 +177,7 @@ function NavigationItem({
           render={link}
           isActive={isSelected}
           tooltip={tooltip}
-          className={`${SELECTED}${hasMenuBadge(item) ? ' pr-12' : ''}`}
+          className={`${ROW} ${SELECTED}${hasMenuBadge(item) ? ' pr-12' : ''}`}
         >
           {Icon ? <Icon /> : null}
           <span>{label}</span>
@@ -174,7 +199,7 @@ function NavigationItem({
             render={link}
             isActive={isSelected}
             tooltip={tooltip}
-            className={SELECTED}
+            className={`${ROW} ${SELECTED}`}
           >
             {Icon ? <Icon /> : null}
             <span>{label}</span>
@@ -188,7 +213,11 @@ function NavigationItem({
           </SidebarMenuAction>
         </>
       ) : (
-        <SidebarMenuButton render={<CollapsibleTrigger />} tooltip={tooltip}>
+        <SidebarMenuButton
+          render={<CollapsibleTrigger />}
+          tooltip={tooltip}
+          className={ROW}
+        >
           {Icon ? <Icon /> : null}
           <span>{label}</span>
           <ChevronRight className='ml-auto transition-transform group-data-panel-open/menu-button:rotate-90' />
@@ -252,7 +281,7 @@ function NavigationSubItem({
         <SidebarMenuSubButton
           render={link}
           isActive={isSelected}
-          className={`${SELECTED}${hasMenuBadge(item) ? ' pr-12' : ''}`}
+          className={`${ROW} ${SELECTED}${hasMenuBadge(item) ? ' pr-12' : ''}`}
         >
           {content}
         </SidebarMenuSubButton>
@@ -271,7 +300,7 @@ function NavigationSubItem({
           <SidebarMenuSubButton
             render={link}
             isActive={isSelected}
-            className={`${SELECTED} pr-8`}
+            className={`${ROW} ${SELECTED} pr-8`}
           >
             {content}
           </SidebarMenuSubButton>
@@ -284,7 +313,7 @@ function NavigationSubItem({
           </SidebarMenuAction>
         </>
       ) : (
-        <SidebarMenuSubButton render={<CollapsibleTrigger />}>
+        <SidebarMenuSubButton render={<CollapsibleTrigger />} className={ROW}>
           {Icon ? <Icon /> : null}
           <span>{label}</span>
           <ChevronRight className='ml-auto transition-transform in-data-panel-open:rotate-90' />
@@ -311,28 +340,31 @@ function NavigationSection({
   item,
   selectedKey,
   inPopover = false,
+  topLevel = false,
   onNavigate,
-}: ItemProps): ReactElement | null {
+}: ItemProps & { readonly topLevel?: boolean }): ReactElement | null {
   const label = useItemLabel(item);
   const labelId = useId();
   if (!item.children.length) return null;
-  return (
-    <SidebarMenuItem>
-      <div role='group' aria-labelledby={labelId} className='pt-2'>
-        <div
-          id={labelId}
-          className='px-2 pb-1 text-xs font-medium text-sidebar-foreground/60'
-        >
-          {label}
-        </div>
-        <SidebarMenu>
+  const content = (
+    <>
+      <SidebarGroupLabel
+        id={labelId}
+        className={
+          topLevel ? 'group-data-[collapsible=icon]:sr-only' : undefined
+        }
+      >
+        {label}
+      </SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu className={MENU_ROWS}>
           {item.children.map((child) =>
-            inPopover ? (
+            inPopover || topLevel ? (
               <NavigationItem
                 key={routeKey(child.route)}
                 item={child}
                 selectedKey={selectedKey}
-                inPopover
+                inPopover={inPopover}
                 onNavigate={onNavigate}
               />
             ) : (
@@ -345,6 +377,17 @@ function NavigationSection({
             ),
           )}
         </SidebarMenu>
+      </SidebarGroupContent>
+    </>
+  );
+  return topLevel && !inPopover ? (
+    <SidebarGroup role='group' aria-labelledby={labelId}>
+      {content}
+    </SidebarGroup>
+  ) : (
+    <SidebarMenuItem>
+      <div role='group' aria-labelledby={labelId} className='pt-2'>
+        {content}
       </div>
     </SidebarMenuItem>
   );

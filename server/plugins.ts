@@ -33,9 +33,9 @@ const serverPlugins: AppServerPlugins = defineServerPlugins([
   notificationProviders,
   file,
   scheduler,
+  taskCenter,
   approval,
   agents,
-  taskCenter,
 ]);
 
 export default serverPlugins;

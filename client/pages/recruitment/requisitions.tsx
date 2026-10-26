@@ -48,7 +48,7 @@ export default function Requisitions() {
       enableSorting: false,
       cell: ({ row }) => (
         <Link
-          className='underline'
+          className='font-medium hover:underline'
           to={{
             pathname: row.original.id,
             search: location.search,

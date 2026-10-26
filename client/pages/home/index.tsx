@@ -1,12 +1,13 @@
-import { FunctionalRequestLinks, PendingWork } from './role-workspaces.js';
-import { useRoleContext } from './role-workspace-data.js';
+import { CardViewAllLink } from '#components/card-view-all-link';
+import { PendingWork } from './role-workspaces.js';
+import { rolesOf, useRoleContext } from './role-workspace-data.js';
 import { TeamStatus } from './team-status.js';
 import { ApplicationRefreshButton } from '#components/application-refresh-button';
 import { PersonalCards } from './personal-cards.js';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { ArrowRight, ClipboardCheck, TriangleAlert } from 'lucide-react';
+import { ClipboardCheck, TriangleAlert } from 'lucide-react';
 import { FavoriteRequestActions } from '#components/request-actions';
 import { byUrgency, dueState } from './record-presentation.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -21,7 +22,6 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from '#components/ui/card';
 import {
   Empty,
@@ -351,7 +351,7 @@ function Workbench() {
     .filter(Boolean)
     .join(' · ');
   const settled = !pending.loading && !mine.loading;
-  // One welcome panel instead of two empty cards when there is nothing at all to show.
+  // Keep the pending welcome message while the mine card remains visible.
   const nothingYet =
     settled &&
     !pending.error &&
@@ -409,7 +409,7 @@ function Workbench() {
           {t('workbench.refreshing')}
         </p>
       ) : null}
-      <div className={nothingYet ? 'grid gap-4' : 'grid gap-4 lg:grid-cols-2'}>
+      <div className='grid gap-4 lg:grid-cols-2 lg:grid-rows-[auto_1fr]'>
         <PendingWork
           context={roles}
           pending={pendingRows}
@@ -421,63 +421,36 @@ function Workbench() {
           allClear={nothingYet}
           canSubmit={canSubmit}
         />
-        {nothingYet ? (
-          <div className='flex flex-wrap gap-2'>
-            <ListLink to='/approvals/mine' label={t('workbench.viewMine')} />
-            {(mine.meta?.counts.drafts ?? 0) > 0 ? (
-              <ListLink
-                to='/approvals/mine?category=drafts'
-                label={t('workbench.viewDraftsCount', {
-                  count: mine.meta?.counts.drafts,
-                })}
-              />
-            ) : null}
-          </div>
-        ) : (
-          <Card className='min-w-0'>
-            <CardHeader className='flex flex-wrap items-center justify-between gap-2'>
-              <CardTitle>
-                <h2>{t('workbench.mine')}</h2>
-              </CardTitle>
-              <Link
-                to='/approvals/mine'
-                className='inline-flex items-center gap-1 rounded-sm text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring'
-              >
-                {t('workbench.viewMine')}
-                <ArrowRight className='size-4' aria-hidden='true' />
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {mine.error ? (
-                <ErrorState context='query' error={mine.error} retry={retry} />
-              ) : recent.length ? (
-                <ul className='flex flex-col'>
-                  {recent.map((record) => (
-                    <WorkRow
-                      key={`${record.kind}:${record.id}`}
-                      record={record}
-                      now={now}
-                    />
-                  ))}
-                </ul>
-              ) : mine.loading ? (
-                <RowsSkeleton />
-              ) : (
-                <EmptyCard kind='Mine' canSubmit={canSubmit} />
-              )}
-            </CardContent>
-            {(mine.meta?.counts.drafts ?? 0) > 0 ? (
-              <CardFooter className='mt-auto flex flex-wrap gap-2'>
-                <ListLink
-                  to='/approvals/mine?category=drafts'
-                  label={t('workbench.viewDraftsCount', {
-                    count: mine.meta?.counts.drafts,
-                  })}
-                />
-              </CardFooter>
-            ) : null}
-          </Card>
-        )}
+        <Card className='min-w-0 lg:row-span-2 lg:grid lg:grid-rows-subgrid'>
+          <CardHeader className='flex flex-wrap items-center justify-between gap-2'>
+            <CardTitle>
+              <h2>{t('workbench.mine')}</h2>
+            </CardTitle>
+            <CardViewAllLink
+              to='/approvals/mine'
+              label={t('workbench.viewMine')}
+            />
+          </CardHeader>
+          <CardContent className='flex flex-col'>
+            {mine.error ? (
+              <ErrorState context='query' error={mine.error} retry={retry} />
+            ) : recent.length ? (
+              <ul className='flex flex-col'>
+                {recent.map((record) => (
+                  <WorkRow
+                    key={`${record.kind}:${record.id}`}
+                    record={record}
+                    now={now}
+                  />
+                ))}
+              </ul>
+            ) : mine.loading ? (
+              <RowsSkeleton />
+            ) : (
+              <EmptyCard kind='Mine' canSubmit={canSubmit} />
+            )}
+          </CardContent>
+        </Card>
       </div>
       {roles.data?.manager && !roles.error ? (
         <TeamStatus key={`team-${personalRevision}`} />
@@ -492,19 +465,7 @@ function Workbench() {
   );
 }
 
-function ListLink({ to, label }: { to: string; label: string }) {
-  return (
-    <Button
-      variant='ghost'
-      size='sm'
-      render={<Link to={to} />}
-      nativeButton={false}
-    >
-      {label}
-    </Button>
-  );
-}
-/** This card contains business creation actions only; browsing belongs in the sidebar and summary footers. */
+/** This card contains business creation actions only; browsing belongs in the sidebar and summary headers. */
 function NewRequestCard({
   available,
   context,
@@ -514,6 +475,15 @@ function NewRequestCard({
 }) {
   const { t } = useTranslation();
 
+  const roles = rolesOf(context);
+  const catalogAvailable = {
+    ...available,
+    recruitment:
+      available.recruitment &&
+      (roles.includes('manager') || roles.includes('hr')),
+    expensePlan: available.expensePlan && roles.includes('finance'),
+    budget: available.budget && roles.includes('finance'),
+  };
   return (
     <Card className='min-w-0'>
       <CardHeader>
@@ -525,8 +495,7 @@ function NewRequestCard({
         </CardDescription>
       </CardHeader>
       <CardContent className='flex flex-col gap-4'>
-        <FavoriteRequestActions available={available} />
-        <FunctionalRequestLinks context={context} available={available} />
+        <FavoriteRequestActions available={catalogAvailable} />
       </CardContent>
     </Card>
   );

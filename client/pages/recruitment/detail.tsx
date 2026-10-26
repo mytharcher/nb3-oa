@@ -1,3 +1,9 @@
+import { ApprovalProgress } from '#components/approval-progress';
+import {
+  ApprovalUiProvider,
+  ApprovalTimeline,
+} from '#extensions/nocobase-approval-ui';
+import { copiesOf, progressOf, timelineOf } from './approval-mapping.js';
 import { statusTone } from './status-tone.js';
 import { StatusBadge } from '#components/status-badge';
 import { UserName } from '#components/user-name';
@@ -10,10 +16,7 @@ import {
 } from 'react-router';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import {
-  renderTimelineEntry,
-  approvalStepsOf,
-} from '@nocobase/app-plugin-approval/client';
+import { type ApprovalText } from '@nocobase/app-plugin-approval/client';
 import { RecordDetailDrawer } from '#components/record-detail-drawer';
 import { Button } from '#components/ui/button';
 import { useRecruitmentResource } from './resource.js';
@@ -88,6 +91,12 @@ export default function RecruitmentDetail() {
             ),
           ]
         : [];
+  const text: ApprovalText = {
+    t: (key, options) => t(key, options),
+    name: (id) => detail?.users.find((user) => user.id === id)?.name ?? '—',
+    stage: (key, title) =>
+      t(`recruitment.status.${key}`, { defaultValue: title }),
+  };
   return (
     <RecordDetailDrawer
       headerStatus={
@@ -245,71 +254,31 @@ export default function RecruitmentDetail() {
               ))}
             </dl>
           ) : null}
-          <section>
-            <h2 className='text-base font-medium'>
-              {t('recruitment.progress')}
-            </h2>
-            <ol className='flex flex-col gap-2'>
-              {approvalStepsOf(detail.runs).map((step) => (
-                <li key={step.key}>
-                  {t(`recruitment.status.${step.stage}`, {
-                    defaultValue: step.title,
-                  })}{' '}
-                  ·{' '}
-                  {step.tasks.map((task) => (
-                    <UserName
-                      key={task.id}
-                      name={
-                        detail.users.find((u) => u.id === task.assigneeId)?.name
-                      }
-                    />
-                  ))}
-                </li>
-              ))}
-            </ol>
-          </section>
-          <section>
-            <h2 className='text-base font-medium'>
-              {t('recruitment.timeline')}
-            </h2>
-            <ol className='flex flex-col gap-3'>
-              {detail.timeline.runs
-                .flatMap((run) => [
-                  ...run.entries,
-                  ...run.stages.flatMap((stage) => stage.entries),
-                ])
-                .map((entry) => {
-                  const line = renderTimelineEntry(entry, {
-                    t: (key, options) => t(key, options),
-                    name: (id) =>
-                      detail.users.find((user) => user.id === id)?.name ?? '—',
-                    stage: (key, title) =>
-                      t(`recruitment.status.${key}`, { defaultValue: title }),
-                  });
-                  return (
-                    <li key={line.key} className='break-words'>
-                      {line.title}{' '}
-                      <time dateTime={line.at}>
-                        {new Date(line.at).toLocaleString(i18n.language)}
-                      </time>
-                      <div data-print-expanded className='hidden'>
-                        {line.details.map((detail) => (
-                          <p key={detail.label}>
-                            {detail.label}: {detail.value}
-                          </p>
-                        ))}
-                        {line.children.map((child) => (
-                          <p key={child.key}>{child.label}</p>
-                        ))}
-                      </div>
-                      {line.comment ? (
-                        <p className='whitespace-pre-wrap'>{line.comment}</p>
-                      ) : null}
-                    </li>
-                  );
-                })}
-            </ol>
-          </section>
+          <ApprovalUiProvider
+            personName={text.name}
+            formatDateTime={(value) =>
+              new Intl.DateTimeFormat(i18n.language, {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              }).format(new Date(value))
+            }
+          >
+            <section className='flex flex-col gap-4'>
+              <h2 className='text-base font-medium'>
+                {t('recruitment.progress')}
+              </h2>
+              <ApprovalProgress
+                steps={progressOf(detail, text, i18n.language)}
+                copies={copiesOf(detail)}
+              />
+            </section>
+            <section className='flex flex-col gap-4'>
+              <h2 className='text-base font-medium'>
+                {t('recruitment.timeline')}
+              </h2>
+              <ApprovalTimeline lines={timelineOf(detail, text)} />
+            </section>
+          </ApprovalUiProvider>
         </div>
       ) : null}
       <Outlet context={{ reload }} />

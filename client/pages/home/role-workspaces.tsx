@@ -1,3 +1,4 @@
+import { CardViewAllLink } from '#components/card-view-all-link';
 import {
   rolesOf,
   workspaceRows,
@@ -9,7 +10,7 @@ import {
 import { useId, useState } from 'react';
 import { useTranslation } from '@nocobase/i18n/client';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { ArrowRight, ClipboardCheck, FolderOpen } from 'lucide-react';
+import { ClipboardCheck, FolderOpen } from 'lucide-react';
 import {
   Card,
   CardHeader,
@@ -27,10 +28,6 @@ import {
   EmptyDescription,
   EmptyContent,
 } from '#components/ui/empty';
-import {
-  functionalRequestActions,
-  type RequestActionAvailability,
-} from '#components/request-action-definitions';
 import { ErrorState } from '../approvals/states.js';
 import type { CenterRecord } from '../approvals/use-center-resource.js';
 import { WorkRow } from './work-row.js';
@@ -93,20 +90,11 @@ export function PendingWork({
     );
   };
   return (
-    <Card className='min-w-0'>
+    <Card className='min-w-0 lg:row-span-2 lg:grid lg:grid-rows-subgrid'>
       <CardHeader className='flex flex-wrap items-center justify-between gap-2'>
         <CardTitle>
           <h2>{t('workbench.attention')}</h2>
         </CardTitle>
-        <Link
-          to='/approvals/todo'
-          className='inline-flex items-center gap-1 rounded-sm text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring'
-        >
-          {t('workbench.viewPending')}
-          <ArrowRight className='size-4' aria-hidden='true' />
-        </Link>
-      </CardHeader>
-      <CardContent className='flex flex-col gap-4'>
         {roles.length > 1 ? (
           <div
             role='group'
@@ -130,6 +118,14 @@ export function PendingWork({
             ))}
           </div>
         ) : null}
+        <div className='ml-auto'>
+          <CardViewAllLink
+            to='/approvals/todo'
+            label={t('workbench.viewPending')}
+          />
+        </div>
+      </CardHeader>
+      <CardContent className='flex flex-col gap-4'>
         {context.error ? (
           <ErrorState
             context='query'
@@ -161,7 +157,7 @@ export function PendingWork({
             ))}
           </div>
         ) : (
-          <Empty className='min-h-40 border border-dashed'>
+          <Empty className='min-h-48 border border-dashed'>
             <EmptyHeader>
               <EmptyMedia variant='icon'>
                 <ClipboardCheck />
@@ -263,55 +259,5 @@ export function CommonWorkLinks({ context }: { context: ContextResource }) {
         </CardFooter>
       ) : null}
     </Card>
-  );
-}
-
-export function FunctionalRequestLinks({
-  context,
-  available,
-}: {
-  context: ContextResource;
-  available: RequestActionAvailability;
-}) {
-  const { t } = useTranslation();
-  const location = useLocation();
-  const roles = rolesOf(context);
-  const actions = functionalRequestActions.filter(
-    (action) =>
-      available[action.key] &&
-      (action.key === 'recruitment'
-        ? roles.includes('manager') || roles.includes('hr')
-        : roles.includes('finance')),
-  );
-  if (!actions.length) return null;
-  return (
-    <section
-      aria-label={t('workbench.functionalRequests')}
-      className='flex flex-col gap-2 border-t pt-4'
-    >
-      <h3 className='text-sm font-medium text-muted-foreground'>
-        {t('workbench.functionalRequests')}
-      </h3>
-      <ul className='flex flex-wrap gap-2'>
-        {actions.map((action) => (
-          <li key={action.key}>
-            <Link
-              className={shortcutClass}
-              to={{
-                pathname: action.to,
-                search: location.search,
-                hash: location.hash,
-              }}
-            >
-              <action.icon
-                className='size-4 text-muted-foreground'
-                aria-hidden='true'
-              />
-              {t(action.label)}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }

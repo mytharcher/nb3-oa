@@ -184,6 +184,7 @@ it('keeps applicant-owned counts and includes drafts in recent personal applicat
   expect(response.status).toBe(200);
   expect(f.list).toHaveBeenCalledExactlyOnceWith('session-owner', {
     sourceType: 'approval.application',
+    includeTotal: true,
     page: 1,
     pageSize: 5,
     orderBy: 'createdAt',

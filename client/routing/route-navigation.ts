@@ -86,6 +86,7 @@ export function useRouteNavigation(
   routes: readonly AppClientRegisteredRoute[],
 ) {
   const client = useAuthorizationClient();
+  const [attempt, setAttempt] = useState(0);
   // Recheck mounted menus after session or realtime permission invalidation.
   const revision = useAuthorizationRevision();
   const guards = useMemo(() => {
@@ -105,6 +106,8 @@ export function useRouteNavigation(
     client: typeof client;
     guards: typeof guards;
     revision: number;
+    attempt: number;
+    failed: ReadonlySet<string>;
     denied: ReadonlySet<string>;
   }>();
   useEffect(() => {
@@ -113,9 +116,9 @@ export function useRouteNavigation(
     void Promise.all(
       guards.map(async ({ id, check }) => {
         try {
-          return (await client.can(check)) ? undefined : id;
+          return { id, denied: !(await client.can(check)), failed: false };
         } catch {
-          return id;
+          return { id, denied: true, failed: true };
         }
       }),
     ).then((ids) => {
@@ -124,24 +127,33 @@ export function useRouteNavigation(
           client,
           guards,
           revision,
-          denied: new Set(ids.filter((id) => id !== undefined)),
+          attempt,
+          failed: new Set(
+            ids.filter((item) => item.failed).map((item) => item.id),
+          ),
+          denied: new Set(
+            ids.filter((item) => item.denied).map((item) => item.id),
+          ),
         });
     });
     return () => {
       active = false;
     };
-  }, [client, guards, revision]);
+  }, [client, guards, revision, attempt]);
   const loading = Boolean(
     guards.length &&
     (result?.client !== client ||
       result.guards !== guards ||
-      result.revision !== revision),
+      result.revision !== revision ||
+      result.attempt !== attempt),
   );
   const denied = guards.length
     ? (result?.denied ?? new Set<string>())
     : new Set<string>();
   return {
     loading,
+    failed: result?.failed ?? new Set<string>(),
+    retry: () => setAttempt((value) => value + 1),
     items: loading ? [] : buildRouteNavigation(routes, denied),
     denied,
   };

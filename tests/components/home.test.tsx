@@ -360,6 +360,52 @@ describe('personal workbench', () => {
     expect(router.state.location.search).toBe('?search=mine');
     expect(router.state.location.hash).toBe('#requests');
   });
+  it.each([false, true])(
+    'keeps responsibility and capability gates in the unified request catalog (%s)',
+    async (eligible) => {
+      const original = api.request.getMockImplementation()!;
+      api.request.mockImplementation((input) => {
+        if (input.path === 'workbench/roleContext')
+          return Promise.resolve({
+            data: {
+              manager: false,
+              hr: eligible,
+              finance: eligible,
+              administration: false,
+              procurement: false,
+              teamUserIds: [],
+            },
+          });
+        if (input.path === 'recruitmentRequests/createOptions')
+          return Promise.resolve({ data: { canCreate: eligible } });
+        return original(input);
+      });
+      open();
+      await screen.findByText(enUS.workbench.allClear);
+      await waitFor(() =>
+        expect(api.request).toHaveBeenCalledWith(
+          expect.objectContaining({
+            path: 'recruitmentRequests/createOptions',
+          }),
+        ),
+      );
+      expect(
+        screen.queryByRole('region', {
+          name: enUS.workbench.functionalRequests,
+        }),
+      ).toBeNull();
+      const entries = await catalog();
+      for (const name of [
+        enUS.recruitment.title,
+        enUS.approvalCenter.kinds.expensePlan,
+        enUS.approvalCenter.kinds.budgetAdjustment,
+      ]) {
+        const entry = entries.queryByRole('button', { name });
+        if (eligible) expect(entry).toBeInTheDocument();
+        else expect(entry).toBeNull();
+      }
+    },
+  );
   it('uses readable summaries and safe draft fallback while keeping a single title link', async () => {
     serve([
       {
@@ -382,21 +428,17 @@ describe('personal workbench', () => {
       screen.getByRole('link', { name: enUS.workbench.viewPending }),
     ).toHaveAttribute('href', '/approvals/todo');
   });
-  it('keeps the draft shortcut available when the response omits drafts from its preview', async () => {
+  it('keeps the empty mine card and its header link even with only drafts, without a draft footer', async () => {
     serve([{ ...record('no-summary', 'draft'), title: '', number: null }]);
     open();
     await screen.findByText(enUS.workbench.allClear);
-    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    const mine = within(card(enUS.workbench.mine));
+    expect(mine.getByText(enUS.workbench.emptyMine)).toBeVisible();
     expect(
-      screen.queryByRole('link', { name: /without a summary/ }),
-    ).toBeNull();
-    expect(
-      screen.getByRole('button', { name: enUS.workbench.viewMine }),
+      mine.getByRole('link', { name: enUS.workbench.viewMine }),
     ).toHaveAttribute('href', '/approvals/mine');
-    expect(screen.getByRole('button', { name: 'Drafts (1)' })).toHaveAttribute(
-      'href',
-      '/approvals/mine?category=drafts',
-    );
+    expect(mine.queryByRole('button', { name: /Drafts/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Drafts (1)' })).toBeNull();
   });
 
   it('keeps saved favorites while the full catalog includes other eligible types', async () => {
@@ -717,7 +759,7 @@ describe('personal workbench', () => {
   it('shows empty work with one new-request entry and personal endpoint queries', async () => {
     open();
     expect(await screen.findByText(enUS.workbench.allClear)).toBeVisible();
-    expect(screen.queryByText(enUS.workbench.emptyMine)).toBeNull();
+    expect(screen.getByText(enUS.workbench.emptyMine)).toBeVisible();
     expect(screen.queryByText(enUS.workbench.emptyAttention)).toBeNull();
     expect(
       screen.getAllByRole('button', { name: enUS.approvalCenter.kinds.leave }),
@@ -769,10 +811,10 @@ describe('personal workbench', () => {
     open();
     await screen.findByText(enUS.workbench.allClear);
     expect(
-      screen.getAllByRole('button', { name: enUS.workbench.viewMine }),
+      screen.getAllByRole('link', { name: enUS.workbench.viewMine }),
     ).toHaveLength(1);
     expect(
-      screen.getByRole('button', { name: enUS.workbench.viewMine }),
+      screen.getByRole('link', { name: enUS.workbench.viewMine }),
     ).toHaveAttribute('href', '/approvals/mine');
     const creation = await catalog();
     expect(
@@ -842,10 +884,7 @@ describe('personal workbench', () => {
     await screen.findAllByText('LEA-revision');
     expect(screen.getByText(/2 items to handle/)).toBeVisible();
     expect(screen.getByText(/In progress 1/)).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Drafts (1)' })).toHaveAttribute(
-      'href',
-      '/approvals/mine?category=drafts',
-    );
+    expect(screen.queryByRole('button', { name: 'Drafts (1)' })).toBeNull();
     expect(
       screen.getByRole('button', { name: enUS.workbench.reviewRevisions }),
     ).toHaveAttribute('href', '/approvals/mine?category=revisions');
@@ -951,10 +990,7 @@ describe('personal workbench', () => {
         name: 'LEA-waiting',
       }),
     ).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Drafts (8)' })).toHaveAttribute(
-      'href',
-      '/approvals/mine?category=drafts',
-    );
+    expect(screen.queryByRole('button', { name: 'Drafts (8)' })).toBeNull();
     const mine = within(card(enUS.workbench.mine));
     expect(mine.queryByRole('tab')).not.toBeInTheDocument();
     expect(mine.getAllByRole('listitem')).toHaveLength(1);
@@ -1002,7 +1038,7 @@ describe('personal workbench', () => {
     permission.pending = false;
     permission.submit = false;
     open();
-    await screen.findByText(enUS.workbench.emptyMineRestricted);
+    await screen.findAllByText(enUS.workbench.emptyMineRestricted);
     expect(
       screen.queryByRole('heading', { name: enUS.workbench.newRequest }),
     ).not.toBeInTheDocument();
@@ -1102,7 +1138,9 @@ describe('personal workbench', () => {
       );
       open();
       await screen.findAllByRole('alert');
-      expect(screen.getByRole('button', { name: 'Drafts (1)' })).toBeVisible();
+      expect(
+        screen.getByRole('link', { name: enUS.workbench.viewMine }),
+      ).toBeVisible();
       expect(screen.queryByText('private failure')).not.toBeInTheDocument();
       expect(
         screen.queryByText(enUS.approvals.domainInvalid),

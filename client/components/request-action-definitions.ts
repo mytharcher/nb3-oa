@@ -225,19 +225,9 @@ export const defaultRequestActions: RequestActionKey[] = [
   'general',
 ];
 
-/** Employee catalog intentionally excludes derived and functional documents. */
+/** One catalog for all authorized requests; derived cancellations start from their source records. */
 export const employeeRequestActions = requestActionDefinitions.filter(
-  ({ key }) =>
-    ![
-      'cancellation',
-      'travelCancellation',
-      'recruitment',
-      'expensePlan',
-      'budget',
-    ].includes(key),
-);
-export const functionalRequestActions = requestActionDefinitions.filter(
-  ({ key }) => ['recruitment', 'expensePlan', 'budget'].includes(key),
+  ({ key }) => !['cancellation', 'travelCancellation'].includes(key),
 );
 export const requestCatalogGroups = [
   'attendance',
@@ -257,8 +247,11 @@ export const requestCatalogGroup: Partial<
   attendance: 'attendance',
   travel: 'travel',
   reimbursement: 'expenses',
+  expensePlan: 'expenses',
+  budget: 'expenses',
   loan: 'expenses',
   payment: 'expenses',
+  recruitment: 'people',
   probation: 'people',
   transfer: 'people',
   departure: 'people',

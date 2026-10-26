@@ -87,7 +87,7 @@ export default function RecruitmentList() {
       header: t('recruitment.fields.positionId'),
       cell: ({ row }) => (
         <Link
-          className='underline'
+          className='font-medium hover:underline'
           to={{
             pathname: row.original.id,
             search: location.search,

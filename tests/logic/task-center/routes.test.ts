@@ -10,12 +10,19 @@ import routes from '../../../server/routes/task-center/index.js';
 import type { MiddlewareHandler } from 'hono';
 async function fixture() {
   const get = vi.fn().mockResolvedValue(undefined);
-  const center = vi.fn().mockResolvedValue({
+  const list = vi.fn().mockResolvedValue({
     data: [],
     meta: { page: 2, pageSize: 10, total: 0 },
     counts: { pending: 0, completed: 0, cancelled: 0 },
     facets: [],
   });
+  const statistics = vi
+    .fn()
+    .mockResolvedValue({ pending: 2, completed: 3, cancelled: 4 });
+  const categoryStatistics = vi.fn().mockResolvedValue([
+    { sourceType: 'approval.task', subject: 'oa.leave', count: 2 },
+    { sourceType: 'approval.cc', subject: 'oa.leave', count: 0 },
+  ]);
   const findMany = vi.fn().mockResolvedValue([]),
     count = vi.fn().mockResolvedValue(0),
     groupBy = vi.fn().mockResolvedValue([]);
@@ -36,7 +43,8 @@ async function fixture() {
     resolve(token: unknown) {
       if (token === authenticationToken) return { required: () => auth };
       if (token === authorizationToken) return { middleware: () => authz };
-      if (token === userTaskServiceToken) return { get, center };
+      if (token === userTaskServiceToken)
+        return { get, list, statistics, categoryStatistics };
       if (token === databaseManagerToken)
         return {
           repository,
@@ -57,7 +65,18 @@ async function fixture() {
       ? c.json({ error: error.reason }, error.code)
       : c.json({}, 500),
   );
-  return { router, get, center, repository, findMany, count, groupBy, state };
+  return {
+    router,
+    get,
+    list,
+    statistics,
+    categoryStatistics,
+    repository,
+    findMany,
+    count,
+    groupBy,
+    state,
+  };
 }
 it('rejects identity injection and requires the page grant for list and reference reads', async () => {
   const f = await fixture();
@@ -94,22 +113,31 @@ it('uses a bounded server page and counts/facets from a fixed set of database re
     '/taskCenter?source=approval.task&subject=oa.leave&status=closed&page=2&pageSize=10',
   );
   expect(response.status).toBe(200);
-  expect(f.center).toHaveBeenCalledWith('session-owner', {
+  expect(f.list).toHaveBeenCalledWith('session-owner', {
     sourceType: 'approval.task',
     subject: 'oa.leave',
-    status: 'closed',
+    status: ['completed', 'cancelled'],
+    includeTotal: true,
     page: 2,
     pageSize: 10,
     orderBy: 'updatedAt',
     direction: 'desc',
   });
+  expect(f.statistics).toHaveBeenCalledWith('session-owner', {
+    sourceType: 'approval.task',
+    subject: 'oa.leave',
+  });
+  expect(f.categoryStatistics).toHaveBeenCalledWith('session-owner');
   expect(f.repository).not.toHaveBeenCalled();
   expect(await response.json()).toEqual({
     data: {
       tasks: [],
       total: 0,
-      counts: { pending: 0, closed: 0, all: 0 },
-      facets: [],
+      counts: { pending: 2, closed: 7, all: 9 },
+      facets: [
+        { sourceType: 'approval.task', subject: 'oa.leave', pending: 2 },
+        { sourceType: 'approval.cc', subject: 'oa.leave', pending: 0 },
+      ],
     },
   });
 });
@@ -175,7 +203,7 @@ it('pages drafts from the session-owned summary index and preserves the source f
 
 it('keeps drafts in the ordinary personal-application list with their business state', async () => {
   const f = await fixture();
-  f.center.mockResolvedValue({
+  f.list.mockResolvedValue({
     data: [
       {
         id: 'personal-draft',
@@ -215,7 +243,7 @@ it('keeps drafts in the ordinary personal-application list with their business s
         { id: 'personal-draft', recordId: 'record', businessStatus: 'draft' },
       ],
       total: 1,
-      counts: { pending: 1, closed: 0, all: 1 },
+      counts: { pending: 2, closed: 7, all: 9 },
     },
   });
 });

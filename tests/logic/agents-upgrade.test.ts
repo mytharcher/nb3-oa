@@ -34,7 +34,16 @@ describe('Agents upgrade in the OA application', () => {
     );
   });
 
-  it.each(['/agents', '/agents/services', '/agents/skills'])(
+  it('allows signed-in users to read the agent directory', async () => {
+    expect((await app.testApp.request('/agents')).status).toBe(401);
+    for (const session of [unpermitted, admin]) {
+      const response = await session.fetch('/agents');
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: expect.any(Array) });
+    }
+  });
+
+  it.each(['/agents/services', '/agents/skills'])(
     'enforces authentication and settings grants on %s',
     async (path) => {
       expect((await app.testApp.request(path)).status).toBe(401);
@@ -45,17 +54,23 @@ describe('Agents upgrade in the OA application', () => {
     },
   );
 
-  it('creates and reads an online agent after the plugin migrations', async () => {
+  it('does not expose manual agent creation', async () => {
     const body = { name: 'Upgrade verification', type: 'online' };
-    expect((await unpermitted.fetch('/agents', json(body))).status).toBe(403);
-    const response = await admin.fetch('/agents', json(body));
-    expect(response.status).toBe(201);
-    const { data } = (await response.json()) as {
-      data: { id: string; name: string; type: string };
+    for (const session of [unpermitted, admin]) {
+      expect((await session.fetch('/agents', json(body))).status).toBe(404);
+    }
+  });
+
+  it('requires management grants before updating an agent', async () => {
+    const path = '/agents/00000000-0000-4000-8000-000000000001';
+    const body = {
+      expectedRevision: 1,
+      enabled: true,
+      description: 'Office work',
     };
-    expect(data).toMatchObject(body);
-    const read = await admin.fetch(`/agents/${data.id}`);
-    expect(read.status).toBe(200);
-    expect(await read.json()).toMatchObject({ data: { id: data.id, ...body } });
+    const request = { ...json(body), method: 'PATCH' };
+    expect((await app.testApp.request(path, request)).status).toBe(401);
+    expect((await unpermitted.fetch(path, request)).status).toBe(403);
+    expect((await admin.fetch(path, request)).status).toBe(404);
   });
 });

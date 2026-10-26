@@ -4,14 +4,8 @@ import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { Link, useLocation } from 'react-router';
 import type { ReactNode } from 'react';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from '#components/ui/card';
-import { Button } from '#components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '#components/ui/card';
+import { CardViewAllLink } from '#components/card-view-all-link';
 import { Skeleton } from '#components/ui/skeleton';
 import {
   useLeaveCardData,
@@ -72,10 +66,13 @@ function SummaryCard({
   const { t } = useTranslation();
   return (
     <Card className='min-w-0 flex-none lg:flex-1'>
-      <CardHeader>
+      <CardHeader className='flex min-h-8 flex-wrap items-center justify-between gap-2'>
         <CardTitle>
           <h2>{t(title)}</h2>
         </CardTitle>
+        {to ? (
+          <CardViewAllLink to={to} label={t('workbench.viewSource')} />
+        ) : null}
       </CardHeader>
       <CardContent>
         {error ? (
@@ -93,19 +90,6 @@ function SummaryCard({
           children
         )}
       </CardContent>
-      {/* The workbench's refresh reloads these cards; failures keep their own retry. */}
-      {to ? (
-        <CardFooter className='mt-auto flex flex-wrap gap-2'>
-          <Button
-            variant='ghost'
-            size='sm'
-            nativeButton={false}
-            render={<Link to={to} />}
-          >
-            {t('workbench.viewSource')}
-          </Button>
-        </CardFooter>
-      ) : null}
     </Card>
   );
 }
