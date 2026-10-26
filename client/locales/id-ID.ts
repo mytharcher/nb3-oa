@@ -211,6 +211,8 @@ const idID: AppResource = {
   },
   oa: {
     navigation: {
+      backToApplication: 'Kembali ke aplikasi',
+      systemLabel: 'Navigasi administrasi sistem',
       systemPeople: 'Pengguna dan organisasi',
       systemAccess: 'Peran dan izin',
       systemConnections: 'Notifikasi dan integrasi',

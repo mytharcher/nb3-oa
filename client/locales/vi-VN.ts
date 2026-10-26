@@ -210,6 +210,8 @@ const viVN: AppResource = {
   },
   oa: {
     navigation: {
+      backToApplication: 'Quay lại ứng dụng',
+      systemLabel: 'Điều hướng quản trị hệ thống',
       systemPeople: 'Người dùng và tổ chức',
       systemAccess: 'Vai trò và quyền',
       systemConnections: 'Thông báo và tích hợp',

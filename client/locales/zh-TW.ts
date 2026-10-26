@@ -210,6 +210,8 @@ const zhTW: AppResource = {
   },
   oa: {
     navigation: {
+      backToApplication: '返回應用程式',
+      systemLabel: '系統管理導覽',
       systemPeople: '使用者與組織',
       systemAccess: '角色與權限',
       systemConnections: '通知與集成',

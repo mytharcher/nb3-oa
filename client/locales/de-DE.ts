@@ -212,6 +212,8 @@ const deDE: AppResource = {
   },
   oa: {
     navigation: {
+      backToApplication: 'Zurück zur Anwendung',
+      systemLabel: 'Navigation der Systemverwaltung',
       systemPeople: 'Benutzer und Organisation',
       systemAccess: 'Rollen und Berechtigungen',
       systemConnections: 'Benachrichtigungen und Integrationen',

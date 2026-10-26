@@ -210,6 +210,8 @@ const ptBR: AppResource = {
   },
   oa: {
     navigation: {
+      backToApplication: 'Voltar ao aplicativo',
+      systemLabel: 'Navegação da administração do sistema',
       systemPeople: 'Usuários e organização',
       systemAccess: 'Papéis e permissões',
       systemConnections: 'Notificações e integrações',

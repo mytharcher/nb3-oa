@@ -210,6 +210,8 @@ const jaJP: AppResource = {
   },
   oa: {
     navigation: {
+      backToApplication: 'アプリケーションに戻る',
+      systemLabel: 'システム管理ナビゲーション',
       systemPeople: 'ユーザーと組織',
       systemAccess: 'ロールと権限',
       systemConnections: '通知と連携',

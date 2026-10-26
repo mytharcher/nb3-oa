@@ -210,6 +210,8 @@ const esES: AppResource = {
   },
   oa: {
     navigation: {
+      backToApplication: 'Volver a la aplicación',
+      systemLabel: 'Navegación de administración del sistema',
       systemPeople: 'Usuarios y organización',
       systemAccess: 'Roles y permisos',
       systemConnections: 'Notificaciones e integraciones',
