@@ -8,6 +8,9 @@ import {
 } from '../oa-test-origin.js';
 import { write } from '../platform/helpers.js';
 // @vitest-environment node
+vi.mock('../../../shared/external-integrations.js', () => ({
+  externalIntegrationsEnabled: true,
+}));
 import { randomUUID } from 'node:crypto';
 import { expect, vi } from 'vitest';
 import { serverFileRepositoryManagerToken } from '@nocobase/app-plugin-file/server';

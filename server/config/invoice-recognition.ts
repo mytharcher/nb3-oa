@@ -18,13 +18,16 @@ export default defineAppConfig<InvoiceRecognitionConfig>({
       description: 'Enable the invoice gateway integration.',
     }),
     OA_INVOICE_INSTANCE_ID: envString('instanceId', {
+      required: false,
       description:
         'Stable OA identity at the invoice gateway; never rotate for a retry.',
     }),
     OA_INVOICE_BASE_URL: envString('baseUrl', {
+      required: false,
       description: 'HTTPS base URL of the enterprise invoice gateway.',
     }),
     OA_INVOICE_TOKEN: envString('token', {
+      required: false,
       description: 'Server-only bearer secret for the invoice gateway.',
       secret: true,
     }),

@@ -1,3 +1,4 @@
+import { externalIntegrationsEnabled } from '../../../shared/external-integrations.js';
 import { z } from 'zod';
 export const Id = z.string().min(1).max(64),
   Key = z.string().min(1).max(128),
@@ -15,9 +16,15 @@ export const Fields = {
   purpose: z.string().trim().min(1).max(5000),
   contact: z.string().max(2000),
 };
-export const Create = z.strictObject({ ...Fields, requestKey: Key });
-export const Edit = z.strictObject({
+const InputFields = {
   ...Fields,
+  executionMode: Fields.executionMode.refine(
+    (mode) => externalIntegrationsEnabled || mode === 'physical',
+  ),
+};
+export const Create = z.strictObject({ ...InputFields, requestKey: Key });
+export const Edit = z.strictObject({
+  ...InputFields,
   requestKey: Key,
   expectedVersion: z.number().int().positive(),
 });

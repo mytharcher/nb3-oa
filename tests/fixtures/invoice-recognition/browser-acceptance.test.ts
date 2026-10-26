@@ -1,6 +1,7 @@
 import { organizationServiceToken } from '../../../server/providers/org/index.js';
 import { financeAssignmentServiceToken } from '../../../server/providers/finance-assignments/contract.js';
 // @vitest-environment node
+import { externalIntegrationsEnabled } from '../../../shared/external-integrations.js';
 import { it, vi } from 'vitest';
 import { expect } from '@playwright/test';
 import path from 'node:path';
@@ -15,7 +16,9 @@ import {
   ALL,
 } from '../../logic/employees/helpers.js';
 import { reimbursementServiceToken } from '../../../server/providers/reimbursement/index.js';
-it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
+it.runIf(
+  process.env.OA_BROWSER_ACCEPTANCE === '1' && externalIntegrationsEnabled,
+)(
   'employee reviews OCR before saving a reimbursement and verifies its current facts at 375px',
   async () => {
     const h = await startIsolatedBrowserApp({

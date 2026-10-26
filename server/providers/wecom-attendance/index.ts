@@ -1,3 +1,4 @@
+import { externalIntegrationsEnabled } from '../../../shared/external-integrations.js';
 import { ServiceProvider } from '@nocobase/service-provider';
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken } from '@nocobase/db';
@@ -18,6 +19,7 @@ import { createWecomAttendanceService } from './service.js';
 export default class WecomAttendanceProvider extends ServiceProvider<Application> {
   readonly name = 'oa/wecom-attendance';
   register() {
+    if (!externalIntegrationsEnabled) return;
     const c = this.app.container;
     c.singleton(wecomAttendanceServiceToken, () =>
       createWecomAttendanceService({
@@ -64,6 +66,18 @@ export default class WecomAttendanceProvider extends ServiceProvider<Application
           ? { valid: true }
           : { valid: false, reason: 'empty-config-required' },
       async start(_config, context) {
+        // Retained schedules from previous releases must complete without calling WeCom.
+        if (!externalIntegrationsEnabled)
+          return {
+            state: 'completed',
+            outcome: 'succeeded',
+            result: {
+              skipped: true,
+              runId: null,
+              committedRecords: 0,
+              completedBatches: 0,
+            },
+          };
         const service = c.resolve(wecomAttendanceServiceToken);
         if (!service.status().enabled)
           return {
@@ -98,6 +112,7 @@ export default class WecomAttendanceProvider extends ServiceProvider<Application
           : { state: 'failed', reason: run.errorCode ?? 'wecom-sync-failed' };
       },
     });
+    if (!externalIntegrationsEnabled) return;
     await calendar.reload();
     scheduler.defineSchedule({
       key: 'oa.attendance.wecom-source',

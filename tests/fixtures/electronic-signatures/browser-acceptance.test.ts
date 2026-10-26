@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { externalIntegrationsEnabled } from '../../../shared/external-integrations.js';
 import { it, vi } from 'vitest';
 import { expect } from '@playwright/test';
 import path from 'node:path';
@@ -12,7 +13,9 @@ import {
   digest,
   type SignatureEnvelope,
 } from '../../../server/providers/electronic-signatures/gateway.js';
-it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
+it.runIf(
+  process.env.OA_BROWSER_ACCEPTANCE === '1' && externalIntegrationsEnabled,
+)(
   '375px electronic owner channel and actual keeper signing archive in English and Chinese',
   async () => {
     const h = await startIsolatedBrowserApp({

@@ -18,13 +18,16 @@ export default defineAppConfig<FinanceIntegrationConfig>({
       description: 'Enable the finance gateway integration.',
     }),
     OA_FINANCE_INSTANCE_ID: envString('instanceId', {
+      required: false,
       description:
         'Stable OA identity at the finance gateway; never rotate for a retry.',
     }),
     OA_FINANCE_BASE_URL: envString('baseUrl', {
+      required: false,
       description: 'HTTPS base URL of the enterprise finance gateway.',
     }),
     OA_FINANCE_TOKEN: envString('token', {
+      required: false,
       description: 'Server-only bearer secret for the finance gateway.',
       secret: true,
     }),
