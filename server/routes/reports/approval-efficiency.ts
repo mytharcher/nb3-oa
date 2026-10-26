@@ -1,3 +1,4 @@
+import { getReportTranslator, reportLocaleSchema } from './i18n.js';
 import ExcelJS from 'exceljs';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -25,7 +26,7 @@ import { leaveServiceToken } from '../../providers/leave/index.js';
 import { LeaveError } from '../../providers/leave/errors.js';
 
 const Query = z.object({
-  locale: z.enum(['en-US', 'zh-CN']).default('en-US'),
+  locale: reportLocaleSchema,
   year: z.coerce.number().int().min(1900).max(9998),
   month: z.coerce.number().int().min(1).max(12).optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -141,28 +142,35 @@ const routes: readonly AppRouteContribution<Application>[] = [
               }),
             });
           const book = new ExcelJS.Workbook();
-          const sheet = book.addWorksheet('Completed leave tasks');
+          const { t } = await getReportTranslator(
+            app,
+            ctx,
+            ctx.req.query('locale'),
+          );
+          const sheet = book.addWorksheet(
+            t('reportExports.approvalEfficiency.sheet'),
+          );
           sheet.columns = [
-            { header: q.locale === 'zh-CN' ? '环节' : 'Stage', key: 'stage' },
             {
-              header:
-                q.locale === 'zh-CN'
-                  ? '已完成决策任务数'
-                  : 'Completed decision task count',
+              header: t('reportExports.approvalEfficiency.fields.stage'),
+              key: 'stage',
+            },
+            {
+              header: t(
+                'reportExports.approvalEfficiency.fields.completedTaskCount',
+              ),
               key: 'completedTaskCount',
             },
             {
-              header:
-                q.locale === 'zh-CN'
-                  ? '自然总耗时毫秒（含等待）'
-                  : 'Total natural elapsed ms (includes waiting)',
+              header: t(
+                'reportExports.approvalEfficiency.fields.totalElapsedMs',
+              ),
               key: 'totalElapsedMs',
             },
             {
-              header:
-                q.locale === 'zh-CN'
-                  ? '自然平均耗时毫秒（含等待）'
-                  : 'Mean natural elapsed ms (includes waiting)',
+              header: t(
+                'reportExports.approvalEfficiency.fields.averageElapsedMs',
+              ),
               key: 'averageElapsedMs',
             },
           ];
@@ -172,10 +180,11 @@ const routes: readonly AppRouteContribution<Application>[] = [
               stage:
                 (
                   {
-                    manager: q.locale === 'zh-CN' ? '直属上级' : 'Manager',
-                    head:
-                      q.locale === 'zh-CN' ? '部门负责人' : 'Department head',
-                    hr: q.locale === 'zh-CN' ? '人力资源' : 'HR',
+                    manager: t(
+                      'reportExports.approvalEfficiency.stages.manager',
+                    ),
+                    head: t('reportExports.approvalEfficiency.stages.head'),
+                    hr: t('reportExports.approvalEfficiency.stages.hr'),
                   } as Record<string, string>
                 )[row.stage] ?? row.stage,
             });

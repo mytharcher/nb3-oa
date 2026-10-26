@@ -10,6 +10,8 @@ This application implements a company OA system. The tracked [documentation inde
 
 OA production configuration, release artifacts, persistence and upgrade verification are described in [the OA deployment guide](docs/guides/deployment.md).
 
+Finance gateway synchronization, invoice recognition and verification, electronic signatures, and WeCom attendance synchronization are temporarily withdrawn through [the shared availability flag](shared/external-integrations.ts). Their UI controls, API routes, and configuration variable declarations are excluded; retained WeCom schedules skip execution. Existing records and permissions remain, while new electronic seal requests are rejected. Manual invoice entry, OA payment handling, contract approvals, physical seals, and attendance management remain available. Restore the flag only after configuring and verifying the external services, then rebuild and deploy.
+
 ## Default and Examples
 
 Default provides the application shell and product capabilities without example plugins or business demo pages. Application-owned routes start empty, and new databases receive no article sample data. Its built-in Users integration lists direct Authorization Permission Sets as application roles, while access assigned to all authenticated users remains separate. Use `app-template-examples` for article management and runnable plugin demonstrations.
@@ -168,6 +170,8 @@ Database tasks support `--connection <name>` and `--all`; no argument targets `d
 | `pnpm lint`          | Report lint problems                                         |
 | `pnpm fix`           | Fix lint problems, then format                               |
 | `pnpm check`         | Everything above plus a build; what to run before committing |
+
+The application supports twelve interface languages on both client and server: English (`en-US`), Spanish (`es-ES`), French (`fr-FR`), German (`de-DE`), Brazilian Portuguese (`pt-BR`), Russian (`ru-RU`), Indonesian (`id-ID`), Vietnamese (`vi-VN`), Simplified Chinese (`zh-CN`), Traditional Chinese (`zh-TW`), Japanese (`ja-JP`), and Korean (`ko-KR`). Calendar controls, schedule descriptions, and report export headings follow the selected language. Application-owned overrides supply Russian and Korean text missing from the installed plugins. Business data such as organization names, custom dictionary labels, and document templates retain their own content.
 
 `pnpm nocobase locales check` reports a language declared in `client/locales/` but not `server/locales/`, or the reverse, and exits nonzero until the lists align. The browser builds its language picker from the client list, so a client-only language still works in the interface; server messages fall back to English and the language control explains that fallback. Add the matching server locale when server-produced text should use the same language.
 

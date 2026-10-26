@@ -1,0 +1,68 @@
+export default {
+  attendanceResults: {
+    title: 'Kết quả chấm công',
+    description:
+      'Xem chấm công hằng ngày, xử lý thiếu chấm công và kiểm tra tổng hợp tháng.',
+    month: 'Tháng',
+    employee: 'Nhân viên',
+    department: 'Phòng ban',
+    date: 'Ngày',
+    status: 'Trạng thái',
+    dailyResult: 'Chấm công hằng ngày',
+    normalDays: 'Ngày bình thường',
+    exceptionDays: 'Ngày có ngoại lệ',
+    blockedDays: 'Ngày cần kiểm tra',
+    restDays: 'Ngày nghỉ',
+    lateMinutes: 'Đi muộn (phút)',
+    earlyMinutes: 'Về sớm (phút)',
+    missingPunches: 'Lượt thiếu chấm công',
+    absentMinutes: 'Vắng mặt chưa bao phủ (phút)',
+    approvedOvertimeMinutes: 'Làm thêm đã duyệt (phút)',
+    statuses: {
+      normal: 'Bình thường',
+      exception: 'Ngoại lệ',
+      blocked: 'Cần kiểm tra',
+      rest: 'Ngày nghỉ',
+    },
+    timeZone: 'Ngày chấm công theo múi giờ công ty: {{zone}}.',
+    refresh: 'Làm mới',
+    clear: 'Xóa bộ lọc',
+    empty: 'Chưa có kết quả chấm công',
+    noResults: 'Không có kết quả phù hợp',
+    emptyDescription:
+      'Kết quả hiển thị sau tính toán hằng ngày. Bạn có thể tính ngày đã kết thúc hoặc nhờ nhân sự kiểm tra lịch.',
+    unnamed: 'Không có tên nhân viên',
+    denied: 'Bạn không có quyền thực hiện thao tác chấm công này.',
+    calculate: 'Tính chấm công của tôi',
+    recalculate: 'Tính lại',
+    calculateDescription:
+      'Chọn ngày đã kết thúc và giải thích lý do. Kết quả hiện có được giữ trong lịch sử tính toán.',
+    reason: 'Lý do',
+    cancel: 'Hủy',
+    confirmCalculate: 'Tính toán',
+    calculating: 'Đang tính…',
+    calculated: 'Đã hoàn tất tính chấm công.',
+    calculateFailed:
+      'Không thể tính chấm công. Kiểm tra ca đã kết thúc và có lịch hợp lệ rồi thử lại.',
+    correctIn: 'Yêu cầu bổ sung chấm công vào',
+    correctOut: 'Yêu cầu bổ sung chấm công ra',
+    export: 'Xuất tháng',
+    exporting: 'Đang xuất…',
+    exported: 'Đã tải bản xuất chấm công.',
+    needsReview: 'Nhờ nhân sự kiểm tra lịch và bản ghi chấm công.',
+    prefillUnavailable:
+      'Lượt thiếu chấm công này không còn cho phép bổ sung. Chọn bản ghi đủ điều kiện khác hoặc nhờ nhân sự hỗ trợ.',
+    reasons: {
+      missingPrimaryDepartment: 'Cần đặt phòng ban chính của bạn.',
+      missingSchedule: 'Không có lịch cho ngày này.',
+      missingShiftRevision: 'Cần kiểm tra ca.',
+      calendarTimeZoneChanged:
+        'Thiết lập giờ chấm công đã thay đổi. Nhờ nhân sự xác nhận.',
+      unresolvableLocalTime: 'Cần kiểm tra giờ đồng hồ.',
+      missingCorrectionFact: 'Cần đối soát bổ sung đã duyệt.',
+      invalidActivityTime:
+        'Vắng mặt đã duyệt có khoảng thời gian không hợp lệ.',
+      unverifiedActivitySource: 'Cần xác minh vắng mặt trước khi sử dụng.',
+    },
+  },
+};

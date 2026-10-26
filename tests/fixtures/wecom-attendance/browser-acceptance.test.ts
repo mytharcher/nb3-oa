@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { externalIntegrationsEnabled } from '../../../shared/external-integrations.js';
 import { it, vi } from 'vitest';
 import { expect } from '@playwright/test';
 import path from 'node:path';
@@ -18,7 +19,9 @@ import {
   wecomAttendanceServiceToken,
   type WecomAttendanceConfig,
 } from '../../../server/providers/wecom-attendance/contract.js';
-it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
+it.runIf(
+  process.env.OA_BROWSER_ACCEPTANCE === '1' && externalIntegrationsEnabled,
+)(
   'HR runs real synchronization endpoints at desktop and 375px with only the external vendor response synthesized',
   async () => {
     const original = globalThis.fetch;
@@ -94,7 +97,11 @@ it.runIf(process.env.OA_BROWSER_ACCEPTANCE === '1')(
           .first()
           .click();
         for (const selector of ['#wecom-start', '#wecom-end']) {
-          if ((await page.locator(selector).getAttribute('data-empty')) === 'false') continue;
+          if (
+            (await page.locator(selector).getAttribute('data-empty')) ===
+            'false'
+          )
+            continue;
           await page.locator(selector).click();
           const value = new Date(`${day}T12:00:00Z`).toLocaleDateString(
             'en-US',

@@ -20,7 +20,8 @@ describe('app client routes', () => {
       paths.some(
         (path) =>
           path.startsWith('/workbenchPrototype') ||
-          path.startsWith('/demo-data'),
+          path.startsWith('/demo-data') ||
+          path.startsWith('/wecom-attendance'),
       ),
     ).toBe(false);
   });
@@ -520,7 +521,6 @@ describe('app client routes', () => {
         'oa-certificates',
         'attendance-management',
         'attendance-import',
-        'wecom-attendance',
       ],
       'oa-finance': [
         'oa-reimbursement-requests',

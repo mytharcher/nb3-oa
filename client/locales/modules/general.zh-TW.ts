@@ -1,0 +1,32 @@
+export default {
+  general: {
+    authz: {
+      resource: '通用申請',
+      submit: '提交本人通用申請',
+      delegate: '代員工提交通用申請',
+      view: '查看通用申請',
+    },
+    navigation: '通用申請',
+    new: '新增通用申請',
+    edit: '編輯通用申請',
+    title: '標題',
+    body: '申請正文',
+    extraApprovers: '額外簽核人',
+    extraStage: '額外簽核',
+    extraHint: '指定 1 至 3 人，在直屬上層之後按此順序簽核。',
+    addApprover: '新增簽核人',
+    removeApprover: '移除第 {{number}} 位簽核人',
+    approver: '第 {{number}} 位額外簽核人',
+    formDescription: '申請制度尚未覆蓋的其他事項。',
+    approversInvalid: '請選擇 1 至 3 位不同的在職人員，不能選擇申請人本人。',
+    invalid: '請填寫標題與申請正文，並檢查長度限制。',
+    inactive: '申請人須為在職員工。',
+    configuration: '暫時無法提交簽核，請聯絡管理員檢查簽核期限設定。',
+    uncertainCreate:
+      '儲存結果尚未確認，請關閉表單，先在「我發起的」覈實是否已有草稿。',
+    attachmentInvalid: '部分附件不屬於此申請。',
+    attachmentDenied: '沒有訪問這些附件的權限。',
+    attachmentType: '請上傳匹配的 PDF、JPEG、PNG 或 WebP 檔案。',
+    attachmentSize: '附件不能為空，且不能超過 5 MB。',
+  },
+};

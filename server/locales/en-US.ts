@@ -1,3 +1,4 @@
+import reportExportsLocale from './modules/report-exports.en-US.js';
 import reportsLocale from '../../client/locales/modules/reports.en-US.js';
 import invoiceRecognitionLocale from '../../client/locales/modules/invoice-recognition.en-US.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.en-US.js';
@@ -37,6 +38,7 @@ import annualLeave from './modules/annual-leave.en-US.js';
 // plugin's namespace; add keys here as the application starts producing its own, and use `overrides` to reword a
 // plugin's.
 const enUS = {
+  ...reportExportsLocale,
   demoData,
   ...accessLocale,
   ...processManagementLocale,

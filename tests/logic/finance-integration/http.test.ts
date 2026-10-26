@@ -1,6 +1,9 @@
 // @vitest-environment node
 import { randomUUID } from 'node:crypto';
 import { expect, vi } from 'vitest';
+vi.mock('../../../shared/external-integrations.js', () => ({
+  externalIntegrationsEnabled: true,
+}));
 import { createAppTest } from '@nocobase/app-testing/server';
 import { databaseManagerToken } from '@nocobase/db';
 import { authorizationToken } from '@nocobase/app-plugin-authorization/server';

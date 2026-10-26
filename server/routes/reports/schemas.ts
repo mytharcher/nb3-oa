@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { reportLocaleSchema } from './i18n.js';
 
 export const ListQuery = z.strictObject({
   page: z.coerce.number().int().min(1).default(1),
@@ -20,7 +21,7 @@ export const LeaveMonthlyQuery = z.strictObject({
     .enum(['year', 'month', 'approvedRequestCount', 'approvedRequestedDays'])
     .default('month'),
   direction: z.enum(['asc', 'desc']).default('desc'),
-  locale: z.enum(['en-US', 'zh-CN']).default('en-US'),
+  locale: reportLocaleSchema,
 });
 export const LeaveMonthlyRow = z.object({
   id: z.string(),

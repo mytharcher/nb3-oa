@@ -1,0 +1,160 @@
+export default {
+  recordName: 'Thay đổi nhân sự cho "{{name}}"',
+  namedAction: '{{action}} cho "{{name}}"?',
+  savedRecord: 'Đã lưu thay đổi nhân sự cho "{{name}}"',
+
+  businessErrors: {
+    TRANSFER_INVALID_DATE: 'Chọn ngày có hiệu lực hợp lệ cho thay đổi nhân sự.',
+    TRANSFER_NO_CHANGE:
+      'Không có chi tiết nghiệp vụ thay đổi. Sửa ít nhất một trường được phép.',
+    TRANSFER_SALARY_INVALID: 'Nhập mức lương hợp lệ trong phạm vi hỗ trợ.',
+    TRANSFER_RATIO_INVALID:
+      'Kiểm tra tỷ lệ điều chỉnh lương theo giới hạn đã cấu hình.',
+    TRANSFER_INVALID_PROMOTION:
+      'Cấp bậc đã chọn không đủ điều kiện thăng chức. Kiểm tra cấp hiện tại và đích.',
+    TRANSFER_TARGET_DEPARTMENT_UNAVAILABLE:
+      'Chọn phòng ban đích đang hoạt động.',
+    TRANSFER_TARGET_POSITION_UNAVAILABLE:
+      'Chọn vị trí đang hoạt động trong phòng ban đích.',
+    TRANSFER_ACCOUNT_UNAVAILABLE:
+      'Chọn tài khoản định biên đã khởi tạo phù hợp đủ sức chứa.',
+    TRANSFER_YEAR_REBIND_REQUIRED:
+      'Năm đã thay đổi. Chuyển liên kết yêu cầu đến tài khoản định biên năm phù hợp.',
+    TRANSFER_SOURCE_CHANGED:
+      'Phân công hiện tại của nhân viên đã thay đổi. Làm mới và sửa đề xuất.',
+    TRANSFER_COMPENSATION_CHANGED:
+      'Lương nhân viên đã thay đổi. Làm mới trước khi sửa thu nhập.',
+    TRANSFER_NOT_DUE: 'Chưa đến ngày có hiệu lực. Chờ đến ngày đã lên lịch.',
+    TRANSFER_INVALID_KINDS:
+      'Chọn loại thay đổi nhân sự phù hợp với trường thay đổi.',
+  },
+
+  moreActions: 'Thao tác khác',
+  return: 'Trả lại',
+  destructiveConsequence:
+    'Thao tác kết thúc hoặc thay đổi phê duyệt hiện tại. Kiểm tra hậu quả trước khi xác nhận.',
+  searchPeople: 'Tìm tên ứng viên',
+  title: 'Thay đổi nhân sự',
+  description: 'Theo dõi phê duyệt và hiệu lực thay đổi nhân sự.',
+  create: 'Yêu cầu mới',
+  search: 'Tìm theo lý do hoặc ID yêu cầu',
+  searchEmployees: 'Tìm tên hoặc mã nhân viên',
+  empty: 'Không có yêu cầu thay đổi nhân sự',
+  noResults: 'Không có yêu cầu phù hợp',
+  refresh: 'Làm mới',
+  clear: 'Xóa bộ lọc',
+  allStatuses: 'Tất cả trạng thái',
+  employeeInDetail: 'Xem chi tiết',
+  salary: 'Lương riêng tư',
+  currentSalary: 'Lương hiện tại',
+  salaryDenied: 'Bạn không thể xem lương cho yêu cầu này',
+  failedToExecute:
+    'Áp dụng hiệu lực thất bại. Giải quyết dữ kiện nhân viên hoặc tài khoản sức chứa trước khi thử lại.',
+  loading: 'Đang tải…',
+  saved: 'Thao tác hoàn tất',
+  saving: 'Đang lưu…',
+  save: 'Lưu',
+  cancel: 'Hủy',
+  confirm: 'Xác nhận thao tác',
+  retry: 'Thử lại',
+  loadLatest: 'Tải mới nhất',
+  reviewEditWarning: 'Thay đổi khởi động lại phê duyệt và đóng tác vụ hiện có.',
+  cancelConsequence:
+    'Sức chứa giữ phân bổ đến khi nhân sự độc lập xác nhận hủy.',
+  rebindConsequence:
+    'Chuyển liên kết tài khoản thực tế năm hiện tại. Hiệu lực vẫn chờ bảo trì.',
+  confirmAction: 'Kiểm tra yêu cầu và thao tác hiện tại, cung cấp lý do.',
+  unavailable: 'Tác vụ hoặc quyền đã thay đổi. Quay lại chi tiết và làm mới.',
+  recipient: 'Người nhận',
+  select: 'Chọn tùy chọn',
+  none: 'Không có',
+  required: 'Trường này là bắt buộc',
+  tooLong: 'Nội dung quá dài',
+  noChanges: 'Thay đổi ít nhất một trường được phép',
+  capacityResolved:
+    'Đã phân giải định danh tài khoản sức chứa. Khoản giữ được xác thực trong giao dịch phê duyệt.',
+  capacityRequired:
+    'Chọn nhân viên, phòng ban đích, vị trí và ngày có hiệu lực để phân giải tài khoản sức chứa thực tế.',
+  previous: 'Trước',
+  next: 'Tiếp',
+  discardTitle: 'Bỏ thay đổi chưa lưu?',
+  discardDescription: 'Rời đi sẽ bỏ nội dung nhập hiện tại.',
+  keepEditing: 'Tiếp tục chỉnh sửa',
+  discard: 'Bỏ thay đổi',
+
+  fields: {
+    id: 'ID yêu cầu',
+    employeeId: 'Nhân viên',
+    kinds: 'Loại thay đổi',
+    targetDepartmentId: 'Phòng ban đích',
+    targetPositionId: 'Vị trí đích',
+    targetGradeId: 'Cấp bậc đích',
+    targetManagerId: 'Quản lý đích',
+    effectiveDate: 'Ngày có hiệu lực',
+    targetSalary: 'Lương đích (CNY)',
+    reason: 'Lý do',
+    status: 'Trạng thái',
+    applicantId: 'Người yêu cầu',
+    createdAt: 'Thời điểm tạo',
+  },
+  factFields: {
+    employee: 'Nhân viên',
+    department: 'Phòng ban đích',
+    position: 'Vị trí đích',
+    grade: 'Cấp bậc đích',
+    manager: 'Quản lý đích',
+  },
+  status: {
+    completed: 'Có hiệu lực',
+    draft: 'Bản nháp',
+    revision: 'Trả lại để chỉnh sửa',
+    manager: 'Quản lý xem xét',
+    sourceHead: 'Phòng ban nguồn xem xét',
+    targetHead: 'Phòng ban đích xem xét',
+    hr: 'Nhân sự xem xét',
+    executive: 'Ban điều hành xem xét',
+    gm: 'Tổng giám đốc xem xét',
+    pendingEffective: 'Chờ có hiệu lực',
+    cancellationReview: 'Hủy chờ xác nhận',
+    executed: 'Có hiệu lực',
+    cancelled: 'Đã hủy',
+    rejected: 'Đã từ chối',
+    withdrawn: 'Đã rút lại',
+    terminated: 'Đã chấm dứt',
+  },
+  operations: {
+    submit: 'Gửi',
+    edit: 'Chỉnh sửa yêu cầu',
+    reviewEdit: 'Sửa trường xem xét',
+    withdraw: 'Rút lại',
+    terminate: 'Chấm dứt',
+    requestCancellation: 'Yêu cầu hủy',
+    rebind: 'Chuyển liên kết sức chứa năm hiện tại',
+  },
+  kinds: {
+    transfer: 'Chuyển giao',
+    salaryChange: 'Thay đổi lương',
+    promotion: 'Thăng chức',
+  },
+  authz: {
+    rebind: 'Chuyển liên kết sức chứa cho năm hiện tại',
+    resource: 'Thay đổi nhân sự',
+    view: 'Xem yêu cầu',
+    operate: 'Thực hiện thao tác phê duyệt',
+    viewSalary: 'Xem lương',
+    submit: 'Gửi và chỉnh sửa yêu cầu',
+    reviewEdit: 'Sửa trường xem xét được phép',
+    cancel: 'Yêu cầu hủy trước khi có hiệu lực',
+    readable: 'Yêu cầu của mình và có tham gia',
+  },
+  errors: {
+    missing: 'Yêu cầu không khả dụng. Quay lại danh sách và làm mới.',
+    conflict: 'Yêu cầu đã thay đổi. Tải chi tiết mới nhất và thử lại.',
+    precondition:
+      'Điều kiện nghiệp vụ không khả dụng. Kiểm tra dữ kiện nhân viên và tài khoản sức chứa.',
+    salary: 'Nhập lương trong phạm vi cho phép tối đa hai chữ số thập phân.',
+
+    denied: 'Bạn không có quyền cho thay đổi nhân sự này.',
+    failed: 'Không thể hoàn tất thay đổi nhân sự. Làm mới và thử lại.',
+  },
+};

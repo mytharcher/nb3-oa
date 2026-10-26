@@ -1,0 +1,98 @@
+export default {
+  leaveBalances: {
+    navigationDiscardDescription:
+      'Bỏ thay đổi này và quay lại danh sách số dư. Điều hướng ban đầu không tiếp tục.',
+    navigationDiscard: 'Bỏ và quay lại số dư',
+    clearFilters: 'Xóa bộ lọc',
+    clearSearch: 'Xóa tìm kiếm',
+    title: 'Số dư nghỉ phép',
+    adminTitle: 'Quản trị số dư nghỉ phép',
+    description: 'Xem nghỉ phép khả dụng, ngày giữ và lịch sử số dư.',
+    adminDescription:
+      'Kiểm tra số dư nghỉ phép nhân viên và ghi điều chỉnh kèm lý do.',
+    employee: 'Nhân viên',
+    employeePlaceholder: 'Tìm nhân viên theo tên hoặc mã',
+    type: 'Loại nghỉ phép',
+    selectType: 'Chọn loại nghỉ phép',
+    availableUnits: 'Ngày khả dụng',
+    heldUnits: 'Ngày giữ',
+    availableDelta: 'Thay đổi khả dụng (ngày)',
+    heldDelta: 'Thay đổi giữ (ngày)',
+    at: 'Thời gian',
+    kind: 'Loại',
+    reference: 'Nguồn',
+    actor: 'Người thao tác',
+    reason: 'Lý do',
+    days: 'Số ngày điều chỉnh',
+    actions: 'Thao tác cho "{{name}}"',
+    adjust: 'Điều chỉnh',
+    adjustBalance: 'Điều chỉnh số dư',
+    refresh: 'Làm mới',
+    retry: 'Thử lại',
+    loading: 'Đang tải',
+    noResults: 'Không có nhân viên phù hợp. Thay đổi tìm kiếm.',
+    searchCap: 'Chỉ hiển thị 20 nhân viên đầu tiên. Thu hẹp tìm kiếm.',
+    noTypes: 'Không có loại nghỉ phép dùng số dư. Nhờ quản trị viên cấu hình.',
+    unopened:
+      '"{{type}}" chưa có tài khoản: {{available}} ngày khả dụng và {{held}} ngày giữ. Thêm số dư để mở.',
+    ledgerTitle: '{{type}} · Lịch sử số dư',
+    adjustTitle: 'Điều chỉnh số dư nghỉ phép',
+    adjustDescription: 'Điều chỉnh số dư {{type}} cho "{{name}}".',
+    currentBalance: 'Hiện có {{available}} ngày khả dụng và {{held}} ngày giữ.',
+    afterBalance:
+      'Khả dụng sau điều chỉnh: {{amount}} ngày, tùy xác thực máy chủ.',
+    noExpiry:
+      'Số dư thêm không hết hạn. Giảm số dư giữ quy tắc hết hạn hiện có.',
+    daysInvalid: 'Nhập số ngày khác không theo bước nửa ngày.',
+    reasonRequired: 'Nhập lý do điều chỉnh.',
+    reasonLong: 'Lý do không quá 2.000 ký tự.',
+    adjusted: 'Đã điều chỉnh số dư cho "{{name}}".',
+    cancel: 'Hủy',
+    uncertain:
+      'Kết quả chưa chắc chắn. Thử lại cùng điều chỉnh; giá trị bị khóa để ngăn bản ghi trùng.',
+    retryAdjustment: 'Thử lại điều chỉnh',
+    discardTitle: 'Bỏ điều chỉnh số dư',
+    discardDescription: 'Điều chỉnh chưa lưu sẽ bị mất.',
+    keepEditing: 'Tiếp tục chỉnh sửa',
+    discard: 'Bỏ',
+    kinds: {
+      grant: 'Cấp',
+      hold: 'Giữ',
+      deduct: 'Khấu trừ',
+      release: 'Giải phóng',
+      expire: 'Hết hạn',
+      refund: 'Hoàn lại',
+    },
+    error: {
+      insufficient: 'Số dư khả dụng không đủ. Giảm khấu trừ.',
+      forbidden:
+        'Bạn không có quyền xem hoặc điều chỉnh dữ liệu này. Hỏi quản trị viên; tìm nhân viên cũng cần quyền hồ sơ.',
+      notFound:
+        'Hồ sơ nhân viên thiếu hoặc chưa liên kết. Hỏi nhân sự hoặc chọn nhân viên khác.',
+      invalid:
+        'Điều chỉnh không hợp lệ. Kiểm tra ngày, loại nghỉ phép và lý do.',
+      failed: 'Không thể hoàn thành yêu cầu. Thử lại.',
+    },
+    empty: {
+      readonlyAccountsTitle: 'Chưa có số dư nghỉ phép',
+      readonlyAccountsDescription:
+        'Nhờ quản trị viên nhân sự được cấp quyền cấp số dư nghỉ phép.',
+      employeeTitle: 'Chọn nhân viên',
+      employeeDescription: 'Tìm theo tên hoặc mã để xem số dư nghỉ phép.',
+      accountsTitle: 'Chưa có số dư nghỉ phép',
+      accountsDescription: 'Chọn loại nghỉ phép và thêm số dư bằng điều chỉnh.',
+      mineTitle: 'Chưa có số dư nghỉ phép',
+      mineDescription:
+        'Nhân sự cấp số dư nghỉ phép. Liên hệ nhân sự nếu cần kiểm tra.',
+      ledgerTitle: 'Chưa có lịch sử số dư',
+      ledgerDescription: 'Các khoản cấp, giữ và khấu trừ hiển thị tại đây.',
+    },
+    authz: {
+      section: 'Quản lý nghỉ phép',
+      title: 'Số dư nghỉ phép',
+      read: 'Đọc số dư nghỉ phép nhân viên',
+      update: 'Điều chỉnh số dư nghỉ phép nhân viên',
+      permissionSet: 'Quản trị số dư nghỉ phép của nhân sự',
+    },
+  },
+};

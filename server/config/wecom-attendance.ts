@@ -23,9 +23,11 @@ export default defineAppConfig<WecomAttendanceConfig>({
       description: 'Enable dedicated WeCom attendance synchronization.',
     }),
     OA_WECOM_ATTENDANCE_CORP_ID: envString('corpId', {
+      required: false,
       description: 'WeCom corporation identity for attendance.',
     }),
     OA_WECOM_ATTENDANCE_SECRET: envString('secret', {
+      required: false,
       description:
         'Dedicated attendance application secret; never use a browser configuration.',
       secret: true,

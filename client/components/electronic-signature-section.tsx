@@ -1,3 +1,4 @@
+import { externalIntegrationsEnabled } from '../../shared/external-integrations.js';
 import { useRef, useState } from 'react';
 import { useApiClient, ApiClientError } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
@@ -29,7 +30,7 @@ interface Status {
   canSend: boolean;
   canDownload: boolean;
 }
-export function ElectronicSignatureSection({
+function AvailableElectronicSignatureSection({
   kind,
   id,
   onComplete,
@@ -233,4 +234,12 @@ export function ElectronicSignatureSection({
       </AlertDialog>
     </section>
   );
+}
+
+export function ElectronicSignatureSection(
+  props: Parameters<typeof AvailableElectronicSignatureSection>[0],
+) {
+  return externalIntegrationsEnabled ? (
+    <AvailableElectronicSignatureSection {...props} />
+  ) : null;
 }

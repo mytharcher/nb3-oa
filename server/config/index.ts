@@ -1,3 +1,4 @@
+import { externalIntegrationsEnabled } from '../../shared/external-integrations.js';
 import invoiceRecognition from './invoice-recognition.js';
 import electronicSignatures from './electronic-signatures.js';
 import {
@@ -30,11 +31,7 @@ import oaApprovals from './oa-approvals.js';
 
 const defaultConfigs: AppConfigFactory<{
   auth: ReturnType<typeof auth>;
-  wecomAttendance: ReturnType<typeof wecomAttendance>;
   enterpriseIdentity: ReturnType<typeof enterpriseIdentity>;
-  financeIntegration: ReturnType<typeof financeIntegration>;
-  invoiceRecognition: ReturnType<typeof invoiceRecognition>;
-  electronicSignatures: ReturnType<typeof electronicSignatures>;
   authorization: ReturnType<typeof authorization>;
   notification: ReturnType<typeof notification>;
   secrets: ReturnType<typeof secrets>;
@@ -56,11 +53,15 @@ const defaultConfigs: AppConfigFactory<{
   oaApprovals: ReturnType<typeof oaApprovals>;
 }> = defaultAppConfigs({
   auth,
-  wecomAttendance,
+  ...(externalIntegrationsEnabled
+    ? {
+        wecomAttendance,
+        financeIntegration,
+        invoiceRecognition,
+        electronicSignatures,
+      }
+    : {}),
   enterpriseIdentity,
-  financeIntegration,
-  invoiceRecognition,
-  electronicSignatures,
   authorization,
   notification,
   secrets,

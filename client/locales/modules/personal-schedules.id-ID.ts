@@ -1,0 +1,72 @@
+export default {
+  personalSchedules: {
+    team: {
+      companyTime: 'Waktu perusahaan',
+      todayTitle: 'Status tim hari ini',
+      todayEmpty:
+        'Tidak ada ketidakhadiran tim disetujui yang terlihat untuk hari ini.',
+      preview:
+        'Menampilkan {{shown}} dari {{total}} pengaturan. Orang dihitung terpisah untuk setiap jenis.',
+      viewTeam: 'Lihat kalender tim',
+      title: 'Kalender tim',
+      hint: 'Ketidakhadiran disetujui yang boleh Anda lihat, disesuaikan dengan pembatalan dan pengakhiran awal.',
+      all: 'Semua departemen yang terlihat',
+      department: 'Departemen',
+      empty: 'Tidak ada ketidakhadiran yang terlihat',
+      emptyHint: 'Coba tanggal atau departemen lain.',
+      leave: 'Cuti',
+      travel: 'Perjalanan dinas',
+      outing: 'Tugas luar',
+    },
+    title: 'Jadwal saya',
+    create: 'Janji baru',
+    editTitle: 'Edit janji',
+    edit: 'Edit',
+    delete: 'Hapus',
+    save: 'Simpan',
+    saving: 'Menyimpan…',
+    saved: 'Janji disimpan',
+    deleted: 'Janji dihapus',
+    deleting: 'Menghapus…',
+    cancel: 'Batal',
+    back: 'Kembali ke jadwal',
+    retry: 'Coba lagi',
+    refresh: 'Muat ulang',
+    day: 'Tanggal',
+    today: 'Hari ini',
+    todayTitle: 'Jadwal hari ini',
+    viewAll: 'Lihat semua janji',
+    loading: 'Memuat jadwal',
+    empty: 'Tidak ada janji pada hari ini',
+    emptyHint:
+      'Buat janji pribadi; rapat yang dikonfirmasi juga muncul di sini.',
+    meeting: 'Rapat',
+    managed:
+      'Janji ini berasal dari pemesanan rapat. Ubah atau batalkan dari detail rapat.',
+    openMeeting: 'Lihat rapat',
+    timeZone: 'Waktu ditampilkan dalam {{zone}}',
+    noDescription: 'Tidak ada deskripsi',
+    invalid:
+      'Masukkan judul dan kedua waktu. Waktu akhir harus setelah waktu mulai.',
+    deleteTitle: 'Hapus janji “{{title}}”?',
+    deleteHint: 'Ini tidak dapat dibatalkan.',
+    discardTitle: 'Buang perubahan janji?',
+    discardHint: 'Perubahan yang belum disimpan akan hilang.',
+    keepEditing: 'Lanjutkan mengedit',
+    discard: 'Buang',
+    fields: {
+      title: 'Judul',
+      description: 'Deskripsi',
+      start: 'Waktu mulai',
+      end: 'Waktu akhir',
+    },
+    errors: {
+      denied: 'Anda tidak dapat melihat janji ini. Kembali ke jadwal Anda.',
+      missing:
+        'Janji ini tidak ada atau telah dihapus. Kembali ke jadwal Anda.',
+      conflict:
+        'Janji ini berubah atau dikelola oleh rapat. Muat ulang sebelum mencoba lagi.',
+      failed: 'Janji tidak dapat dimuat atau disimpan. Silakan coba lagi.',
+    },
+  },
+};

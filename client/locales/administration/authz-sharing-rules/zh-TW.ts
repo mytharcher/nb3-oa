@@ -1,0 +1,43 @@
+export default {
+  resourceTitle: '共享規則',
+  navigation: { title: '共享規則' },
+  sharingRules: {
+    noResources:
+      '尚未定義支援記錄範圍的業務資源。可以讓 AI 定義業務權限和記錄範圍，開發後即可在這裡設定規則。',
+    page: {
+      title: '共享規則',
+      description:
+        '為指定使用者擴大可訪問的記錄範圍。使用者仍需具備相應的操作和欄位權限。',
+    },
+    search: '按規則名稱、標識或資源搜尋',
+    create: '新增共享規則',
+    ruleHeader: '規則',
+    recordsSharedHeader: '共享的記錄',
+    sharedWithHeader: '共享給',
+    accessHeader: '訪問',
+    emptyNone: '還沒有共享規則。新增一條，把記錄開放給需要它們的人。',
+    emptySearch: '沒有匹配搜尋條件的共享規則。',
+    pagerLabel: '共享規則',
+    editTitle: '編輯共享規則',
+    newTitle: '新增共享規則',
+    editorDescription: '選擇要共享的記錄範圍和使用者。',
+    ruleHeading: '基本資訊',
+    ruleDescription: '為規則命名，並選擇要共享的資源。',
+    ruleName: '規則名稱',
+    accessHeading: '操作與記錄範圍',
+    accessDescription: '為每個操作分別選擇記錄。',
+    assignmentsHeading: '適用物件',
+    assignmentsDescription: '選擇誰獲得這部分額外訪問。',
+    description: '說明',
+    recordsToShare: '要共享的記錄',
+    selectedRecords: '指定記錄',
+    policyRecords: '符合某條策略的記錄',
+    matchingPolicy: '符合策略的記錄',
+    noRecords: '未找到記錄。',
+    deleteRule: '刪除規則',
+    save: '儲存共享規則',
+    confirmDeleteTitle: '刪除規則「{{title}}」？',
+    confirmDeleteBody:
+      '刪除共享規則「{{title}}」。其他權限集和共享規則提供的訪問仍然有效。',
+  },
+};

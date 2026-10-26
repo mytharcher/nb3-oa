@@ -1,3 +1,4 @@
+import { getReportTranslator, reportLocaleSchema } from './i18n.js';
 import ExcelJS from 'exceljs';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -25,7 +26,7 @@ import { leaveServiceToken } from '../../providers/leave/index.js';
 import { LeaveError } from '../../providers/leave/errors.js';
 
 const Query = z.object({
-  locale: z.enum(['en-US', 'zh-CN']).default('en-US'),
+  locale: reportLocaleSchema,
   year: z.coerce.number().int().min(1900).max(9998),
   month: z.coerce.number().int().min(1).max(12).optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -142,44 +143,45 @@ const routes: readonly AppRouteContribution<Application>[] = [
               }),
             });
           const book = new ExcelJS.Workbook();
-          const sheet = book.addWorksheet('Leave return rate');
+          const { t } = await getReportTranslator(
+            app,
+            ctx,
+            ctx.req.query('locale'),
+          );
+          const sheet = book.addWorksheet(
+            t('reportExports.approvalReturnRate.sheet'),
+          );
           sheet.columns = [
             {
-              header:
-                q.locale === 'zh-CN' ? '当前开始年' : 'Current start year',
+              header: t('reportExports.approvalReturnRate.fields.year'),
               key: 'year',
             },
             {
-              header:
-                q.locale === 'zh-CN' ? '当前开始月' : 'Current start month',
+              header: t('reportExports.approvalReturnRate.fields.month'),
               key: 'month',
             },
             {
-              header:
-                q.locale === 'zh-CN'
-                  ? '提交批次数（含在途）'
-                  : 'Submitted runs (includes open)',
+              header: t(
+                'reportExports.approvalReturnRate.fields.submittedRunCount',
+              ),
               key: 'submittedRunCount',
             },
             {
-              header:
-                q.locale === 'zh-CN'
-                  ? '发生退回的批次数'
-                  : 'Runs with a return',
+              header: t(
+                'reportExports.approvalReturnRate.fields.returnedRunCount',
+              ),
               key: 'returnedRunCount',
             },
             {
-              header:
-                q.locale === 'zh-CN'
-                  ? '实际退回决策数'
-                  : 'Return decision count',
+              header: t(
+                'reportExports.approvalReturnRate.fields.returnDecisionCount',
+              ),
               key: 'returnDecisionCount',
             },
             {
-              header:
-                q.locale === 'zh-CN'
-                  ? '退回率基点'
-                  : 'Return rate basis points',
+              header: t(
+                'reportExports.approvalReturnRate.fields.returnRateBasisPoints',
+              ),
               key: 'returnRateBasisPoints',
             },
           ];

@@ -1,0 +1,50 @@
+export default {
+  processOperations: {
+    title: 'Operaciones de procesos',
+    hint: 'Solicitudes enviadas por fecha de empresa y departamento principal actual del solicitante.',
+    refresh: 'Actualizar',
+    range: 'Fecha del primer envío',
+    process: 'Proceso',
+    department: 'Departamento',
+    all: 'Todos los procesos permitidos',
+    clear: 'Borrar filtros',
+    back: 'Volver al panel de trabajo',
+    retry: 'Reintentar',
+    summary: 'Resumen de procesos',
+    naturalTime:
+      'El tiempo natural transcurrido incluye la espera entre una devolución y el reenvío. Las solicitudes retiradas y canceladas se excluyen de los promedios de finalización.',
+    stages: 'Duración de etapas',
+    stageHint:
+      'Las tareas paralelas comparten un intervalo de etapa; las entradas repetidas se cuentan por separado.',
+    overdue: 'Tareas vencidas',
+    overdueHint:
+      'Solo se clasifican las tareas abiertas con un plazo configurado.',
+    empty: 'No hay solicitudes enviadas',
+    emptyHint: 'Prueba con otro intervalo de fechas, proceso o departamento.',
+    noStages: 'No hay etapas de aprobación en este intervalo.',
+    noOverdue: 'No hay tareas vencidas con plazo configurado.',
+    generated: 'Actualizado {{at}}',
+    submitted: 'Enviado',
+    completed: 'Completado',
+    returned: 'Solicitudes devueltas',
+    average: 'Tiempo medio transcurrido',
+    returnRate: 'Tasa de devolución',
+    stage: 'Etapa',
+    endedStages: 'Entradas de etapa finalizadas',
+    averageStay: 'Duración media',
+    waiting: 'Entradas en espera',
+    oldestWait: 'Mayor espera actual',
+    number: 'Número de solicitud',
+    noNumber: 'Solicitud sin número',
+    due: 'Plazo',
+    overdueTime: 'Tiempo de retraso',
+    hours: '{{value}} h',
+    errors: {
+      denied:
+        'No tienes acceso a este informe ni a sus registros empresariales.',
+      broad:
+        'Elige un intervalo válido de hasta 93 días. Restringe el proceso o el departamento si hay demasiadas solicitudes.',
+      failed: 'No se ha podido cargar el informe. Vuelve a intentarlo.',
+    },
+  },
+};

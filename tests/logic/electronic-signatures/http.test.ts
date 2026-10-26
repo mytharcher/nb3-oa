@@ -1,6 +1,9 @@
 import { auditServiceToken } from '../../../server/providers/audit/index.js';
 import { sealSignatureSourceToken } from '../../../server/providers/electronic-signatures/contract.js';
 // @vitest-environment node
+vi.mock('../../../shared/external-integrations.js', () => ({
+  externalIntegrationsEnabled: true,
+}));
 import { expect, vi } from 'vitest';
 import { createAppTest } from '@nocobase/app-testing/server';
 import { databaseManagerToken } from '@nocobase/db';

@@ -1,3 +1,4 @@
+import { externalIntegrationsEnabled } from '../../../shared/external-integrations.js';
 import { Spinner } from '#components/ui/spinner';
 import { createRequestKey } from '#lib/request-key';
 import { useEffect, useRef, useState } from 'react';
@@ -504,16 +505,21 @@ function Fields({
               <Select
                 value={field.value}
                 onValueChange={field.onChange}
-                disabled={busy}
+                disabled={busy || !externalIntegrationsEnabled}
                 items={[
                   {
                     value: 'physical',
                     label: t('electronicSignatures.physical'),
                   },
-                  {
-                    value: 'electronic',
-                    label: t('electronicSignatures.electronic'),
-                  },
+                  ...(externalIntegrationsEnabled ||
+                  field.value === 'electronic'
+                    ? [
+                        {
+                          value: 'electronic',
+                          label: t('electronicSignatures.electronic'),
+                        },
+                      ]
+                    : []),
                 ]}
               >
                 <SelectTrigger id='seal-execution-mode'>
@@ -523,9 +529,12 @@ function Fields({
                   <SelectItem value='physical'>
                     {t('electronicSignatures.physical')}
                   </SelectItem>
-                  <SelectItem value='electronic'>
-                    {t('electronicSignatures.electronic')}
-                  </SelectItem>
+                  {externalIntegrationsEnabled ||
+                  field.value === 'electronic' ? (
+                    <SelectItem value='electronic'>
+                      {t('electronicSignatures.electronic')}
+                    </SelectItem>
+                  ) : null}
                 </SelectContent>
               </Select>
               <p className='text-xs text-muted-foreground'>

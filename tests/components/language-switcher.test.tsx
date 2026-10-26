@@ -25,6 +25,7 @@ import {
 } from '#components/ui/dropdown-menu';
 
 import { LanguageSwitcher } from '../../client/layouts/components/language-switcher.js';
+import applicationLocales from '../../client/locales/index.js';
 
 const APP = '@nocobase/app-template-default';
 const FALLBACK_NOTICE = '服务端不支持该语言，服务端内容已回落为英文。';
@@ -49,7 +50,10 @@ function createServerResponse(fallback = false): Response {
   );
 }
 
-async function createRuntime(locales: string[]): Promise<{
+async function createRuntime(
+  locales: string[],
+  useApplicationLocales = false,
+): Promise<{
   app: ClientApplication;
   runtime: I18nRuntime;
 }> {
@@ -58,30 +62,35 @@ async function createRuntime(locales: string[]): Promise<{
     locales,
     applicationNamespace: APP,
   });
-  runtime.registerApplicationNamespace(APP, {
-    'en-US': () =>
-      Promise.resolve({
-        default: {
-          actions: { language: 'Language' },
-          notices: {
-            serverLocaleFallback:
-              'The server does not support this language, so server messages will use English.',
-            languageChangeFailed:
-              'Unable to complete the language change. Please try again.',
-          },
+  runtime.registerApplicationNamespace(
+    APP,
+    useApplicationLocales
+      ? applicationLocales
+      : {
+          'en-US': () =>
+            Promise.resolve({
+              default: {
+                actions: { language: 'Language' },
+                notices: {
+                  serverLocaleFallback:
+                    'The server does not support this language, so server messages will use English.',
+                  languageChangeFailed:
+                    'Unable to complete the language change. Please try again.',
+                },
+              },
+            }),
+          'zh-CN': () =>
+            Promise.resolve({
+              default: {
+                actions: { language: '语言' },
+                notices: {
+                  serverLocaleFallback: FALLBACK_NOTICE,
+                  languageChangeFailed: CHANGE_FAILED_NOTICE,
+                },
+              },
+            }),
         },
-      }),
-    'zh-CN': () =>
-      Promise.resolve({
-        default: {
-          actions: { language: '语言' },
-          notices: {
-            serverLocaleFallback: FALLBACK_NOTICE,
-            languageChangeFailed: CHANGE_FAILED_NOTICE,
-          },
-        },
-      }),
-  });
+  );
   await runtime.init('en-US');
   const appRuntime = await resolveAppRuntime(
     defineAppRuntime({
@@ -280,6 +289,55 @@ describe('LanguageSwitcher', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Account' })).toHaveFocus(),
     );
+  });
+
+  it('offers all twelve application languages and persists a Korean selection', async () => {
+    const supported = Object.keys(applicationLocales);
+    expect(supported).toHaveLength(12);
+    const { app, runtime } = await createRuntime(supported, true);
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: { locale: 'ko-KR', requestedLocale: 'ko-KR', fallback: false },
+        }),
+        { headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+    const user = userEvent.setup();
+    renderMenu(app, runtime);
+    screen.getByRole('button', { name: 'Account' }).focus();
+    await user.keyboard('{ArrowDown}');
+    await user.click(
+      await screen.findByRole('menuitem', { name: /Language\s*English/ }),
+    );
+    for (const definition of runtime.getLocaleDefinitions()) {
+      expect(
+        await screen.findByRole('menuitemradio', { name: definition.label }),
+      ).toBeVisible();
+    }
+    const koreanLabel = runtime
+      .getLocaleDefinitions()
+      .find((item) => item.locale === 'ko-KR')!.label;
+    fireEvent.click(
+      await screen.findByRole('menuitemradio', { name: koreanLabel }),
+    );
+    await waitFor(() => expect(runtime.getLocale()).toBe('ko-KR'));
+    expect(readStoredLocale()).toBe('ko-KR');
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: 'Account' }));
+    const resource = (await applicationLocales['ko-KR']()).default;
+    await user.click(
+      await screen.findByRole('menuitem', {
+        name: new RegExp(resource.actions.language),
+      }),
+    );
+    expect(
+      await screen.findByRole('menuitemradio', { name: koreanLabel }),
+    ).toBeChecked();
+    expect(toaster.show).not.toHaveBeenCalled();
   });
 
   it('renders nothing when the application offers one language', async () => {

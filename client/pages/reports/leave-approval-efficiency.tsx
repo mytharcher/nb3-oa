@@ -78,7 +78,7 @@ export function LeaveApprovalEfficiencyReport({
 function EfficiencyReport({ showHeader }: { showHeader: boolean }) {
   const api = useApiClient();
   const { t, i18n } = useTranslation();
-  const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US';
+  const locale = i18n.language;
   const id = useId();
   const search = useUrlSearch({
     param: 'efficiencyYear',

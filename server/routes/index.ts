@@ -1,3 +1,4 @@
+import { externalIntegrationsEnabled } from '../../shared/external-integrations.js';
 import invoiceRecognitionRoutes from './invoice-recognition/index.js';
 import electronicSignaturesRoutes from './electronic-signatures/index.js';
 import wecomAttendanceRoutes from './wecom-attendance/index.js';
@@ -78,9 +79,9 @@ const routes: readonly AppRouteContribution<Application>[] = [
   ...requestPreferencesRoutes,
   ...requestSearchRoutes,
   ...processOperationsRoutes,
-  ...financeIntegrationRoutes,
-  ...invoiceRecognitionRoutes,
-  ...electronicSignaturesRoutes,
+  ...(externalIntegrationsEnabled ? financeIntegrationRoutes : []),
+  ...(externalIntegrationsEnabled ? invoiceRecognitionRoutes : []),
+  ...(externalIntegrationsEnabled ? electronicSignaturesRoutes : []),
   ...hrMasterDataRoutes,
   ...personalSchedulesRoutes,
   ...approvalReturnRateRoutes,
@@ -105,7 +106,7 @@ const routes: readonly AppRouteContribution<Application>[] = [
   ...vehicleRoutes,
   ...headcountsRoutes,
   ...attendanceManagementRoutes,
-  ...wecomAttendanceRoutes,
+  ...(externalIntegrationsEnabled ? wecomAttendanceRoutes : []),
   ...attendanceResultsRoutes,
   ...attendanceChangeRoutes,
   ...outingsRoutes,
