@@ -1,3 +1,4 @@
+import { renderWithApp } from '@nocobase/app-testing/client';
 import { I18nRuntime } from '@nocobase/i18n';
 import { I18nProvider } from '@nocobase/i18n/client';
 import { act, fireEvent, render, screen } from '@testing-library/react';
@@ -14,6 +15,7 @@ import { Loading } from '../../client/components/loading.js';
 const availability = vi.hoisted(() => ({ signUp: true }));
 vi.mock('@nocobase/app-plugin-authentication/client', () => ({
   useSignUpAvailable: () => availability.signUp,
+  useAuthentication: () => ({ client: {} }),
 }));
 
 vi.mock('@nocobase/app-plugin-authentication/client/actions', () => ({
@@ -36,19 +38,15 @@ async function runtime() {
   await value.init('en-US');
   return value;
 }
-function renderPage(value: I18nRuntime, page: ReactElement) {
-  return render(
-    <I18nProvider runtime={value}>
-      <MemoryRouter>{page}</MemoryRouter>
-    </I18nProvider>,
-  );
+async function renderPage(value: I18nRuntime, page: ReactElement) {
+  return renderWithApp(<I18nProvider runtime={value}>{page}</I18nProvider>);
 }
 describe('authentication translations', () => {
   it('hides registration and redirects its page when sign-up is closed', async () => {
     availability.signUp = false;
     try {
       const value = await runtime();
-      renderPage(value, <LoginPage />);
+      await renderPage(value, <LoginPage />);
       expect(screen.queryByRole('link', { name: 'Sign up' })).toBeNull();
       expect(
         screen.getByRole('link', { name: 'Forgot password?' }),
@@ -68,7 +66,7 @@ describe('authentication translations', () => {
   });
   it('updates the login page, brand panel and visibility control on language change', async () => {
     const value = await runtime();
-    renderPage(value, <LoginPage />);
+    await renderPage(value, <LoginPage />);
     await act(() => value.changeLanguage('zh-CN'));
     expect(
       screen.getByRole('heading', { name: '欢迎回到 OA 工作台' }),
@@ -86,7 +84,7 @@ describe('authentication translations', () => {
   });
   it('retranslates an existing password mismatch', async () => {
     const value = await runtime();
-    const { container } = renderPage(value, <RegisterPage />);
+    const { container } = await renderPage(value, <RegisterPage />);
     fireEvent.change(screen.getByLabelText('Password'), {
       target: { value: 'one' },
     });
@@ -100,7 +98,7 @@ describe('authentication translations', () => {
   });
   it('translates reset states and generic loading', async () => {
     const value = await runtime();
-    renderPage(
+    await renderPage(
       value,
       <>
         <ResetPasswordPage />

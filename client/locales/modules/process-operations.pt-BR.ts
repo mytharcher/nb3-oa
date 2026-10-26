@@ -1,0 +1,50 @@
+export default {
+  processOperations: {
+    title: 'Operações de processos',
+    hint: 'Solicitações enviadas por data da empresa e departamento principal atual do solicitante.',
+    refresh: 'Atualizar',
+    range: 'Data do primeiro envio',
+    process: 'Processo',
+    department: 'Departamento',
+    all: 'Todos os processos permitidos',
+    clear: 'Limpar filtros',
+    back: 'Voltar à área de trabalho',
+    retry: 'Tentar novamente',
+    summary: 'Resumo do processo',
+    naturalTime:
+      'O tempo corrido inclui a espera entre devolução e reenvio. Solicitações retiradas e canceladas são excluídas das médias de conclusão.',
+    stages: 'Duração da etapa',
+    stageHint:
+      'Tarefas paralelas compartilham um intervalo de etapa; entradas repetidas são contadas separadamente.',
+    overdue: 'Tarefas atrasadas',
+    overdueHint:
+      'Somente tarefas abertas com prazo configurado são classificadas.',
+    empty: 'Nenhuma solicitação enviada',
+    emptyHint: 'Tente outro intervalo de datas, processo ou departamento.',
+    noStages: 'Nenhuma etapa de aprovação neste intervalo.',
+    noOverdue: 'Nenhuma tarefa atrasada com prazo configurado.',
+    generated: 'Atualizado em {{at}}',
+    submitted: 'Enviado',
+    completed: 'Concluído',
+    returned: 'Solicitações devolvidas',
+    average: 'Tempo médio decorrido',
+    returnRate: 'Taxa de devolução',
+    stage: 'Etapa',
+    endedStages: 'Entradas de etapas encerradas',
+    averageStay: 'Duração média',
+    waiting: 'Entradas em espera',
+    oldestWait: 'Maior espera atual',
+    number: 'Número da solicitação',
+    noNumber: 'Solicitação sem número',
+    due: 'Prazo',
+    overdueTime: 'Duração do atraso',
+    hours: '{{value}} h',
+    errors: {
+      denied:
+        'Você não tem acesso a este relatório e aos seus registros de negócio.',
+      broad:
+        'Escolha um intervalo válido de até 93 dias. Restrinja o processo ou departamento se houver muitas solicitações.',
+      failed: 'Não foi possível carregar o relatório. Tente novamente.',
+    },
+  },
+};

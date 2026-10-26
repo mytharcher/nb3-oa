@@ -25,7 +25,6 @@ import {
 } from 'react-router';
 import { z } from 'zod';
 import { format, parseISO } from 'date-fns';
-import { enUS, zhCN } from 'date-fns/locale';
 import { BackButton } from '#components/back-button';
 import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
@@ -810,9 +809,6 @@ export function ReimbursementForm({
                                   )
                                 }
                                 disabled={disabled}
-                                locale={
-                                  i18n.language.startsWith('zh') ? zhCN : enUS
-                                }
                               />
                               <FieldError errors={[fieldState.error]} />
                             </Field>

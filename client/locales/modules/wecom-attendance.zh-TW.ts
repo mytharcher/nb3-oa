@@ -1,0 +1,27 @@
+export default {
+  wecomAttendance: {
+    title: '企業微信打卡來源',
+    description: '同步已對應員工的打卡並查看最近30次同步記錄。',
+    sync: '同步打卡',
+    refresh: '重新整理',
+    runs: '同步記錄',
+    retry: '重試',
+    counts: '已提交{{records}}條記錄，共{{batches}}批',
+    runFailed:
+      '部分記錄未能匯入，請核對員工對應、排班和來源權限後重試。已完成批次予以保留。',
+    denied: '你沒有查看打卡同步的權限。',
+    disabled: '來源已停用，請管理員設定專用打卡應用程式。',
+    unconfigured: '來源尚需設定憑證及明確的員工對應才能同步。',
+    ready_one: '已準備同步{{count}}名已對應員工。',
+    ready_other: '已準備同步{{count}}名已對應員工。',
+    startedAt: '開始於{{time}}',
+    empty: '暫無同步記錄。',
+    rangeHint: '請選擇最多七個已結束的公司行事曆日。重複來源記錄不會重複匯入。',
+    start: '開始日期',
+    end: '結束日期',
+    reason: '原因',
+    cancel: '取消',
+    syncing: '同步中…',
+    states: { running: '同步中', completed: '已完成', failed: '待處理' },
+  },
+};

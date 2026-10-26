@@ -1,0 +1,60 @@
+export default {
+  seals: {
+    authz: {
+      requests: '인감 신청',
+      view: '보기',
+      create: '생성',
+      edit: '편집',
+      operate: '작업',
+      actualReturn: '실제 예외 반납',
+      ledger: '인감 원장',
+      instances: '인감 실물',
+      manage: '인감 기본 정보 관리',
+      owned: '내 레코드',
+      readable: '내 레코드 및 참여 레코드',
+    },
+    errors: {
+      REVIEWER_REQUIRED:
+        '실제 할당 검토자는 필수 활성 업무 역할을 유지해야 합니다.',
+      APPROVAL_REFUSED: '현재 결재 또는 처리 규칙이 작업을 거부합니다.',
+      ACCESS_DENIED: '인감 레코드 또는 필드에 접근할 수 없습니다.',
+      ACTIVE_EMPLOYEE_REQUIRED: '활성 직원 계정이 필요합니다.',
+      ADMIN_KEEPER_REQUIRED:
+        '실제 예외 반납에는 관리자 및 인감 보관자 역할이 모두 필요합니다.',
+      ADMIN_REQUIRED: '활성 행정 업무 역할이 필요합니다.',
+      BODY_TOO_LARGE: '첨부 파일이 업로드 크기 한도를 초과합니다.',
+      COMMAND_CONFLICT: '다른 내용에 이미 사용한 요청 키입니다.',
+      CONTRACT_ACCESS_DENIED: '연결된 계약을 볼 수 없습니다.',
+      CONTRACT_NOT_EFFECTIVE: '연결된 계약이 유효하지 않습니다.',
+      CONTRACT_VERSION_CONFLICT: '승인 후 연결 계약이 변경되었습니다.',
+      DEPARTMENT_REQUIRED: '신청자에게 기본 부서가 필요합니다.',
+      INVALID_COMMAND: '유효한 요청 키가 필요합니다.',
+      INVALID_COPIES: '실제 날인 부수는 양수이며 승인 수량 이하여야 합니다.',
+      INVALID_FILE: '첨부 파일이 없거나 안전하지 않거나 이 신청 밖에 있습니다.',
+      INVALID_INPUT: '인감 신청 필드가 유효하지 않습니다.',
+      INVALID_OUTPUT: '실물 처리 결과가 유효하지 않습니다.',
+      INVALID_RETURN:
+        '실제 반납에는 관리자 종료된 외부 반출과 사유가 필요합니다.',
+      INVALID_SEAL_TYPE:
+        '인감 유형이 비활성이거나 승인 신청과 일치하지 않습니다.',
+      INVALID_TIME: '실물 시간 또는 반납 기한이 유효하지 않습니다.',
+      KEEPER_REQUIRED: '활성 인감 보관자 역할이 필요합니다.',
+      OUTSTANDING_CUSTODY: '미결 실물 보관 중인 인감입니다.',
+      PHYSICAL_ALREADY_REGISTERED: '실물 사용 또는 반납이 이미 등록되었습니다.',
+      REQUEST_NOT_FOUND: '신청을 사용할 수 없습니다.',
+      SEAL_EVIDENCE_REQUIRED: '실제 변경 불가능한 날인 증빙이 필요합니다.',
+      SEAL_NOT_FOUND: '인감을 사용할 수 없습니다.',
+      SEAL_UNAVAILABLE: '현재 반출 중인 인감입니다.',
+      SLA_UNSUPPORTED: '지원하지 않는 알림 일정입니다.',
+      TARGET_MISMATCH: '제공된 할 일이 이 신청에 속하지 않습니다.',
+      VERSION_CONFLICT: '레코드가 변경되었습니다. 재시도 전에 새로고침하세요.',
+    },
+    schedule: {
+      title: '인감 반납 알림',
+      description: '회사 시간 기준 매일 미결 인감 보관을 알립니다.',
+    },
+    notifications: {
+      overdue: '대여 인감의 반납 기한이 초과되었습니다.',
+    },
+  },
+};

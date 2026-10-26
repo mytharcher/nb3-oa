@@ -52,16 +52,20 @@ export async function xlsx(
   rows: readonly Record<string, unknown>[],
   columns: readonly { header: string; key: string }[],
   filename: string,
+  options: { locale?: string; sheetName?: string } = {},
 ): Promise<Response> {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'NocoBase OA';
-  const sheet = workbook.addWorksheet('Report');
+  const sheet = workbook.addWorksheet(options.sheetName ?? 'Report');
   sheet.columns = columns.map((column) => ({ ...column, width: 18 }));
   sheet.getRow(1).font = { bold: true };
   for (const row of rows)
     sheet.addRow({
       ...row,
       subject:
+        (row.subjectLabel as Record<string, string> | null)?.[
+          options.locale ?? 'en-US'
+        ] ??
         (row.subjectLabel as Record<string, string> | null)?.['en-US'] ??
         row.subject,
       available: row.initialized === false ? null : row.available,

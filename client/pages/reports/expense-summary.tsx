@@ -37,7 +37,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '#components/ui/tooltip';
-import { useDatePickerLocale } from '#hooks/use-date-picker-locale';
 
 type ExpenseRow = {
   id: string;
@@ -79,9 +78,8 @@ export function ExpenseSummaryReport({
 function ExpenseSummaryContent({ showHeader }: { showHeader: boolean }) {
   const api = useApiClient();
   const toaster = useToaster();
-  const { t } = useTranslation();
-  const dateLocale = useDatePickerLocale();
-  const locale = dateLocale.code === 'zh-CN' ? 'zh-CN' : 'en-US';
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
   const yearId = useId(),
     monthId = useId();
   const yearSearch = useUrlSearch({

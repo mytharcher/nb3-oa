@@ -1,0 +1,85 @@
+export default {
+  vendors: {
+    saved: '"{{name}}" 공급업체를 저장했습니다',
+
+    title: '공급업체',
+    description:
+      '구매팀은 수동 공급업체를 관리합니다. 승인 주문은 기록된 공급업체 사실을 유지합니다.',
+    new: '새 공급업체',
+    edit: '공급업체 편집',
+    view: '공급업체 세부 정보',
+    refresh: '새로고침',
+    search: '이름, 코드 또는 분류 검색',
+    clear: '필터 초기화',
+    rowActions: '{{name}} 작업',
+    save: '저장',
+    cancel: '취소',
+    loading: '공급업체 불러오는 중',
+    retry: '다시 시도',
+    active: '활성',
+    status: '상태',
+    statuses: {
+      manual: '수동 공급업체',
+      qualified: '자격 승인됨',
+      disabled: '비활성',
+    },
+    updatedAt: '업데이트됨',
+    reason: '변경 사유',
+    formDescription:
+      '공급업체 변경과 은행 정보는 감사에 기록됩니다. 비활성화하면 새 구매 및 지급을 차단합니다.',
+    disableHint: '새 구매 및 지급 계좌 정보가 차단됩니다.',
+    required: '필수 입력 항목입니다.',
+    invalidCode: '영문, 숫자, 마침표, 하이픈 또는 밑줄을 사용하세요.',
+    invalidEmail: '올바른 이메일 주소를 입력하세요.',
+    noChanges: '저장 전에 필드를 하나 이상 변경하세요.',
+    unknownCreate:
+      '생성 결과를 알 수 없습니다. 다른 공급업체 생성 전에 목록과 코드를 확인하세요.',
+    unknownEdit:
+      '결과를 알 수 없습니다. 재시도 전에 최신 공급업체를 불러오세요. 미확정 변경은 유지됩니다.',
+    loadLatest: '최신 공급업체 불러오기',
+    fields: {
+      code: '코드',
+      name: '이름',
+      category: '분류',
+      contactName: '연락처',
+      contactPhone: '전화',
+      contactEmail: '이메일',
+      bankName: '은행',
+      bankAccount: '은행 계좌',
+      bankAccountName: '계좌명',
+    },
+    authz: {
+      resource: '공급업체',
+      view: '공급업체 세부 정보 읽기',
+      manage: '공급업체 관리',
+      bankRead: '은행 정보 읽기',
+      createdScope: '현재 사용자가 생성한 공급업체',
+    },
+    empty: {
+      accountsTitle: '공급업체 없음',
+      accountsDescription: '구매용 수동 공급업체를 추가하세요.',
+      readonlyTitle: '읽을 수 있는 공급업체 없음',
+      readonlyDescription:
+        '부여된 범위에 공급업체가 없습니다. 구매팀에 추가를 요청하거나 관리자에게 공급업체 관리 권한을 요청하세요.',
+      filteredTitle: '일치하는 공급업체 없음',
+      filteredDescription: '검색을 변경하거나 지우세요.',
+    },
+    error: {
+      forbidden: '공급업체 접근 권한이 없습니다.',
+      missing: '공급업체를 사용할 수 없습니다. 상위 목록을 새로고침하세요.',
+      invalid: '공급업체 필드를 확인하세요.',
+      failed: '공급업체를 불러오거나 저장하지 못했습니다. 다시 시도하세요.',
+      VENDOR_INVALID_INPUT: '공급업체 연락처 및 은행 필드를 확인하세요.',
+      VENDOR_INVALID_COMMAND: '작업자와 변경 사유가 필요합니다.',
+      VENDOR_CODE_EXISTS: '코드가 이미 다른 공급업체에 속합니다.',
+      VENDOR_VERSION_CONFLICT:
+        '공급업체가 변경되었습니다. 재시도 전에 최신 버전을 불러오세요.',
+      VENDOR_NOT_FOUND: '공급업체를 사용할 수 없습니다.',
+      VENDOR_INACTIVE: '활성 공급업체를 선택하세요.',
+      VENDOR_FIELDS_RESTRICTED: '공급업체 필드가 권한 밖입니다.',
+      VENDOR_ACCESS_DENIED: '공급업체 작업 권한이 없습니다.',
+      VENDOR_PAYMENT_ACCOUNT_REQUIRED:
+        '지급 전에 공급업체 은행 정보를 완성하세요.',
+    },
+  },
+};

@@ -1,0 +1,196 @@
+export default {
+  vendorQualifications: {
+    amountUnit: 'CNY (yuanes), hasta 2 decimales',
+    authz: {
+      resource: 'Acreditación de proveedores',
+      view: 'Ver acreditaciones de proveedores',
+      submit: 'Crear y editar solicitudes de acreditación de proveedores',
+      paymentAccount: 'Leer cuentas bancarias protegidas de proveedores',
+      updatePaymentAccount:
+        'Actualizar cuenta bancaria del proveedor en borrador propio',
+      manage: 'Configurar comité de acreditación de proveedores',
+    },
+    schedule: {
+      title: 'Recordatorios de caducidad de acreditación de proveedores',
+      description:
+        'Envía un recordatorio a Compras 30 días naturales de empresa antes de que caduque la acreditación.',
+    },
+
+    title: 'Acreditación y baja de proveedores',
+    description: 'Solicita una acreditación o baja y sigue su revisión.',
+    new: 'Nueva solicitud',
+    committeeVersion: 'Revisión del comité (versión {{version}})',
+    allStatuses: 'Todas las etapas',
+    clearFilters: 'Borrar filtros',
+    view: 'Ver',
+    emptyDescription:
+      'Crea una solicitud de proveedor o pide acceso a un administrador.',
+    rowActions: 'Acciones para «{{name}}»',
+    details: 'Ver detalles',
+    edit: 'Editar',
+    unknown: 'Resultado sin confirmar. Reintenta la solicitud sin modificar.',
+    retryCreate: 'Reintentar creación original',
+    bankHint:
+      'Introduce la cuenta bancaria protegida abajo y envía la solicitud completada o guarda un borrador.',
+    vetoAbstain: 'Abstenerse renuncia al veto de esta plaza.',
+    confirmation: '¿{{action}} «{{name}}»?',
+    consequence:
+      'Esto avanza o finaliza la revisión. Las opiniones enviadas permanecen en el historial.',
+    savedNamed: 'Se ha guardado «{{name}}»',
+    doneNamed: '{{action}} completada para «{{name}}»',
+    operations: {
+      qualify: 'Acreditación',
+      remove: 'Baja',
+    },
+    form: {
+      create: 'Nueva solicitud de proveedor',
+      edit: 'Editar solicitud de proveedor',
+    },
+    fields: {
+      operation: 'Tipo de solicitud',
+      vendor: 'Proveedor',
+      name: 'Nombre del proveedor',
+      category: 'Categoría del proveedor',
+      reason: 'Motivo',
+      quoteCents: 'Presupuesto',
+      cases: 'Referencias',
+      contactName: 'Nombre del contacto',
+      contactPhone: 'Teléfono',
+      contactEmail: 'Correo electrónico',
+      attachments: 'Justificantes de acreditación',
+      qualificationExpiry: 'Caducidad de acreditación',
+      number: 'Número de solicitud',
+      applicant: 'Solicitante',
+      createdAt: 'Creado',
+      status: 'Etapa actual',
+      sourceVendorVersion: 'Versión de datos del proveedor',
+      committeeVersion: 'Versión del comité',
+    },
+    common: {
+      cancel: 'Cancelar',
+      save: 'Guardar',
+      refresh: 'Actualizar',
+      retry: 'Reintentar',
+      search: 'Buscar proveedor o número de solicitud',
+      more: 'Más acciones',
+      empty: 'No hay solicitudes de proveedores',
+      noResults: 'No hay solicitudes coincidentes',
+      saving: 'Guardando',
+      required: 'Obligatorio',
+      comment: 'Comentar',
+      person: 'Revisor',
+      none: 'Sin asignar',
+      searchPeople: 'Buscar personas aptas',
+    },
+    errors: {
+      category: 'Selecciona una categoría de proveedores activa.',
+      evidence:
+        'Sube o selecciona al menos un archivo justificativo de acreditación.',
+      expiry:
+        'Selecciona una fecha de caducidad posterior a hoy en la zona horaria de la empresa.',
+      qualificationFacts:
+        'Completa el nombre del proveedor, una categoría activa y los justificantes de acreditación y selecciona una fecha de caducidad posterior a hoy en la zona horaria de la empresa.',
+      missingReturned: '{{name}} no está disponible. Se ha vuelto al origen.',
+      missingUnnamed:
+        'La solicitud no está disponible. Se ha vuelto al origen.',
+      forbidden: 'Acceso no disponible. Contacta con un administrador.',
+      missing: 'Solicitud no disponible. Vuelve a la vista anterior.',
+      conflict:
+        'Los datos han cambiado. Carga la última versión antes de continuar.',
+      invalid:
+        'Comprueba los campos obligatorios y las condiciones empresariales actuales.',
+      failed: 'No se ha podido cargar. Reintenta.',
+      sourceConflict:
+        'Los datos del proveedor han cambiado. Pide a un administrador de aprobación que reinicie la revisión.',
+      eligibility:
+        'No hay ningún tipo de solicitud o proveedor aptos disponibles.',
+      amount:
+        'Introduce un importe no negativo con un máximo de dos decimales dentro del intervalo seguro.',
+      email: 'Introduce un correo electrónico válido.',
+    },
+    account: {
+      title: 'Cuenta bancaria',
+      edit: 'Editar cuenta bancaria',
+      bankName: 'Banco',
+      bankAccount: 'Número de cuenta',
+      bankAccountName: 'Titular de la cuenta',
+      reason: 'Motivo del cambio',
+      denied: 'No puedes ver información bancaria.',
+      missing: 'Falta el registro de cuenta. Vuelve a cargar antes de editar.',
+    },
+    configuration: {
+      title: 'Configuración de revisión de proveedores',
+      structure: 'Estructura del comité',
+      assignments: 'Revisores de plazas fijas',
+      removal: 'Revisor de bajas',
+      version: 'Versión',
+      active: 'Versión en ejecución: {{version}}',
+      min: 'Umbral de aprobación',
+      seats: 'Plazas',
+      seatKey: 'Clave de plaza',
+      source: 'Origen de candidatos',
+      veto: 'Plaza con veto',
+      addSeat: 'Añadir plaza',
+      removeSeat: 'Quitar plaza',
+      publish: 'Publicar versión de revisión',
+      restartRequired:
+        'Reinicia la aplicación después de publicar. Las solicitudes existentes conservan su versión.',
+      dynamicHead:
+        'Utiliza al responsable del departamento principal del solicitante',
+      futureOnly:
+        'Las asignaciones afectan a solicitudes futuras. Reasigna las tareas existentes mediante acciones de aprobación.',
+      reason: 'Motivo del cambio',
+      invalid:
+        'Conserva las plazas de Compras, Finanzas y responsable de departamento y el veto de Finanzas. Utiliza claves únicas que comiencen en minúscula y un umbral dentro del número de plazas.',
+      published: 'Versión {{version}} publicada. Reinicia la aplicación.',
+    },
+    sources: {
+      purchasing: 'Compras',
+      finance: 'Finanzas',
+      applicantHead: 'Responsable del departamento del solicitante',
+      technical: 'Técnico',
+      legal: 'Asesoría jurídica',
+    },
+    files: {
+      attachments: 'Justificantes de acreditación',
+      uploadHint:
+        'PDF, JPEG, PNG o WebP de hasta 5 MB. Quitar una selección conserva los justificantes.',
+      fileSize: 'Elige un archivo con contenido de hasta 5 MB.',
+      fileType:
+        'Elige un archivo admitido cuyo tipo coincida con su contenido.',
+      selectEvidence: 'Seleccionar justificantes subidos',
+      uploading: 'Subiendo',
+      uploadUnknown:
+        'Resultado de subida sin confirmar. Consulta los justificantes subidos.',
+      emptyEvidence: 'No hay justificantes subidos',
+      removeEvidence: 'Quitar selección «{{name}}»',
+      evidenceMissing: 'Algunos justificantes no están disponibles.',
+    },
+    statuses: {
+      committee: 'Revisión del comité',
+      draft: 'Borrador',
+      revision: 'Revisión',
+      purchasing: 'Revisión de Compras',
+      removalReview: 'Revisión de baja',
+      qualified: 'Acreditado',
+      removed: 'Dado de baja',
+      rejected: 'Rechazado',
+      withdrawn: 'Retirado',
+      terminated: 'Terminado',
+    },
+    actions: {
+      submit: 'Enviar a aprobación',
+      withdraw: 'Retirar',
+      terminate: 'Terminar',
+      restartReview: 'Reiniciar revisión',
+      approve: 'Aprobar',
+      reject: 'Rechazar',
+      return: 'Devolver',
+      comment: 'Comentar',
+      read: 'Marcar leído',
+      abstain: 'Abstenerse',
+      appoint: 'Designar',
+      reassign: 'Reasignar',
+    },
+  },
+};

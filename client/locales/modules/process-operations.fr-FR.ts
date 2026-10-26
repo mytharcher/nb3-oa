@@ -1,0 +1,50 @@
+export default {
+  processOperations: {
+    title: 'Suivi des processus',
+    hint: 'Demandes soumises selon la date de l’entreprise et le service principal actuel du demandeur.',
+    refresh: 'Actualiser',
+    range: 'Date de première soumission',
+    process: 'Processus',
+    department: 'Service',
+    all: 'Tous les processus autorisés',
+    clear: 'Effacer les filtres',
+    back: 'Retour à l’espace de travail',
+    retry: 'Réessayer',
+    summary: 'Synthèse du processus',
+    naturalTime:
+      'Le temps calendaire écoulé inclut l’attente entre un retour et une nouvelle soumission. Les demandes retirées et annulées sont exclues des moyennes de réalisation.',
+    stages: 'Durée de l’étape',
+    stageHint:
+      'Les tâches parallèles partagent une même plage d’étape ; les entrées répétées sont comptées séparément.',
+    overdue: 'Tâches en retard',
+    overdueHint:
+      'Seules les tâches ouvertes avec une échéance configurée sont classées.',
+    empty: 'Aucune demande soumise',
+    emptyHint: 'Essayez une autre période, un autre processus ou service.',
+    noStages: 'Aucune étape d’approbation dans cette période.',
+    noOverdue: 'Aucune tâche en retard avec une échéance configurée.',
+    generated: 'Mis à jour le {{at}}',
+    submitted: 'Soumis',
+    completed: 'Terminé',
+    returned: 'Demandes renvoyées',
+    average: 'Temps moyen écoulé',
+    returnRate: 'Taux de retour',
+    stage: 'Étape',
+    endedStages: 'Entrées d’étape terminées',
+    averageStay: 'Durée moyenne',
+    waiting: 'Entrées en attente',
+    oldestWait: 'Plus longue attente actuelle',
+    number: 'Numéro de demande',
+    noNumber: 'Demande sans numéro',
+    due: 'Échéance',
+    overdueTime: 'Durée de retard',
+    hours: '{{value}} h',
+    errors: {
+      denied:
+        'Vous n’avez pas accès à ce rapport et à ses enregistrements métier.',
+      broad:
+        'Choisissez une période valide de 93 jours maximum. Affinez le processus ou le service si les demandes sont trop nombreuses.',
+      failed: 'Impossible de charger le rapport. Veuillez réessayer.',
+    },
+  },
+};

@@ -1,0 +1,110 @@
+export default {
+  budgets: {
+    create: 'Buat',
+
+    title: 'Pengelolaan anggaran',
+    description:
+      'Bagian keuangan mencatat anggaran tahunan dan perubahan manual yang diaudit; dana dicadangkan dan terpakai berasal dari dokumen bisnis.',
+    new: 'Anggaran tahunan baru',
+    newDescription: 'Buat satu akun anggaran untuk departemen, tahun, dan pos.',
+    adjustTitle: 'Sesuaikan anggaran',
+    adjustDescription:
+      'Catat perubahan alokasi manual beserta alasan. Pencadangan dan pengeluaran yang ada tetap dalam buku besar.',
+    detail: 'Akun anggaran',
+    detailDescription:
+      'Periksa saldo dan perubahan anggaran yang tidak dapat diubah.',
+    accountTitle: '{{department}} · {{year}} · {{subject}}',
+    department: 'Departemen',
+    year: 'Tahun',
+    subject: 'Subjek',
+    allocatedCents: 'Dialokasikan',
+    heldCents: 'Dicadangkan',
+    usedCents: 'Terpakai',
+    availableCents: 'Tersedia',
+    amount: 'Alokasi tahunan',
+    changeAmount: 'Perubahan alokasi',
+    amountHint: 'Satuan mata uang, positif, dengan maksimal dua angka desimal.',
+    deltaHint:
+      'Jumlah positif menambah dana; jumlah negatif menguranginya. Dana dicadangkan dan terpakai tidak dapat dihapus.',
+    reason: 'Alasan',
+    ledger: 'Perubahan anggaran',
+    kind: 'Jenis perubahan',
+    at: 'Waktu',
+    reference: 'Sumber',
+    actor: 'Operator',
+    allocatedDelta: 'Perubahan alokasi',
+    heldDelta: 'Perubahan pencadangan',
+    usedDelta: 'Perubahan penggunaan',
+    allSubjects: 'Semua pos',
+    selectSubject: 'Pilih subjek',
+    yearPlaceholder: 'Filter berdasarkan tahun',
+    refresh: 'Muat ulang',
+    clear: 'Hapus filter',
+    cancel: 'Batal',
+    save: 'Simpan',
+    adjust: 'Sesuaikan',
+    view: 'Lihat',
+    retry: 'Coba lagi',
+    loading: 'Memuat',
+    rowActions: 'Tindakan untuk {{name}}',
+    saved: 'Anggaran untuk "{{name}}" disimpan',
+    currentAccount:
+      '{{department}} · {{year}} · {{subject}} · dialokasikan {{amount}}',
+    openExisting: 'Buka akun yang ada',
+    required: 'Isi bidang wajib ini.',
+    invalidYear: 'Masukkan tahun antara 1900 dan 9999.',
+    invalidAmount:
+      'Masukkan jumlah bukan nol dengan maksimal dua angka desimal dalam batas bilangan bulat sen yang aman.',
+    positiveAmount:
+      'Masukkan jumlah positif dengan maksimal dua angka desimal dalam batas bilangan bulat sen yang aman.',
+    longReason: 'Batasi alasan hingga 4.000 karakter.',
+    invalidField: 'Periksa bidang ini dan coba lagi.',
+    kinds: {
+      consume: 'Penyelesaian sebagian',
+      allocate: 'Alokasi',
+      hold: 'Pencadangan',
+      release: 'Dilepaskan',
+      settle: 'Penyelesaian',
+      transferOut: 'Ditransfer keluar',
+      transferIn: 'Ditransfer masuk',
+    },
+    empty: {
+      accountsTitle: 'Belum ada anggaran',
+      accountsDescription:
+        'Buat alokasi tahunan untuk mengaktifkan pengendalian anggaran.',
+      readonlyTitle: 'Belum ada anggaran',
+      readonlyDescription: 'Minta bagian keuangan memasukkan anggaran tahunan.',
+      filteredTitle: 'Tidak ada anggaran yang cocok',
+      filteredDescription: 'Hapus atau ubah filter untuk menemukan akun.',
+      ledgerTitle: 'Belum ada perubahan',
+      ledgerDescription: 'Perubahan anggaran muncul di sini saat dicatat.',
+    },
+    error: {
+      failed:
+        'Anggaran tidak dapat dimuat atau disimpan. Coba lagi dengan input yang sama.',
+      forbidden: 'Anda tidak memiliki izin anggaran. Hubungi administrator.',
+      missing: 'Anggaran ini tidak lagi ada. Kembali ke daftar.',
+      BUDGET_NOT_FOUND: 'Anggaran ini tidak lagi ada. Kembali ke daftar.',
+      BUDGET_ALREADY_EXISTS:
+        'Anggaran sudah ada untuk akun ini. Buka dan gunakan Sesuaikan.',
+      BUDGET_IDEMPOTENCY_CONFLICT:
+        'Kunci permintaan ini sudah mengidentifikasi perubahan lain. Periksa input Anda dan simpan lagi.',
+      BUDGET_INSUFFICIENT:
+        'Penyesuaian akan menyisakan anggaran tersedia yang terlalu sedikit. Kurangi pengurangannya.',
+      BUDGET_INVALID_DEPARTMENT: 'Pilih departemen aktif.',
+      BUDGET_INVALID_SUBJECT: 'Pilih pos anggaran aktif.',
+      BUDGET_INVALID_AMOUNT:
+        'Periksa jumlah dan gunakan maksimal dua angka desimal.',
+      BUDGET_INVALID_COMMAND: 'Periksa alasan wajib dan detail permintaan.',
+      BUDGET_INVALID_ACCOUNT: 'Periksa departemen, tahun, dan pos.',
+      BUDGET_INVALID_PAGE: 'Periksa halaman dan ukuran halaman.',
+      invalid: 'Periksa bidang wajib dan koreksi nilai yang disorot.',
+    },
+    authz: {
+      title: 'Pengelolaan anggaran',
+      read: 'Baca akun dan perubahan anggaran',
+      update: 'Buat anggaran dan catat penyesuaian manual',
+      permissionSet: 'Pengelolaan anggaran keuangan',
+    },
+  },
+};

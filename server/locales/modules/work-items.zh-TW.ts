@@ -1,0 +1,41 @@
+export default {
+  workItems: {
+    authz: {
+      confirmationOwned: '我負責確認的事項',
+      handoverConfirmation: '交接完成確認責任',
+
+      title: '普通協同任務',
+      owned: '本人建立',
+      readable: '本人參與或職責池任務',
+      view: '查看',
+      create: '建立',
+      edit: '編輯草稿',
+      dispatch: '指派',
+      claim: '認領',
+      release: '釋放',
+      complete: '提交完成',
+      confirm: '確認完成',
+      return: '退回辦理',
+      block: '標記無法辦理',
+      resume: '還原辦理',
+      reassign: '重新指派',
+      cancel: '取消',
+      forceComplete: '強制完成',
+    },
+    notifications: {
+      title: '協同任務更新',
+      body: '有協同任務更新，請進入應用程式查看。',
+    },
+    errors: {
+      ACCESS_DENIED: '無權訪問或執行。',
+      NOT_FOUND: '任務不存在。',
+      REASON_REQUIRED: '請輸入必要原因。',
+      RESULT_REQUIRED: '請填寫辦理結果。',
+      INVALID_INPUT: '請求內容或狀態不合法，請重新整理後重試。',
+      INVALID_TARGET: '請求內容或狀態不合法，請重新整理後重試。',
+      INVALID_ATTACHMENT: '請求內容或狀態不合法，請重新整理後重試。',
+      VERSION_CONFLICT: '請求內容或狀態不合法，請重新整理後重試。',
+      COMMAND_CONFLICT: '請求內容或狀態不合法，請重新整理後重試。',
+    },
+  },
+};

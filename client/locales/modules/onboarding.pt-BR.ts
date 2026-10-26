@@ -1,0 +1,193 @@
+export default {
+  onboarding: {
+    authz: {
+      resource: 'Admissão',
+      readable: 'Participantes da admissão',
+      view: 'Visualizar admissão',
+      create: 'Criar admissão',
+      cancel: 'Cancelar admissão',
+      claim: 'Assumir tarefa',
+      reassignMentor: 'Reatribuir chefe de departamento',
+      transfer: 'Transferir',
+      release: 'Liberar tarefa',
+      complete: 'Concluir tarefa',
+      forceComplete: 'Forçar conclusão',
+      viewSalary: 'Visualizar salário da admissão',
+      viewBank: 'Visualizar dados bancários da admissão',
+    },
+    noPeople: 'Nenhum colaborador corresponde à pesquisa',
+    loadLatest: 'Carregar versão mais recente',
+    actionChanged:
+      'Esta ação não está mais disponível. Seus dados foram mantidos; feche este formulário e revise o registro atualizado.',
+
+    confirmAction: 'Confirmar',
+    noMatches: 'Nenhum registro de admissão corresponde aos filtros',
+
+    directoryCap:
+      'Exibindo as primeiras 100 correspondências. Refine sua pesquisa.',
+    organizationLabel: '{{department}} / {{position}} / {{grade}}',
+    historicalPersonUnavailable: 'Pessoa histórica indisponível',
+    allocationLabel:
+      '{{department}} / {{position}} / {{grade}} / {{year}} · {{count}} restantes',
+    namedAction: '{{action}} para "{{name}}"?',
+    completedAction: '{{action}} concluída para "{{name}}"',
+    createAction: 'Criar',
+    created: 'Admissão de "{{name}}" criada',
+
+    businessErrors: {
+      ONBOARDING_SOURCE_INVALID:
+        'A origem da admissão ou os dados do colaborador não são mais válidos. Atualize e verifique a origem, a identidade e os dados obrigatórios.',
+      ONBOARDING_IDEMPOTENCY_CONFLICT:
+        'Esta operação já usou outro conteúdo. Atualize para verificar seu resultado antes de continuar.',
+    },
+
+    clear: 'Limpar filtros',
+    timeline: {
+      unknownActor: 'Responsável histórico indisponível',
+      parentCompleted: 'Admissão concluída',
+      accountEnabled: 'Conta do colaborador habilitada',
+      title: 'Linha do tempo',
+      empty: 'Nenhum evento registrado',
+      historyNotice:
+        'Somente fatos registrados são exibidos. Eventos antigos podem não ter detalhes. A aceitação da notificação não comprova a entrega.',
+      system: 'Sistema',
+      from: 'Responsável anterior',
+      to: 'Novo responsável',
+      create: 'Admissão criada',
+      cancel:
+        'Admissão cancelada; tarefas de recuperação criadas para as tarefas concluídas',
+      claim: 'Tarefa assumida',
+      release: 'Tarefa liberada',
+      transfer: 'Tarefa transferida',
+      reassignMentor: 'Chefe de departamento reatribuído',
+      complete: 'Tarefa concluída',
+      forceComplete: 'Tarefa concluída à força',
+      queued: 'Lembrete de atraso na fila',
+      sent: 'Notificação de atraso aceita',
+    },
+    reassignMentorNotice:
+      'Atribua esta tarefa pendente ao chefe de departamento ativo atual. O prazo e os dados salvos permanecem inalterados; isto não conclui a tarefa.',
+    transferTarget: 'Novo responsável no mesmo grupo de processamento',
+    attachments: 'Anexos',
+    fileLimit: 'PDF, PNG, JPEG ou TXT; até 10 arquivos de 20 MB cada.',
+    upload: 'Enviar anexo',
+    uploading: 'Enviando…',
+    removeFile: 'Remover arquivo {{number}}',
+    fileMissing: 'Anexo indisponível',
+    assetUnits: 'Bens reais',
+    assetUnitsHelp:
+      'Informe o código real e o número de série de cada bem. A recuperação exige todos os itens da entrega original. Deixar esta lista vazia registra nenhuma entrega de bem.',
+    assetCode: 'Código do bem',
+    assetSerial: 'Número de série',
+    removeAsset: 'Remover',
+    addAsset: 'Adicionar bem',
+
+    employeeSearch: 'Pesquisar por nome ou código de colaborador',
+    mentorDenied:
+      'É necessária permissão de diretório para escolher um colaborador',
+    loading: 'Enviando…',
+    requiredField: 'Informe {{field}}.',
+    chooseSource:
+      'Escolha uma alocação de recrutamento com capacidade restante.',
+    invalidEmail: 'Informe um endereço de e-mail válido para a conta.',
+    invalidPassword: 'Use pelo menos 8 caracteres para a senha inicial.',
+    invalidSalary:
+      'Informe um salário base com exatamente duas casas decimais.',
+    title: 'Admissão',
+    description:
+      'Crie a admissão de colaboradores e processe tarefas paralelas',
+    employee: 'Colaborador',
+    creator: 'Criado por',
+    status: 'Status',
+    refresh: 'Atualizar',
+    new: 'Nova admissão',
+    detail: 'Detalhes da admissão',
+    empty: 'Nenhum registro de admissão',
+    forced: 'Conclusão forçada',
+    dueDate: 'Data de vencimento',
+    assignee: 'Processado por',
+    bank: 'Conta de folha de pagamento e seguro social',
+    salary: 'Salário',
+    privateEmpty: {
+      bank: 'Os dados da conta de folha de pagamento e do seguro social não foram registrados. Verifique o progresso da tarefa financeira.',
+      salary:
+        'Os detalhes salariais não foram registrados. Entre em contato com RH para verificar.',
+    },
+    save: 'Enviar',
+    saved: 'Salvo',
+    unknown:
+      'O resultado é desconhecido. Repita o mesmo comando para confirmar; não crie uma nova requisição.',
+    retryExact: 'Repetir o mesmo comando',
+    discard: 'Descartar alterações',
+    discardDescription: 'Suas alterações não salvas serão perdidas.',
+    stay: 'Continuar editando',
+    unavailable: 'Operação indisponível',
+    invalid:
+      'Verifique os campos obrigatórios e o formato do salário (duas casas decimais).',
+    reason: 'Motivo',
+    forceNotice:
+      'A conclusão forçada registra o motivo e pode habilitar a conta. Não comprova que os equipamentos foram entregues.',
+    cancelNotice:
+      'O cancelamento libera a capacidade real e deixa o trabalho concluído para recuperação. Não marca itens como devolvidos.',
+    createNotice:
+      'Isto cria um colaborador real com uma conta desabilitada e consome uma alocação de recrutamento. Departamento, cargo e nível são fixados pela alocação.',
+    remaining: '{{count}} restantes',
+    noSources:
+      'Nenhuma alocação de recrutamento legível com capacidade restante',
+    userPickerDenied:
+      'É necessária permissão de pesquisa de usuários para selecionar um gestor.',
+    states: {
+      all: 'Todos os status',
+      handling: 'Processamento',
+      completed: 'Concluído',
+      cancelled: 'Cancelado',
+      open: 'Abrir',
+      claimed: 'Assumida',
+    },
+    actions: {
+      claim: 'Assumir',
+      reassignMentor: 'Reatribuir mentor',
+      transfer: 'Transferir',
+      release: 'Liberar',
+      complete: 'Concluir',
+      forceComplete: 'Forçar conclusão',
+      cancel: 'Cancelar admissão',
+    },
+    kinds: {
+      it: 'Conta e equipamentos',
+      administration: 'Estação de trabalho e crachá',
+      finance: 'Conta de pagamento e seguro social',
+      mentor: 'Mentor e plano de 30 dias',
+      recovery: 'Tarefa de recuperação',
+    },
+    fields: {
+      name: 'Nome do colaborador',
+      email: 'E-mail da conta',
+      password: 'Senha inicial',
+      code: 'Código do colaborador',
+      hireDate: 'Data de admissão',
+      careerStartDate: 'Data de início da carreira',
+      probationEndDate: 'Fim do período de experiência',
+      baseSalary: 'Salário base',
+      reason: 'Motivo da criação',
+      requisitionId: 'Alocação de recrutamento',
+      managerId: 'Gestor',
+      accountId: 'Conta criada',
+      deviceReference: 'Referência do dispositivo',
+      workstationRequirement: 'Requisitos da estação de trabalho',
+      workstation: 'Estação de trabalho',
+      badgeReference: 'Referência do crachá de acesso',
+      bankName: 'Banco',
+      bankAccount: 'Conta bancária',
+      bankAccountName: 'Titular da conta',
+      socialInsuranceReference: 'Referência do seguro social',
+      mentorEmployeeId: 'Colaborador mentor',
+      plan: 'Plano de integração de 30 dias',
+      assetReceiptId: 'Comprovante de bem',
+      returnReceipt: 'Comprovante de recuperação',
+      compensationId: 'Referência de remuneração',
+      gradeId: 'Nível',
+      effectiveFrom: 'Vigente desde',
+    },
+  },
+};

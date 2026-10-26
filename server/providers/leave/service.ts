@@ -1,3 +1,4 @@
+import applicationLocales from '../../locales/index.js';
 import {
   approvalState,
   approve,
@@ -1185,7 +1186,7 @@ export function createLeaveService(d: LeaveDependencies) {
         sort?:
           'year' | 'month' | 'approvedRequestCount' | 'approvedRequestedDays';
         direction?: 'asc' | 'desc';
-        locale?: 'en-US' | 'zh-CN';
+        locale?: string;
       },
       policy: RepositoryPolicy,
     ) {
@@ -1210,7 +1211,7 @@ export function createLeaveService(d: LeaveDependencies) {
         (query.direction !== undefined &&
           !['asc', 'desc'].includes(query.direction)) ||
         (query.locale !== undefined &&
-          !['en-US', 'zh-CN'].includes(query.locale)) ||
+          !Object.hasOwn(applicationLocales, query.locale)) ||
         (query.month !== undefined &&
           (!Number.isInteger(query.month) ||
             query.month < 1 ||

@@ -1,0 +1,107 @@
+export default {
+  templatePrint: {
+    authz: {
+      resource: 'Dokumentvorlagen',
+      manage: 'Vorlagen verwalten',
+      use: 'Vorlagen verwenden',
+      leave: 'Urlaubsanträge drucken',
+      reimbursement: 'Kostenerstattungen drucken',
+      payment: 'Zahlungsanträge drucken',
+      contracts: 'Vertragsgenehmigungen drucken',
+      certificates: 'Bescheinigungen drucken',
+      sealRegistration: 'Siegelregistrierungen drucken',
+    },
+    errors: {
+      PRINT_TEMPLATE_INVALID:
+        'Die DOCX-Vorlage ist ungültig oder überschreitet die unterstützten Grenzen.',
+      PRINT_TEMPLATE_DENIED:
+        'Diese Vorlage oder Revision ist für Sie nicht verfügbar.',
+      PRINT_PERMISSION_DENIED:
+        'Sie sind nicht berechtigt, diesen Druckvorgang auszuführen.',
+      PRINT_RECORD_DENIED:
+        'Dieser Geschäftsdatensatz liegt außerhalb Ihrer Zugriffsberechtigung.',
+      PRINT_FIELDS_DENIED:
+        'Diese Vorlage benötigt Felder außerhalb Ihrer Zugriffsberechtigung.',
+      PRINT_COMMAND_CONFLICT:
+        'Dieser Anfrageschlüssel gehört zu einem anderen Befehl.',
+      PRINT_VERSION_CONFLICT:
+        'Die Vorlage wurde geändert. Laden Sie sie vor einer erneuten Einreichung neu.',
+      PRINT_SOURCE_UNAVAILABLE:
+        'Für diese Quelle ist das Drucken noch nicht verfügbar.',
+      PRINT_UPLOAD_FAILED:
+        'Die gespeicherte Vorlage konnte nicht verifiziert werden.',
+      PRINT_DATA_LIMIT:
+        'Der Datensatz enthält zu viele untergeordnete Zeilen zum Drucken.',
+    },
+    events: {
+      run: { started: 'Genehmigung gestartet', ended: 'Genehmigung beendet' },
+      stage: {
+        concluded: 'Stufe abgeschlossen',
+        unassigned: 'Kein geeigneter Bearbeiter für die Stufe',
+        planned: 'Stufenzuweisungen geplant',
+        note: 'Hinweis',
+      },
+      task: {
+        reminded: 'Automatische Erinnerung gesendet',
+        escalated: 'Überfällige Aufgabe eskaliert',
+        claimTimedOut: 'Abgelaufene Übernahme freigegeben',
+        answered: 'Aufgabe beantwortet',
+        assigned: 'Aufgabe zugewiesen',
+        reused: 'Frühere Stellungnahme wiederverwendet',
+        transferred: 'Aufgabe übertragen',
+        voided: 'Aufgabe ungültig gemacht',
+        redirected: 'Aufgabe umgeleitet',
+        status: 'Aufgabenstatus geändert',
+        retimed: 'Aufgabenfristen geändert',
+      },
+    },
+    actions: {
+      submit: 'Einreichen',
+      resubmit: 'Erneut einreichen',
+      withdraw: 'Zurückziehen',
+      terminate: 'Beenden',
+      transfer: 'Übergeben',
+      reassign: 'Neu zuweisen',
+      addSigner: 'Unterzeichner hinzufügen',
+      askMaterial: 'Unterlagen anfordern',
+      provideMaterial: 'Unterlagen bereitstellen',
+      claim: 'Übernehmen',
+      release: 'Übernahme freigeben',
+      assign: 'Dem Pool zuweisen',
+      appoint: 'Person bestimmen',
+      cc: 'Kopie senden',
+      comment: 'Kommentar',
+      read: 'Als gelesen markieren',
+      returnItem: 'Eintrag zurückgeben',
+      complete: 'Bearbeitung abschließen',
+      unable: 'Bearbeitung nicht möglich',
+      abstain: 'Enthalten',
+      approve: 'Genehmigen',
+      reject: 'Ablehnen',
+      return: 'Zur Überarbeitung zurückgeben',
+      cancel: 'Abbrechen',
+      unableToPay: 'Zahlung nicht möglich',
+      pay: 'Zahlung bestätigen',
+    },
+    status: {
+      legalFinance: 'Prüfung durch Rechts- und Finanzabteilung',
+      standardFinance: 'Finanzprüfung des Standardvertrags',
+      draft: 'Entwurf',
+      revision: 'Zur Überarbeitung zurückgegeben',
+      manager: 'Prüfung durch die Führungskraft',
+      head: 'Prüfung durch die Abteilungsleitung',
+      hr: 'Prüfung durch die Personalabteilung',
+      finance: 'Prüfung durch die Finanzabteilung',
+      executive: 'Prüfung durch die Bereichsleitung',
+      gm: 'Prüfung durch die Geschäftsführung',
+      approved: 'Genehmigt',
+      rejected: 'Abgelehnt',
+      withdrawn: 'Zurückgezogen',
+      terminated: 'Beendet',
+      paying: 'Zahlung ausstehend',
+      paid: 'Bezahlt',
+      forcedPaid: 'Mit administrativer Bestätigung bezahlt',
+      paymentException: 'Zahlungsausnahme',
+    },
+  },
+} as const;

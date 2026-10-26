@@ -1,3 +1,4 @@
+import { getReportTranslator, reportLocaleSchema } from './i18n.js';
 import ExcelJS from 'exceljs';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -24,7 +25,7 @@ import type { RepositoryPolicy } from '@nocobase/db';
 import { reimbursementExpenseSummaryToken } from '../../providers/reimbursement/expense-summary.js';
 import { ReimbursementError } from '../../providers/reimbursement/errors.js';
 const query = z.object({
-  locale: z.enum(['en-US', 'zh-CN']).default('en-US'),
+  locale: reportLocaleSchema,
   year: z.coerce.number().int().min(1900).max(9999).optional(),
   month: z.coerce.number().int().min(1).max(12).optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -160,24 +161,36 @@ const routes: readonly AppRouteContribution<Application>[] = [
             message:
               'Expense summaries above 10,000 groups cannot be exported.',
           });
+        const { t } = await getReportTranslator(
+          app,
+          ctx,
+          ctx.req.query('locale'),
+        );
         const book = new ExcelJS.Workbook(),
-          sheet = book.addWorksheet('Report');
-        const chinese = ctx.req.valid('query').locale === 'zh-CN';
+          sheet = book.addWorksheet(t('reportExports.sheet'));
         sheet.columns = [
-          { header: chinese ? '年度' : 'Year', key: 'year' },
-          { header: chinese ? '费用月份' : 'Expense month', key: 'month' },
           {
-            header: chinese ? '费用分类代码' : 'Category code',
+            header: t('reportExports.expenseSummary.fields.year'),
+            key: 'year',
+          },
+          {
+            header: t('reportExports.expenseSummary.fields.month'),
+            key: 'month',
+          },
+          {
+            header: t('reportExports.expenseSummary.fields.category'),
             key: 'category',
           },
           {
-            header: chinese ? '已结算申请数' : 'Settled request count',
+            header: t(
+              'reportExports.expenseSummary.fields.settledRequestCount',
+            ),
             key: 'settledRequestCount',
           },
           {
-            header: chinese
-              ? '已结算费用毛额（分，非现金实付）'
-              : 'Settled gross expense cents (not cash)',
+            header: t(
+              'reportExports.expenseSummary.fields.settledExpenseCents',
+            ),
             key: 'settledExpenseCents',
           },
         ];
