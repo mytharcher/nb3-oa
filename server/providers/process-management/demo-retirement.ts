@@ -120,6 +120,11 @@ export async function retireOwnedProcesses(
       .repository(record.collection)
       .findOne({ filter: { id: record.id } });
     if (!row) continue;
+    const sdk = await owner.sdk(app);
+    const open = (
+      await sdk.read(() => sdk.approvals.runsFor(owner.kind, record.id))
+    ).some(isOpenRun);
+    if (!open) continue;
     if (owner.kind === 'oa.outing') {
       if (
         typeof row.managerApproverId !== 'string' ||
@@ -128,11 +133,6 @@ export async function retireOwnedProcesses(
         throw new Error('DEMO_RETIRE_MANAGER_MISSING');
       operator = row.managerApproverId;
     }
-    const sdk = await owner.sdk(app);
-    const open = (
-      await sdk.read(() => sdk.approvals.runsFor(owner.kind, record.id))
-    ).some(isOpenRun);
-    if (!open) continue;
     try {
       await withProcessManagement(
         {

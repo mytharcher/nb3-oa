@@ -25,6 +25,17 @@ export function currentDemo(): DemoContext | undefined {
     )
   );
 }
+
+/** Recipient identity also works in background effects without an import context. */
+export function demoLocaleFor(
+  userId?: string,
+): DemoContext['locale'] | undefined {
+  if (userId === undefined) return currentDemo()?.locale;
+  const scope = demoContexts.get(userId);
+  if (scope) return scope.locale;
+  const importing = currentDemo();
+  return importing?.users.has(userId) ? importing.locale : undefined;
+}
 export const demoNow = (): Date => new Date(currentDemo()?.now ?? Date.now());
 export const demoPrefix = (): string => currentDemo()?.id ?? 'oa-trial-v1';
 export const demoUsername = (key: string): string =>

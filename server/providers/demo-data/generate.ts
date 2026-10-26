@@ -1,3 +1,5 @@
+import { ownershipForScenario } from './validation-rules.js';
+import { roleCoverage } from './role-coverage.js';
 import { PRINT_SOURCES } from '../template-print/contract.js';
 import { completedStories } from './fulfillment.js';
 import { historicalScenarios } from './history.js';
@@ -33,6 +35,7 @@ export async function generateDemo(
   dataset: DemoDataSet,
   passwords: TrialPasswords,
   save: (patch: Partial<DemoDataSet>) => Promise<void>,
+  coverageOnly = false,
 ) {
   const scope = currentDemo()!;
   const db = app.container.resolve(databaseManagerToken);
@@ -72,12 +75,17 @@ export async function generateDemo(
   scope.systemKey = issued.secret;
   const sessions = {} as TrialSessions;
   const saved = { ...dataset.scenarios };
-  const failures: DemoDataSet['failures'] = [];
+  const failures: DemoDataSet['failures'] = coverageOnly
+    ? dataset.failures.filter(
+        (failure) =>
+          !failure.key.startsWith('role-') && failure.key !== 'operation',
+      )
+    : [];
   const failure = (key: string, error: unknown) => {
     const detail = {
       key,
       module: scenarios(facts)
-        .find((s) => s.key === key)
+        .find((s) => s.key === key || key.endsWith(`-${s.key}`))
         ?.path.slice(1),
       reason: sampleFailureReason(error, 'DEMO_SCENARIO_FAILED'),
     };
@@ -92,6 +100,12 @@ export async function generateDemo(
     await save({ scenarios: { ...saved }, progress: row.key });
   };
   try {
+    if (
+      coverageOnly &&
+      (!saved['history-leave-current-month'] ||
+        scenarios(facts).some((scenario) => !saved[scenario.key]))
+    )
+      throw new Error('DEMO_BASE_IMPORT_INCOMPLETE');
     for (const person of getTrialAccounts())
       sessions[person.key] = await trialSession(
         app,
@@ -99,34 +113,55 @@ export async function generateDemo(
         passwords[person.key],
       );
     await sessions.hr.request('/swagger');
-    for (const row of await collaboration(app, facts)) await checkpoint(row);
-    await richResources(app, facts, checkpoint);
-    for (const scenario of scenarios(facts)) {
-      try {
-        await checkpoint(
-          await populateScenario(
-            app,
-            sessions,
-            facts,
-            scenario,
-            saved[scenario.key],
-          ),
-        );
-      } catch (error) {
-        failure(scenario.key, error);
+    if (!coverageOnly) {
+      for (const row of await collaboration(app, facts)) await checkpoint(row);
+      await richResources(app, facts, checkpoint);
+      for (const scenario of scenarios(facts)) {
+        try {
+          await checkpoint(
+            await populateScenario(
+              app,
+              sessions,
+              facts,
+              scenario,
+              saved[scenario.key],
+            ),
+          );
+        } catch (error) {
+          failure(scenario.key, error);
+        }
+      }
+      await followUps(
+        app,
+        sessions,
+        facts,
+        passwords,
+        saved,
+        checkpoint,
+        failure,
+      );
+      await completedStories(app, sessions, facts, saved, checkpoint);
+      await historicalScenarios(app, sessions, facts, saved, checkpoint);
+    }
+    await roleCoverage(app, sessions, facts, saved, checkpoint, failure);
+    // User actions since installation are authoritative; refresh checkpoint summaries.
+    if (coverageOnly) {
+      for (const row of Object.values(saved)) {
+        if (row.key === 'loan-repayment') continue;
+        const collection = ownershipForScenario(row.path);
+        if (!collection) continue;
+        const record = await db
+          .repository(collection)
+          .findOne({ filter: { id: row.id } });
+        if (
+          record &&
+          typeof record.status === 'string' &&
+          record.status !== row.status
+        )
+          await checkpoint({ ...row, status: record.status });
       }
     }
-    await followUps(
-      app,
-      sessions,
-      facts,
-      passwords,
-      saved,
-      checkpoint,
-      failure,
-    );
-    await completedStories(app, sessions, facts, saved, checkpoint);
-    await historicalScenarios(app, sessions, facts, saved, checkpoint);
+    await save({ totalSteps: Object.keys(saved).length });
     // Check every persisted sample against its actual business record, independently
     // of the generator's declared target stage.
     for (const row of Object.values(saved)) {

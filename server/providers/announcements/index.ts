@@ -1,4 +1,5 @@
 import { ServiceProvider } from '@nocobase/service-provider';
+import { notificationLocaleGroups } from '../approval-notifications/locales.js';
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken } from '@nocobase/db';
 import {
@@ -74,21 +75,28 @@ export default class AnnouncementsProvider extends ServiceProvider<Application> 
             channel.provider !== 'in-app'
           )
             return;
-          const i18n = c.resolve(i18nToken),
-            locale = i18n.getDefaultLocale();
-          await i18n.ensureLocaleLoaded(locale);
-          const t = i18n.getFixedT('nb3-oa', locale);
-          await c.resolve(notificationServiceToken).send({
-            idempotencyKey: key,
-            source: { type: 'oa.announcement', referenceId: id },
-            messages: {
-              [name]: {
-                to: users,
-                title: t('announcements.notifications.title'),
-                body: t('announcements.notifications.body'),
+          const i18n = c.resolve(i18nToken);
+          const notifications = c.resolve(notificationServiceToken);
+          if (await notifications.getByIdempotencyKey(key)) return;
+          const groups = notificationLocaleGroups(
+            users,
+            i18n.getDefaultLocale(),
+          );
+          for (const [locale, recipients] of groups) {
+            await i18n.ensureLocaleLoaded(locale);
+            const t = i18n.getFixedT('nb3-oa', locale);
+            await notifications.send({
+              idempotencyKey: groups.size === 1 ? key : `${key}:${locale}`,
+              source: { type: 'oa.announcement', referenceId: id },
+              messages: {
+                [name]: {
+                  to: recipients,
+                  title: t('announcements.notifications.title'),
+                  body: t('announcements.notifications.body'),
+                },
               },
-            },
-          });
+            });
+          }
         },
       });
       return this.service;

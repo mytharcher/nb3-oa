@@ -210,7 +210,16 @@ export function createDemoDataService(app: Application): DemoDataService {
           const passwords = JSON.parse(
             secrets.open(d.credentials, { purpose: PURPOSE, aad: [id] }),
           ) as TrialPasswords;
-          await generateDemo(app, d, passwords, save);
+          const operation = await db
+            .repository('demoDataOperations')
+            .findOne({ filter: { id: acquired.operationId! } });
+          await generateDemo(
+            app,
+            d,
+            passwords,
+            save,
+            operation?.kind === 'roleCoverage',
+          );
         } else {
           const rows = await ownedRows(db.connection(), id);
           await retireOwnedProcesses(
@@ -341,9 +350,14 @@ export function createDemoDataService(app: Application): DemoDataService {
   async function startImport(
     input: { locale: DemoLocale; expectedVersion: number; requestKey: string },
     actorId: string,
+    coverageOnly = false,
   ) {
     if (!secrets.ready) demoError('DEMO_SECRETS_UNAVAILABLE', 'UNAVAILABLE');
-    const operationId = opId(actorId, input.requestKey, 'import');
+    const operationId = opId(
+      actorId,
+      input.requestKey,
+      coverageOnly ? 'roleCoverage' : 'import',
+    );
     let target = '';
     await db.transaction(async (tx) => {
       const prior = await tx
@@ -361,7 +375,11 @@ export function createDemoDataService(app: Application): DemoDataService {
       if (c.operationId) demoError('DEMO_BUSY');
       if (c.datasetId) {
         const d = await dataset(c.datasetId, tx);
-        if (d.state !== 'importFailed' || d.locale !== input.locale)
+        if (
+          (!coverageOnly && d.state !== 'importFailed') ||
+          (coverageOnly && !['ready', 'importFailed'].includes(d.state)) ||
+          d.locale !== input.locale
+        )
           demoError('DEMO_ALREADY_IMPORTED');
         target = d.id;
         await tx.repository('demoDataSets').updateOne({
@@ -412,7 +430,7 @@ export function createDemoDataService(app: Application): DemoDataService {
         values: {
           id: operationId,
           datasetId: target,
-          kind: 'import',
+          kind: coverageOnly ? 'roleCoverage' : 'import',
           state: 'running',
           createdAt: new Date(),
         },
@@ -433,6 +451,27 @@ export function createDemoDataService(app: Application): DemoDataService {
   }
   return {
     status,
+    async enrichRoleCoverage() {
+      await Promise.all([...pending.values()]);
+      const current = await status();
+      if (!current.datasetId || !current.locale)
+        demoError('DEMO_NOT_FOUND', 'NOT_FOUND');
+      await startImport(
+        {
+          locale: current.locale,
+          expectedVersion: current.version,
+          requestKey: randomUUID(),
+        },
+        'sample:oa/role-coverage-v1',
+        true,
+      );
+      await Promise.all([...pending.values()]);
+      const result = await status();
+      if (result.state !== 'ready')
+        throw new Error(
+          `DEMO_ROLE_COVERAGE_INCOMPLETE:${result.safeFailures.map((failure) => `${failure.key}:${failure.reason}`).join(',')}`,
+        );
+    },
     async useSamplePasswords() {
       await db.transaction(async (tx) => {
         const c = await control(tx);

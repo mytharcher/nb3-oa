@@ -45,13 +45,12 @@ it('can sign in and use guarded routes while a startup sample is still running',
       samples.prepare({
         enabled: true,
         ledger: {
-          history: async () => [
-            {
-              name: sampleDataRecordName('oa/demo-data'),
+          history: async () =>
+            ['oa/demo-data', 'oa/role-coverage-v1'].map((name) => ({
+              name: sampleDataRecordName(name),
               packageName: 'nb3-oa',
               status: 'executed' as const,
-            },
-          ],
+            })),
           record: async () => {},
         },
       });

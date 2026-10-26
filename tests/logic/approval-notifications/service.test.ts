@@ -8,7 +8,11 @@ import type {
   NotificationService,
 } from '@nocobase/app-plugin-notification/server';
 import { I18nRuntime } from '@nocobase/i18n';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  demoContexts,
+  registerDemoUser,
+} from '../../../server/providers/demo-data/context.js';
 
 import locales from '../../../server/locales/index.ts';
 import { createApprovalNotificationService } from '../../../server/providers/approval-notifications/service.ts';
@@ -79,6 +83,37 @@ describe('OA approval notifications', () => {
     i18n.registerApplicationNamespace('nb3-oa', locales);
     await i18n.init();
   });
+  afterEach(() => {
+    demoContexts.delete('reviewer');
+  });
+
+  it.each(['zh-CN', 'en-US'] as const)(
+    'renders %s sample notifications in a background effect with the opposite app default',
+    async (locale) => {
+      i18n = new I18nRuntime({
+        defaultLocale: locale === 'zh-CN' ? 'en-US' : 'zh-CN',
+      });
+      i18n.registerApplicationNamespace('nb3-oa', locales);
+      await i18n.init();
+      registerDemoUser('reviewer', {
+        id: 'notification-sample',
+        locale,
+        baseDate: '2026-10-26',
+        users: new Set(['reviewer']),
+      });
+      await service({ localeOf: undefined }).task({ task, reason: 'assigned' });
+      expect(send.mock.calls[0]?.[0].messages.inbox).toMatchObject({
+        title:
+          locale === 'zh-CN'
+            ? '请假申请 · 待你处理'
+            : 'Leave request · Action required',
+        body:
+          locale === 'zh-CN'
+            ? '您有一项待处理审批。'
+            : 'You have an approval to process.',
+      });
+    },
+  );
 
   it('notifies the principal and direct proxy in their own languages without email for assignment', async () => {
     const delegateOf = vi.fn(() => ({ to: 'proxy', mode: 'proxy' as const }));

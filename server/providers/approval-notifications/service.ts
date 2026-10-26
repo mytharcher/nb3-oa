@@ -1,4 +1,4 @@
-import { demoNow } from '../demo-data/context.js';
+import { demoNow, demoLocaleFor } from '../demo-data/context.js';
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
 import type {
   NotificationConfig,
@@ -94,7 +94,9 @@ export function createApprovalNotificationService(
     // belong to the notification service; a business-effect retry must not rewrite history.
     if (await deps.notification.getByIdempotencyKey(idempotencyKey)) return;
     const locale = deps.i18n.resolveLocale(
-      (await deps.localeOf?.(user.id)) ?? deps.i18n.getDefaultLocale(),
+      (await deps.localeOf?.(user.id)) ??
+        demoLocaleFor(user.id) ??
+        deps.i18n.getDefaultLocale(),
     );
     await deps.i18n.ensureLocaleLoaded(locale);
     const t = deps.i18n.getFixedT('nb3-oa', locale);
@@ -272,7 +274,7 @@ export function createApprovalNotificationService(
       if (!name || !deps.publicOrigin) return;
       const idempotencyKey = `oa.approvals:alarm:${eventId}:webhook`;
       if (await deps.notification.getByIdempotencyKey(idempotencyKey)) return;
-      const locale = deps.i18n.getDefaultLocale();
+      const locale = demoLocaleFor() ?? deps.i18n.getDefaultLocale();
       await deps.i18n.ensureLocaleLoaded(locale);
       const t = deps.i18n.getFixedT('nb3-oa', locale);
       const path = recordPath(recordId, kind);

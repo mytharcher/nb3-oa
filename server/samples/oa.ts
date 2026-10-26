@@ -79,7 +79,7 @@ export function oaSampleData(app: Application): SampleDataRegistration {
     async run() {
       await ensureOaSample(
         app.container.resolve(demoDataServiceToken),
-        app.config.get('i18n.defaultLocale') === 'en-US' ? 'en-US' : 'zh-CN',
+        resolveOaSampleLocale(app),
       );
       const accessFile = await exportOaSampleAccess(app);
       app.container
@@ -89,6 +89,37 @@ export function oaSampleData(app: Application): SampleDataRegistration {
           { accessFile },
           'OA sample data ready; credentials saved to a private local file',
         );
+    },
+  };
+}
+
+/** Explicit content language is independent of the application's UI default. */
+export function resolveOaSampleLocale(
+  app: Pick<Application, 'config'>,
+): DemoLocale {
+  const explicit = app.config.get('app.sampleLocale');
+  if (explicit !== undefined) {
+    if (explicit === 'zh-CN' || explicit === 'en-US') return explicit;
+    throw new Error('Invalid app.sampleLocale: use zh-CN or en-US.');
+  }
+  // Preserve the existing fallback for other application interface languages.
+  return app.config.get('i18n.defaultLocale') === 'en-US' ? 'en-US' : 'zh-CN';
+}
+
+/** A separate history entry also enriches installations that already ran oa/demo-data. */
+export function oaRoleCoverageSample(app: Application): SampleDataRegistration {
+  return {
+    name: 'oa/role-coverage-v1',
+    packageName: 'nb3-oa',
+    async run() {
+      const service = app.container.resolve(demoDataServiceToken);
+      await service.idle();
+      const current = await service.status();
+      if (current.state === 'absent')
+        await ensureOaSample(service, resolveOaSampleLocale(app));
+      else await service.useSamplePasswords();
+      await service.enrichRoleCoverage();
+      await exportOaSampleAccess(app);
     },
   };
 }

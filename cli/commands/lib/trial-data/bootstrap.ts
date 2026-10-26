@@ -59,6 +59,7 @@ export interface TrialFacts {
   promotionGradeId: string;
   accountId: string;
   targetAccountId: string;
+  headcountAccountIds: Record<string, string>;
   vendorId: string;
   assetIds: string[];
   attendanceId: string;
@@ -460,7 +461,7 @@ export async function bootstrap(
       }
       const capacity = c.resolve(headcountServiceToken);
       const accounts: Record<string, string> = {};
-      for (const key of ['engineering', 'sales']) {
+      for (const key of Object.keys(departments)) {
         const departmentId = departments[key];
         const existing = await tx
           .repository('headcountAccounts')
@@ -811,6 +812,7 @@ export async function bootstrap(
         promotionGradeId,
         accountId: accounts.engineering,
         targetAccountId: accounts.sales,
+        headcountAccountIds: accounts,
         vendorId: String(vendor.id),
         assetIds,
         attendanceId: String(attendance.id),
