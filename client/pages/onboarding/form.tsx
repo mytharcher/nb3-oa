@@ -1,3 +1,4 @@
+import { RouteOverlaySequence } from '#components/route-overlay-sequence';
 import { createRequestKey } from '#lib/request-key';
 import { format, parseISO } from 'date-fns';
 import { DatePicker } from '#components/date-picker';
@@ -21,7 +22,11 @@ import { resource, type Requisition } from './types.js';
 import { Command } from './command.js';
 import { ValidationFailure } from './validation.js';
 export default function Page() {
-  return <Form key={useViewerKey()} />;
+  return (
+    <RouteOverlaySequence key={useViewerKey()}>
+      <Form />
+    </RouteOverlaySequence>
+  );
 }
 function Form() {
   const { t } = useTranslation(),

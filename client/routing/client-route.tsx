@@ -5,11 +5,12 @@ import type {
 } from '@nocobase/app-client/plugins';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { NamespaceScope } from '@nocobase/i18n/client';
-import { type ReactElement, useEffect, useState } from 'react';
+import { type ReactElement, useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { ErrorBoundary } from 'react-error-boundary';
 
 import { requestActionDefinitions } from '#components/request-action-definitions';
+import { RouteOverlayHandoffContext } from '#components/route-overlay-handoff';
 import { RouteDrawer } from '#components/route-drawer';
 import { Loading } from '#components/loading';
 import { Alert, AlertTitle, AlertDescription } from '#components/ui/alert';
@@ -22,15 +23,16 @@ export interface ClientRouteProps {
 export function ClientRoute({ route }: ClientRouteProps): ReactElement {
   const { authz, componentLoader } = route;
   const { t } = useTranslation();
+  const handoff = useContext(RouteOverlayHandoffContext);
   // Request routes load below the workbench Outlet. Keep pending/error feedback
   // in a visible drawer instead of placing it below the long background list.
   const requestEntry = requestActionDefinitions.find(
     ({ to }) => route.path.split('/').at(-1) === to,
   );
   const feedback = (content: ReactElement) =>
-    requestEntry ? (
+    requestEntry || handoff ? (
       <RouteDrawer
-        title={t(requestEntry.label)}
+        title={t(requestEntry?.label ?? 'status.loadingPage')}
         className='text-sm sm:max-w-2xl'
       >
         {content}
@@ -83,12 +85,16 @@ export function ClientRoute({ route }: ClientRouteProps): ReactElement {
   const Component = componentModule.default;
 
   return (
-    <ErrorBoundary fallback={feedback(<ClientPageError />)}>
-      {/* The owning package is the page's namespace, so a plugin page translates with a bare useTranslation(). */}
-      <NamespaceScope ns={route.packageName}>
-        <Component />
-      </NamespaceScope>
-    </ErrorBoundary>
+    // The loading drawer already entered. The business drawer replaces its
+    // portal, so suppress a second panel/backdrop entrance during that handoff.
+    <RouteOverlayHandoffContext.Provider value={handoff || !!requestEntry}>
+      <ErrorBoundary fallback={feedback(<ClientPageError />)}>
+        {/* The owning package is the page's namespace, so a plugin page translates with a bare useTranslation(). */}
+        <NamespaceScope ns={route.packageName}>
+          <Component />
+        </NamespaceScope>
+      </ErrorBoundary>
+    </RouteOverlayHandoffContext.Provider>
   );
 }
 

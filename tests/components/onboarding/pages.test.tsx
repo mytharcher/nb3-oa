@@ -677,3 +677,43 @@ it('explains unsupported onboarding attachments without sending an upload', () =
   expect(screen.getByRole('alert')).toHaveTextContent('PDF');
   expect(api.request).not.toHaveBeenCalled();
 });
+
+it.each(['create', 'complete'])(
+  'does not replay the %s drawer entrance after delayed data',
+  async (mode) => {
+    const original = api.request.getMockImplementation()!;
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    api.request.mockImplementation(async (request) => {
+      if (
+        request.path ===
+        (mode === 'create' ? 'onboardings/options' : 'onboardings/o1')
+      )
+        await pending;
+      return original(request);
+    });
+    mount(
+      mode === 'create' ? <Form /> : <Action />,
+      mode === 'create'
+        ? '/onboardings/new'
+        : '/onboardings/o1/tasks/o1%3Ait/complete',
+    );
+    expect(screen.getByRole('dialog')).not.toHaveClass(
+      'data-open:animate-none',
+    );
+    await act(async () => {
+      release();
+    });
+    await screen.findByLabelText(
+      mode === 'create'
+        ? fieldLabel('Employee name')
+        : fieldLabel('Device reference'),
+    );
+    expect(screen.getByRole('dialog')).toHaveClass('data-open:animate-none');
+    expect(document.querySelector('[data-slot="dialog-overlay"]')).toHaveClass(
+      'data-open:animate-none',
+    );
+  },
+);

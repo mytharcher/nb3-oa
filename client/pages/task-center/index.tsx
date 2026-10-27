@@ -1,6 +1,9 @@
+import { RouteOverlayHandoffContext } from '#components/route-overlay-handoff';
 import { useBatchApprove } from '../approvals/batch-approve.js';
 import type { CenterRecord } from '../approvals/use-center-resource.js';
-import { useEffect, useMemo, useRef, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
+import { useAuthorizationRevision } from '@nocobase/app-plugin-authorization/client';
 import {
   Outlet,
   useLocation,
@@ -71,6 +74,43 @@ export default function TaskCenterPage(): ReactElement {
     previousPathRef.current = location.pathname;
   }, [location.pathname, reload]);
   const data = resource.data;
+  const { session } = useAuthentication();
+  const revision = useAuthorizationRevision();
+  const identity = JSON.stringify([session?.user.id, revision]);
+  const countScope = JSON.stringify([source.sourceType, subject]);
+  // Facets describe every source, independent of the current list query.
+  // Retain only navigation metadata while switching; never retain old tasks.
+  const [navigationSnapshot, setNavigationSnapshot] = useState<{
+    identity: string;
+    countScope: string;
+    facets: TaskCenterData['facets'];
+    counts: TaskCenterData['counts'];
+  }>();
+  if (
+    navigationSnapshot &&
+    (navigationSnapshot.identity !== identity || resource.error)
+  ) {
+    setNavigationSnapshot(undefined);
+  } else if (
+    data &&
+    !resource.error &&
+    navigationSnapshot?.facets !== data.facets
+  ) {
+    setNavigationSnapshot({
+      identity,
+      countScope,
+      facets: data.facets,
+      counts: data.counts,
+    });
+  }
+  const snapshot =
+    navigationSnapshot?.identity === identity && !resource.error
+      ? navigationSnapshot
+      : undefined;
+  const facets = data?.facets ?? snapshot?.facets;
+  const counts =
+    data?.counts ??
+    (snapshot?.countScope === countScope ? snapshot.counts : undefined);
   useEffect(() => {
     if (!data || resource.loading) return;
     const last = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
@@ -123,15 +163,14 @@ export default function TaskCenterPage(): ReactElement {
     );
   };
   const navigation: TaskNavSource[] = taskSources.map((item) => {
-    const facets =
-      data?.facets.filter((facet) => facet.sourceType === item.sourceType) ??
-      [];
+    const sourceFacets =
+      facets?.filter((facet) => facet.sourceType === item.sourceType) ?? [];
     return {
       key: item.sourceType,
       label: t(item.label),
       icon: item.icon,
-      count: facets.reduce((n, facet) => n + facet.pending, 0),
-      subjects: facets
+      count: sourceFacets.reduce((n, facet) => n + facet.pending, 0),
+      subjects: sourceFacets
         .map((facet) => ({
           key: facet.subject,
           label: label(facet.subject),
@@ -191,7 +230,7 @@ export default function TaskCenterPage(): ReactElement {
       >
         <TaskStatusTabs
           value={status}
-          counts={data?.counts ?? { pending: 0, closed: 0, all: 0 }}
+          counts={counts ?? { pending: 0, closed: 0, all: 0 }}
           onValueChange={(value) =>
             update({ status: value === 'pending' ? undefined : value })
           }
@@ -310,13 +349,20 @@ export default function TaskCenterPage(): ReactElement {
           </>
         ) : null}
       </TaskCenterLayout>
-      <Outlet
-        context={{
-          reload: resource.reload,
-          basePath: '/taskCenter',
-          search: location.search,
-        }}
-      />
+      <RouteOverlayHandoffContext.Provider
+        value={
+          (location.state as { routeOverlayHandoff?: unknown } | null)
+            ?.routeOverlayHandoff === location.pathname
+        }
+      >
+        <Outlet
+          context={{
+            reload: resource.reload,
+            basePath: '/taskCenter',
+            search: location.search,
+          }}
+        />
+      </RouteOverlayHandoffContext.Provider>
     </PageContainer>
   );
 }

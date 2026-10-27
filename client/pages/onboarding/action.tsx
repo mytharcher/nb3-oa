@@ -1,3 +1,4 @@
+import { RouteOverlaySequence } from '#components/route-overlay-sequence';
 import { createRequestKey } from '#lib/request-key';
 import { TransferTarget } from './transfer-target.js';
 import { AttachmentEditor } from './attachments.js';
@@ -27,7 +28,11 @@ import { Command } from './command.js';
 import { ValidationFailure } from './validation.js';
 import { Mentor } from './mentor.js';
 export default function Page() {
-  return <Action key={useViewerKey()} />;
+  return (
+    <RouteOverlaySequence key={useViewerKey()}>
+      <Action />
+    </RouteOverlaySequence>
+  );
 }
 function Action() {
   const { t } = useTranslation(),

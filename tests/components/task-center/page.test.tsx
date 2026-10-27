@@ -1,4 +1,12 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { RecordDetailDrawer } from '../../../client/components/record-detail-drawer.js';
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -11,17 +19,21 @@ import TaskCenter from '../../../client/pages/task-center/index.js';
 import LegacyCenter from '../../../client/pages/approvals/index.js';
 import Target from '../../../client/pages/task-center/target.js';
 import type { TaskCenterData } from '../../../client/pages/task-center/sources.js';
-const state = vi.hoisted(() => ({ request: vi.fn() }));
+const state = vi.hoisted(() => ({
+  request: vi.fn(),
+  userId: 'reviewer',
+  revision: 0,
+}));
 const api = { request: state.request };
 vi.mock('@nocobase/app-client', async (original) => ({
   ...(await original<typeof import('@nocobase/app-client')>()),
   useApiClient: () => api,
 }));
 vi.mock('@nocobase/app-plugin-authentication/client', () => ({
-  useAuthentication: () => ({ session: { user: { id: 'reviewer' } } }),
+  useAuthentication: () => ({ session: { user: { id: state.userId } } }),
 }));
 vi.mock('@nocobase/app-plugin-authorization/client', () => ({
-  useAuthorizationRevision: () => 0,
+  useAuthorizationRevision: () => state.revision,
 }));
 const runtime = await createTestI18nRuntime({
   application: { namespace: 'nb3-oa', resources: enUS },
@@ -29,6 +41,8 @@ const runtime = await createTestI18nRuntime({
 afterEach(() => {
   cleanup();
   state.request.mockReset();
+  state.userId = 'reviewer';
+  state.revision = 0;
 });
 const data: TaskCenterData = {
   tasks: [
@@ -103,7 +117,11 @@ function mount(entry: string) {
           { path: 'task/:taskId', element: <Target /> },
           {
             path: 'leave/:requestId',
-            element: <span>Authorized business detail</span>,
+            element: (
+              <RecordDetailDrawer title='Business detail'>
+                <span>Authorized business detail</span>
+              </RecordDetailDrawer>
+            ),
           },
         ],
       },
@@ -151,6 +169,12 @@ it('resolves the personal entry through its owned reference and opens the busine
     '/taskCenter/leave/business-record',
   );
   expect(router.state.location.search).toBe('?subject=oa.leave&status=all');
+  expect(router.state.location.state).toEqual({
+    routeOverlayHandoff: '/taskCenter/leave/business-record',
+  });
+  expect(screen.getByRole('dialog', { name: 'Business detail' })).toHaveClass(
+    'data-open:animate-none',
+  );
   await act(async () => {
     await router.navigate('/taskCenter?subject=oa.leave&status=all');
   });
@@ -189,3 +213,61 @@ it('retains old deep links and maps the business and source filters', async () =
     'oa.leave',
   );
 });
+
+it('keeps navigation and scoped counts mounted during slow filter changes without showing stale tasks', async () => {
+  let resolve!: (value: { data: TaskCenterData }) => void;
+  state.request.mockResolvedValueOnce({ data }).mockImplementation(
+    () =>
+      new Promise((done) => {
+        resolve = done;
+      }),
+  );
+  const router = mount('/taskCenter');
+  await screen.findByText('LEAVE-101');
+  const nav = screen.getByRole('navigation', { name: 'Task sources' });
+  const leave = within(nav).getByRole('button', { name: /Leave/ });
+  await userEvent.click(screen.getByRole('tab', { name: /Done/ }));
+  expect(within(nav).getByRole('button', { name: /Leave/ })).toBe(leave);
+  expect(screen.getByRole('tab', { name: /Done/ })).toHaveTextContent('2');
+  expect(screen.queryByText('LEAVE-101')).toBeNull();
+  await act(async () => {
+    resolve({ data: { ...data, tasks: [], total: 0 } });
+  });
+  await userEvent.click(leave);
+  expect(leave).toHaveAttribute('aria-current', 'page');
+  expect(within(nav).getByRole('button', { name: /Leave/ })).toBe(leave);
+  await act(async () => {
+    await router.navigate('/taskCenter?source=approval.application');
+  });
+  expect(within(nav).getByRole('button', { name: /Leave/ })).toBe(leave);
+  expect(screen.queryByText('LEAVE-101')).toBeNull();
+  await act(async () => {
+    resolve({ data: { ...data, tasks: [], total: 0, facets: [] } });
+  });
+  expect(within(nav).queryByRole('button', { name: /Leave/ })).toBeNull();
+});
+it.each(['user', 'permissions', 'error'])(
+  'clears retained navigation after %s changes',
+  async (change) => {
+    let reject!: (error: Error) => void;
+    state.request.mockResolvedValueOnce({ data }).mockImplementation(
+      () =>
+        new Promise((_resolve, fail) => {
+          reject = fail;
+        }),
+    );
+    const router = mount('/taskCenter');
+    await screen.findByText('LEAVE-101');
+    if (change === 'user') state.userId = 'another-user';
+    if (change === 'permissions') state.revision++;
+    await act(async () => {
+      await router.navigate('/taskCenter?status=closed');
+    });
+    if (change === 'error')
+      await act(async () => {
+        reject(new Error('Network unavailable'));
+      });
+    const nav = screen.getByRole('navigation', { name: 'Task sources' });
+    expect(within(nav).queryByRole('button', { name: /Leave/ })).toBeNull();
+  },
+);

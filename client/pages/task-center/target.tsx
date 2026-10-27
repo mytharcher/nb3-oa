@@ -16,20 +16,21 @@ export default function TaskTarget() {
   const business = resource.data
     ? approvalBusiness(resource.data.subject)
     : undefined;
-  if (resource.data && business)
-    return (
-      <Navigate
-        replace
-        to={{
-          pathname: `/taskCenter/${business.detail}/${encodeURIComponent(resource.data.recordId)}`,
-          search: location.search,
-        }}
-      />
-    );
+  const destination =
+    resource.data && business
+      ? `/taskCenter/${business.detail}/${encodeURIComponent(resource.data.recordId)}`
+      : undefined;
   return (
     <RecordDetailDrawer title={t('taskCenter.title')}>
       <>
-        {resource.loading ? (
+        {destination ? (
+          <Navigate
+            replace
+            to={{ pathname: destination, search: location.search }}
+            state={{ routeOverlayHandoff: destination }}
+          />
+        ) : null}
+        {resource.loading || destination ? (
           <FieldsSkeleton />
         ) : (
           <ErrorState

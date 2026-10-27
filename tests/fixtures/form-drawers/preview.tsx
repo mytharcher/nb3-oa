@@ -1,3 +1,6 @@
+import { RouteOverlaySequence } from '../../../client/components/route-overlay-sequence';
+import { RouteDrawer } from '../../../client/components/route-drawer';
+import { RouteOverlayHandoffContext } from '../../../client/components/route-overlay-handoff';
 import { useDrawerFormGuard } from '../../../client/hooks/use-drawer-form-guard';
 import { createRoot } from 'react-dom/client';
 import { useState } from 'react';
@@ -135,6 +138,21 @@ export function RouteForm() {
   );
 }
 
+function SequencePreview() {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <RouteOverlaySequence>
+      {loaded ? (
+        <RouteForm />
+      ) : (
+        <RouteDrawer title='Loading fixture'>
+          <Button onClick={() => setLoaded(true)}>Finish loading</Button>
+        </RouteDrawer>
+      )}
+    </RouteOverlaySequence>
+  );
+}
+
 async function main() {
   const runtime = await createTestI18nRuntime({
     application: { namespace: 'nb3-oa', resources: enUS },
@@ -150,15 +168,22 @@ async function main() {
             <Outlet />
           </main>
         ),
-        children: [{ path: 'new', element: <RouteForm /> }],
+        children: [
+          {
+            path: 'new',
+            element: mode === 'sequence' ? <SequencePreview /> : <RouteForm />,
+          },
+        ],
       },
     ],
     { initialEntries: ['/records/new?q=staff&page=2'] },
   );
   createRoot(document.getElementById('root')!).render(
     <TestI18nProvider runtime={runtime}>
-      {mode === 'route' ? (
-        <RouterProvider router={router} />
+      {mode === 'route' || mode === 'handoff' || mode === 'sequence' ? (
+        <RouteOverlayHandoffContext.Provider value={mode === 'handoff'}>
+          <RouterProvider router={router} />
+        </RouteOverlayHandoffContext.Provider>
       ) : (
         <ControlledForm />
       )}

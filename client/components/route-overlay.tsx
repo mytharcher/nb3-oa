@@ -27,6 +27,8 @@ import {
 import { cn } from 'cn';
 import { PrintSurfaceButton } from './print-surface-button.js';
 
+import { RouteOverlayHandoffContext } from './route-overlay-handoff.js';
+
 import { RouteOverlayContext } from './use-route-overlay.js';
 
 export interface RouteOverlayProps {
@@ -75,6 +77,13 @@ export function RouteOverlay({
 }: RouteOverlayProps & { readonly drawer?: boolean }): ReactElement {
   const { t } = useTranslation();
   const parentPopup = useContext(ParentPopupContext);
+  const entrance = useContext(RouteOverlayHandoffContext);
+  const [handoff] = useState(() =>
+    typeof entrance === 'boolean' ? entrance : entrance.hasEntered(),
+  );
+  useLayoutEffect(() => {
+    if (typeof entrance !== 'boolean') entrance.enter();
+  }, [entrance]);
   const popupRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
@@ -132,95 +141,101 @@ export function RouteOverlay({
   const value = useMemo(() => ({ close, isClosing }), [close, isClosing]);
 
   return (
-    <RouteOverlayContext.Provider value={value}>
-      {/* Covers the panel body too, so an overlay placed at this page's outlet
+    <RouteOverlayHandoffContext.Provider value={false}>
+      <RouteOverlayContext.Provider value={value}>
+        {/* Covers the panel body too, so an overlay placed at this page's outlet
           finds the enclosing panel without knowing where the outlet lives. */}
-      <ParentPopupContext.Provider value={popupRef}>
-        <Dialog
-          open
-          onOpenChange={(open) => {
-            if (!open)
-              void close().catch((error: unknown) => {
-                console.error('Failed to close route overlay', error);
-              });
-          }}
-        >
-          <DialogPortal>
-            {/* Each nested panel needs its own backdrop above its parent panel. */}
-            <DialogOverlay forceRender />
-            <DialogPrimitive.Popup
-              ref={popupRef}
-              data-slot='route-overlay-content'
-              data-presentation={drawer ? 'drawer' : 'dialog'}
-              finalFocus={() => {
-                if (finalFocus) return finalFocus();
-                const previous = previousFocusRef.current;
-                if (parentPopup?.current) {
-                  return previous?.isConnected &&
-                    parentPopup.current.contains(previous)
-                    ? previous
-                    : parentPopup.current;
-                }
-                return true;
-              }}
-              className={cn(
-                'fixed top-1/2 left-1/2 z-50 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-popover text-popover-foreground shadow-lg outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95',
-                'flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl',
-                // The viewport constraints are deliberate; all ordinary styling uses theme tokens.
-                drawer &&
-                  'top-0 right-0 left-auto h-dvh max-h-dvh w-full max-w-full translate-x-0 translate-y-0 rounded-none sm:max-w-xl data-open:slide-in-from-right data-open:zoom-in-100',
-                className,
-              )}
-            >
-              <header
-                data-slot='route-overlay-header'
-                className='flex shrink-0 flex-col gap-2 border-b p-4 pr-12 sm:p-6 sm:pr-14'
-              >
-                <div className='flex flex-wrap items-center gap-x-3 gap-y-2'>
-                  <DialogTitle className='min-w-0 break-words leading-snug'>
-                    {title}
-                  </DialogTitle>
-                  {headerStatus}
-                </div>
-                {description != null && (
-                  <DialogDescription>{description}</DialogDescription>
+        <ParentPopupContext.Provider value={popupRef}>
+          <Dialog
+            open
+            onOpenChange={(open) => {
+              if (!open)
+                void close().catch((error: unknown) => {
+                  console.error('Failed to close route overlay', error);
+                });
+            }}
+          >
+            <DialogPortal>
+              {/* Each nested panel needs its own backdrop above its parent panel. */}
+              <DialogOverlay
+                forceRender
+                className={handoff ? 'data-open:animate-none' : undefined}
+              />
+              <DialogPrimitive.Popup
+                ref={popupRef}
+                data-slot='route-overlay-content'
+                data-presentation={drawer ? 'drawer' : 'dialog'}
+                finalFocus={() => {
+                  if (finalFocus) return finalFocus();
+                  const previous = previousFocusRef.current;
+                  if (parentPopup?.current) {
+                    return previous?.isConnected &&
+                      parentPopup.current.contains(previous)
+                      ? previous
+                      : parentPopup.current;
+                  }
+                  return true;
+                }}
+                className={cn(
+                  'fixed top-1/2 left-1/2 z-50 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-popover text-popover-foreground shadow-lg outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95',
+                  'flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl',
+                  // The viewport constraints are deliberate; all ordinary styling uses theme tokens.
+                  drawer &&
+                    'top-0 right-0 left-auto h-dvh max-h-dvh w-full max-w-full translate-x-0 translate-y-0 rounded-none sm:max-w-xl data-open:slide-in-from-right data-open:zoom-in-100',
+                  className,
+                  handoff && 'data-open:animate-none',
                 )}
-              </header>
-              <div
-                data-slot='route-overlay-body'
-                className='min-h-0 flex-1 overflow-y-auto overscroll-contain [--route-overlay-body-padding:calc(var(--spacing)*4)] p-(--route-overlay-body-padding) sm:[--route-overlay-body-padding:calc(var(--spacing)*6)]'
               >
-                {children}
-              </div>
-              {(footer != null || printable) && (
-                <footer
-                  data-slot='route-overlay-footer'
-                  className='flex shrink-0 flex-wrap justify-end gap-2 border-t bg-popover p-4 sm:p-6'
+                <header
+                  data-slot='route-overlay-header'
+                  className='flex shrink-0 flex-col gap-2 border-b p-4 pr-12 sm:p-6 sm:pr-14'
                 >
-                  {printable ? (
-                    <PrintSurfaceButton disabled={printDisabled} />
-                  ) : null}
-                  {footer}
-                </footer>
-              )}
-              <DialogClose
-                render={
-                  <Button
-                    variant='ghost'
-                    size='icon-sm'
-                    className='absolute top-4 right-4'
-                  />
-                }
-              >
-                <XIcon />
-                <span className='sr-only'>
-                  {t('routeOverlay.close', { defaultValue: 'Close' })}
-                </span>
-              </DialogClose>
-            </DialogPrimitive.Popup>
-          </DialogPortal>
-        </Dialog>
-      </ParentPopupContext.Provider>
-    </RouteOverlayContext.Provider>
+                  <div className='flex flex-wrap items-center gap-x-3 gap-y-2'>
+                    <DialogTitle className='min-w-0 break-words leading-snug'>
+                      {title}
+                    </DialogTitle>
+                    {headerStatus}
+                  </div>
+                  {description != null && (
+                    <DialogDescription>{description}</DialogDescription>
+                  )}
+                </header>
+                <div
+                  data-slot='route-overlay-body'
+                  className='min-h-0 flex-1 overflow-y-auto overscroll-contain [--route-overlay-body-padding:calc(var(--spacing)*4)] p-(--route-overlay-body-padding) sm:[--route-overlay-body-padding:calc(var(--spacing)*6)]'
+                >
+                  {children}
+                </div>
+                {(footer != null || printable) && (
+                  <footer
+                    data-slot='route-overlay-footer'
+                    className='flex shrink-0 flex-wrap justify-end gap-2 border-t bg-popover p-4 sm:p-6'
+                  >
+                    {printable ? (
+                      <PrintSurfaceButton disabled={printDisabled} />
+                    ) : null}
+                    {footer}
+                  </footer>
+                )}
+                <DialogClose
+                  render={
+                    <Button
+                      variant='ghost'
+                      size='icon-sm'
+                      className='absolute top-4 right-4'
+                    />
+                  }
+                >
+                  <XIcon />
+                  <span className='sr-only'>
+                    {t('routeOverlay.close', { defaultValue: 'Close' })}
+                  </span>
+                </DialogClose>
+              </DialogPrimitive.Popup>
+            </DialogPortal>
+          </Dialog>
+        </ParentPopupContext.Provider>
+      </RouteOverlayContext.Provider>
+    </RouteOverlayHandoffContext.Provider>
   );
 }

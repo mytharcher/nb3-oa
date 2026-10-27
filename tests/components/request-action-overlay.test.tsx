@@ -1,3 +1,4 @@
+import { RouteOverlaySequence } from '../../client/components/route-overlay-sequence.js';
 import { DrawerCloseGuardsContext } from '../../client/components/drawer-form-context.js';
 import { useContext, useLayoutEffect, useState } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -198,4 +199,29 @@ it('respects registered descendant form close guards inside a submit dialog', as
   await waitFor(() =>
     expect(screen.queryByRole('dialog', { name: 'Submit draft' })).toBeNull(),
   );
+});
+
+it('shares one entrance across loading, form and error replacements, and resets for a new view', () => {
+  function FormPanel() {
+    return <RouteDrawer title='Form'>Inputs</RouteDrawer>;
+  }
+  const view = (stage: string, identity = 'first') => (
+    <MemoryRouter>
+      <RouteOverlaySequence key={identity}>
+        {stage === 'form' ? (
+          <FormPanel />
+        ) : (
+          <RouteDrawer title={stage}>Feedback</RouteDrawer>
+        )}
+      </RouteOverlaySequence>
+    </MemoryRouter>
+  );
+  const { rerender } = render(view('Loading'));
+  expect(screen.getByRole('dialog')).not.toHaveClass('data-open:animate-none');
+  for (const stage of ['form', 'Error', 'form']) {
+    rerender(view(stage));
+    expect(screen.getByRole('dialog')).toHaveClass('data-open:animate-none');
+  }
+  rerender(view('Loading', 'another'));
+  expect(screen.getByRole('dialog')).not.toHaveClass('data-open:animate-none');
 });
