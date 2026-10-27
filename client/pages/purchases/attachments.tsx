@@ -1,9 +1,9 @@
+import { FileUploadInput } from '#components/file-upload-input';
 import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { Button } from '#components/ui/button';
-import { Input } from '#components/ui/input';
 import { Field, FieldLabel, FieldDescription } from '#components/ui/field';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import { Skeleton } from '#components/ui/skeleton';
@@ -215,17 +215,12 @@ export function PurchaseAttachmentEditor({
     <Field>
       <FieldLabel htmlFor={inputId}>{t('approvals.attachments')}</FieldLabel>
       <FieldDescription>{t('approvals.attachmentLimit')}</FieldDescription>
-      <Input
+      <FileUploadInput
         ref={inputRef}
         id={inputId}
-        type='file'
         accept='.pdf,.jpg,.jpeg,.png,.webp'
         disabled={disabled || busy || ids.length >= 10}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = '';
-          if (file) void upload(file);
-        }}
+        onFileChange={(file) => void upload(file)}
       />
       {busy ? (
         <FieldDescription role='status'>

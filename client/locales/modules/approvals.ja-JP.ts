@@ -50,6 +50,10 @@ const copy = {
   invalidFields: '以下の項目を確認してください：{{fields}}。',
   fieldSeparator: '、 ',
   businessErrors: {
+    LEAVE_EMPLOYEE_INACTIVE:
+      '申請者には有効な在職従業員情報が必要です。人事担当者に従業員情報と紐づくアカウントの確認を依頼してください。',
+    LEAVE_HANDOVER_INACTIVE:
+      '選択した引継ぎ担当者は利用できません。別の担当者を選ぶか、承認代理が無効の場合は選択を解除してください。',
     LEAVE_MAX_DAYS:
       '申請した休暇がこの休暇種類の上限を超えています。期間を短縮してください。',
     LEAVE_NO_WORKDAYS:

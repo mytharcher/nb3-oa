@@ -175,6 +175,8 @@ const viVN: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'Chọn tệp',
+    singleFile: 'Vui lòng chọn từng tệp một.',
     images: 'Hình ảnh',
     files: 'Tệp',
     preview: 'Xem trước {name}',

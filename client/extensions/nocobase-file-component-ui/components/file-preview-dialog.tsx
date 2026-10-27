@@ -1,5 +1,5 @@
 import { useTranslation } from '@nocobase/i18n/client';
-import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, XIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 
 import type {
@@ -13,7 +13,12 @@ import {
   type FilePreviewKind,
 } from '../lib/file-preview';
 import { Button } from '#components/ui/button';
-import { Dialog, DialogContent, DialogTitle } from '#components/ui/dialog';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from '#components/ui/dialog';
 import { fileUrlCredentials, resolveSafeFileUrl } from '../lib/file-url';
 import { FilePreviewContent } from './previewers/file-preview-content';
 
@@ -59,6 +64,7 @@ function OpenFilePreviewDialog(
   inputProps: OpenFilePreviewDialogProps,
 ): ReactElement {
   const { t } = useTranslation('@nocobase/app-plugin-file');
+  const { t: appText } = useTranslation();
   const {
     files,
     initialIndex,
@@ -77,19 +83,48 @@ function OpenFilePreviewDialog(
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent
         className='flex max-h-[calc(100dvh-2rem)] max-w-[calc(100%-2rem)] flex-col sm:max-w-4xl'
-        showCloseButton
+        showCloseButton={false}
       >
-        <div className='flex items-center justify-between gap-3 pr-10'>
-          <div className='min-w-0'>
-            <DialogTitle className='truncate'>{file.filename}</DialogTitle>
+        {/* OA: download belongs beside the filename; navigation and close stay
+            together on the right, without an absolutely positioned close. */}
+        <div className='flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+          <div className='min-w-0 flex-1'>
+            <div
+              data-slot='file-preview-title'
+              className='flex min-w-0 items-center gap-2'
+            >
+              <DialogTitle className='min-w-0 truncate'>
+                {file.filename}
+              </DialogTitle>
+              {allowDownload ? (
+                <Button
+                  type='button'
+                  size='icon-sm'
+                  className='shrink-0'
+                  variant='ghost'
+                  aria-label={`${downloadLabel}: ${file.filename}`}
+                  title={downloadLabel}
+                  onClick={() =>
+                    void downloadFile(file).catch((error: unknown) =>
+                      reportDownloadError(onError, error),
+                    )
+                  }
+                >
+                  <Download aria-hidden='true' />
+                </Button>
+              ) : null}
+            </div>
             <p className='text-sm text-muted-foreground'>{file.mimeType}</p>
           </div>
-          <div className='flex gap-1'>
+          <div
+            data-slot='file-preview-actions'
+            className='flex shrink-0 items-center gap-1 self-end sm:self-start'
+          >
             {files.length > 1 ? (
               <>
                 <Button
                   type='button'
-                  size='icon'
+                  size='icon-sm'
                   variant='ghost'
                   aria-label={t('files.previous', {
                     defaultValue: 'Previous file',
@@ -104,7 +139,7 @@ function OpenFilePreviewDialog(
                 </Button>
                 <Button
                   type='button'
-                  size='icon'
+                  size='icon-sm'
                   variant='ghost'
                   aria-label={t('files.next', { defaultValue: 'Next file' })}
                   onClick={() =>
@@ -115,21 +150,17 @@ function OpenFilePreviewDialog(
                 </Button>
               </>
             ) : null}
-            {allowDownload ? (
-              <Button
-                type='button'
-                size='icon'
-                variant='ghost'
-                aria-label={`${downloadLabel}: ${file.filename}`}
-                onClick={() =>
-                  void downloadFile(file).catch((error: unknown) =>
-                    reportDownloadError(onError, error),
-                  )
-                }
+            <div
+              className={files.length > 1 ? 'ml-1 border-l pl-2' : undefined}
+            >
+              <DialogClose
+                render={<Button type='button' size='icon-sm' variant='ghost' />}
+                aria-label={appText('actions.close')}
+                title={appText('actions.close')}
               >
-                <Download aria-hidden='true' />
-              </Button>
-            ) : null}
+                <XIcon aria-hidden='true' />
+              </DialogClose>
+            </div>
           </div>
         </div>
         {/* Only the preview scrolls; the title and its actions stay in view. */}

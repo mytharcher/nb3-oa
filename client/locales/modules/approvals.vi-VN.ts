@@ -50,6 +50,10 @@ const copy = {
   invalidFields: 'Kiểm tra các trường: {{fields}}.',
   fieldSeparator: ', ',
   businessErrors: {
+    LEAVE_EMPLOYEE_INACTIVE:
+      'Người nộp đơn cần có hồ sơ nhân viên đang làm việc và hoạt động. Nhờ HR kiểm tra hồ sơ và tài khoản liên kết.',
+    LEAVE_HANDOVER_INACTIVE:
+      'Người nhận bàn giao đã chọn hiện không khả dụng. Chọn người khác hoặc xóa lựa chọn nếu chưa bật ủy quyền phê duyệt.',
     LEAVE_MAX_DAYS:
       'Số ngày nghỉ vượt mức tối đa của loại nghỉ phép này. Rút ngắn thời gian.',
     LEAVE_NO_WORKDAYS:

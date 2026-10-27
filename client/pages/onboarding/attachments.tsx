@@ -1,9 +1,9 @@
+import { FileUploadInput } from '#components/file-upload-input';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import { useEffect, useRef, useState } from 'react';
 import { useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { Button } from '#components/ui/button';
-import { Input } from '#components/ui/input';
 import { Failure, Loading } from '../work-items/states.js';
 import { FileList } from '../../extensions/nocobase-file-component-ui/index.js';
 import type { FileRecord } from '@nocobase/app-plugin-file/client';
@@ -148,16 +148,11 @@ export function AttachmentEditor({
       <p className='text-sm text-muted-foreground'>
         {t('onboarding.fileLimit')}
       </p>
-      <Input
-        type='file'
+      <FileUploadInput
         aria-label={t('onboarding.upload')}
         accept='.pdf,.png,.jpg,.jpeg,.txt'
         disabled={disabled || busy || !id || ids.length >= 10}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = '';
-          if (file) void upload(file);
-        }}
+        onFileChange={(file) => void upload(file)}
       />
       {busy ? <p role='status'>{t('onboarding.uploading')}</p> : null}
       {validation && (

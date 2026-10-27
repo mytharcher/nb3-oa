@@ -51,6 +51,10 @@ const copy = {
   invalidFields: 'Periksa bidang ini: {{fields}}.',
   fieldSeparator: ', ',
   businessErrors: {
+    LEAVE_EMPLOYEE_INACTIVE:
+      'Pemohon memerlukan data karyawan aktif. Minta HR memeriksa data karyawan dan akun yang terhubung.',
+    LEAVE_HANDOVER_INACTIVE:
+      'Penerima serah terima yang dipilih tidak tersedia. Pilih orang lain, atau kosongkan kolom jika delegasi persetujuan dinonaktifkan.',
     LEAVE_MAX_DAYS:
       'Cuti yang diminta melebihi maksimum jenis cuti ini. Persingkat periode.',
     LEAVE_NO_WORKDAYS:

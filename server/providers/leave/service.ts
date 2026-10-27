@@ -87,8 +87,8 @@ export interface LeaveRecord extends LifecycleRecord {
   createdById: string;
   number: string | null;
   leaveType: string;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
   startHalf: 'am' | 'pm';
   endHalf: 'am' | 'pm';
   days: number | string;
@@ -154,6 +154,16 @@ export type LeaveInput = Pick<
   | 'handoverUserId'
   | 'enableDelegation'
 >;
+function assertCompleteDates(record: {
+  startDate: string | null;
+  endDate: string | null;
+}): asserts record is { startDate: string; endDate: string } {
+  if (!record.startDate || !record.endDate)
+    refuse(
+      'LEAVE_INPUT_INVALID',
+      'Complete the leave dates before submitting.',
+    );
+}
 export function createLeaveService(d: LeaveDependencies) {
   let outside: Services;
   const readDirectory = new AsyncLocalStorage<OaApprovalDirectory>();
@@ -346,6 +356,17 @@ export function createLeaveService(d: LeaveDependencies) {
       : 'approved';
   }
   async function validate(record: LeaveRecord, connection: DatabaseConnection) {
+    assertCompleteDates(record);
+    if (
+      !record.reason.trim() ||
+      !record.leaveType ||
+      `${record.startDate}:${record.startHalf}` >
+        `${record.endDate}:${record.endHalf}`
+    )
+      refuse(
+        'LEAVE_INPUT_INVALID',
+        'Complete the leave fields before submitting.',
+      );
     const employee = await d.employees.getByUserId(
       record.applicantId,
       connection,
@@ -721,6 +742,7 @@ export function createLeaveService(d: LeaveDependencies) {
       terminated: ({ record, tx, now }) =>
         releaseBalance(record, tx.handle as DatabaseConnection, now),
       approved: async ({ record, tx, now }) => {
+        assertCompleteDates(record);
         const connection = tx.handle as DatabaseConnection;
         if (typeof record.ruleSnapshot?.['leave.balanceType'] === 'string')
           await d.balances.deduct(
@@ -1428,6 +1450,7 @@ export function createLeaveService(d: LeaveDependencies) {
       };
     },
     async preview(input: LeaveInput, actorId: string) {
+      assertCompleteDates(input);
       await refresh();
       const ruleSnapshot = await d.rules.snapshot(['leave.head', 'leave.hr']);
       const record = {

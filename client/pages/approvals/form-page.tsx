@@ -331,13 +331,14 @@ function LeaveForm({
     : !canCreate;
   async function ensureDraft() {
     if (record) return record.id;
-    if (!(await form.trigger())) throw new Error('Invalid draft');
     const input = form.getValues();
     const { data } = await api.request<{ data: { record: LeaveRecord } }>({
       method: 'POST',
       path: 'leaveRequests',
       json: {
         ...input,
+        startDate: input.startDate || null,
+        endDate: input.endDate || null,
         handoverUserId: input.handoverUserId || null,
         attachments: [],
       },

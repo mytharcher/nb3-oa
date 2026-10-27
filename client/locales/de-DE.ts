@@ -175,6 +175,8 @@ const deDE: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'Datei auswählen',
+    singleFile: 'Bitte jeweils eine Datei auswählen.',
     images: 'Bilder',
     files: 'Dateien',
     preview: 'Vorschau von {name}',

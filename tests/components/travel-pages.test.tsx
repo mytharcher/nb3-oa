@@ -365,7 +365,7 @@ it('requires an itinerary for international submission before any write, while a
     ),
   ).toBeVisible();
   await waitFor(() =>
-    expect(document.getElementById('travel-file')).toHaveFocus(),
+    expect(screen.getByRole('button', { name: 'Choose file' })).toHaveFocus(),
   );
   expect(api.request.mock.calls.some(([call]) => call.method === 'POST')).toBe(
     false,

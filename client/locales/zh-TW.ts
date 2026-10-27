@@ -175,6 +175,8 @@ const zhTW: AppResource = {
   navigation: { ...system.navigation, home: workbenchZhTW.workbench.title },
   ...leaveBalancesZhTW,
   attachmentList: {
+    chooseFile: '選擇檔案',
+    singleFile: '請每次選擇一個檔案。',
     images: '圖片',
     files: '檔案',
     preview: '預覽 {name}',

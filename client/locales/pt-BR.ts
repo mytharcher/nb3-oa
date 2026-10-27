@@ -175,6 +175,8 @@ const ptBR: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'Selecionar arquivo',
+    singleFile: 'Selecione um arquivo por vez.',
     images: 'Imagens',
     files: 'Arquivos',
     preview: 'Visualizar {name}',
