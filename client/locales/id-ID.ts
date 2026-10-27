@@ -175,6 +175,8 @@ const idID: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'Pilih file',
+    singleFile: 'Pilih satu file setiap kali.',
     images: 'Gambar',
     files: 'File',
     preview: 'Pratinjau {name}',

@@ -1,3 +1,4 @@
+import { FileUploadInput } from '#components/file-upload-input';
 import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { useEffect, useReducer, useState, useRef } from 'react';
 import { useApiClient } from '@nocobase/app-client';
@@ -5,7 +6,6 @@ import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useAuthorizationRevision } from '@nocobase/app-plugin-authorization/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { Button } from '#components/ui/button';
-import { Input } from '#components/ui/input';
 import { Label } from '#components/ui/label';
 import { Checkbox } from '#components/ui/checkbox';
 import { Failure, Loading } from './states.js';
@@ -149,16 +149,11 @@ export function Attachments({
       {change ? (
         <>
           <Label htmlFor='announcement-file'>{t('announcements.upload')}</Label>
-          <Input
+          <FileUploadInput
             id='announcement-file'
-            type='file'
             accept='.pdf,.png,.jpg,.jpeg,.txt'
             disabled={disabled || busy || selected.length >= 10}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void upload(file);
-              e.target.value = '';
-            }}
+            onFileChange={(file) => void upload(file)}
           />
           <p className='text-muted-foreground'>
             {t('announcements.fileLimit')}

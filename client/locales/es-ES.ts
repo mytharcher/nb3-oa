@@ -175,6 +175,8 @@ const esES: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'Seleccionar archivo',
+    singleFile: 'Selecciona un archivo cada vez.',
     images: 'Imágenes',
     files: 'Archivos',
     preview: 'Vista previa de {name}',

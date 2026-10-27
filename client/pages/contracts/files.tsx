@@ -1,3 +1,4 @@
+import { FileUploadInput } from '#components/file-upload-input';
 import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { finalRefusal, uncertainError } from './errors.js';
 import { validFile } from './file-model.js';
@@ -6,7 +7,6 @@ import { useApiClient, ApiClientError } from '@nocobase/app-client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { Button } from '#components/ui/button';
-import { Input } from '#components/ui/input';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import { Field, FieldLabel, FieldDescription } from '#components/ui/field';
 import { ErrorState, Loading } from './shared.js';
@@ -273,18 +273,13 @@ export function FileEditor({
         )}
       </FieldLabel>
       <FieldDescription>{t('contracts.uploadHint')}</FieldDescription>
-      <Input
+      <FileUploadInput
         ref={inputRef}
         id={`contract-file-${purpose}`}
-        type='file'
         accept={purpose === 'text' ? '.pdf' : '.pdf,.jpg,.jpeg,.png,.webp'}
         aria-invalid={invalid || undefined}
         disabled={disabled || blocked || busy || unknown}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = '';
-          if (file) void upload(file);
-        }}
+        onFileChange={(file) => void upload(file)}
       />
       {invalid && (
         <Alert variant='destructive'>

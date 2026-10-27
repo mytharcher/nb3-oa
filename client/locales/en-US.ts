@@ -175,6 +175,8 @@ const enUS = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'Choose file',
+    singleFile: 'Choose one file at a time.',
     images: 'Images',
     files: 'Files',
     preview: 'Preview {name}',

@@ -427,11 +427,11 @@ export default function LeaveDetailPage() {
                 [t('approvals.type'), typeLabel(record!.leaveType)],
                 [
                   t('approvals.startDate'),
-                  `${record!.startDate} ${t(`approvals.${record!.startHalf}`)}`,
+                  `${record!.startDate ?? '—'} ${t(`approvals.${record!.startHalf}`)}`,
                 ],
                 [
                   t('approvals.endDate'),
-                  `${record!.endDate} ${t(`approvals.${record!.endHalf}`)}`,
+                  `${record!.endDate ?? '—'} ${t(`approvals.${record!.endHalf}`)}`,
                 ],
                 [
                   t('approvals.days'),

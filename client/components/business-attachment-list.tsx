@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { XIcon } from 'lucide-react';
+import { Button } from './ui/button.js';
 import { useTranslation } from '@nocobase/i18n/client';
 import { AttachmentList, type AttachmentLabels } from './attachment-list.js';
 import {
@@ -44,18 +46,28 @@ function previewRecord(file: BusinessAttachment): FileRecord {
 /** Presentation only: callers still own metadata authorization, selection and uploads. */
 export function BusinessAttachmentList({
   files,
+  onRemove,
 }: {
   readonly files: readonly BusinessAttachment[];
+  readonly onRemove?: (id: string) => void;
 }) {
   // Replacing a selection or its content closes the old preview, including requests
   // in flight; the file recipe owns aborting fetches and disposing its viewers.
-  return <AttachmentView key={JSON.stringify(files)} files={files} />;
+  return (
+    <AttachmentView
+      key={JSON.stringify(files)}
+      files={files}
+      onRemove={onRemove}
+    />
+  );
 }
 
 function AttachmentView({
   files,
+  onRemove,
 }: {
   readonly files: readonly BusinessAttachment[];
+  readonly onRemove?: (id: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const { t: fileText } = useTranslation('@nocobase/app-plugin-file');
@@ -65,8 +77,7 @@ function AttachmentView({
     resolveSafeFileUrl(file.contentUrl ?? ''),
   );
   const initialIndex = safe.findIndex((file) => file.id === selectedId);
-  // AttachmentList is read-only here. Panel-only labels remain translated too,
-  // but removal/upload capabilities are intentionally owned by business editors.
+  // Editors opt into selection removal; read-only consumers expose no delete action.
   const labels: AttachmentLabels = {
     title: t('approvals.attachments'),
     images: t('attachmentList.images'),
@@ -78,7 +89,7 @@ function AttachmentView({
     pending: fileText('files.pending'),
     upload: fileText('files.chooseMany'),
     uploading: fileText('files.uploading'),
-    remove: fileText('files.remove'),
+    remove: `${fileText('files.remove')} {name}`,
     removeTitle: fileText('files.remove'),
     removeDescription: fileText('files.remove'),
     removeConfirm: fileText('files.remove'),
@@ -96,7 +107,9 @@ function AttachmentView({
           url: resolveSafeFileUrl(file.contentUrl ?? '')!,
           downloadUrl: resolveSafeFileUrl(file.contentUrl ?? '')!,
           image: resolveFilePreviewKind(file) === 'image',
+          canRemove: Boolean(onRemove),
         }))}
+        onRemove={onRemove ? (file) => onRemove(file.id) : undefined}
         onPreview={(ordered, index) =>
           setSelectedId(ordered[index]?.id ?? null)
         }
@@ -104,8 +117,23 @@ function AttachmentView({
       {records
         .filter((file) => !resolveSafeFileUrl(file.contentUrl ?? ''))
         .map((file) => (
-          <p key={file.id} className='break-all text-sm text-muted-foreground'>
+          <p
+            key={file.id}
+            className='group flex items-center gap-1 break-all text-sm text-muted-foreground'
+          >
             {file.filename}: {fileText('invalidUrl')}
+            {onRemove ? (
+              <Button
+                type='button'
+                variant='ghost'
+                size='icon-xs'
+                className='shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100'
+                aria-label={`${fileText('files.remove')} ${file.filename}`}
+                onClick={() => onRemove(file.id)}
+              >
+                <XIcon />
+              </Button>
+            ) : null}
           </p>
         ))}
       <FilePreviewDialog

@@ -602,7 +602,7 @@ it('focuses file and audience controls for whitelisted server errors without sho
     screen.getByRole('button', { name: 'Publish version' }),
   );
   await screen.findByText('Check this field and try again.');
-  expect(screen.getByLabelText(/^Source file/)).toHaveFocus();
+  expect(screen.getByRole('button', { name: 'Choose file' })).toHaveFocus();
   expect(screen.getByLabelText(/^Source file/)).toHaveAttribute(
     'aria-invalid',
     'true',

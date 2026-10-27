@@ -145,11 +145,12 @@ export function AttachmentList({
   const removeButton = (file: AttachmentFile, overlay: boolean): ReactNode =>
     onRemove && file.canRemove ? (
       <Button
+        type='button'
         variant={overlay ? 'secondary' : 'ghost'}
         size='icon-xs'
         className={cn(
-          overlay &&
-            'absolute top-1 right-1 opacity-90 shadow-sm sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100',
+          'shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100',
+          overlay && 'absolute top-1 right-1 shadow-sm',
         )}
         aria-label={fill(labels.remove, { name: file.name })}
         disabled={removingId === file.id}
@@ -200,7 +201,7 @@ export function AttachmentList({
           {others.map((file) => (
             <li
               key={file.id}
-              className='flex max-w-full min-w-0 items-center gap-1 rounded-md border bg-background py-1 pr-1 pl-2 text-sm'
+              className='group flex max-w-full min-w-0 items-center gap-1 rounded-md border bg-background py-1 pr-1 pl-2 text-sm'
             >
               <FileIcon
                 className='size-3.5 shrink-0 text-muted-foreground'
@@ -401,10 +402,13 @@ export function PendingAttachments({
 
 export interface AttachmentPanelProps extends Omit<
   AttachmentListProps,
-  'onRemove' | 'className'
+  'onRemove' | 'className' | 'labels'
 > {
   /** Takes picked, pasted or dropped files; without it, the panel only lists. Nothing renders without files then. */
   readonly onUpload?: (files: readonly File[]) => void;
+  readonly labels?: Partial<AttachmentLabels>;
+  /** App-owned picker (single-file, disabled and accessible field semantics). */
+  readonly uploadControl?: ReactNode;
   /** The names of the files uploading now. */
   readonly uploading?: readonly string[];
   /** Under the title, such as the size limit. */
@@ -422,17 +426,19 @@ export function AttachmentPanel({
   files,
   onUpload,
   uploading = [],
+  uploadControl,
   hint,
   onRemove,
-  labels = defaultLabels,
+  labels: labelOverrides,
   className,
   ...list
 }: AttachmentPanelProps): ReactElement | null {
+  const labels = { ...defaultLabels, ...labelOverrides };
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [removing, setRemoving] = useState<AttachmentFile | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  if (files.length === 0 && !onUpload) return null;
+  if (files.length === 0 && !onUpload && !uploadControl) return null;
   const empty = files.length === 0;
   const status =
     uploading.length > 0
@@ -462,34 +468,36 @@ export function AttachmentPanel({
       }
     : {};
 
-  const uploadButton = onUpload ? (
-    <>
-      <Button
-        variant='ghost'
-        size='sm'
-        disabled={uploading.length > 0}
-        onClick={() => inputRef.current?.click()}
-      >
-        {uploading.length > 0 ? (
-          <Loader2Icon data-icon='inline-start' className='animate-spin' />
-        ) : (
-          <UploadIcon data-icon='inline-start' />
-        )}
-        {labels.upload}
-      </Button>
-      <input
-        ref={inputRef}
-        type='file'
-        multiple
-        hidden
-        data-testid='attachment-file-input'
-        onChange={(event) => {
-          onUpload([...(event.target.files ?? [])]);
-          event.target.value = '';
-        }}
-      />
-    </>
-  ) : null;
+  const uploadButton =
+    uploadControl ??
+    (onUpload ? (
+      <>
+        <Button
+          variant='ghost'
+          size='sm'
+          disabled={uploading.length > 0}
+          onClick={() => inputRef.current?.click()}
+        >
+          {uploading.length > 0 ? (
+            <Loader2Icon data-icon='inline-start' className='animate-spin' />
+          ) : (
+            <UploadIcon data-icon='inline-start' />
+          )}
+          {labels.upload}
+        </Button>
+        <input
+          ref={inputRef}
+          type='file'
+          multiple
+          hidden
+          data-testid='attachment-file-input'
+          onChange={(event) => {
+            onUpload([...(event.target.files ?? [])]);
+            event.target.value = '';
+          }}
+        />
+      </>
+    ) : null);
 
   return (
     <section

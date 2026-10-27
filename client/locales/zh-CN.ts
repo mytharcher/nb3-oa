@@ -174,6 +174,8 @@ const zhCN = {
   navigation: { ...system.navigation, home: workbenchZhCN.workbench.title },
   ...leaveBalancesZhCN,
   attachmentList: {
+    chooseFile: '选择文件',
+    singleFile: '请每次选择一个文件。',
     images: '图片',
     files: '文件',
     preview: '预览 {name}',

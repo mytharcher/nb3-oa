@@ -176,6 +176,8 @@ const ruRU: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'Выбрать файл',
+    singleFile: 'Выбирайте по одному файлу за раз.',
     images: 'Изображения',
     files: 'Файлы',
     preview: 'Просмотр {name}',

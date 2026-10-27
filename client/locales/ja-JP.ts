@@ -175,6 +175,8 @@ const jaJP: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'ファイルを選択',
+    singleFile: '一度に1つのファイルを選択してください。',
     images: '画像',
     files: 'ファイル',
     preview: '{name} をプレビュー',

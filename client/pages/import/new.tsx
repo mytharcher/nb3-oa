@@ -1,3 +1,4 @@
+import { FileUploadInput } from '#components/file-upload-input';
 import { useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import {
@@ -5,7 +6,6 @@ import {
   CircleCheckIcon,
   DownloadIcon,
   InfoIcon,
-  UploadIcon,
 } from 'lucide-react';
 import { type ReactElement, useId, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router';
@@ -304,39 +304,21 @@ export default function NewImportDialog(): ReactElement {
               *
             </span>
           </FieldLabel>
-          {/* The native control's own text ("Choose file") cannot be translated, so a button opens it. */}
-          <input
+          <FileUploadInput
+            buttonRef={chooseRef}
+            chooseLabel={t('import.actions.chooseFile')}
+            selectedFile={file}
+            emptyLabel={t('import.noFile')}
             ref={fileInputRef}
             id={`${id}-file`}
-            type='file'
             accept='.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            className='sr-only'
-            tabIndex={-1}
             aria-required='true'
             aria-invalid={fileError ? true : undefined}
-            onChange={(event) => {
-              setFile(event.target.files?.[0] ?? undefined);
+            onFileChange={(selectedFile) => {
+              setFile(selectedFile);
               backToSelect(false);
             }}
           />
-          <div className='flex min-w-0 items-center gap-2'>
-            <Button
-              ref={chooseRef}
-              type='button'
-              variant='outline'
-              aria-describedby={`${id}-file-name`}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <UploadIcon data-icon='inline-start' />
-              {t('import.actions.chooseFile')}
-            </Button>
-            <span
-              id={`${id}-file-name`}
-              className='min-w-0 truncate text-sm text-muted-foreground'
-            >
-              {file?.name ?? t('import.noFile')}
-            </span>
-          </div>
           <FieldDescription>{t('import.fileHint')}</FieldDescription>
           <FieldError errors={fileError ? [{ message: fileError }] : []} />
         </Field>

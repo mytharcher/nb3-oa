@@ -176,6 +176,8 @@ const koKR: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: '파일 선택',
+    singleFile: '한 번에 파일 하나를 선택하세요.',
     images: '이미지',
     files: '파일',
     preview: '{name} 미리 보기',

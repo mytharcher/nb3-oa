@@ -175,6 +175,8 @@ const frFR: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'Choisir un fichier',
+    singleFile: 'Choisissez un seul fichier à la fois.',
     images: 'Images',
     files: 'Fichiers',
     preview: 'Aperçu de {name}',

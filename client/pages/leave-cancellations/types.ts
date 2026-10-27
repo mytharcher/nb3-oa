@@ -1,5 +1,7 @@
 import type { LeaveRecord, LeaveDetail } from '../approvals/types.js';
 export interface CancellationRecord extends LeaveRecord {
+  startDate: string;
+  endDate: string;
   originalLeaveId: string;
   cancelAll: boolean;
   baseline: Record<string, string> | null;

@@ -1,3 +1,4 @@
+import { FileUploadInput } from '#components/file-upload-input';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ApiClientError, useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -472,16 +473,16 @@ function Form({
                 *
               </span>
             </FieldLabel>
-            <Input
+            <FileUploadInput
+              selectedFile={file}
               id='print-template-file'
               ref={fileRef}
-              type='file'
               accept='.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
               disabled={!ready || busy || verificationError}
               aria-invalid={!!validation.file}
               aria-describedby='print-file-help print-file-error'
-              onChange={(e) => {
-                setFile(e.target.files?.[0]);
+              onFileChange={(selectedFile) => {
+                setFile(selectedFile);
                 if (validation.file) setValidation((v) => ({ ...v, file: '' }));
               }}
             />

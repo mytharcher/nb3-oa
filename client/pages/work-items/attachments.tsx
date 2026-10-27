@@ -1,9 +1,9 @@
+import { FileUploadInput } from '#components/file-upload-input';
 import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { useEffect, useRef, useState } from 'react';
 import { useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { Button } from '#components/ui/button';
-import { Input } from '#components/ui/input';
 import { Failure, Loading } from './states.js';
 interface FileRecord {
   id: string;
@@ -151,16 +151,11 @@ export function AttachmentEditor({
       <p className='text-sm text-muted-foreground'>
         {t(id ? 'workItems.fileLimit' : 'workItems.saveBeforeUpload')}
       </p>
-      <Input
-        type='file'
+      <FileUploadInput
         aria-label={t('workItems.upload')}
         accept='.pdf,.png,.jpg,.jpeg,.txt'
         disabled={disabled || busy || !id || ids.length >= 10}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = '';
-          if (file) void upload(file);
-        }}
+        onFileChange={(file) => void upload(file)}
       />
       {busy ? <p role='status'>{t('workItems.uploading')}</p> : null}
       {error ? <Failure error={error} /> : null}

@@ -1,9 +1,8 @@
+import { FileUploadInput } from '#components/file-upload-input';
 import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { Button } from '#components/ui/button';
-import { Input } from '#components/ui/input';
 import { Field, FieldLabel, FieldDescription } from '#components/ui/field';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import { Skeleton } from '#components/ui/skeleton';
@@ -19,9 +18,11 @@ interface Attachment {
 export function LeaveAttachments({
   leaveId,
   ids,
+  onRemove,
 }: {
   leaveId: string;
   ids: readonly string[];
+  onRemove?: (id: string) => void;
 }) {
   const api = useApiClient();
   const { t } = useTranslation();
@@ -77,7 +78,7 @@ export function LeaveAttachments({
   const files = result.files?.filter((file) => ids.includes(file.id)) ?? [];
   if (files.length !== ids.length)
     return <span>{t('approvals.attachmentMissing')}</span>;
-  return <BusinessAttachmentList files={files} />;
+  return <BusinessAttachmentList files={files} onRemove={onRemove} />;
 }
 
 /** Uploads stay draft-owned; removing a selection never deletes stored proof. */
@@ -161,17 +162,12 @@ export function LeaveAttachmentEditor({
     <Field>
       <FieldLabel htmlFor='leave-file'>{t('approvals.attachments')}</FieldLabel>
       <FieldDescription>{t('approvals.attachmentLimit')}</FieldDescription>
-      <Input
+      <FileUploadInput
         ref={inputRef}
         id='leave-file'
-        type='file'
         accept='.pdf,.jpg,.jpeg,.png,.webp'
         disabled={disabled || busy || ids.length >= 10}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = '';
-          if (file) void upload(file);
-        }}
+        onFileChange={(file) => void upload(file)}
       />
       {busy ? (
         <FieldDescription role='status'>
@@ -184,23 +180,19 @@ export function LeaveAttachmentEditor({
         </Alert>
       ) : null}
       {leaveId && ids.length ? (
-        <LeaveAttachments leaveId={leaveId} ids={ids} />
+        <LeaveAttachments
+          leaveId={leaveId}
+          ids={ids}
+          onRemove={
+            disabled || busy
+              ? undefined
+              : (id) => {
+                  onChange(ids.filter((selected) => selected !== id));
+                  inputRef.current?.focus();
+                }
+          }
+        />
       ) : null}
-      {ids.map((id, index) => (
-        <Button
-          key={id}
-          type='button'
-          variant='outline'
-          size='sm'
-          disabled={disabled || busy}
-          onClick={() => {
-            onChange(ids.filter((selected) => selected !== id));
-            inputRef.current?.focus();
-          }}
-        >
-          {t('approvals.attachmentRemove', { number: index + 1 })}
-        </Button>
-      ))}
     </Field>
   );
 }
