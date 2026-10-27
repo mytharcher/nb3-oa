@@ -1,3 +1,5 @@
+import { resolveLocalesContribution } from '@nocobase/i18n';
+import filePlugin from '@nocobase/app-plugin-file/client';
 import { useEffect } from 'react';
 import {
   act,
@@ -63,6 +65,11 @@ vi.mock('#components/date-time-picker', () => ({
 }));
 const runtime = await createTestI18nRuntime({
   application: { namespace: 'nb3-oa', resources: { ...enUS, ...moduleEN } },
+  namespaces: {
+    '@nocobase/app-plugin-file': await resolveLocalesContribution(
+      filePlugin().locales!,
+    ),
+  },
 });
 let row = {
   id: 'a1',

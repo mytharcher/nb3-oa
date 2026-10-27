@@ -174,6 +174,12 @@ const viVN: AppResource = {
   ...overtimeEnUS,
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
+  attachmentList: {
+    images: 'Hình ảnh',
+    files: 'Tệp',
+    preview: 'Xem trước {name}',
+    download: 'Tải xuống {name}',
+  },
   actions: {
     ...system.actions,
     close: 'Đóng',

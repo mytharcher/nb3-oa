@@ -58,10 +58,19 @@ export function FilePreviewContent(
       />
     );
   }
-  if (error)
+  if (error) {
+    const key = messageKey(error);
+    const status = /^Preview request failed \((\d+)\)\.$/u.exec(error)?.[1];
+    // Text/PDF loaders pass error strings, not translation keys. Translate the
+    // known request status and use a generic localized message for unknown errors.
     return (
-      <div role='alert'>{t(messageKey(error), { defaultValue: error })}</div>
+      <div role='alert'>
+        {status
+          ? t('files.previewRequestFailed', { status })
+          : t(key === error ? 'previewFailed' : key)}
+      </div>
     );
+  }
   if (!url)
     return kind === 'unsupported' ? (
       <DownloadFallback file={file} onDownload={onDownload} />

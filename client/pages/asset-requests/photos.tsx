@@ -1,3 +1,4 @@
+import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { useEffect, useState } from 'react';
 import { useApiClient } from '@nocobase/app-client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
@@ -191,15 +192,7 @@ export function Photos({
           .filter((f) => onChange || ids.includes(f.id))
           .map((f) => (
             <li className='flex flex-wrap items-center gap-2' key={f.id}>
-              <a
-                className='break-all text-primary underline'
-                href={f.contentUrl}
-                target='_blank'
-                rel='noopener noreferrer'
-              >
-                {f.filename}
-                {f.ext ? `.${f.ext}` : ''}
-              </a>
+              <BusinessAttachmentList files={[f]} />
               {onChange ? (
                 <Button
                   variant='outline'

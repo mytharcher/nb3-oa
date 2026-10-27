@@ -1,3 +1,4 @@
+import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useEffect, useRef, useState } from 'react';
@@ -87,26 +88,9 @@ export function ReimbursementAttachments({
   )
     return <span>{t('reimbursementRequests.form.evidenceMissing')}</span>;
   return (
-    <ul className='flex flex-col gap-2'>
-      {result.files
-        ?.filter((f) => ids.includes(f.id))
-        .map((f) => (
-          <li key={f.id}>
-            <a
-              href={f.contentUrl}
-              target='_blank'
-              rel='noopener noreferrer'
-              className='break-all text-primary underline'
-            >
-              {f.filename}
-              {f.ext &&
-              !f.filename.toLowerCase().endsWith(`.${f.ext.toLowerCase()}`)
-                ? `.${f.ext}`
-                : ''}
-            </a>
-          </li>
-        ))}
-    </ul>
+    <BusinessAttachmentList
+      files={result.files?.filter((file) => ids.includes(file.id)) ?? []}
+    />
   );
 }
 export function ReimbursementAttachmentEditor({

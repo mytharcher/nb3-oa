@@ -1,3 +1,5 @@
+import { resolveLocalesContribution } from '@nocobase/i18n';
+import filePlugin from '@nocobase/app-plugin-file/client';
 import { ApiClientError } from '@nocobase/app-client';
 import {
   CreateInput,
@@ -42,6 +44,11 @@ const runtime = await createTestI18nRuntime({
   application: {
     namespace: 'nb3-oa',
     resources: { ...enUS, assetRequests: locale },
+  },
+  namespaces: {
+    '@nocobase/app-plugin-file': await resolveLocalesContribution(
+      filePlugin().locales!,
+    ),
   },
 });
 const record = {

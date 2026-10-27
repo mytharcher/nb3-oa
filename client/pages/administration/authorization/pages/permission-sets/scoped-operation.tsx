@@ -1,3 +1,5 @@
+import { Checkbox } from '#components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '#components/ui/radio-group';
 import { CustomFilterEditor } from '../../components/filter-editor.js';
 import { emptyFilter } from '../../components/filter-ast.js';
 import { useId, type RefObject, type ReactElement } from 'react';
@@ -77,22 +79,26 @@ export function ScopedOperation({
               <legend className='sr-only'>
                 {item.label} · {action.label}
               </legend>
-              <div className='flex flex-wrap gap-6 text-sm'>
+              <RadioGroup
+                name={choiceId}
+                value={granted ? 'all' : 'none'}
+                disabled={disabled}
+                onValueChange={(value) => {
+                  if (value === 'all' || value === 'none')
+                    onToggle(
+                      grant,
+                      action.value,
+                      value === 'all' ? 'all' : 'none',
+                    );
+                }}
+                className='flex flex-wrap gap-6 text-sm'
+              >
                 {[false, true].map((enabled) => (
                   <label
                     key={String(enabled)}
                     className='flex cursor-pointer items-center gap-2'
                   >
-                    <input
-                      type='radio'
-                      name={choiceId}
-                      checked={granted === enabled}
-                      disabled={disabled}
-                      className='size-4 accent-primary'
-                      onChange={() =>
-                        onToggle(grant, action.value, enabled ? 'all' : 'none')
-                      }
-                    />
+                    <RadioGroupItem value={enabled ? 'all' : 'none'} />
                     {t(
                       enabled
                         ? 'permissionWorkspace.configurePermission'
@@ -100,7 +106,7 @@ export function ScopedOperation({
                     )}
                   </label>
                 ))}
-              </div>
+              </RadioGroup>
               {!granted && (
                 <p className='rounded-md bg-muted/30 px-3 py-3 text-sm leading-6 text-muted-foreground'>
                   {t('permissionWorkspace.noOperationGrant')}
@@ -148,13 +154,11 @@ export function ScopedOperation({
                   >
                     {
                       <label className='flex cursor-pointer items-center gap-2'>
-                        <input
-                          type='checkbox'
-                          className='size-4 accent-primary'
+                        <Checkbox
                           checked={enabled}
                           disabled={disabled || !initial}
-                          onChange={(event) =>
-                            change(event.target.checked ? initial.value : '')
+                          onCheckedChange={(checked) =>
+                            change(checked === true ? initial.value : '')
                           }
                         />
                         {t('permissionWorkspace.specifyScope', {

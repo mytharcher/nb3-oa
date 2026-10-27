@@ -175,6 +175,12 @@ const koKR: AppResource = {
   ...overtimeEnUS,
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
+  attachmentList: {
+    images: '이미지',
+    files: '파일',
+    preview: '{name} 미리 보기',
+    download: '{name} 다운로드',
+  },
   actions: {
     ...system.actions,
     close: '닫기',

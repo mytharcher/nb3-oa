@@ -174,6 +174,12 @@ const enUS = {
   ...overtimeEnUS,
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
+  attachmentList: {
+    images: 'Images',
+    files: 'Files',
+    preview: 'Preview {name}',
+    download: 'Download {name}',
+  },
   actions: {
     ...system.actions,
     close: 'Close',

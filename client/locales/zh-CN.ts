@@ -173,6 +173,12 @@ const zhCN = {
   ...overtimeZhCN,
   navigation: { ...system.navigation, home: workbenchZhCN.workbench.title },
   ...leaveBalancesZhCN,
+  attachmentList: {
+    images: '图片',
+    files: '文件',
+    preview: '预览 {name}',
+    download: '下载 {name}',
+  },
   actions: {
     ...system.actions,
     close: '关闭',

@@ -1,3 +1,5 @@
+import { resolveLocalesContribution } from '@nocobase/i18n';
+import filePlugin from '@nocobase/app-plugin-file/client';
 import { ApiClientError } from '@nocobase/app-client';
 import {
   createTestI18nRuntime,
@@ -17,6 +19,11 @@ vi.mock('@nocobase/app-client', async (original) => ({
 }));
 const runtime = await createTestI18nRuntime({
   application: { namespace: 'nb3-oa', resources: enUS },
+  namespaces: {
+    '@nocobase/app-plugin-file': await resolveLocalesContribution(
+      filePlugin().locales!,
+    ),
+  },
 });
 function show(id = 'l1', ids = ['f1']) {
   return render(
@@ -46,9 +53,11 @@ describe('leave attachment display', () => {
     });
     show();
     expect(
-      await screen.findByRole('link', { name: 'Proof.pdf' }),
+      await screen.findByRole('button', { name: 'Download Proof.pdf' }),
     ).toHaveAttribute('href', '/custom/uploads/leave/f1.pdf');
-    expect(screen.queryByRole('link', { name: 'Unused.png' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Download Unused.png' }),
+    ).toBeNull();
     expect(api.request).toHaveBeenCalledWith(
       expect.objectContaining({
         method: 'POST',

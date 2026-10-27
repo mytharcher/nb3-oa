@@ -1,3 +1,5 @@
+import { resolveLocalesContribution } from '@nocobase/i18n';
+import filePlugin from '@nocobase/app-plugin-file/client';
 import {
   cleanup,
   fireEvent,
@@ -23,6 +25,11 @@ vi.mock('@nocobase/app-client', async (original) => ({
 }));
 const runtime = await createTestI18nRuntime({
   application: { namespace: 'nb3-oa', resources: { ...base, ...copy } },
+  namespaces: {
+    '@nocobase/app-plugin-file': await resolveLocalesContribution(
+      filePlugin().locales!,
+    ),
+  },
 });
 beforeEach(() => vi.clearAllMocks());
 afterEach(cleanup);
@@ -92,8 +99,8 @@ it('queries secure metadata with maxLimit10 and uses only returned guarded conte
       <QualificationAttachments recordId='request-1' ids={['e1']} />
     </TestI18nProvider>,
   );
-  const link = await screen.findByRole('link', {
-    name: 'Company evidence.pdf',
+  const link = await screen.findByRole('button', {
+    name: 'Download Company evidence.pdf',
   });
   expect(link.getAttribute('href')).toBe('/secure/qualification/e1.pdf');
   expect(api.request).toHaveBeenCalledWith(

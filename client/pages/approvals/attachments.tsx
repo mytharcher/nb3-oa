@@ -1,3 +1,4 @@
+import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useEffect, useReducer, useRef, useState } from 'react';
@@ -76,26 +77,7 @@ export function LeaveAttachments({
   const files = result.files?.filter((file) => ids.includes(file.id)) ?? [];
   if (files.length !== ids.length)
     return <span>{t('approvals.attachmentMissing')}</span>;
-  return (
-    <ul className='flex flex-col gap-2'>
-      {files.map((file) => (
-        <li key={file.id}>
-          <a
-            href={file.contentUrl}
-            target='_blank'
-            rel='noopener noreferrer'
-            className='break-all text-primary underline underline-offset-4'
-          >
-            {file.filename}
-            {file.ext &&
-            !file.filename.toLowerCase().endsWith(`.${file.ext.toLowerCase()}`)
-              ? `.${file.ext}`
-              : ''}
-          </a>
-        </li>
-      ))}
-    </ul>
-  );
+  return <BusinessAttachmentList files={files} />;
 }
 
 /** Uploads stay draft-owned; removing a selection never deletes stored proof. */
