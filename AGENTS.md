@@ -85,3 +85,5 @@ Start at [docs/README.md](docs/README.md). Find and update the existing owning d
 Find current status, source reviews, module gaps, and development plans through the [documentation index](docs/README.md). The owning module design defines its business contracts.
 
 The route-level denied and load-failure surfaces use user-facing generic messages rather than internal route/package identifiers; denied pages link back to the workbench. This application shell presentation is customized in `client/routing/client-route.tsx`; load failures use a destructive Alert with an outline retry action. Preserve it during template upgrades. See [page experience](docs/designs/oa/page-experience-design.md).
+
+Request-route loading drawers hand off to business drawers without replaying entrance animations; preserve the [drawer handoff contract](.agents/rules/request-drawer-handoff.md) during shell upgrades.

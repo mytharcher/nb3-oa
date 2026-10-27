@@ -40,7 +40,42 @@ const evidence = {
 };
 try {
   const page = await browser.newPage();
+  await page.goto(
+    `file://${path.join(output, 'standalone.html')}?mode=handoff`,
+  );
+  await expect(page.getByRole('dialog')).toBeVisible();
+  for (const selector of [
+    '[data-slot=route-overlay-content]',
+    '[data-slot=dialog-overlay]',
+  ]) {
+    await expect(page.locator(selector)).toHaveCSS('animation-name', 'none');
+  }
+  evidence.checks.push(
+    'Route loader handoff: panel and backdrop have no repeated entrance animation.',
+  );
+
   page.on('pageerror', (error) => evidence.errors.push(error.message));
+  await page.goto(
+    `file://${path.join(output, 'standalone.html')}?mode=sequence`,
+  );
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog')).not.toHaveCSS(
+    'animation-name',
+    'none',
+  );
+  await page.getByRole('button', { name: 'Finish loading' }).click();
+  await expect(page.getByRole('dialog')).toHaveCSS('animation-name', 'none');
+  await expect(page.locator('[data-slot=dialog-overlay]')).toHaveCSS(
+    'animation-name',
+    'none',
+  );
+  await page.screenshot({
+    path: path.join(output, 'screenshots/sequence-handoff.png'),
+  });
+  evidence.checks.push(
+    'Loading-to-form component replacement shares one entrance; replacement panel/backdrop have animation-name none.',
+  );
+
   for (const mode of ['controlled', 'route']) {
     for (const preset of ['compact', 'default']) {
       for (const dark of [false, true]) {
