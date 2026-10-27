@@ -174,6 +174,12 @@ const idID: AppResource = {
   ...overtimeEnUS,
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
+  attachmentList: {
+    images: 'Gambar',
+    files: 'File',
+    preview: 'Pratinjau {name}',
+    download: 'Unduh {name}',
+  },
   actions: {
     ...system.actions,
     close: 'Tutup',

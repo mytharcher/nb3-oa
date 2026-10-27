@@ -174,6 +174,12 @@ const ptBR: AppResource = {
   ...overtimeEnUS,
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
+  attachmentList: {
+    images: 'Imagens',
+    files: 'Arquivos',
+    preview: 'Visualizar {name}',
+    download: 'Baixar {name}',
+  },
   actions: {
     ...system.actions,
     close: 'Fechar',

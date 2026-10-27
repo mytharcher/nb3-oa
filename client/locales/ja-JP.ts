@@ -174,6 +174,12 @@ const jaJP: AppResource = {
   ...overtimeEnUS,
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
+  attachmentList: {
+    images: '画像',
+    files: 'ファイル',
+    preview: '{name} をプレビュー',
+    download: '{name} をダウンロード',
+  },
   actions: {
     ...system.actions,
     close: '閉じる',

@@ -1,3 +1,4 @@
+import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { finalRefusal, uncertainError } from './errors.js';
 import { validFile } from './file-model.js';
 import { useEffect, useRef, useState } from 'react';
@@ -116,21 +117,7 @@ export function SecureFiles({
       />
     );
   return result.files?.length ? (
-    <ul className='flex flex-col gap-2'>
-      {result.files.map((file) => (
-        <li key={file.id}>
-          <a
-            className='break-all text-primary underline'
-            href={file.contentUrl}
-            target='_blank'
-            rel='noopener noreferrer'
-          >
-            {file.filename}
-            {file.ext ? `.${file.ext}` : ''}
-          </a>
-        </li>
-      ))}
-    </ul>
+    <BusinessAttachmentList files={result.files} />
   ) : (
     <span>—</span>
   );

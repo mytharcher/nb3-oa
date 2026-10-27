@@ -1,3 +1,5 @@
+import { resolveLocalesContribution } from '@nocobase/i18n';
+import filePlugin from '@nocobase/app-plugin-file/client';
 import userEvent from '@testing-library/user-event';
 import {
   ApiClientError,
@@ -101,6 +103,11 @@ vi.mock('../../../client/pages/contracts/shared.js', async (original) => ({
 }));
 const runtime = await createTestI18nRuntime({
   application: { namespace: 'nb3-oa', resources: { ...base, ...copy } },
+  namespaces: {
+    '@nocobase/app-plugin-file': await resolveLocalesContribution(
+      filePlugin().locales!,
+    ),
+  },
 });
 const record = {
   ...EMPTY,
@@ -446,7 +453,9 @@ it('guards current text metadata with the owning application and never manufactu
     }),
   );
   show(<SecureFiles requestId='request-1' text />);
-  const link = await screen.findByRole('link', { name: 'contract.pdf' });
+  const link = await screen.findByRole('button', {
+    name: 'Download contract.pdf',
+  });
   expect(link.getAttribute('href')).toBe('/guarded/private.pdf');
   expect(api.request).toHaveBeenCalledWith(
     expect.objectContaining({

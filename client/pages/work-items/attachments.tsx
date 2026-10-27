@@ -1,3 +1,4 @@
+import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { useEffect, useRef, useState } from 'react';
 import { useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -62,28 +63,18 @@ export function Attachments({ id, ids }: { id: string; ids: string[] }) {
   if (r?.key !== key) return <Loading />;
   if (r.error) return <Failure error={r.error} />;
   return (
-    <ul className='flex flex-col gap-2'>
-      {ids.map((fileId) => {
-        const file = r.files?.find((f) => f.id === fileId);
-        return (
-          <li key={fileId}>
-            {file ? (
-              <a
-                href={file.contentUrl}
-                target='_blank'
-                rel='noopener noreferrer'
-                className='text-primary underline break-all'
-              >
-                {file.filename}
-                {file.ext ? `.${file.ext}` : ''}
-              </a>
-            ) : (
-              t('workItems.fileMissing')
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      <BusinessAttachmentList
+        files={ids.flatMap(
+          (id) => r.files?.find((file) => file.id === id) ?? [],
+        )}
+      />
+      {ids
+        .filter((id) => !r.files?.some((file) => file.id === id))
+        .map((id) => (
+          <p key={id}>{t('workItems.fileMissing')}</p>
+        ))}
+    </>
   );
 }
 export function AttachmentEditor({

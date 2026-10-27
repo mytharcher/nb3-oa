@@ -174,6 +174,12 @@ const deDE: AppResource = {
   ...overtimeEnUS,
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
+  attachmentList: {
+    images: 'Bilder',
+    files: 'Dateien',
+    preview: 'Vorschau von {name}',
+    download: '{name} herunterladen',
+  },
   actions: {
     ...system.actions,
     close: 'Schließen',

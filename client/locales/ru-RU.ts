@@ -175,6 +175,12 @@ const ruRU: AppResource = {
   ...overtimeEnUS,
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
+  attachmentList: {
+    images: 'Изображения',
+    files: 'Файлы',
+    preview: 'Просмотр {name}',
+    download: 'Скачать {name}',
+  },
   actions: {
     ...system.actions,
     close: 'Закрыть',

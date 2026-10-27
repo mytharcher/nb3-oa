@@ -1,4 +1,4 @@
-import { FilePreviewDialog } from '../../extensions/nocobase-file-component-ui/index.js';
+import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useEffect, useReducer, useRef, useState } from 'react';
@@ -27,7 +27,6 @@ export function AttendanceChangeAttachments({
   attendanceChangeId: string;
   ids: readonly string[];
 }) {
-  const [preview, setPreview] = useState<number | null>(null);
   const api = useApiClient();
   const { t } = useTranslation();
   const [generation, reload] = useReducer((v) => v + 1, 0);
@@ -82,33 +81,7 @@ export function AttendanceChangeAttachments({
   const files = result.files?.filter((file) => ids.includes(file.id)) ?? [];
   if (files.length !== ids.length)
     return <span>{t('approvals.attachmentMissing')}</span>;
-  return (
-    <>
-      <ul className='flex flex-col gap-2'>
-        {files.map((file, index) => (
-          <li key={file.id}>
-            <Button
-              type='button'
-              variant='link'
-              className='h-auto justify-start whitespace-normal break-all p-0 text-left'
-              onClick={() => setPreview(index)}
-            >
-              {file.filename}
-              {file.ext ? `.${file.ext}` : ''}
-            </Button>
-          </li>
-        ))}
-      </ul>
-      <FilePreviewDialog
-        files={files.map((file) => ({ ...file, disk: '', key: '' }))}
-        open={preview !== null}
-        initialIndex={preview ?? 0}
-        onOpenChange={(open) => {
-          if (!open) setPreview(null);
-        }}
-      />
-    </>
-  );
+  return <BusinessAttachmentList files={files} />;
 }
 
 /** Uploads stay draft-owned; removing a selection never deletes stored proof. */

@@ -1,3 +1,5 @@
+import { resolveLocalesContribution } from '@nocobase/i18n';
+import filePlugin from '@nocobase/app-plugin-file/client';
 import {
   createTestI18nRuntime,
   TestI18nProvider,
@@ -28,6 +30,11 @@ const runtime = await createTestI18nRuntime({
       ...en,
       reimbursementRequests: { ...en.reimbursementRequests, ...copy },
     },
+  },
+  namespaces: {
+    '@nocobase/app-plugin-file': await resolveLocalesContribution(
+      filePlugin().locales!,
+    ),
   },
 });
 beforeEach(() => vi.clearAllMocks());
@@ -91,7 +98,7 @@ it('blocks oversize files before creating a draft', async () => {
   fireEvent.change(screen.getByLabelText('Evidence files *'), {
     target: { files: [file] },
   });
-  await screen.findByText('Choose a nonempty file up to 5 MiB.');
+  await screen.findByText('Choose a nonempty file up to 5 MB.');
   expect(ensure).not.toHaveBeenCalled();
 });
 
@@ -125,10 +132,12 @@ it('refreshes guarded metadata when the detail refresh key changes with unchange
     </TestI18nProvider>
   );
   const view = render(content(0));
-  await screen.findByRole('link', { name: 'Old.pdf' });
+  await screen.findByRole('button', { name: 'Download Old.pdf' });
   view.rerender(content(1));
-  const current = await screen.findByRole('link', { name: 'Current.pdf' });
+  const current = await screen.findByRole('button', {
+    name: 'Download Current.pdf',
+  });
   expect(current.getAttribute('href')).toBe('/secure/current');
-  expect(screen.queryByRole('link', { name: 'Old.pdf' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Download Old.pdf' })).toBeNull();
   expect(api.request).toHaveBeenCalledTimes(2);
 });

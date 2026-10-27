@@ -1,3 +1,4 @@
+import { Checkbox } from '#components/ui/checkbox';
 import { useEffect, useState, type ReactElement } from 'react';
 import type {
   AuthorizationOptions,
@@ -82,12 +83,11 @@ export function DataScopesEditor({
                     className={`grid items-start gap-2 ${current?.selection.type === 'records' || (current?.selection.type === 'recordAccess' && current.selection.key === 'customFilter') ? '' : 'sm:grid-cols-[minmax(9rem,1fr)_minmax(0,2fr)]'}`}
                   >
                     <label className='flex min-h-9 items-center gap-2 text-sm font-normal'>
-                      <input
-                        type='checkbox'
+                      <Checkbox
                         checked={Boolean(current)}
-                        onChange={(event) =>
+                        onCheckedChange={(checked) =>
                           change(
-                            event.target.checked
+                            checked === true
                               ? allowAll
                                 ? { type: 'all' }
                                 : { type: 'records', ids: [] }

@@ -174,6 +174,12 @@ const frFR: AppResource = {
   ...overtimeEnUS,
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
+  attachmentList: {
+    images: 'Images',
+    files: 'Fichiers',
+    preview: 'Aperçu de {name}',
+    download: 'Télécharger {name}',
+  },
   actions: {
     ...system.actions,
     close: 'Fermer',

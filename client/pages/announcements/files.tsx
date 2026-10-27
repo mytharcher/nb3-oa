@@ -1,3 +1,4 @@
+import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { useEffect, useReducer, useState, useRef } from 'react';
 import { useApiClient } from '@nocobase/app-client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
@@ -191,14 +192,7 @@ export function Attachments({
                   }
                 />
               ) : null}
-              <a
-                href={f.contentUrl}
-                className='min-w-0 break-words text-primary underline'
-                target='_blank'
-                rel='noreferrer'
-              >
-                {f.filename}
-              </a>
+              <BusinessAttachmentList files={[f]} />
             </div>
           ))
       )}

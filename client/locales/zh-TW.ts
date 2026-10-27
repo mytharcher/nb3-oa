@@ -174,6 +174,12 @@ const zhTW: AppResource = {
   ...overtimeZhTW,
   navigation: { ...system.navigation, home: workbenchZhTW.workbench.title },
   ...leaveBalancesZhTW,
+  attachmentList: {
+    images: '圖片',
+    files: '檔案',
+    preview: '預覽 {name}',
+    download: '下載 {name}',
+  },
   actions: {
     ...system.actions,
     close: '關閉',

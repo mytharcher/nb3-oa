@@ -174,6 +174,12 @@ const esES: AppResource = {
   ...overtimeEnUS,
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
+  attachmentList: {
+    images: 'Imágenes',
+    files: 'Archivos',
+    preview: 'Vista previa de {name}',
+    download: 'Descargar {name}',
+  },
   actions: {
     ...system.actions,
     close: 'Cerrar',

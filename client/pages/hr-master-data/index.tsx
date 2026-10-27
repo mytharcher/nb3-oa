@@ -1,3 +1,4 @@
+import { Checkbox } from '#components/ui/checkbox';
 import { useState } from 'react';
 import { ApiClientError, useApiClient } from '@nocobase/app-client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
@@ -408,11 +409,10 @@ function SourceDrawer({
             onChange={(id) => setSource({ ...source, principalId: id ?? '' })}
           />
           <label className='flex items-center gap-2'>
-            <input
-              type='checkbox'
+            <Checkbox
               checked={source.active}
-              onChange={(e) =>
-                setSource({ ...source, active: e.target.checked })
+              onCheckedChange={(checked) =>
+                setSource({ ...source, active: checked === true })
               }
             />
             {t('hrMasterData.enabled')}
