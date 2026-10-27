@@ -1,3 +1,5 @@
+import { ApprovalAssistantProvider } from '#components/approval-ai/assistant-provider';
+import { ApprovalAssistantPanel } from '#components/approval-ai/assistant';
 import { useSyncServerLocale } from '@nocobase/app-plugin-i18n/client';
 import { useEffect, useRef, type ReactElement } from 'react';
 import type { AppClientRegisteredRoute } from '@nocobase/app-client/plugins';
@@ -66,84 +68,87 @@ export function AppLayout({ routes }: AppLayoutProps): ReactElement {
 
   return (
     // The shell owns the business route tree used by its pages and navigation.
-    <RouteTreeProvider routes={routes}>
-      <SystemNavigationContext.Provider
-        value={{
-          items: systemItems,
-          loading: navigation.loading,
-          failed: hasSystemNavigationFailure(
-            routes,
-            navigation.failed ?? new Set(),
-          ),
-          retry: navigation.retry,
-        }}
-      >
-        <PageBreadcrumbProvider>
-          <AppSidebarProvider>
-            <AppSidebar
-              label={navigationLabel}
-              footer={<AppSidebarFooter />}
-              navigationFocusTarget={mainRef}
-            >
-              <NavigationMenu
-                items={items}
+    <ApprovalAssistantProvider>
+      <RouteTreeProvider routes={routes}>
+        <SystemNavigationContext.Provider
+          value={{
+            items: systemItems,
+            loading: navigation.loading,
+            failed: hasSystemNavigationFailure(
+              routes,
+              navigation.failed ?? new Set(),
+            ),
+            retry: navigation.retry,
+          }}
+        >
+          <PageBreadcrumbProvider>
+            <AppSidebarProvider>
+              <AppSidebar
                 label={navigationLabel}
-                selectedKey={selectedKey}
-              />
-            </AppSidebar>
-            <div className='flex min-w-0 flex-1 flex-col'>
-              <LayoutHeader
-                className={`sticky top-0 z-40 justify-between gap-2${system ? ' h-auto min-h-16 flex-wrap gap-y-0 sm:h-16 sm:flex-nowrap' : ''}`}
+                footer={<AppSidebarFooter />}
+                navigationFocusTarget={mainRef}
               >
-                <div
-                  className={`flex min-w-0 flex-1 items-center gap-2 sm:gap-3${system ? ' h-16 sm:h-auto' : ''}`}
+                <NavigationMenu
+                  items={items}
+                  label={navigationLabel}
+                  selectedKey={selectedKey}
+                />
+              </AppSidebar>
+              <div className='flex min-w-0 flex-1 flex-col'>
+                <LayoutHeader
+                  className={`sticky top-0 z-40 justify-between gap-2${system ? ' h-auto min-h-16 flex-wrap gap-y-0 sm:h-16 sm:flex-nowrap' : ''}`}
                 >
-                  <AppSidebarToggle />
-                  {system ? (
-                    <Button
-                      variant='ghost'
-                      role='link'
-                      nativeButton={false}
-                      render={<Link to='/' />}
-                    >
-                      <ArrowLeft aria-hidden='true' />
-                      {t('oa.navigation.backToApplication')}
-                    </Button>
-                  ) : (
-                    <div className='shrink-0 md:hidden'>
-                      <AppBrand />
-                    </div>
-                  )}
-                  <div className='hidden h-5 w-px shrink-0 bg-border md:block' />
-                  {/* The current page's trail: the route tree's, or the one the page declares (`usePageBreadcrumb`). */}
-                  <Breadcrumbs
-                    denied={denied}
-                    className={system ? 'hidden sm:block' : undefined}
-                  />
-                </div>
-                <HeaderActions />
-                {system ? (
-                  <div className='w-full pb-2 sm:hidden'>
-                    <Breadcrumbs denied={denied} />
+                  <div
+                    className={`flex min-w-0 flex-1 items-center gap-2 sm:gap-3${system ? ' h-16 sm:h-auto' : ''}`}
+                  >
+                    <AppSidebarToggle />
+                    {system ? (
+                      <Button
+                        variant='ghost'
+                        role='link'
+                        nativeButton={false}
+                        render={<Link to='/' />}
+                      >
+                        <ArrowLeft aria-hidden='true' />
+                        {t('oa.navigation.backToApplication')}
+                      </Button>
+                    ) : (
+                      <div className='shrink-0 md:hidden'>
+                        <AppBrand />
+                      </div>
+                    )}
+                    <div className='hidden h-5 w-px shrink-0 bg-border md:block' />
+                    {/* The current page's trail: the route tree's, or the one the page declares (`usePageBreadcrumb`). */}
+                    <Breadcrumbs
+                      denied={denied}
+                      className={system ? 'hidden sm:block' : undefined}
+                    />
                   </div>
-                ) : null}
-              </LayoutHeader>
-              <main
-                ref={mainRef}
-                tabIndex={-1}
-                className='app-brand-surface relative isolate min-w-0 flex-1 overflow-hidden focus:outline-none'
-              >
-                <BrandWatermark className='-z-10' />
-                {/* main only positions; the page scrolls in here, so a child page layer laid over main is neither
+                  <HeaderActions />
+                  {system ? (
+                    <div className='w-full pb-2 sm:hidden'>
+                      <Breadcrumbs denied={denied} />
+                    </div>
+                  ) : null}
+                </LayoutHeader>
+                <main
+                  ref={mainRef}
+                  tabIndex={-1}
+                  className='app-brand-surface relative isolate min-w-0 flex-1 overflow-hidden focus:outline-none'
+                >
+                  <BrandWatermark className='-z-10' />
+                  {/* main only positions; the page scrolls in here, so a child page layer laid over main is neither
             moved by the page's scrolling nor stretched by its height. */}
-                <div className='h-full overflow-y-auto'>
-                  <Outlet />
-                </div>
-              </main>
-            </div>
-          </AppSidebarProvider>
-        </PageBreadcrumbProvider>
-      </SystemNavigationContext.Provider>
-    </RouteTreeProvider>
+                  <div className='h-full overflow-y-auto'>
+                    <Outlet />
+                  </div>
+                </main>
+              </div>
+            </AppSidebarProvider>
+          </PageBreadcrumbProvider>
+        </SystemNavigationContext.Provider>
+      </RouteTreeProvider>
+      <ApprovalAssistantPanel />
+    </ApprovalAssistantProvider>
   );
 }

@@ -1,3 +1,4 @@
+import ApprovalAiProvider from './approval-ai/index.js';
 import InvoiceRecognitionProvider from './invoice-recognition/index.js';
 import ElectronicSignaturesProvider from './electronic-signatures/index.js';
 import WecomAttendanceProvider from './wecom-attendance/index.js';
@@ -128,6 +129,7 @@ const serviceProviders: readonly ApplicationServiceProviderConstructor[] = [
   AssetRequestsProvider,
   VendorQualificationProvider,
   ContractsProvider,
+  ApprovalAiProvider,
   SealsProvider,
   TemplatePrintProvider,
   CertificatesProvider,

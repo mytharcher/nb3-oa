@@ -1,3 +1,5 @@
+import { approvalAiRegistryToken } from '../approval-ai/contract.js';
+import { contractAiDefinition } from './ai-review.js';
 import { driveManagerToken } from '@nocobase/app-server/drive';
 import { contractSignatureSourceToken } from '../electronic-signatures/contract.js';
 import { createContractSignatureSource } from './signature-source.js';
@@ -107,6 +109,7 @@ export default class ContractsProvider extends ServiceProvider<Application> {
         vendors: c.resolve(vendorServiceToken),
         ledger: c.resolve(contractLedgerServiceToken),
         notifications: c.resolve(approvalNotificationServiceToken),
+        approvalAi: c.resolve(approvalAiRegistryToken),
         validateFiles: async (record, tx) => {
           await assertContractAttachments(tx, record.id, record.attachments);
           await assertContractText(tx, record.id, record.textVersionId);
@@ -235,6 +238,15 @@ export default class ContractsProvider extends ServiceProvider<Application> {
     const kit = await this.app.container
       .resolve(contractHttpServiceToken)
       .initialize();
+    await this.app.container
+      .resolve(approvalAiRegistryToken)
+      .register(
+        await contractAiDefinition(
+          this.app.container.resolve(contractHttpServiceToken),
+          this.app.container.resolve(databaseManagerToken),
+          this.app.container.resolve(driveManagerToken),
+        ),
+      );
     await this.jobs?.start(kit.runtime);
   }
   override async shutdown() {

@@ -1,8 +1,11 @@
+import { ApprovalAssistantButton } from '#components/approval-ai/assistant';
+import { useApprovalAssistant } from '#components/approval-ai/assistant-context';
+import { ApprovalAiReviewPanel } from '#components/approval-ai/index';
 import { ElectronicSignatureSection } from '#components/electronic-signature-section';
 import { statusTone } from './status-tone.js';
 import { PrintEntry } from '../template-print/entry.js';
 import { useMissing } from './use-missing.js';
-import { useMemo, useReducer } from 'react';
+import { useEffect, useMemo, useReducer } from 'react';
 import {
   Link,
   Outlet,
@@ -32,6 +35,12 @@ export default function RequestDetail() {
     location = useLocation(),
     parent = useOutletContext<SourceContext>(),
     [refreshKey, refreshFiles] = useReducer((n: number) => n + 1, 0);
+  const assistant = useApprovalAssistant();
+  const setAssistantRecord = assistant?.setRecordId;
+  useEffect(() => {
+    setAssistantRecord?.(requestId);
+    return () => setAssistantRecord?.(null);
+  }, [requestId, setAssistantRecord]);
   const grant = useCan({
       resource: { type: 'composite', id: 'oa.contract' },
       action: 'view',
@@ -53,6 +62,11 @@ export default function RequestDetail() {
   const data =
       grant.can && !grant.isPending && !grant.error ? resource.data : undefined,
     name = data?.record.number ?? t('contracts.draftName');
+  const setAssistantLabel = assistant?.setRecordLabel;
+  useEffect(() => {
+    setAssistantLabel?.(name);
+    return () => setAssistantLabel?.(null);
+  }, [name, setAssistantLabel]);
   const trail = useTrail(name);
   useMissing(resource.error, trail.source, trail.search, parent?.reload);
   const writable = !!data && !resource.loading && !resource.error;
@@ -128,6 +142,7 @@ export default function RequestDetail() {
       footer={
         <>
           <div className='flex flex-wrap gap-2'>
+            <ApprovalAssistantButton />
             {transitions.map((a) => (
               <Button
                 key={a.name}
@@ -222,7 +237,10 @@ export default function RequestDetail() {
                     <dt className='text-muted-foreground'>
                       {t(`contracts.${key}`)}
                     </dt>
-                    <dd className='min-w-0 whitespace-pre-wrap break-words'>
+                    <dd
+                      id={'contract-field-' + key}
+                      className='min-w-0 scroll-mt-4 whitespace-pre-wrap break-words'
+                    >
                       {key === 'operation'
                         ? t(`contracts.operations.${data.record.operation}`)
                         : key === 'counterparty'
@@ -251,13 +269,19 @@ export default function RequestDetail() {
                 ))}
               </dl>
             </section>
-            <section className='flex flex-col gap-4'>
+            <section
+              id='contract-text-evidence'
+              className='flex scroll-mt-4 flex-col gap-4'
+            >
               <h2 className='text-base font-medium'>
                 {t('contracts.textVersionId')}
               </h2>
               <SecureFiles requestId={requestId} text refreshKey={refreshKey} />
             </section>
-            <section className='flex flex-col gap-4'>
+            <section
+              id='contract-attachment-evidence'
+              className='flex scroll-mt-4 flex-col gap-4'
+            >
               <h2 className='text-base font-medium'>
                 {t('contracts.attachments')}
               </h2>
@@ -271,6 +295,27 @@ export default function RequestDetail() {
               kind='contract'
               id={requestId}
               onComplete={context?.reload}
+            />
+            <ApprovalAiReviewPanel
+              lifecycle='oa.contract'
+              recordId={requestId}
+              refreshKey={data}
+              evidenceLabel={(e) =>
+                e.kind === 'field' ? t('contracts.' + e.ref) : undefined
+              }
+              evidenceHref={(e) =>
+                e.kind === 'field'
+                  ? e.ref === 'textVersionId'
+                    ? '#contract-text-evidence'
+                    : e.ref === 'attachments'
+                      ? '#contract-attachment-evidence'
+                      : '#contract-field-' + encodeURIComponent(e.ref)
+                  : e.kind === 'text'
+                    ? '#contract-text-evidence'
+                    : e.kind === 'attachment'
+                      ? '#contract-attachment-evidence'
+                      : undefined
+              }
             />
             <ContractHistory detail={data} />
           </>

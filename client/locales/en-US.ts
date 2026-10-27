@@ -1,3 +1,4 @@
+import approvalAiLocale from './modules/approval-ai.en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.en-US.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.en-US.js';
 import wecomAttendanceLocale from './modules/wecom-attendance.en-US.js';
@@ -81,6 +82,7 @@ import approvalsEnUS from './modules/approvals.en-US.js';
 import system from './system/en-US.js';
 
 const enUS = {
+  ...approvalAiLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,

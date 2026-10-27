@@ -53,6 +53,13 @@ beforeEach(() =>
   })),
 );
 afterEach(() => vi.unstubAllGlobals());
+vi.mock('../../client/components/approval-ai/assistant-provider.js', () => ({
+  ApprovalAssistantProvider: ({ children }: { children: ReactNode }) =>
+    children,
+}));
+vi.mock('../../client/components/approval-ai/assistant.js', () => ({
+  ApprovalAssistantPanel: () => null,
+}));
 vi.mock('../../client/layouts/components/header-actions.js', () => ({
   HeaderActions: () => null,
 }));

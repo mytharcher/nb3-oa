@@ -1,3 +1,4 @@
+import { useApprovalAssistant } from '#components/approval-ai/assistant-context';
 import { finalRefusal, uncertainError } from './errors.js';
 import { useCloseGuard } from './use-close-guard.js';
 import { useEffect, useRef, useState } from 'react';
@@ -129,6 +130,7 @@ function ActionForm({
     [restored] = useState(() => loadCommand(journalKey, actorId)),
     commandRef = useRef<Command | null>(restored),
     lockRef = useRef(false);
+  const assistant = useApprovalAssistant();
   const [unknown, setUnknown] = useState(!!restored),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<unknown>(),
@@ -451,6 +453,25 @@ function ActionForm({
                   {t('contracts.comment')}
                   {needsReason ? ' *' : ''}
                 </FieldLabel>
+                {!!assistant?.drafts[requestId] &&
+                  assistant.drafts[requestId].length > 5000 && (
+                    <p className='text-sm text-muted-foreground'>
+                      {t('approvalAi.draftTruncated')}
+                    </p>
+                  )}
+                {assistant?.drafts[requestId] && (
+                  <Button
+                    type='button'
+                    variant='outline'
+                    disabled={busy}
+                    onClick={() => {
+                      setComment(assistant.drafts[requestId].slice(0, 5000));
+                      onDirty();
+                    }}
+                  >
+                    {t('approvalAi.insertDraft')}
+                  </Button>
+                )}
                 <Textarea
                   id='contract-action-comment'
                   value={comment}

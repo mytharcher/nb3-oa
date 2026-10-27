@@ -1,3 +1,4 @@
+import approvalAiLocale from './modules/approval-ai.zh-CN.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.zh-CN.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.zh-CN.js';
 import wecomAttendanceLocale from './modules/wecom-attendance.zh-CN.js';
@@ -80,6 +81,7 @@ import approvalsZhCN from './modules/approvals.zh-CN.js';
 import system from './system/zh-CN.js';
 
 const zhCN = {
+  ...approvalAiLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportZhCN,
