@@ -1,3 +1,5 @@
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from '../../client/locales/modules/approval-ai.en-US.js';
 import reportExportsLocale from './modules/report-exports.zh-TW.js';
 import reportsLocale from '../../client/locales/modules/reports.zh-TW.js';
 import invoiceRecognitionLocale from '../../client/locales/modules/invoice-recognition.zh-TW.js';
@@ -35,6 +37,7 @@ import approvals from './modules/approvals.zh-TW.js';
 import annualLeave from './modules/annual-leave.zh-TW.js';
 
 const zhTW: AppServerResource = {
+  ...approvalAiLocale,
   ...reportExportsLocale,
   demoData,
   ...accessLocale,

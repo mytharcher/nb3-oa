@@ -53,14 +53,17 @@ export function registerApprovalAssistant(app: Application) {
           resource: { type: 'page', id: 'oa.approvals' },
           action: 'access',
         });
-        const result = await taskService.center(context.user.id, {
+        const result = await taskService.list(context.user.id, {
           sourceType: 'approval.task',
           status: 'pending',
           page,
           pageSize: 20,
+          includeTotal: true,
+          orderBy: 'createdAt',
+          direction: 'desc',
         });
         return {
-          total: result.meta.total,
+          total: result.meta.total ?? null,
           tasks: result.data.map((task) => ({
             id: task.id,
             title: task.title,

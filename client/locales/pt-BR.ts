@@ -1,3 +1,5 @@
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from './modules/approval-ai.en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.pt-BR.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.pt-BR.js';
 import wecomAttendanceLocale from './modules/wecom-attendance.pt-BR.js';
@@ -81,6 +83,7 @@ import approvalsEnUS from './modules/approvals.pt-BR.js';
 import system from './system/pt-BR.js';
 
 const ptBR: AppResource = {
+  ...approvalAiLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,

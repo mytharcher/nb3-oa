@@ -1,3 +1,5 @@
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from './modules/approval-ai.en-US.js';
 import plugins from './plugins/ru-RU.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.ru-RU.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.ru-RU.js';
@@ -82,6 +84,7 @@ import approvalsEnUS from './modules/approvals.ru-RU.js';
 import system from './system/ru-RU.js';
 
 const ruRU: AppResource = {
+  ...approvalAiLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,

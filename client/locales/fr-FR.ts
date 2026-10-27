@@ -1,3 +1,5 @@
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from './modules/approval-ai.en-US.js';
 import type { AppResource } from './en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.fr-FR.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.fr-FR.js';
@@ -81,6 +83,7 @@ import approvalsEnUS from './modules/approvals.fr-FR.js';
 import system from './system/fr-FR.js';
 
 const frFR: AppResource = {
+  ...approvalAiLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,

@@ -75,6 +75,10 @@ try {
         },
       }),
       {
+        resource: { type: 'page', id: 'oa.approvals' },
+        actions: [{ action: 'access' }],
+      },
+      {
         resource: { type: 'page', id: 'oa-contract-requests' },
         actions: [{ action: 'access' }],
       },
@@ -208,7 +212,7 @@ try {
   ).toBeVisible();
   await expect(
     page
-      .getByRole('navigation', { name: 'Application navigation' })
+      .getByRole('navigation', { name: 'System administration navigation' })
       .getByRole('link', { name: 'Model services', exact: true }),
   ).toBeVisible();
   await page.screenshot({
@@ -363,6 +367,20 @@ try {
     toolCallId: 'synthetic-read',
     messages: [],
   };
+  const pendingTool = c
+    .resolve(agentsToken)
+    .onlineAgent.configurator.toolDefinition('oa_my_approval_tasks', c)!;
+  const personalTasks = (await pendingTool.execute!({ page: 1 }, options)) as {
+    total: number;
+    tasks: { status: string }[];
+  };
+  expect(personalTasks.total).toBeGreaterThan(0);
+  expect(personalTasks.tasks.every((task) => task.status === 'pending')).toBe(
+    true,
+  );
+  checks.push(
+    'Personal-task tool uses the current task-center list API with authenticated owner and pending filter',
+  );
   const summary = await tool.execute!({ recordId: id }, options);
   expect(summary).toHaveProperty('id', id);
   expect(summary).not.toHaveProperty('attachments');

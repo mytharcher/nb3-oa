@@ -1,3 +1,5 @@
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from './modules/approval-ai.en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.id-ID.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.id-ID.js';
 import wecomAttendanceLocale from './modules/wecom-attendance.id-ID.js';
@@ -81,6 +83,7 @@ import approvalsEnUS from './modules/approvals.id-ID.js';
 import system from './system/id-ID.js';
 
 const idID: AppResource = {
+  ...approvalAiLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,

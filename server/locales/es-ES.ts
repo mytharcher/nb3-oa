@@ -1,3 +1,5 @@
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from '../../client/locales/modules/approval-ai.en-US.js';
 import reportExportsLocale from './modules/report-exports.es-ES.js';
 import reportsLocale from '../../client/locales/modules/reports.es-ES.js';
 import invoiceRecognitionLocale from '../../client/locales/modules/invoice-recognition.es-ES.js';
@@ -38,6 +40,7 @@ import annualLeave from './modules/annual-leave.es-ES.js';
 // plugin's namespace; add keys here as the application starts producing its own, and use `overrides` to reword a
 // plugin's.
 const esES: AppServerResource = {
+  ...approvalAiLocale,
   ...reportExportsLocale,
   demoData,
   ...accessLocale,

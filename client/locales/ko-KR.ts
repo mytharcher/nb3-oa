@@ -1,3 +1,5 @@
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from './modules/approval-ai.en-US.js';
 import plugins from './plugins/ko-KR.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.ko-KR.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.ko-KR.js';
@@ -82,6 +84,7 @@ import approvalsEnUS from './modules/approvals.ko-KR.js';
 import system from './system/ko-KR.js';
 
 const koKR: AppResource = {
+  ...approvalAiLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,

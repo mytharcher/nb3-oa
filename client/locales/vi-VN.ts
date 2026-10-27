@@ -1,3 +1,5 @@
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from './modules/approval-ai.en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.vi-VN.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.vi-VN.js';
 import wecomAttendanceLocale from './modules/wecom-attendance.vi-VN.js';
@@ -81,6 +83,7 @@ import approvalsEnUS from './modules/approvals.vi-VN.js';
 import system from './system/vi-VN.js';
 
 const viVN: AppResource = {
+  ...approvalAiLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,

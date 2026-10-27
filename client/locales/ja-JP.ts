@@ -1,3 +1,5 @@
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from './modules/approval-ai.en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.ja-JP.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.ja-JP.js';
 import wecomAttendanceLocale from './modules/wecom-attendance.ja-JP.js';
@@ -81,6 +83,7 @@ import approvalsEnUS from './modules/approvals.ja-JP.js';
 import system from './system/ja-JP.js';
 
 const jaJP: AppResource = {
+  ...approvalAiLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,

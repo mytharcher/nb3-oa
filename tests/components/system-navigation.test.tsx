@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { AppClientRegisteredRoute } from '@nocobase/app-client/plugins';
 import {
   createTestI18nRuntime,
@@ -14,6 +15,14 @@ import enUS from '../../client/locales/en-US.js';
 import zhCN from '../../client/locales/zh-CN.js';
 
 const auth = vi.hoisted(() => ({ can: vi.fn(), revision: 0 }));
+// Navigation tests isolate chat hosting; the full browser fixture exercises the actual assistant provider.
+vi.mock('../../client/components/approval-ai/assistant-provider.js', () => ({
+  ApprovalAssistantProvider: ({ children }: { children: ReactNode }) =>
+    children,
+}));
+vi.mock('../../client/components/approval-ai/assistant.js', () => ({
+  ApprovalAssistantPanel: () => null,
+}));
 vi.mock('@nocobase/app-plugin-authorization/client', () => ({
   useAuthorizationClient: () => auth,
   useAuthorizationRevision: () => auth.revision,
