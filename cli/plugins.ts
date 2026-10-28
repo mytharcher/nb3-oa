@@ -1,6 +1,7 @@
 import { defineCliPlugins, type AppCliPlugins } from '@nocobase/app-cli';
 import scheduler from '@nocobase/app-plugin-scheduler/cli';
 import agents from '@nocobase/app-plugin-agents/cli';
+import foundation from '@nocobase/app-plugin-foundation/cli';
 import demoMode from '@nocobase/app-plugin-demo-mode/cli';
 
 // Array order is command registration order. A plugin contributes its commands
@@ -8,6 +9,7 @@ import demoMode from '@nocobase/app-plugin-demo-mode/cli';
 const cliPlugins: AppCliPlugins = defineCliPlugins([
   scheduler,
   agents,
+  foundation,
   demoMode,
 ]);
 

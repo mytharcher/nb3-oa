@@ -1,6 +1,9 @@
 import { resolveAppClientContributions } from '@nocobase/app-client/plugins';
 import { expect, it } from 'vitest';
 import routes from '../../client/routes.js';
+import plugins from '../../client/plugins.js';
+import { createTestI18nRuntime } from '@nocobase/i18n/testing';
+import locales from '../../client/locales/index.js';
 import {
   buildRouteNavigation,
   routeKey,
@@ -13,8 +16,51 @@ import {
 } from '../../client/routing/system-navigation.js';
 
 const resolved = resolveAppClientContributions([
+  ...plugins.plugins,
   { packageName: 'nb3-oa', routes, source: 'application' },
 ]).routes;
+it('integrates the official Foundation page once under system operations with unrestricted access', async () => {
+  const flatten = (items: typeof resolved): (typeof resolved)[number][] =>
+    items.flatMap((item) => [item, ...flatten(item.children ?? [])]);
+  const pages = flatten(resolved).filter(
+    (route) => route.path === '/foundation',
+  );
+  expect(pages).toHaveLength(1);
+  const page = pages[0]!;
+  expect(page).toMatchObject({
+    name: 'foundation',
+    auth: 'required',
+    authz: 'unrestricted',
+    navigation: { title: 'oa.navigation.foundation' },
+  });
+  const i18n = await createTestI18nRuntime({
+    application: { namespace: 'nb3-oa', resources: locales },
+  });
+  const title = page.navigation!.title;
+  expect(i18n.getFixedT(page.packageName)(title)).toBe('App Foundation');
+  await i18n.changeLanguage('zh-CN');
+  expect(i18n.getFixedT(page.packageName)(title)).toBe('应用底座');
+  expect(isSystemLocation(resolved, '/foundation')).toBe(true);
+  const visible = systemNavigationItems(
+    buildRouteNavigation(resolved, new Set()),
+  );
+  expect(
+    visible
+      .find(({ route }) => route.name === 'oa-system-operations')
+      ?.children.some(({ route }) => route === page),
+  ).toBe(true);
+  const denied = systemNavigationItems(
+    buildRouteNavigation(resolved, new Set([routeKey(page)])),
+  );
+  expect(
+    denied
+      .flatMap((section) => section.children)
+      .some(({ route }) => route === page),
+  ).toBe(false);
+  const { FoundationPage } =
+    await import('@nocobase/app-plugin-foundation/client/pages');
+  expect((await page.componentLoader!()).default).toBe(FoundationPage);
+});
 it('registers a standalone authenticated system entry without moving existing management URLs', () => {
   const entry = resolved.find((route) => route.name === 'oa-system-entry');
   expect(entry).toMatchObject({

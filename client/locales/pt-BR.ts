@@ -236,6 +236,7 @@ const ptBR: AppResource = {
       systemAccess: 'Papéis e permissões',
       systemConnections: 'Notificações e integrações',
       systemOperations: 'Operações',
+      foundation: 'Base do aplicativo',
       office: 'Rotina de escritório',
       finance: 'Finanças e despesas',
       procurement: 'Compras e contratos',

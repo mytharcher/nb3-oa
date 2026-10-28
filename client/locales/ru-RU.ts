@@ -347,6 +347,7 @@ const ruRU: AppResource = {
       systemAccess: 'Роли и права',
       systemConnections: 'Уведомления и интеграции',
       systemOperations: 'Операции',
+      foundation: 'Основа приложения',
       office: 'Ежедневная работа',
       finance: 'Финансы и расходы',
       procurement: 'Закупки и договоры',

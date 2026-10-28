@@ -237,6 +237,7 @@ const idID: AppResource = {
       systemAccess: 'Peran dan izin',
       systemConnections: 'Notifikasi dan integrasi',
       systemOperations: 'Operasional',
+      foundation: 'Fondasi aplikasi',
       office: 'Kantor harian',
       finance: 'Keuangan & biaya',
       procurement: 'Pengadaan & kontrak',

@@ -233,6 +233,7 @@ const zhTW: AppResource = {
       systemAccess: '角色與權限',
       systemConnections: '通知與集成',
       systemOperations: '維運',
+      foundation: '應用底座',
       office: '日常辦公',
       finance: '財務與費用',
       procurement: '採購與合約',
