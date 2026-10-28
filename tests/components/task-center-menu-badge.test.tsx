@@ -32,6 +32,9 @@ vi.mock('@nocobase/app-plugin-notification-in-app/client/inbox', () => ({
   useInboxRefresh: () => {},
   useInboxUnreadCount: () => ({ data: state.unread }),
 }));
+vi.mock('../../client/layouts/components/demo-account-menu.js', () => ({
+  DemoAccountMenu: () => null,
+}));
 vi.mock('../../client/theme/index.js', () => ({ ThemeSettings: () => null }));
 vi.mock('../../client/layouts/components/user-menu.js', () => ({
   UserMenu: () => null,

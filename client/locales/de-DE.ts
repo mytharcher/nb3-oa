@@ -208,6 +208,18 @@ const deDE: AppResource = {
   ...platformEnUS,
   ...approvalsEnUS,
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: 'Systemadministrator',
+        noRole: 'Keine Rollenangabe',
+        rolesLoading: 'Rollen werden geladen…',
+        rolesUnavailable: 'Rollen nicht verfügbar',
+      },
+      menu: {
+        description:
+          'Änderungen werden gespeichert. Wechseln Sie das Konto, um die Berechtigungen der Rollen zu prüfen.',
+      },
+    },
     ...approvalsEnUS.overrides,
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,

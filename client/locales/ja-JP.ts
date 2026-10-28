@@ -207,6 +207,18 @@ const jaJP: AppResource = {
   ...platformEnUS,
   ...approvalsEnUS,
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: 'システム管理者',
+        noRole: 'ロール未設定',
+        rolesLoading: 'ロールを読み込み中…',
+        rolesUnavailable: 'ロールを取得できません',
+      },
+      menu: {
+        description:
+          '変更は保存されます。アカウントを切り替えて各ロールの権限を確認できます。',
+      },
+    },
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
     '@nocobase/app-plugin-authorization': admin2,

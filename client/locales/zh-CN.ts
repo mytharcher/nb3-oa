@@ -200,6 +200,15 @@ const zhCN = {
     continueEditing: '继续编辑',
   },
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: '系统管理员',
+        noRole: '未标注角色',
+        rolesLoading: '正在加载角色…',
+        rolesUnavailable: '角色暂不可用',
+      },
+      menu: { description: '修改会保存。切换账号以体验不同角色的权限。' },
+    },
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
     '@nocobase/app-plugin-authorization': admin2,
