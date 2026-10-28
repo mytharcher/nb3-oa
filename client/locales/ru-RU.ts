@@ -208,6 +208,18 @@ const ruRU: AppResource = {
   ...platformEnUS,
   ...approvalsEnUS,
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: 'Системный администратор',
+        noRole: 'Роль не указана',
+        rolesLoading: 'Загрузка ролей…',
+        rolesUnavailable: 'Роли недоступны',
+      },
+      menu: {
+        description:
+          'Изменения сохраняются. Переключайте аккаунты, чтобы проверить права каждой роли.',
+      },
+    },
     ...plugins,
     '@nocobase/app-plugin-users': {
       ...plugins['@nocobase/app-plugin-users'],

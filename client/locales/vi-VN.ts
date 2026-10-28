@@ -207,6 +207,18 @@ const viVN: AppResource = {
   ...platformEnUS,
   ...approvalsEnUS,
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: 'Quản trị viên hệ thống',
+        noRole: 'Chưa gắn nhãn vai trò',
+        rolesLoading: 'Đang tải vai trò…',
+        rolesUnavailable: 'Không thể tải vai trò',
+      },
+      menu: {
+        description:
+          'Các thay đổi được lưu. Chuyển tài khoản để thử quyền của từng vai trò.',
+      },
+    },
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
     '@nocobase/app-plugin-authorization': admin2,

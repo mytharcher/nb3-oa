@@ -19,6 +19,7 @@ import approval from '@nocobase/app-plugin-approval/server';
 import agents from '@nocobase/app-plugin-agents/server';
 import taskCenter from '@nocobase/app-plugin-task-center/server';
 import foundation from '@nocobase/app-plugin-foundation/server';
+import demoMode from '@nocobase/app-plugin-demo-mode/server';
 
 const serverPlugins: AppServerPlugins = defineServerPlugins([
   authentication,
@@ -38,6 +39,7 @@ const serverPlugins: AppServerPlugins = defineServerPlugins([
   approval,
   agents,
   foundation,
+  demoMode,
 ]);
 
 export default serverPlugins;

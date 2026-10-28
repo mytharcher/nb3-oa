@@ -208,6 +208,18 @@ const idID: AppResource = {
   ...platformEnUS,
   ...approvalsEnUS,
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: 'Administrator sistem',
+        noRole: 'Peran belum ditandai',
+        rolesLoading: 'Memuat peran…',
+        rolesUnavailable: 'Peran tidak tersedia',
+      },
+      menu: {
+        description:
+          'Perubahan disimpan. Ganti akun untuk mencoba izin setiap peran.',
+      },
+    },
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
     '@nocobase/app-plugin-authorization': admin2,

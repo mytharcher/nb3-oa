@@ -17,6 +17,7 @@ import file from '@nocobase/app-plugin-file/client';
 import agents from '@nocobase/app-plugin-agents/client';
 import taskCenter from '@nocobase/app-plugin-task-center/client';
 import foundation from '@nocobase/app-plugin-foundation/client';
+import demoMode from '@nocobase/app-plugin-demo-mode/client';
 
 // Approval pages import the helpers from `@nocobase/app-plugin-approval/client` directly, and the application
 // locale modules load its wording. Its locale registration factory is therefore not needed in this list.
@@ -39,6 +40,7 @@ const clientPlugins: AppClientPlugins = defineClientPlugins([
   agents(),
   taskCenter(),
   foundation({ routes: false }),
+  demoMode(),
 ]);
 
 export default clientPlugins;

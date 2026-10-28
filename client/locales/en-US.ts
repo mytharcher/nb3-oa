@@ -201,6 +201,18 @@ const enUS = {
     continueEditing: 'Continue editing',
   },
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: 'System administrator',
+        noRole: 'No role label',
+        rolesLoading: 'Loading roles…',
+        rolesUnavailable: 'Roles unavailable',
+      },
+      menu: {
+        description:
+          'Changes are saved. Switch accounts to try each role’s permissions.',
+      },
+    },
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
     '@nocobase/app-plugin-authorization': admin2,
