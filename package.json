@@ -158,6 +158,7 @@
     "@nocobase/app-plugin-authz-default-access": "^1.0.0-beta.15",
     "@nocobase/app-plugin-authz-restriction-rules": "^1.0.0-beta.14",
     "@nocobase/app-plugin-authz-sharing-rules": "^1.0.0-beta.15",
+    "@nocobase/app-plugin-demo-mode": "0.2.0-beta.3",
     "@nocobase/app-plugin-file": "^1.0.0-beta.26",
     "@nocobase/app-plugin-i18n": "^1.0.0-beta.18",
     "@nocobase/app-plugin-notification": "2.0.0-beta.0",

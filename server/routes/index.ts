@@ -7,6 +7,7 @@ import processOperationsRoutes from './process-operations/index.js';
 import financeIntegrationRoutes from './finance-integration/index.js';
 import hrMasterDataRoutes from './hr-master-data/index.js';
 import roleContextRoutes from './workbench/role-context.js';
+import demoAccountRolesRoutes from './demo-data/account-roles.js';
 import attendanceResultsRoutes from './attendance-results/index.js';
 import requestPreferencesRoutes from './request-preferences/index.js';
 import taskCenterRoutes from './task-center/index.js';
@@ -74,6 +75,7 @@ import approvalEfficiencyRoutes from './reports/approval-efficiency.js';
 const routes: readonly AppRouteContribution<Application>[] = [
   ...workbenchRoutes,
   ...roleContextRoutes,
+  ...demoAccountRolesRoutes,
   ...processManagementRoutes,
   ...taskCenterRoutes,
   ...requestPreferencesRoutes,

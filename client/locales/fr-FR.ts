@@ -209,6 +209,18 @@ const frFR: AppResource = {
   ...platformEnUS,
   ...approvalsEnUS,
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: 'Administrateur système',
+        noRole: 'Rôle non indiqué',
+        rolesLoading: 'Chargement des rôles…',
+        rolesUnavailable: 'Rôles indisponibles',
+      },
+      menu: {
+        description:
+          'Les modifications sont enregistrées. Changez de compte pour tester les autorisations de chaque rôle.',
+      },
+    },
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
     '@nocobase/app-plugin-authorization': admin2,
