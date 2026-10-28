@@ -1,3 +1,4 @@
+import { isUniqueViolation as unique } from './database-errors.js';
 import type { AuditService } from '../audit/index.js';
 import { randomUUID, createHash } from 'node:crypto';
 import type {
@@ -19,6 +20,7 @@ import {
 } from '../../../shared/approval-ai.js';
 import type { AiActor, ReviewDefinition } from './contract.js';
 import {
+  InvalidOutputError,
   validateDefinition,
   render,
   parseOutput,
@@ -80,11 +82,7 @@ const retryable = (code: string | null) =>
   ['timeout', 'network', 'rate_limited'].includes(code ?? '');
 const permanent = (code: string | null) =>
   ['disabled', 'task_closed', 'assignee_inactive'].includes(code ?? '');
-const unique = (error: unknown): boolean =>
-  !!error &&
-  typeof error === 'object' &&
-  (('code' in error && error.code === '23505') ||
-    ('cause' in error && unique(error.cause)));
+
 export async function actorFor(
   authz: AppAuthorization,
   userId: string,
@@ -128,6 +126,7 @@ export function createApprovalAiService(d: {
   gateway: Pick<ModelGateway, 'catalog' | 'generate'>;
   dispatch: (id: string) => Promise<void>;
   warn: (message: string) => void;
+  debug?: (details: Record<string, unknown>, message: string) => void;
   now?: () => Date;
 }) {
   const definitions = new Map<string, ReviewDefinition>();
@@ -865,6 +864,25 @@ export function createApprovalAiService(d: {
         else throw e;
       }
       if (!resultId) return;
+      const startedAt = Date.now();
+      const diagnosticContext = {
+        reviewId: id,
+        resultId,
+        definitionId: prepared.def.id,
+        ...prepared.model,
+      };
+      d.debug?.(
+        {
+          ...diagnosticContext,
+          timeoutSeconds: prepared.config.timeoutSeconds,
+          maxOutputTokens: prepared.def.maxOutputTokens ?? 4000,
+          materials: prepared.materials.map(({ kind, status }) => ({
+            kind,
+            status,
+          })),
+        },
+        'Approval AI generation started',
+      );
       const signal = AbortSignal.timeout(prepared.config.timeoutSeconds * 1000);
       let result: ReturnType<typeof parseOutput> | null = null,
         errorCode: string | null = null;
@@ -877,6 +895,14 @@ export function createApprovalAiService(d: {
           source: 'oa.approval-ai/' + prepared.def.id,
           signal,
         });
+        d.debug?.(
+          {
+            ...diagnosticContext,
+            elapsedMs: Date.now() - startedAt,
+            responseChars: response.text.length,
+          },
+          'Approval AI model response received',
+        );
         try {
           result = parseOutput(
             response.text,
@@ -884,12 +910,29 @@ export function createApprovalAiService(d: {
             prepared.content,
             prepared.materials,
           );
-        } catch {
+        } catch (error) {
           errorCode = 'invalid_output';
+          d.debug?.(
+            {
+              ...diagnosticContext,
+              ...(error instanceof InvalidOutputError
+                ? error.diagnostics
+                : { stage: 'unknown' }),
+            },
+            'Approval AI output validation failed',
+          );
         }
       } catch (error) {
         errorCode = modelError(error, signal.aborted);
+        d.debug?.(
+          { ...diagnosticContext, errorCode, timedOut: signal.aborted },
+          'Approval AI model call failed',
+        );
       }
+      d.debug?.(
+        { ...diagnosticContext, errorCode, elapsedMs: Date.now() - startedAt },
+        'Approval AI generation completed',
+      );
       const current = await results().findOne({ filter: { id: resultId } });
       const nextAttemptAt =
         errorCode && retryable(errorCode) && (current?.attempts ?? 3) < 3

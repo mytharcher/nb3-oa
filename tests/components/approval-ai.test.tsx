@@ -14,7 +14,14 @@ import {
 import { ApiClientError } from '@nocobase/app-client';
 import { ApprovalAiReviewPanel } from '../../client/components/approval-ai/index.js';
 import enUS from '../../client/locales/en-US.js';
-const { api } = vi.hoisted(() => ({ api: { request: vi.fn() } }));
+const { api, assistant } = vi.hoisted(() => ({
+  api: { request: vi.fn() },
+  assistant: { setReview: vi.fn(), setOpen: vi.fn() },
+}));
+vi.mock('../../client/components/approval-ai/assistant-context.js', () => ({
+  useApprovalAssistant: () => assistant,
+}));
+vi.mock('@nocobase/app-plugin-agents/client/chat', () => ({}));
 vi.mock('@nocobase/app-client', async (original) => ({
   ...(await original<typeof import('@nocobase/app-client')>()),
   useApiClient: () => api,
@@ -141,3 +148,46 @@ it('renders uploaded material names literally instead of interpreting them as lo
   fireEvent.click(await screen.findByText('Material coverage'));
   expect(screen.getByText(/approvalAi.customer-contract.pdf/)).toBeVisible();
 });
+
+it('offers follow-up only for a generated review and binds its exact task/version without posting', async () => {
+  api.request.mockResolvedValue({
+    data: [
+      {
+        ...review,
+        status: 'succeeded',
+        generatedAt: '2026-10-28T00:00:00Z',
+        findings: [],
+      },
+    ],
+  });
+  mount();
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Ask about suggestion' }),
+  );
+  expect(assistant.setReview).toHaveBeenCalledWith({
+    lifecycle: 'oa.contract',
+    recordId: 'contract',
+    recordLabel: null,
+    taskId: 'task',
+    generatedAt: '2026-10-28T00:00:00Z',
+    title: review.title,
+    model: null,
+  });
+  expect(assistant.setOpen).toHaveBeenCalledWith(true);
+  expect(
+    api.request.mock.calls.every(
+      ([request]) => !request.method || request.method === 'GET',
+    ),
+  ).toBe(true);
+});
+it.each(['none', 'queued', 'running', 'failed', 'skipped'])(
+  'does not offer follow-up for %s reviews',
+  async (status) => {
+    api.request.mockResolvedValue({ data: [{ ...review, status }] });
+    mount();
+    await screen.findByRole('region');
+    expect(
+      screen.queryByRole('button', { name: 'Ask about suggestion' }),
+    ).toBeNull();
+  },
+);

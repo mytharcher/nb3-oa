@@ -1,4 +1,3 @@
-import { ApprovalAssistantButton } from '#components/approval-ai/assistant';
 import { Search } from 'lucide-react';
 import { Link } from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
@@ -24,7 +23,6 @@ export function HeaderActions(): ReactElement {
         >
           <Search aria-hidden='true' />
         </Button>
-        <ApprovalAssistantButton />
         <ThemeSettings />
         <UserMenu />
       </div>

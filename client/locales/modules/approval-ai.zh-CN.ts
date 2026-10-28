@@ -18,7 +18,10 @@ export default {
 
     assistant: '审批助手',
     assistantDescription:
-      '可查询自己的待办或当前合同。工具只读，意见草稿需要您审核并自行提交。',
+      '围绕这份审批建议追问，解释已记录的结论、引用和未覆盖内容。意见草稿需您审核并自行提交。',
+    askReview: '追问建议',
+    currentRecord: '当前单据',
+    reviewContext: '{{title}} · 单据 {{record}}',
     startConversation: '开始会话',
     newConversation: '新会话',
     close: '关闭',

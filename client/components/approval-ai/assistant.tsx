@@ -33,28 +33,54 @@ import {
 } from '#components/agent-composer';
 import { MarkdownView } from '#components/markdown-view';
 import { ApprovalAiError } from './error.js';
+import type { ReviewConversationTarget } from './assistant-context.js';
 import { useApprovalAssistant } from './assistant-context.js';
-export function ApprovalAssistantButton() {
+export function ApprovalAssistantButton({
+  target,
+}: {
+  target: ReviewConversationTarget;
+}) {
   const context = useApprovalAssistant(),
     { t } = useTranslation();
   return context ? (
-    <Button variant='outline' size='sm' onClick={() => context.setOpen(true)}>
-      {t('approvalAi.assistant')}
+    <Button
+      variant='outline'
+      size='sm'
+      onClick={() => {
+        context.setReview({
+          ...target,
+          recordLabel:
+            context.recordId === target.recordId ? context.recordLabel : null,
+        });
+        context.setOpen(true);
+      }}
+    >
+      {t('approvalAi.askReview')}
     </Button>
   ) : null;
 }
 export function ApprovalAssistantPanel() {
   const context = useApprovalAssistant();
-  if (!context) return null;
-  return <Panel />;
+  if (!context?.review) return null;
+  const { lifecycle, recordId, taskId, generatedAt } = context.review;
+  return (
+    <Panel
+      key={JSON.stringify([lifecycle, recordId, taskId, generatedAt])}
+      target={context.review}
+    />
+  );
 }
-function Panel() {
+function Panel({ target }: { target: ReviewConversationTarget }) {
   const context = useApprovalAssistant()!,
-    { t } = useTranslation(),
+    { t, i18n } = useTranslation(),
     api = useChatApi(),
     models = useChatModels(context.open);
   const [conversationId, setConversationId] = useState<string | null>(null),
-    [model, setModel] = useState(''),
+    [model, setModel] = useState(
+      target.model
+        ? JSON.stringify([target.model.modelService, target.model.model])
+        : '',
+    ),
     [creating, setCreating] = useState(false),
     [error, setError] = useState<unknown>(),
     [copied, setCopied] = useState(false);
@@ -85,9 +111,14 @@ function Panel() {
         title: t('approvalAi.assistant'),
         selectedModel: { modelService, model: chosenModel },
         config: {
-          scope: ['oa-approval-assistant'],
+          scope: ['oa-approval-review'],
           context: {
-            variable: context.recordId ? { recordId: context.recordId } : {},
+            variable: {
+              lifecycle: target.lifecycle,
+              recordId: target.recordId,
+              taskId: target.taskId,
+              generatedAt: target.generatedAt,
+            },
           },
         },
       });
@@ -98,9 +129,8 @@ function Panel() {
       setCreating(false);
     }
   }
-  // The conversation is bound to its starting record. Page references are never authority for tools.
-  const [boundRecord, setBoundRecord] = useState<string | null>(null);
-  const [boundLabel, setBoundLabel] = useState<string | null>(null);
+  // Each task/result has its own component lifetime, preventing conversation reuse across reports.
+  const boundRecord = target.recordId;
   const labels = Object.fromEntries(
     [
       'label',
@@ -137,17 +167,23 @@ function Panel() {
         </FormDrawerHeader>
         <FormDrawerBody>
           <p className='text-sm text-muted-foreground'>
-            {(conversationId ? boundLabel : context.recordLabel)
-              ? t('approvalAi.contextContract', {
-                  name: conversationId ? boundLabel : context.recordLabel,
-                })
-              : t('approvalAi.noContextContract')}
+            {t('approvalAi.reviewContext', {
+              title: target.title,
+              record: target.recordLabel ?? t('approvalAi.currentRecord'),
+            })}
+            {' · '}
+            {new Intl.DateTimeFormat(i18n.language, {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            }).format(new Date(target.generatedAt))}
           </p>
-          {conversationId && boundRecord !== context.recordId && (
-            <p role='status' className='text-sm'>
-              {t('approvalAi.contextChanged')}
-            </p>
-          )}
+          {conversationId &&
+            context.recordId &&
+            boundRecord !== context.recordId && (
+              <p role='status' className='text-sm'>
+                {t('approvalAi.contextChanged')}
+              </p>
+            )}
           {!!(error || messages.error) && (
             <ApprovalAiError
               error={error ?? messages.error}
@@ -198,10 +234,10 @@ function Panel() {
                 />
               )}
               <Button
-                disabled={!model || creating}
+                disabled={
+                  !choices.some((choice) => choice.value === model) || creating
+                }
                 onClick={() => {
-                  setBoundRecord(context.recordId);
-                  setBoundLabel(context.recordLabel);
                   void start();
                 }}
               >

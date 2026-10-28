@@ -1,7 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import { ChatProvider } from '@nocobase/app-plugin-agents/client/chat';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
-import { ApprovalAssistantContext as Context } from './assistant-context.js';
+import {
+  ApprovalAssistantContext as Context,
+  type ReviewConversationTarget,
+} from './assistant-context.js';
 export function ApprovalAssistantProvider({
   children,
 }: {
@@ -15,6 +18,7 @@ export function ApprovalAssistantProvider({
   );
 }
 function AssistantState({ children }: { children: ReactNode }) {
+  const [review, setReview] = useState<ReviewConversationTarget | null>(null);
   const [recordId, setRecordId] = useState<string | null>(null),
     [recordLabel, setRecordLabel] = useState<string | null>(null),
     [drafts, setDrafts] = useState<Record<string, string>>({}),
@@ -23,6 +27,8 @@ function AssistantState({ children }: { children: ReactNode }) {
     <ChatProvider>
       <Context.Provider
         value={{
+          review,
+          setReview,
           recordId,
           recordLabel,
           setRecordLabel,

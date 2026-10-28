@@ -63,7 +63,7 @@ export function render(
   model: { modelService: string; model: string },
 ) {
   const system =
-    'You assist a human approval handler. Never decide approvals. Review each check exactly once. Missing required basis means not_covered. Cite only supplied references. Return only JSON matching this schema. ' +
+    'You assist a human approval handler. Never decide approvals. Review each check exactly once. Missing required basis means not_covered. Cite only exact kind/ref pairs from allowedEvidence. For field evidence ref is the bare field name, never a JSON path or field value. Never cite missing/unreadable materials. When required basis is missing, return not_covered with empty evidence. Return only JSON matching this schema. ' +
     (d.instructions ?? '') +
     '\n' +
     JSON.stringify(z.toJSONSchema(outputSchema(d)));
@@ -73,6 +73,14 @@ export function render(
       instruction: c.instruction,
       basis: c.basis,
     })),
+    allowedEvidence: [
+      ...Object.keys(content)
+        .sort()
+        .map((ref) => ({ kind: 'field', ref })),
+      ...materials
+        .filter((m) => m.status === 'read' && m.kind !== 'aggregate')
+        .map(({ kind, ref }) => ({ kind, ref })),
+    ],
     fields: content,
     materials,
   });
@@ -91,38 +99,79 @@ export function render(
     .digest('hex');
   return { system, prompt, fingerprint };
 }
+/** Diagnostics contain only bounded codes and schema paths, never model text. */
+export class InvalidOutputError extends Error {
+  constructor(
+    public readonly diagnostics: {
+      stage: 'json' | 'schema' | 'checks' | 'evidence';
+      issues?: { code: string; path: (string | number)[] }[];
+      findingIndex?: number;
+      evidenceIndex?: number;
+    },
+  ) {
+    super('invalid_output');
+  }
+}
 export function parseOutput(
   text: string,
   d: ReviewDefinition,
   content: Record<string, unknown>,
   materials: Material[],
 ) {
-  const output = outputSchema(d).parse(
-    JSON.parse(
+  let value: unknown;
+  try {
+    value = JSON.parse(
       text
         .trim()
         .replace(/^```(?:json)?\s*/i, '')
         .replace(/\s*```$/, ''),
-    ),
-  ) as { findings: (Finding & Record<string, unknown>)[]; basis: string };
+    );
+  } catch {
+    throw new InvalidOutputError({ stage: 'json' });
+  }
+  const parsed = outputSchema(d).safeParse(value);
+  if (!parsed.success) {
+    const safeKeys = new Set([
+      'findings',
+      'basis',
+      'checkId',
+      'verdict',
+      'summary',
+      'evidence',
+      'kind',
+      'ref',
+      'location',
+      'quote',
+      ...Object.keys(d.findingExtension?.shape ?? {}),
+    ]);
+    throw new InvalidOutputError({
+      stage: 'schema',
+      issues: parsed.error.issues.slice(0, 10).map((issue) => ({
+        code: issue.code,
+        path: issue.path
+          .slice(0, 8)
+          .map((key) =>
+            typeof key === 'number'
+              ? key
+              : safeKeys.has(String(key))
+                ? String(key)
+                : '[key]',
+          ),
+      })),
+    });
+  }
+  const output = parsed.data as {
+    findings: (Finding & Record<string, unknown>)[];
+    basis: string;
+  };
   const ids = output.findings.map((f) => f.checkId);
   if (
     ids.length !== d.checks.length ||
     new Set(ids).size !== ids.length ||
     ids.some((id) => !d.checks.some((c) => c.id === id))
   )
-    throw new Error('invalid_output');
-  for (const f of output.findings) {
-    for (const e of f.evidence)
-      if (
-        e.kind === 'field'
-          ? !(e.ref in content)
-          : !materials.some(
-              (m) =>
-                m.ref === e.ref && m.status === 'read' && m.kind === e.kind,
-            )
-      )
-        throw new Error('invalid_output');
+    throw new InvalidOutputError({ stage: 'checks' });
+  for (const [findingIndex, f] of output.findings.entries()) {
     const check = d.checks.find((c) => c.id === f.checkId)!;
     if (
       check.basis.some(
@@ -134,7 +183,22 @@ export function parseOutput(
       f.verdict = 'not_covered';
       f.summary = 'approvalAi.requiredBasisMissing';
       f.evidence = [];
+      continue;
     }
+    for (const [evidenceIndex, e] of f.evidence.entries())
+      if (
+        e.kind === 'field'
+          ? !Object.hasOwn(content, e.ref)
+          : !materials.some(
+              (m) =>
+                m.ref === e.ref && m.status === 'read' && m.kind === e.kind,
+            )
+      )
+        throw new InvalidOutputError({
+          stage: 'evidence',
+          findingIndex,
+          evidenceIndex,
+        });
   }
   return output;
 }

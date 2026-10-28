@@ -1,4 +1,12 @@
 import { z } from 'zod';
+// Identifiers only: the server reloads the authorized result for every tool call.
+export const reviewReferenceSchema = z.object({
+  lifecycle: z.string().min(1).max(128),
+  recordId: z.string().min(1).max(128),
+  taskId: z.string().min(1).max(128),
+  generatedAt: z.string().min(1).max(64),
+});
+export type ReviewReference = z.infer<typeof reviewReferenceSchema>;
 export const findingSchema = z.object({
   checkId: z.string(),
   verdict: z.enum([

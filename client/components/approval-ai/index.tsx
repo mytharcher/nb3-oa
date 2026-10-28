@@ -32,6 +32,7 @@ import {
   SelectGroup,
   SelectItem,
 } from '#components/ui/select';
+import { ApprovalAssistantButton } from './assistant.js';
 import { ApprovalAiError } from './error.js';
 export function ApprovalAiReviewPanel(props: {
   lifecycle: string;
@@ -126,6 +127,8 @@ function ReviewPanel({
         review.taskOpen ? (
           <Review
             key={review.taskId}
+            lifecycle={lifecycle}
+            recordId={recordId}
             review={review}
             reload={refresh}
             evidenceHref={evidenceHref}
@@ -137,6 +140,8 @@ function ReviewPanel({
               {t('approvalAi.history')} · {review.title}
             </summary>
             <Review
+              lifecycle={lifecycle}
+              recordId={recordId}
               review={review}
               reload={refresh}
               evidenceHref={evidenceHref}
@@ -149,11 +154,15 @@ function ReviewPanel({
   );
 }
 function Review({
+  lifecycle,
+  recordId,
   review,
   reload,
   evidenceHref,
   evidenceLabel,
 }: {
+  lifecycle: string;
+  recordId: string;
   review: ReviewView;
   reload: () => void;
   evidenceHref?: (e: Finding['evidence'][number]) => string | undefined;
@@ -324,6 +333,20 @@ function Review({
           </p>
         )}
         <div className='flex flex-wrap gap-2'>
+          {review.status === 'succeeded' &&
+            review.generatedAt &&
+            review.findings && (
+              <ApprovalAssistantButton
+                target={{
+                  lifecycle,
+                  recordId,
+                  taskId: review.taskId,
+                  generatedAt: review.generatedAt,
+                  title: review.title,
+                  model: review.model,
+                }}
+              />
+            )}
           {review.canGenerate && (
             <Button
               variant='outline'

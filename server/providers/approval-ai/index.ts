@@ -34,6 +34,11 @@ export default class ApprovalAiProvider extends ServiceProvider<Application> {
           if (!this.jobs || !this.job) throw new Error('AI jobs not ready');
           await this.jobs.addJob(new this.job({ id }));
         },
+        debug: (details, message) =>
+          c
+            .resolve(loggingToken)
+            .getLogger('approval-ai')
+            .debug(details, message),
         warn: (message) =>
           c.resolve(loggingToken).getLogger('approval-ai').warn(message),
       }),

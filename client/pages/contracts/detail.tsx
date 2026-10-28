@@ -1,4 +1,3 @@
-import { ApprovalAssistantButton } from '#components/approval-ai/assistant';
 import { useApprovalAssistant } from '#components/approval-ai/assistant-context';
 import { ApprovalAiReviewPanel } from '#components/approval-ai/index';
 import { ElectronicSignatureSection } from '#components/electronic-signature-section';
@@ -142,7 +141,6 @@ export default function RequestDetail() {
       footer={
         <>
           <div className='flex flex-wrap gap-2'>
-            <ApprovalAssistantButton />
             {transitions.map((a) => (
               <Button
                 key={a.name}

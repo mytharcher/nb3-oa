@@ -28,7 +28,6 @@ const h = await startIsolatedBrowserApp({
 const errors: string[] = [],
   checks: string[] = [];
 let modelServer: Server | undefined;
-let currentRecordId = '';
 try {
   const c = h.testApp.application.container,
     db = c.resolve(databaseManagerToken),
@@ -139,14 +138,22 @@ try {
                 id: 'synthetic-read',
                 type: 'function',
                 function: {
-                  name: 'oa_contract_summary',
-                  arguments: JSON.stringify({ recordId: currentRecordId }),
+                  name: 'oa_current_approval_review',
+                  arguments: '{}',
                 },
               },
             ],
           });
           send({}, 'tool_calls');
         } else {
+          const toolMessage = body.messages.findLast(
+            (m: { role: string }) => m.role === 'tool',
+          );
+          if (!String(toolMessage.content).includes('findings')) {
+            errors.push(
+              'Follow-up model did not receive authorized review findings',
+            );
+          }
           send({
             role: 'assistant',
             content:
@@ -273,7 +280,6 @@ try {
     bytes = contractPdf([
       'Payment is due thirty days after acceptance. Liability is capped at the total contract price.',
     ]);
-  currentRecordId = id;
   await c.resolve(driveManagerToken).use('local').put(key, bytes);
   await db.repository('contractAttachmentFiles').createOne({
     values: {
@@ -410,6 +416,51 @@ try {
     'Actual SDK tool allows the handler and denies an unrelated employee with current authorization',
   );
   const result = await ai.reviews('oa.contract', id, manager.userId, (k) => k);
+  const reviewTool = c
+    .resolve(agentsToken)
+    .onlineAgent.configurator.toolDefinition('oa_current_approval_review', c)!;
+  const reference = {
+    lifecycle: 'oa.contract',
+    recordId: id,
+    taskId: result[0].taskId,
+    generatedAt: result[0].generatedAt,
+  };
+  const reviewOptions = {
+    ...options,
+    context: { ...options.context, variable: reference },
+  };
+  const readReview = await reviewTool.execute!({}, reviewOptions);
+  expect(readReview).toHaveProperty('findings');
+  expect(readReview).toHaveProperty('taskId', result[0].taskId);
+  await expect(
+    reviewTool.execute!(
+      {},
+      {
+        ...reviewOptions,
+        context: {
+          ...reviewOptions.context,
+          user: { id: outsider.userId },
+          authorization: outside.authz,
+        },
+      },
+    ),
+  ).rejects.toThrow();
+  await expect(
+    reviewTool.execute!(
+      {},
+      {
+        ...reviewOptions,
+        context: {
+          ...reviewOptions.context,
+          variable: { ...reference, generatedAt: '2000-01-01T00:00:00Z' },
+        },
+      },
+    ),
+  ).rejects.toThrow();
+  checks.push(
+    'Selected-review tool returns authorized findings and rejects outsiders and mismatched result versions',
+  );
+
   expect(
     result[0].coverage.some((m) => m.kind === 'text' && m.status === 'read'),
   ).toBe(true);
@@ -496,8 +547,11 @@ try {
     animations: 'disabled',
   });
   await setTheme('light');
+  await expect(
+    page.getByRole('button', { name: 'Approval assistant', exact: true }),
+  ).toHaveCount(0);
   await page
-    .getByRole('button', { name: 'Approval assistant', exact: true })
+    .getByRole('button', { name: 'Ask about suggestion', exact: true })
     .last()
     .click();
   await expect(
@@ -518,7 +572,7 @@ try {
     '375px suggestion and read-only assistant entry render without horizontal overflow',
   );
   await expect(
-    page.getByText('Contract: Contract draft', { exact: true }),
+    page.getByText(/Contract legal and finance review · Record/),
   ).toBeVisible();
   await page.locator('#assistant-model').click();
   await page
@@ -529,7 +583,9 @@ try {
     .click();
   await page
     .getByRole('textbox', { name: 'Message', exact: true })
-    .fill('Read this contract and draft an opinion.');
+    .fill(
+      'Explain this review and draft an opinion based on its recorded evidence.',
+    );
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(
     page.getByText(

@@ -20,7 +20,10 @@ export default {
 
     assistant: 'Approval assistant',
     assistantDescription:
-      'Ask about your tasks or the current contract. Tools are read-only; opinion drafts need your review and submission.',
+      'Ask about this review’s findings, cited evidence and coverage limits. Review and submit any opinion draft yourself.',
+    askReview: 'Ask about suggestion',
+    currentRecord: 'Current record',
+    reviewContext: '{{title}} · Record {{record}}',
     startConversation: 'Start conversation',
     newConversation: 'New conversation',
     close: 'Close',

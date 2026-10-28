@@ -406,3 +406,17 @@ it('allows a newly assigned task to retry a shared failed input without confusin
     ).every((review) => review.status === 'succeeded'),
   ).toBe(true);
 });
+
+it('replays startup sweeps without replacing existing reviews or dispatching duplicates', async () => {
+  const f = await fixture();
+  await f.service.sweep();
+  await f.drain();
+  const before = await f.db.repository('oaApprovalAiTaskReviews').findMany();
+  const calls = f.dispatch.mock.calls.length;
+  await f.service.sweep();
+  await f.service.sweep();
+  expect(await f.db.repository('oaApprovalAiTaskReviews').findMany()).toEqual(
+    before,
+  );
+  expect(f.dispatch).toHaveBeenCalledTimes(calls);
+});
