@@ -224,6 +224,7 @@ const jaJP: AppResource = {
       systemAccess: 'ロールと権限',
       systemConnections: '通知と連携',
       systemOperations: '運用',
+      foundation: 'アプリ基盤',
       office: '日常業務',
       finance: '財務・経費',
       procurement: '調達・契約',

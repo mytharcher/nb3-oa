@@ -224,6 +224,7 @@ const viVN: AppResource = {
       systemAccess: 'Vai trò và quyền',
       systemConnections: 'Thông báo và tích hợp',
       systemOperations: 'Vận hành',
+      foundation: 'Nền tảng ứng dụng',
       office: 'Văn phòng hằng ngày',
       finance: 'Tài chính và chi phí',
       procurement: 'Mua sắm và hợp đồng',

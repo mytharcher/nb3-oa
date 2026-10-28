@@ -223,6 +223,7 @@ const enUS = {
       systemAccess: 'Roles and permissions',
       systemConnections: 'Notifications and integrations',
       systemOperations: 'Operations',
+      foundation: 'App Foundation',
       office: 'Daily office',
       finance: 'Finance & expenses',
       procurement: 'Procurement & contracts',

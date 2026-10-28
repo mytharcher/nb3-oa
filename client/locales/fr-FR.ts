@@ -226,6 +226,7 @@ const frFR: AppResource = {
       systemAccess: 'Rôles et autorisations',
       systemConnections: 'Notifications et intégrations',
       systemOperations: 'Exploitation',
+      foundation: 'Socle de l’application',
       office: 'Vie de bureau',
       finance: 'Finances et frais',
       procurement: 'Achats et contrats',

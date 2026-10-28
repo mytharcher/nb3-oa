@@ -226,6 +226,7 @@ const deDE: AppResource = {
       systemAccess: 'Rollen und Berechtigungen',
       systemConnections: 'Benachrichtigungen und Integrationen',
       systemOperations: 'Betrieb',
+      foundation: 'Anwendungsbasis',
       office: 'Büroalltag',
       finance: 'Finanzen und Ausgaben',
       procurement: 'Beschaffung und Verträge',

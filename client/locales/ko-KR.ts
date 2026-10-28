@@ -335,6 +335,7 @@ const koKR: AppResource = {
       systemAccess: '역할 및 권한',
       systemConnections: '알림 및 연동',
       systemOperations: '운영',
+      foundation: '앱 기반',
       office: '일상 업무',
       finance: '재무 및 경비',
       procurement: '구매 및 계약',

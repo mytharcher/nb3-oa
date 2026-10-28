@@ -222,6 +222,7 @@ const zhCN = {
       systemAccess: '角色与权限',
       systemConnections: '通知与集成',
       systemOperations: '运维',
+      foundation: '应用底座',
       office: '日常办公',
       finance: '财务与费用',
       procurement: '采购与合同',

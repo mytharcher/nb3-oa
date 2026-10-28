@@ -224,6 +224,7 @@ const esES: AppResource = {
       systemAccess: 'Roles y permisos',
       systemConnections: 'Notificaciones e integraciones',
       systemOperations: 'Operaciones',
+      foundation: 'Base de la aplicación',
       office: 'Trabajo diario',
       finance: 'Finanzas y gastos',
       procurement: 'Compras y contratos',
