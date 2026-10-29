@@ -20,6 +20,15 @@ export default defineAppRoutes([
     children: [
       ...viewChildren('oa-task-center'),
       {
+        name: 'task-center-it-repair',
+        path: 'itRepair/:repairId',
+        authz: {
+          resource: { type: 'composite', id: 'oa.itRepairs' },
+          action: 'view',
+        },
+        componentLoader: () => import('../pages/it-repairs/detail.js'),
+      },
+      {
         name: 'oa-task-center-target',
         path: 'task/:taskId',
         componentLoader: () => import('../pages/task-center/target.js'),

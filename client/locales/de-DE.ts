@@ -1,3 +1,4 @@
+import itRepairLocale from './modules/it-repairs.en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.de-DE.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.de-DE.js';
 import wecomAttendanceLocale from './modules/wecom-attendance.de-DE.js';
@@ -81,6 +82,7 @@ import approvalsEnUS from './modules/approvals.de-DE.js';
 import system from './system/de-DE.js';
 
 const deDE: AppResource = {
+  ...itRepairLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,

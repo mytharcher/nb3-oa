@@ -1,6 +1,7 @@
 import { supplyStateLabel } from '../supplies/words.js';
 /** Browser route and copy metadata for each published OA approval business. */
 export const approvalBusinesses = {
+  'oa.itRepair': { label: 'itRepair', detail: 'itRepair', edit: 'itRepair' },
   'oa.workItem': {
     label: 'workItem',
     detail: 'workItem',
@@ -127,6 +128,7 @@ export function approvalStateLabel(
   t: (key: string) => string,
   kind?: string,
 ) {
+  if (kind === 'oa.itRepair') return t(`itRepairs.states.${state}`);
   if (kind === 'oa.workItem') return t(`workItems.states.${state}`);
   if (kind === 'oa.announcementReceipt')
     return t(`announcements.receipt.${state}`);

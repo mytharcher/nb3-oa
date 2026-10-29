@@ -195,6 +195,7 @@ const platformEnUS = {
         extraInvalid: 'Este valor não é aceito.',
       },
       types: {
+        itRepairCategory: 'IT repair categories',
         expensePlanType: 'Assuntos de solicitações de despesas',
         officeItem: 'Materiais de escritório',
         leaveType: 'Tipos de licença',
@@ -351,6 +352,56 @@ const platformEnUS = {
         rank: 'classificação',
       },
       keys: {
+        itRepair_morning: {
+          label: 'IT repair morning hours',
+          description:
+            'Applies to newly submitted repairs. Windows must be ordered and non-overlapping.',
+        },
+        itRepair_afternoon: {
+          label: 'IT repair afternoon hours',
+          description:
+            'Applies to newly submitted repairs. Windows must be ordered and non-overlapping.',
+        },
+        itRepair_P1_response: {
+          label: 'P1 IT repair response hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P1_resolution: {
+          label: 'P1 IT repair resolution hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P2_response: {
+          label: 'P2 IT repair response hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P2_resolution: {
+          label: 'P2 IT repair resolution hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P3_response: {
+          label: 'P3 IT repair response hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P3_resolution: {
+          label: 'P3 IT repair resolution hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P4_response: {
+          label: 'P4 IT repair response hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P4_resolution: {
+          label: 'P4 IT repair resolution hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
         leave_annualAccrualEnabled: {
           label: 'Acúmulo automático de férias anuais',
           description:

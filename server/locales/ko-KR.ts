@@ -1,3 +1,4 @@
+import itRepairLocale from '../../client/locales/modules/it-repairs.en-US.js';
 import reportExportsLocale from './modules/report-exports.ko-KR.js';
 import plugins from './plugins/ko-KR.js';
 import reportsLocale from '../../client/locales/modules/reports.ko-KR.js';
@@ -39,6 +40,7 @@ import annualLeave from './modules/annual-leave.ko-KR.js';
 // plugin's namespace; add keys here as the application starts producing its own, and use `overrides` to reword a
 // plugin's.
 const koKR: AppServerResource = {
+  ...itRepairLocale,
   overrides: plugins,
   ...reportExportsLocale,
   demoData,

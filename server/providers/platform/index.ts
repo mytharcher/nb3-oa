@@ -1,3 +1,4 @@
+export { FrozenCalendar, type CalendarSnapshot } from './frozen-calendar.js';
 import { authorizationToken } from '@nocobase/app-plugin-authorization/server';
 import type { Application } from '@nocobase/app-server/application';
 import { loggingToken } from '@nocobase/app-server/logging';

@@ -40,6 +40,7 @@ export interface SequenceService {
     prefix: string,
     connection: DatabaseConnection,
     at?: Date,
+    timeZone?: string,
   ): Promise<string>;
   /** Every counter, newest period first, optionally of one prefix. */
   list(
@@ -86,14 +87,19 @@ export function createSequenceService(
   calendar: Pick<CalendarService, 'timeZone'>,
 ): SequenceService {
   return {
-    async next(prefix, connection, at = new Date()) {
+    async next(
+      prefix,
+      connection,
+      at = new Date(),
+      timeZone = calendar.timeZone(),
+    ) {
       if (!SEQUENCE_PREFIX.test(prefix))
         throw new PlatformError(
           'SEQUENCE_INVALID_PREFIX',
           `"${prefix}" is not a sequence prefix (upper-case letters and digits).`,
           { field: 'prefix' },
         );
-      const period = periodOf(calendar.timeZone(), at);
+      const period = periodOf(timeZone, at);
       const issued = await increment(connection, prefix, period);
       if (issued !== undefined)
         return formatSequenceNumber(prefix, period, issued);
