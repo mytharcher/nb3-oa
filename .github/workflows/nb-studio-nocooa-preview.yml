@@ -1,5 +1,5 @@
-# Deploy PR heads to isolated preview Apps and main commits to the existing nocooa App.
-# Studio keeps the repository secret NB_STUDIO_API_KEY (an organization API key for this repository's CI) and rotates it.
+# Deploy PR heads to isolated nb3-oa preview Apps; retain the existing main deployment.
+# PR previews use NB_STUDIO_API_KEY; the original Studio uses NB_STUDIO_MAIN_API_KEY.
 name: NocoBase Studio nocooa
 on:
   workflow_dispatch:
@@ -10,17 +10,20 @@ on:
 permissions:
   contents: read
 env:
-  NB_STUDIO_URL: 'https://studio.v2.test.nocobase.com/main'
+  NB_STUDIO_URL: ${{ github.event_name == 'pull_request' && 'https://web-a-nbstudio.roguehosts.com/main' || 'https://studio.v2.test.nocobase.com/main' }}
 jobs:
   deploy:
     name: Deploy nocooa to Studio
-    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    # A pull request labeled no-preview gets no preview.
+    if: >-
+      (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') &&
+      (github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'no-preview'))
     runs-on: ubuntu-latest
     concurrency:
       group: nb-studio-nocooa-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'main' }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     env:
-      APP_ID: ${{ github.event_name == 'pull_request' && format('nocooa-pr-{0}', github.event.pull_request.number) || 'nocooa' }}
+      APP_ID: ${{ github.event_name == 'pull_request' && format('nb3-oa-pr-{0}', github.event.pull_request.number) || 'nocooa' }}
       NOCOBASE_NPM_PASSWORD: ${{ secrets.NOCOBASE_NPM_PASSWORD }}
       ENVIRONMENT: 'preview'
       LOGS: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -53,13 +56,15 @@ jobs:
       - name: Install the nb-studio CLI
         id: studio-cli
         env:
-          NB_STUDIO_API_KEY: ${{ secrets.NB_STUDIO_API_KEY }}
+          NB_STUDIO_API_KEY: ${{ secrets[github.event_name == 'pull_request' && 'NB_STUDIO_API_KEY' || 'NB_STUDIO_MAIN_API_KEY'] }}
         run: |
-          eval "$(curl -fsS -H "x-api-key: $NB_STUDIO_API_KEY" "$NB_STUDIO_URL/api/agents/dist/products/nb-studio/targets/linux-x64?format=env")"
+          NB_STUDIO_CLI_ENV="$(curl -fsS -H "x-api-key: $NB_STUDIO_API_KEY" "$NB_STUDIO_URL/api/agents/dist/products/nb-studio/targets/linux-x64?format=env")"
+          eval "$NB_STUDIO_CLI_ENV"
           mkdir -p "$RUNNER_TEMP/nb-studio"
           curl -fsS -H "x-api-key: $NB_STUDIO_API_KEY" "$NB_STUDIO_URL$url" | tar -xz --strip-components=1 -C "$RUNNER_TEMP/nb-studio"
           echo "$RUNNER_TEMP/nb-studio/bin" >> "$GITHUB_PATH"
           printf %s "$NB_STUDIO_API_KEY" | NB_STUDIO_KEYCHAIN=off "$RUNNER_TEMP/nb-studio/bin/nb-studio" login --server "$NB_STUDIO_URL" --api-key-stdin
+      # Studio links the first PR-head deployment to its PR and removes the App on merge/close.
       - name: Ensure PR preview App
         if: github.event_name == 'pull_request'
         run: nb-studio app ensure "$APP_ID" --environment "$ENVIRONMENT"
