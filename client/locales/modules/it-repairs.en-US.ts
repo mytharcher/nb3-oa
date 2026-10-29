@@ -1,5 +1,7 @@
 export default {
   itRepairs: {
+    handoverBody:
+      'Repair {{number}} has been reassigned. Please hand over any outstanding work.',
     refresh: 'Refresh',
     actions: {
       routing: 'Routing qualification synchronized',

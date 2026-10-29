@@ -88,7 +88,7 @@ export default class RepairProvider extends ServiceProvider<Application> {
           receipts: (id, tx) =>
             c.resolve(purchaseOrderServiceToken).referenceProgress(id, tx),
         },
-        notify: async (id, number, recipients, key) => {
+        notify: async (id, number, recipients, key, mode) => {
           const config =
             this.app.config.get<NotificationConfig>('notification');
           const name = this.app.config.get<{ inbox: string | null }>(
@@ -105,6 +105,10 @@ export default class RepairProvider extends ServiceProvider<Application> {
           const eligible: string[] = [];
           const authz = c.resolve(authorizationToken);
           for (const userId of recipients) {
+            if (mode === 'handover') {
+              eligible.push(userId);
+              continue;
+            }
             const principal = { type: 'user', id: userId };
             const context = authz.for({
               principal,
@@ -148,10 +152,18 @@ export default class RepairProvider extends ServiceProvider<Application> {
               [name]: {
                 to: eligible,
                 title: t('itRepairs.noticeTitle'),
-                body: t('itRepairs.noticeBody', { number }),
+                body: t(
+                  mode === 'handover'
+                    ? 'itRepairs.handoverBody'
+                    : 'itRepairs.noticeBody',
+                  { number },
+                ),
                 target: {
                   type: 'route',
-                  path: `/it-repairs/${encodeURIComponent(id)}`,
+                  path:
+                    mode === 'handover'
+                      ? '/it-repairs'
+                      : `/it-repairs/${encodeURIComponent(id)}`,
                 },
               },
             },

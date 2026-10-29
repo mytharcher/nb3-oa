@@ -36,13 +36,13 @@ import {
   type CalendarService,
 } from '../platform/index.js';
 
-import { localDateOf } from '../platform/time-zone.js';
 import {
   STATES,
   OPEN,
   edges,
   clock,
   deadlines,
+  settleThresholds,
   type Action,
   type Processing,
 } from './handling.js';
@@ -280,6 +280,7 @@ export function createRepairService(d: {
     number: string,
     recipients: string[],
     key: string,
+    mode?: 'handover',
   ) => Promise<void>;
 }) {
   const now = () => d.now?.() ?? new Date();
@@ -364,35 +365,45 @@ export function createRepairService(d: {
   const updateNotice = defineEffect<{ record: Repair; state: string }>({
     name: 'oa.itRepair.updated',
     retry: { attempts: 8, backoffMs: 5000, factor: 2 },
-    run: async ({ record, transition, idempotencyKey }) => {
+    run: async ({ record, input, transition, idempotencyKey }) => {
       const current = await d.db
         .repository<Repair>('itRepairs')
         .findOne({ filter: { id: record.id } });
       if (!current) return;
-      const g = await groupFor(current, d.db.connection());
-      const recipients = new Set([
-        ...(g?.leaderIds ?? []),
-        ...(current.assigneeId ? [current.assigneeId] : []),
-        ...(!transition.startsWith('internal_') &&
-        !transition.startsWith('uploadInternal_')
-          ? [current.requesterId]
-          : []),
-      ]);
+      const tx = d.db.connection();
+      const intent = input.processing as Processing | undefined;
+      const g = await groupFor(current, tx);
+      const internal =
+        transition.startsWith('internal_') ||
+        transition.startsWith('uploadInternal_');
+      const recipients = intent?.noticeRecipients ?? [
+        ...new Set([
+          ...(g?.leaderIds ?? []),
+          ...(current.assigneeId ? [current.assigneeId] : []),
+          ...(!internal ? [current.requesterId] : []),
+        ]),
+      ];
       for (const id of recipients)
         if (
-          !(
-            id === current.requesterId &&
-            (transition.startsWith('internal_') ||
-              transition.startsWith('uploadInternal_'))
-          ) &&
-          (await active(id, d.db.connection())) &&
-          (await canRead(current, id, d.db.connection()))
+          !(internal && id === current.requesterId) &&
+          (await active(id, tx)) &&
+          (await canRead(current, id, tx))
         )
           await d.notify(
             current.id,
             current.number!,
             [id],
             `${idempotencyKey}:${id}`,
+          );
+      // A former assignee receives only the persisted handover fact, never a read grant or a detail target.
+      for (const id of intent?.handoverRecipients ?? [])
+        if (await active(id, tx))
+          await d.notify(
+            current.id,
+            current.number!,
+            [id],
+            `${idempotencyKey}:handover:${id}`,
+            'handover',
           );
     },
   });
@@ -811,6 +822,14 @@ export function createRepairService(d: {
   }
   async function present(row: Repair, actorId: string, tx = d.db.connection()) {
     if (await fullAccess(row, actorId, tx)) {
+      if (row.processing) {
+        const {
+          noticeRecipients: _notice,
+          handoverRecipients: _handover,
+          ...visible
+        } = row.processing;
+        row = { ...row, processing: visible };
+      }
       if (row.requesterId === actorId && row.processing) {
         const { duplicateId, alerted: _alerted, ...safe } = row.processing;
         return {
@@ -947,7 +966,10 @@ export function createRepairService(d: {
           {
             actor: { id: actorId },
             expect: { version: row.version },
-            input: { updatedAt: now().toISOString() },
+            input: {
+              updatedAt: now().toISOString(),
+              processing: (await noticeProcessing(row, tx)) as JsonObject,
+            },
             transaction: tx,
           },
         );
@@ -1007,6 +1029,55 @@ export function createRepairService(d: {
       },
     });
   }
+  async function noticeProcessing(
+    row: Repair,
+    tx: DatabaseConnection,
+    internal = false,
+    previousAssignee?: string | null,
+  ): Promise<Processing> {
+    const p = structuredClone(row.processing ?? {}),
+      g = await groupFor(row, tx),
+      recipients = new Set<string>();
+    for (const id of [
+      ...(g?.leaderIds ?? []),
+      ...(row.assigneeId ? [row.assigneeId] : []),
+      ...(row.status === 'pool' ? (g?.engineerIds ?? []) : []),
+      ...(!internal ? [row.requesterId] : []),
+    ])
+      if (
+        !(internal && id === row.requesterId) &&
+        (await active(id, tx)) &&
+        (await canRead(row, id, tx))
+      )
+        recipients.add(id);
+    p.noticeRecipients = [...recipients].sort();
+    p.handoverRecipients =
+      previousAssignee && previousAssignee !== row.assigneeId
+        ? [previousAssignee]
+        : [];
+    return p;
+  }
+  let groupPhysical:
+    ReturnType<DatabaseConnection['collections']['getPhysical']> | undefined;
+  async function holdGroup(tx: DatabaseConnection, id: string) {
+    if (tx.dialect !== 'postgres') {
+      await tx
+        .repository('itRepairGroups')
+        .updateMany({ filter: { id }, values: { version: { increment: 0 } } });
+      return;
+    }
+    const table = await (groupPhysical ??=
+      tx.collections.getPhysical('itRepairGroups'));
+    if (!table) fail('CONFIGURATION_REQUIRED');
+    await (
+      await tx.client<Knex.Transaction>()
+    )
+      .withSchema(table.schema)
+      .from(table.tableName)
+      .select('id')
+      .where('id', id)
+      .forShare();
+  }
   async function act(
     input: Command & { id: string; expectedVersion: number },
     action: Action,
@@ -1052,17 +1123,14 @@ export function createRepairService(d: {
         fail('INVALID_INPUT', k);
     return command(input, action, data, policy, async (tx) => {
       const row = await get(input.id, input.actorId, policy, tx);
-      if (row.groupId)
-        await tx.repository('itRepairGroups').updateMany({
-          filter: { id: row.groupId },
-          values: { version: { increment: 0 } },
-        });
+      if (row.groupId) await holdGroup(tx, row.groupId);
       if (row.version !== input.expectedVersion) fail('VERSION_CONFLICT');
       if (!(await allowed(row, input.actorId, tx)).includes(action))
         fail('ACCESS_DENIED');
       const at = now(),
         iso = at.toISOString();
       const { p, cal, consumed } = clock(row, at);
+      const thresholdAlerts = settleThresholds(row, p, at);
       let status = row.status;
       const values: RepositoryRecord = {};
       const stop = () => {
@@ -1152,10 +1220,7 @@ export function createRepairService(d: {
               .findOne({ filter: { id: String(data.groupId), active: true } });
             if (!target?.leaderIds.includes(input.actorId))
               fail('ACCESS_DENIED');
-            await tx.repository('itRepairGroups').updateMany({
-              filter: { id: target.id },
-              values: { version: { increment: 0 } },
-            });
+            await holdGroup(tx, target.id);
             reason();
             values.groupId = target.id;
           }
@@ -1280,6 +1345,12 @@ export function createRepairService(d: {
           status = 'processing';
           break;
         case 'resolve':
+          p.resolutionTargetHours = Number(
+            (row.ruleSnapshot as { values: Record<string, number> }).values[
+              `itRepair.${row.priority}.resolution`
+            ],
+          );
+          p.completedResolutionDueAt = deadlines(row, p, at).resolutionDueAt;
           for (const key of ['cause', 'solution', 'completion'])
             text(data, key);
           if (
@@ -1332,6 +1403,8 @@ export function createRepairService(d: {
           break;
         case 'return':
           reason();
+          delete p.resolutionTargetHours;
+          delete p.completedResolutionDueAt;
           p.acceptanceHours =
             (p.acceptanceHours ?? 0) +
             cal.workingHoursBetween(new Date(p.acceptanceSince!), at);
@@ -1449,6 +1522,27 @@ export function createRepairService(d: {
         p.cancelFollowUpAt = null;
       }
       const candidate = { ...row, ...values, status, processing: p } as Repair;
+      if (p.firstResponseAt && !row.processing?.firstResponseAt) {
+        p.responseTargetHours = Number(
+          (row.ruleSnapshot as { values: Record<string, number> }).values[
+            `itRepair.${candidate.priority}.response`
+          ],
+        );
+        candidate.responseDueAt = cal
+          .addWorkingHours(new Date(row.submittedAt!), p.responseTargetHours)
+          .toISOString();
+      }
+      thresholdAlerts.push(...settleThresholds(candidate, p, at));
+      Object.assign(
+        p,
+        await noticeProcessing(
+          candidate,
+          tx,
+          action === 'internal',
+          action === 'assign' ? row.assigneeId : null,
+        ),
+      );
+
       Object.assign(values, deadlines(candidate, p, at), {
         processing: p,
         updatedAt: iso,
@@ -1485,6 +1579,15 @@ export function createRepairService(d: {
         `${row.id}:${input.actorId}:${input.requestKey}`,
         action === 'internal' ? 'internal' : 'public',
       );
+      for (const key of thresholdAlerts)
+        await appendEvent(
+          tx,
+          result,
+          'alert',
+          null,
+          { key },
+          `${row.id}:alert:${key}`,
+        );
       await syncTasks(result, tx);
       await audit(
         tx,
@@ -1633,10 +1736,12 @@ export function createRepairService(d: {
             ['closed', 'cancelled'].includes(row.status)
           )
             return;
-          const { p, cal, consumed, response } = clock(row, at),
+          const { p, cal } = clock(row, at),
             values = (row.ruleSnapshot as { values: Record<string, number> })
               .values;
-          const alerts: string[] = [],
+          delete p.noticeRecipients;
+          delete p.handoverRecipients;
+          const alerts = settleThresholds(row, p, at, true),
             seen = new Set(p.alerted ?? []);
           const add = (key: string) => {
             if (!seen.has(key)) {
@@ -1644,19 +1749,6 @@ export function createRepairService(d: {
               alerts.push(key);
             }
           };
-          for (const [metric, used, done] of [
-            ['response', response, !!p.firstResponseAt],
-            ['resolution', consumed, p.runningSince === null],
-          ] as const) {
-            if (done) continue;
-            const target = Number(values[`itRepair.${row.priority}.${metric}`]);
-            if (used >= target * 0.8) add(`${metric}80`);
-            if (used >= target) add(`${metric}Overdue`);
-            if (used >= target)
-              add(
-                `${metric}Daily:${localDateOf((row.calendarSnapshot as unknown as CalendarSnapshot).timeZone, at)}`,
-              );
-          }
           if (p.acceptanceDueAt && +at >= +new Date(p.acceptanceDueAt))
             add(`acceptance:${p.round ?? 0}`);
           if (p.followUpAt && +at >= +new Date(p.followUpAt)) {
@@ -1678,6 +1770,11 @@ export function createRepairService(d: {
           if (row.assigneeId && !(await qualified(row, row.assigneeId, tx)))
             add(`invalidAssignee:${row.assigneeId}`);
           p.alerted = [...seen];
+          if (alerts.length)
+            Object.assign(
+              p,
+              await noticeProcessing({ ...row, processing: p }, tx),
+            );
           const timing = deadlines(row, p, at);
           // No timers remain: park in a bounded eligibility check instead of repeatedly selecting NULL.
           if (!timing.nextDueAt)
@@ -1817,7 +1914,10 @@ export function createRepairService(d: {
             {
               actor: { id: 'system' },
               expect: { version: row.version },
-              input: { updatedAt: at.toISOString() },
+              input: {
+                updatedAt: at.toISOString(),
+                processing: (await noticeProcessing(row, tx)) as JsonObject,
+              },
               transaction: tx,
             },
           );
@@ -2191,11 +2291,7 @@ export function createRepairService(d: {
         policy,
         async (tx) => {
           const row = await get(input.id, input.actorId, policy, tx);
-          if (row.groupId)
-            await tx.repository('itRepairGroups').updateMany({
-              filter: { id: row.groupId },
-              values: { version: { increment: 0 } },
-            });
+          if (row.groupId) await holdGroup(tx, row.groupId);
           if (row.version !== input.expectedVersion) fail('VERSION_CONFLICT');
           const isDraft = row.status === 'draft';
           const permitted = isDraft
@@ -2226,7 +2322,14 @@ export function createRepairService(d: {
                   {
                     actor: { id: input.actorId },
                     expect: { version: row.version },
-                    input: { updatedAt: now().toISOString() },
+                    input: {
+                      updatedAt: now().toISOString(),
+                      processing: (await noticeProcessing(
+                        row,
+                        tx,
+                        metadata.visibility === 'internal',
+                      )) as JsonObject,
+                    },
                     transaction: tx,
                   },
                 )

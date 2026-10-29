@@ -1,5 +1,6 @@
 export default {
   itRepairs: {
+    handoverBody: '报修 {{number}} 已改派，请移交尚未完成的工作。',
     refresh: '刷新',
     actions: {
       routing: '路由资格同步',

@@ -1,3 +1,4 @@
+import { localDateOf } from '../platform/time-zone.js';
 import type { CalendarSnapshot } from '../platform/frozen-calendar.js';
 import { FrozenCalendar } from '../platform/frozen-calendar.js';
 import type { Repair } from './service.js';
@@ -44,6 +45,11 @@ export type Action = (typeof ACTIONS)[number];
 export interface Processing {
   [key: string]: string | number | boolean | string[] | null | undefined;
   firstResponseAt?: string;
+  responseTargetHours?: number;
+  resolutionTargetHours?: number;
+  completedResolutionDueAt?: string | null;
+  noticeRecipients?: string[];
+  handoverRecipients?: string[];
   runningSince?: string | null;
   consumedHours?: number;
   pausedHours?: number;
@@ -161,14 +167,23 @@ export function deadlines(row: Repair, p: Processing, at: Date) {
   const candidate = { ...row, processing: p } as Repair;
   const { cal, consumed } = clock(candidate, at);
   const rules = (row.ruleSnapshot as { values: Record<string, number> }).values;
-  const responseTarget = Number(rules[`itRepair.${row.priority}.response`]);
+  const responseTarget = p.firstResponseAt
+    ? (p.responseTargetHours ??
+      cal.workingHoursBetween(
+        new Date(row.submittedAt!),
+        new Date(row.responseDueAt!),
+      ))
+    : Number(rules[`itRepair.${row.priority}.response`]);
   const resolutionTarget = Number(rules[`itRepair.${row.priority}.resolution`]);
-  const responseDueAt = cal
-    .addWorkingHours(new Date(row.submittedAt!), responseTarget)
-    .toISOString();
+  const responseDueAt =
+    p.firstResponseAt && row.responseDueAt
+      ? row.responseDueAt
+      : cal
+          .addWorkingHours(new Date(row.submittedAt!), responseTarget)
+          .toISOString();
   const resolutionDueAt =
     p.runningSince === null
-      ? null
+      ? (p.completedResolutionDueAt ?? null)
       : cal
           .addWorkingHours(
             new Date(p.runningSince ?? row.submittedAt!),
@@ -223,4 +238,58 @@ export function deadlines(row: Repair, p: Processing, at: Date) {
         ? new Date(Math.min(...due.map(Number))).toISOString()
         : null,
   };
+}
+
+/** Settle facts even when the scheduler missed the interval. Only incomplete, running metrics owe daily reminders. */
+export function settleThresholds(
+  row: Repair,
+  p: Processing,
+  at: Date,
+  daily = false,
+): string[] {
+  const { response, consumed } = clock({ ...row, processing: p }, at);
+  const rules = (row.ruleSnapshot as { values: Record<string, number> }).values;
+  const seen = new Set(p.alerted ?? []),
+    additions: string[] = [];
+  const add = (key: string) => {
+    if (!seen.has(key)) {
+      seen.add(key);
+      additions.push(key);
+    }
+  };
+  const metrics = [
+    [
+      'response',
+      response,
+      p.firstResponseAt
+        ? (p.responseTargetHours ??
+          new FrozenCalendar(
+            row.calendarSnapshot as unknown as CalendarSnapshot,
+          ).workingHoursBetween(
+            new Date(row.submittedAt!),
+            new Date(row.responseDueAt!),
+          ))
+        : Number(rules[`itRepair.${row.priority}.response`]),
+      !p.firstResponseAt,
+    ],
+    [
+      'resolution',
+      consumed,
+      p.resolutionTargetHours ??
+        Number(rules[`itRepair.${row.priority}.resolution`]),
+      p.runningSince !== null,
+    ],
+  ] as const;
+  for (const [metric, used, target, running] of metrics) {
+    if (used >= target * 0.8) add(`${metric}80`);
+    if (used >= target) {
+      add(`${metric}Overdue`);
+      if (daily && running)
+        add(
+          `${metric}Daily:${localDateOf((row.calendarSnapshot as unknown as CalendarSnapshot).timeZone, at)}`,
+        );
+    }
+  }
+  p.alerted = [...seen];
+  return additions;
 }

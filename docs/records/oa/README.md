@@ -6,3 +6,5 @@
 
 - [第二阶段办理与42项台账](it-repairs-handling-2026-10-29.md)
 - [第二阶段界面验收](it-repairs-handling-ui-2026-10-29.md)
+
+- [2026-10-30 通知与阈值修复](it-repairs-thresholds-2026-10-30.md)
