@@ -83,6 +83,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
       # Uploads the archive and deploys it; a protected environment asks its approvers instead.
       - name: Deploy and wait for Studio startup
+        timeout-minutes: 30
         run: node scripts/ci/deploy-studio.mjs
         env:
           STUDIO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}

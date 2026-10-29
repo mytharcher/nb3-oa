@@ -10,12 +10,13 @@ async function studio(args) {
   let stdout;
   try {
     ({ stdout } = await execute('nb-studio', [...args, '--json'], {
-      timeout: 180000,
+      // Archive upload crosses the public network before Studio can start deployment.
+      timeout: 15 * 60 * 1000,
       maxBuffer: 4 * 1024 * 1024,
     }));
   } catch (error) {
     // Upload responses may contain tickets; expose only a validated error code.
-    let code = 'PROCESS_ERROR';
+    let code = error.killed ? 'COMMAND_TIMEOUT' : 'PROCESS_ERROR';
     for (const output of [error.stdout, error.stderr]) {
       try {
         const candidate = JSON.parse(output).error?.code;
