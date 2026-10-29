@@ -8,3 +8,4 @@
 - [2026-10-29 验证与差异](records/oa/it-repairs-2026-10-29.md)
 - [设计索引](designs/README.md)
 - [记录索引](records/README.md)
+- [2026-10-29 通知与路由恢复验证](records/oa/it-repairs-recovery-2026-10-29.md)

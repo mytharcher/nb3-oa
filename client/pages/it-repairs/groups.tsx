@@ -1,5 +1,5 @@
 import { Alert, AlertDescription } from '#components/ui/alert';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Link,
   Outlet,
@@ -85,9 +85,14 @@ export default function Groups() {
                     .join(', ')}
                 </p>
                 {can.can ? (
-                  <Button variant='outline' render={<Link to={g.id} />}>
-                    {t('itRepairs.edit')}
-                  </Button>
+                  <div className='flex flex-wrap items-start gap-2'>
+                    <Button variant='outline' render={<Link to={g.id} />}>
+                      {t('itRepairs.edit')}
+                    </Button>
+                    {g.active && g.categories.length > 0 ? (
+                      <RecoverRoutingButton group={g} />
+                    ) : null}
+                  </div>
                 ) : null}
               </CardContent>
             </Card>
@@ -96,6 +101,55 @@ export default function Groups() {
       </PageContainer>
       <Outlet context={{ groups: r.data?.data, reload: r.reload }} />
     </>
+  );
+}
+export function RecoverRoutingButton({
+  group,
+}: {
+  group: Pick<Group, 'id' | 'version'>;
+}) {
+  const api = useApiClient(),
+    { t } = useTranslation();
+  const keyRef = useRef(createRequestKey()),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState<unknown>(),
+    [result, setResult] = useState<{ processed: number; hasMore: boolean }>();
+  async function recover() {
+    setBusy(true);
+    setError(undefined);
+    try {
+      const response = await api.request<{
+        data: { processed: number; hasMore: boolean };
+      }>({
+        method: 'POST',
+        path: `itRepairs/groups/${encodeURIComponent(group.id)}/recoverRouting`,
+        json: { requestKey: keyRef.current, expectedVersion: group.version },
+      });
+      setResult(response.data);
+      keyRef.current = createRequestKey();
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className='flex flex-col gap-2'>
+      <Button variant='outline' disabled={busy} onClick={() => void recover()}>
+        {t(busy ? 'itRepairs.working' : 'itRepairs.recoverRouting')}
+      </Button>
+      {result ? (
+        <p role='status' className='text-sm text-muted-foreground'>
+          {t(
+            result.hasMore
+              ? 'itRepairs.recoveryMore'
+              : 'itRepairs.recoveryDone',
+            { count: result.processed },
+          )}
+        </p>
+      ) : null}
+      {error ? <Failure error={error} module='itRepairs' /> : null}
+    </div>
   );
 }
 export function GroupForm() {
@@ -136,11 +190,20 @@ function GroupEditor({ old }: { old?: Group }) {
     setBusy(true);
     setError(undefined);
     try {
-      const { id, version, ...values } = g;
+      const { id, version, title, leaderIds, engineerIds, categories, active } =
+        g;
       await api.request({
         method: 'POST',
         path: `itRepairs/groups/${encodeURIComponent(id)}`,
-        json: { ...values, requestKey: key, expectedVersion: version },
+        json: {
+          title,
+          leaderIds,
+          engineerIds,
+          categories,
+          active,
+          requestKey: key,
+          expectedVersion: version,
+        },
       });
       ctx.reload();
       void navigate('..');

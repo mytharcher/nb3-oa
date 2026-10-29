@@ -277,7 +277,7 @@ export function createRepairService(d: {
   const notice = defineEffect<{ record: Repair; state: string }>({
     name: 'oa.itRepair.submitted',
     retry: { attempts: 8, backoffMs: 5000, factor: 2 },
-    run: async ({ record, idempotencyKey }) => {
+    run: async ({ record }) => {
       const current = await d.db
         .repository<Repair>('itRepairs')
         .findOne({ filter: { id: record.id } });
@@ -293,8 +293,14 @@ export function createRepairService(d: {
         ...(group?.leaderIds ?? []),
       ]))
         if (await active(id, d.db.connection())) recipients.push(id);
-      if (recipients.length)
-        await d.notify(current.id, current.number!, recipients, idempotencyKey);
+      // Routing recovery may create another effect, but receipt identity stays per intake/recipient.
+      for (const userId of recipients)
+        await d.notify(
+          current.id,
+          current.number!,
+          [userId],
+          `oa.itRepair:${current.id}:submitted:${userId}`,
+        );
       if (!group?.leaderIds.some((id) => recipients.includes(id)))
         throw new Error('IT_REPAIR_GROUP_UNCONFIGURED');
     },
@@ -312,7 +318,12 @@ export function createRepairService(d: {
         accept: [...INPUT_FIELDS, 'updatedAt'],
       },
       upload: { from: 'draft', to: 'draft', accept: ['updatedAt'] },
-      refreshRouting: { from: 'triage', to: 'triage', accept: ['updatedAt'] },
+      refreshRouting: {
+        from: 'triage',
+        to: 'triage',
+        accept: ['updatedAt', 'groupId'],
+        effects: [notice],
+      },
       submit: {
         from: 'draft',
         to: 'triage',
@@ -367,11 +378,15 @@ export function createRepairService(d: {
     work: (tx: DatabaseConnection) => Promise<T>,
   ): Promise<T> {
     return d.db.transaction(async (tx) => {
-      // PostgreSQL's default READ COMMITTED cannot freeze rule and calendar reads together.
+      // Freeze intake snapshots; configuration also needs predicate conflict detection across actors.
       if (tx.dialect === 'postgres')
         await (
           await tx.client<Knex.Transaction>()
-        ).raw('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+        ).raw(
+          ['configure', 'configureCalendar', 'recoverRouting'].includes(action)
+            ? 'SET TRANSACTION ISOLATION LEVEL SERIALIZABLE'
+            : 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ',
+        );
       const lockStarted = performance.now();
       await lockUserForAdministration(tx, input.actorId);
       d.onLockAcquired?.(performance.now() - lockStarted);
@@ -379,7 +394,9 @@ export function createRepairService(d: {
       if (
         !account ||
         account.disabledAt ||
-        (!['configure', 'configureCalendar'].includes(action) &&
+        (!['configure', 'configureCalendar', 'recoverRouting'].includes(
+          action,
+        ) &&
           !(await active(input.actorId, tx)))
       )
         fail('ACCESS_DENIED');
@@ -496,6 +513,99 @@ export function createRepairService(d: {
       },
       tx,
     );
+  }
+  /** A configuration save recovers at most 100 orphans. Further batches use the same restricted command. */
+  async function reconcileRouting(
+    input: Command,
+    group: Group,
+    tx: DatabaseConnection,
+    refreshAssigned: boolean,
+  ) {
+    const repo = tx.repository<Repair>('itRepairs');
+    const filter = (f: FilterBuilder) =>
+      f.and([
+        f.string('status').eq('triage'),
+        f.string('groupId').eq(null),
+        f.or(
+          group.categories.map((category) => f.string('category').eq(category)),
+        ),
+      ]);
+    const orphans =
+      group.active && group.categories.length
+        ? await repo.findMany({
+            filter,
+            sort: (s) => s.field('id').asc(),
+            limit: 101,
+          })
+        : [];
+    const assigned = refreshAssigned
+      ? await repo.findMany({ filter: { groupId: group.id, status: 'triage' } })
+      : [];
+    const recipients: string[] = [];
+    for (const id of new Set(group.active ? group.leaderIds : []))
+      if (await active(id, tx)) recipients.push(id);
+    let changed = 0;
+    for (const row of [...assigned, ...orphans.slice(0, 100)]) {
+      const previous = await d.writer.listBySourceKey(row.id, tx);
+      const pending = previous.filter((item) => item.status === 'pending');
+      if (
+        row.groupId === group.id &&
+        hash(pending.map((item) => item.userId).sort()) ===
+          hash([...recipients].sort())
+      )
+        continue;
+      for (const item of pending)
+        if (!recipients.includes(item.userId))
+          await d.writer.setStatus(
+            { userId: item.userId, sourceKey: row.id },
+            'cancelled',
+            tx,
+          );
+      for (const userId of recipients)
+        if (!pending.some((item) => item.userId === userId))
+          await d.writer.put(
+            {
+              userId,
+              sourceKey: row.id,
+              subject: 'oa.itRepair',
+              title: row.number!,
+              status: 'pending',
+            },
+            tx,
+          );
+      const result = await runtime.fire(
+        'oa.itRepair',
+        row.id,
+        'refreshRouting',
+        {
+          actor: { id: input.actorId },
+          expect: { version: row.version },
+          input: { groupId: group.id, updatedAt: now().toISOString() },
+          transaction: tx,
+        },
+      );
+      await d.audit.record(
+        {
+          actorId: input.actorId,
+          action: 'itRepair.refreshRouting',
+          targetType: 'itRepairs',
+          targetId: row.id,
+          before: {
+            groupId: row.groupId,
+            leaderIds: pending.map((item) => item.userId),
+          },
+          after: {
+            groupId: group.id,
+            leaderIds: recipients,
+            version: result.record.version,
+            requestKey: input.requestKey,
+          },
+        },
+        tx,
+      );
+      changed++;
+    }
+    return { processed: changed, hasMore: orphans.length > 100 };
   }
   async function calendarConfiguration(tx = d.db.connection()) {
     const keys = ['itRepair.morning', 'itRepair.afternoon'];
@@ -878,44 +988,17 @@ export function createRepairService(d: {
           });
           if (result.updatedCount !== 1) fail('VERSION_CONFLICT');
         } else await repo.createOne({ values });
-        const repairs = await tx
-          .repository<Repair>('itRepairs')
-          .findMany({ filter: { groupId: input.id, status: 'triage' } });
-        for (const row of repairs) {
-          const previous = await d.writer.listBySourceKey(row.id, tx);
-          const recipients = [];
-          for (const userId of group.active ? group.leaderIds : [])
-            if (await active(userId, tx)) recipients.push(userId);
-          for (const item of previous)
-            if (item.status === 'pending' && !recipients.includes(item.userId))
-              await d.writer.setStatus(
-                { userId: item.userId, sourceKey: row.id },
-                'cancelled',
-                tx,
-              );
-          for (const userId of recipients)
-            if (
-              !previous.some(
-                (item) => item.userId === userId && item.status === 'pending',
-              )
-            )
-              await d.writer.put(
-                {
-                  userId,
-                  sourceKey: row.id,
-                  subject: 'oa.itRepair',
-                  title: row.number!,
-                  status: 'pending',
-                },
-                tx,
-              );
-          await runtime.fire('oa.itRepair', row.id, 'refreshRouting', {
-            actor: { id: input.actorId },
-            expect: { version: row.version },
-            input: { updatedAt: now().toISOString() },
-            transaction: tx,
-          });
-        }
+        const routingChanged =
+          !old ||
+          old.active !== group.active ||
+          hash([...new Set(old.leaderIds)].sort()) !==
+            hash([...new Set(group.leaderIds)].sort());
+        const recovery = await reconcileRouting(
+          input,
+          values,
+          tx,
+          routingChanged,
+        );
         await d.audit.record(
           {
             actorId: input.actorId,
@@ -926,7 +1009,19 @@ export function createRepairService(d: {
           },
           tx,
         );
-        return values;
+        return { ...values, recovery };
+      });
+    },
+    async recoverRouting(
+      input: Command & { id: string; expectedVersion: number },
+    ) {
+      return command(input, 'recoverRouting', null, null, async (tx) => {
+        const group = await tx
+          .repository<Group>('itRepairGroups')
+          .findOne({ filter: { id: input.id } });
+        if (!group || group.version !== input.expectedVersion)
+          fail('VERSION_CONFLICT');
+        return reconcileRouting(input, group, tx, false);
       });
     },
   };

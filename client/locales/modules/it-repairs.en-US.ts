@@ -1,5 +1,10 @@
 export default {
   itRepairs: {
+    recoverRouting: 'Recover unassigned repairs',
+    recoveryMore:
+      'Recovered {{count}} repairs. More remain; run another batch.',
+    recoveryDone:
+      'Recovered {{count}} repairs. No matching unassigned repairs remain.',
     createdAt: 'Created',
     asset: 'Held asset',
     assetCap:

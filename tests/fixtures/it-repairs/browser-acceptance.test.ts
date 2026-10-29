@@ -26,7 +26,7 @@ it.runIf(process.env.OA_IT_REPAIR_BROWSER === '1')(
           title: 'IT',
           leaderIds: [f.leader.userId],
           engineerIds: [],
-          categories: ['device', 'network', 'software', 'account', 'other'],
+          categories: ['device', 'network', 'software', 'account'],
           active: true,
         }),
       );
@@ -186,6 +186,44 @@ it.runIf(process.env.OA_IT_REPAIR_BROWSER === '1')(
         await leader.context().close();
         await outsider.context().close();
       }
+      // An intake accepted before its category has a group must become visible after configuration.
+      const requester = await f.a.session();
+      const orphanDraft = (
+        await (
+          await requester.fetch(
+            '/itRepairs/save',
+            write('POST', {
+              requestKey: randomUUID(),
+              draft: {
+                title: 'Recovered outage',
+                description: 'Synthetic missing category mapping',
+                category: 'other',
+                impact: 'partial',
+                location: 'Test office',
+                contact: '',
+                occurredAt: null,
+                assetId: null,
+              },
+            }),
+          )
+        ).json()
+      ).data;
+      const orphan = (
+        await (
+          await requester.fetch(
+            `/itRepairs/${orphanDraft.id}/submit`,
+            write('POST', {
+              requestKey: randomUUID(),
+              expectedVersion: orphanDraft.version,
+            }),
+          )
+        ).json()
+      ).data;
+      expect(orphan.groupId).toBeNull();
+      expect(
+        (await (await f.leader.session()).fetch(`/itRepairs/${orphan.id}`))
+          .status,
+      ).toBe(403);
       const settings = await h.pageFor(await f.admin.session(), {
         locale: 'en-US',
       });
@@ -194,6 +232,60 @@ it.runIf(process.env.OA_IT_REPAIR_BROWSER === '1')(
         timeout: 30000,
       });
       await browserExpect(settings.locator('#group-leaderIds')).toBeVisible();
+      await settings
+        .getByRole('checkbox', { name: 'Other', exact: true })
+        .check();
+      await settings.getByRole('button', { name: 'Save', exact: true }).click();
+      await browserExpect(settings).toHaveURL(/it-repair-groups$/);
+      await settings
+        .getByRole('button', { name: 'Recover unassigned repairs' })
+        .click();
+      await browserExpect(settings.getByRole('status')).toContainText(
+        'No matching unassigned repairs remain.',
+      );
+      await settings.screenshot({
+        path: `${h.screenshotsDir}/en-US-routing-recovery.png`,
+        fullPage: true,
+      });
+      const recoveredLeader = await h.pageFor(await f.leader.session(), {
+        locale: 'en-US',
+      });
+      await recoveredLeader.goto(
+        `${h.origin}${h.basePath}/it-repairs/${orphan.id}`,
+      );
+      await browserExpect(
+        recoveredLeader.getByText('Synthetic missing category mapping', {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await recoveredLeader.screenshot({
+        path: `${h.screenshotsDir}/en-US-recovered-leader.png`,
+        fullPage: true,
+      });
+      await recoveredLeader.context().close();
+      const repaired = (
+        await (await requester.fetch(`/itRepairs/${orphan.id}`)).json()
+      ).data;
+      for (const key of [
+        'number',
+        'submittedAt',
+        'responseDueAt',
+        'resolutionDueAt',
+      ])
+        expect(repaired[key]).toEqual(orphan[key]);
+      const settingsZh = await h.pageFor(await f.admin.session(), {
+        locale: 'zh-CN',
+      });
+      await settingsZh.goto(`${h.origin}${h.basePath}/it-repair-groups`);
+      await settingsZh.getByRole('button', { name: '恢复未分组报修' }).click();
+      await browserExpect(settingsZh.getByRole('status')).toContainText(
+        '暂无匹配的未分组工单',
+      );
+      await settingsZh.screenshot({
+        path: `${h.screenshotsDir}/zh-CN-routing-recovery.png`,
+        fullPage: true,
+      });
+      await settingsZh.context().close();
       await settings.goto(`${h.origin}${h.basePath}/it-repair-groups/calendar`);
       await browserExpect(settings.locator('#window-0-start')).toHaveValue(
         '09:00',

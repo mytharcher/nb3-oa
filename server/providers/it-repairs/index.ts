@@ -113,7 +113,10 @@ export default class RepairProvider extends ServiceProvider<Application> {
           const locale = i18n.getDefaultLocale();
           await i18n.ensureLocaleLoaded(locale);
           const t = i18n.getFixedT('nb3-oa', locale);
-          await c.resolve(notificationServiceToken).send({
+          const notifications = c.resolve(notificationServiceToken);
+          // Accepted notifications retain their original payload/channel and native delivery retries.
+          if (await notifications.getByIdempotencyKey(key)) return;
+          await notifications.send({
             idempotencyKey: key,
             source: { type: 'oa.itRepair', referenceId: id },
             messages: {

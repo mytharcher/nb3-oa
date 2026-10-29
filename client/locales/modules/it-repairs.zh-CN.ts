@@ -1,5 +1,8 @@
 export default {
   itRepairs: {
+    recoverRouting: '恢复未分组报修',
+    recoveryMore: '已恢复 {{count}} 张工单，仍有剩余，请继续恢复。',
+    recoveryDone: '已恢复 {{count}} 张工单，暂无匹配的未分组工单。',
     createdAt: '创建时间',
     asset: '关联本人资产',
     assetCap: '仅显示前 100 项资产，可不关联并填写公共设备位置。',

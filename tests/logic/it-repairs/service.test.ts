@@ -138,6 +138,12 @@ test('draft, frozen submission, replay, concurrency, task rollback and private f
   expect((await service.get(one.id, a.userId, ALL)).responseDueAt).toEqual(
     one.responseDueAt,
   );
+  expect(new Date(holiday.resolutionDueAt!)).toEqual(
+    new Date('2026-11-04T09:00:00Z'),
+  );
+  expect((await service.get(one.id, a.userId, ALL)).resolutionDueAt).toEqual(
+    one.resolutionDueAt,
+  );
   await deps.calendar.removeDay('2026-11-02', null);
   const rollback = await service.save(cmd(), draft, ALL),
     broken = createRepairService({
@@ -185,7 +191,9 @@ test('draft, frozen submission, replay, concurrency, task rollback and private f
   });
   await restarted.runtime.runEffect(runs[0].id);
   await restarted.runtime.runEffect(runs[0].id);
-  expect(delivered).toHaveLength(1);
+  expect(delivered).toHaveLength(2);
+  expect(new Set(delivered).size).toBe(2);
+  expect(delivered.every((key) => key.includes(one.id))).toBe(true);
   // Audit failure must undo task targets, counters, receipts, the lifecycle and uploaded storage objects.
   const auditDraft = await service.save(cmd(), draft, ALL);
   const badAudit = {
@@ -383,4 +391,102 @@ test('draft, frozen submission, replay, concurrency, task rollback and private f
       process.env.OA_IT_REPAIR_MEASUREMENT,
       JSON.stringify(measurement, null, 2),
     );
+}, 60000);
+
+test('routing recovery is bounded, repeatable and preserves frozen intake facts', async ({
+  testApp,
+}) => {
+  const c = testApp.application.container,
+    db = c.resolve(databaseManagerToken),
+    a = await createEmployee(testApp, 'Batch employee'),
+    leader = await createEmployee(testApp, 'Batch leader'),
+    writer = c.resolve(userTaskServiceToken).registerSource('test.recovery');
+  const service = createRepairService({
+    db,
+    writer,
+    audit: c.resolve(auditServiceToken),
+    employees: c.resolve(employeeServiceToken),
+    org: c.resolve(orgServiceToken),
+    users: c.resolve(userAdministrationServiceToken),
+    assets: c.resolve(assetServiceToken),
+    calendar: c.resolve(calendarServiceToken),
+    dictionaries: c.resolve(dictionaryServiceToken),
+    rules: c.resolve(ruleServiceToken),
+    sequences: c.resolve(sequenceServiceToken),
+    files: c.resolve(serverFileRepositoryManagerToken),
+    dispatcher: { dispatch: async () => {} },
+    notify: async () => {},
+  });
+  const cmd = () => ({ actorId: a.userId, requestKey: randomUUID() });
+  const draft = await service.save(
+    cmd(),
+    {
+      title: 'Batch fixture',
+      description: 'Synthetic unassigned repairs',
+      category: 'software',
+      impact: 'partial',
+      location: 'Test office',
+      contact: '',
+      occurredAt: null,
+      assetId: null,
+    },
+    ALL,
+  );
+  const first = await service.submit(
+    { ...cmd(), id: draft.id, expectedVersion: draft.version },
+    ALL,
+  );
+  // Synthetic historical intake rows, each with the same validated frozen facts and distinct document identity.
+  const original = await db
+    .repository('itRepairs')
+    .findOne({ filter: { id: first.id } });
+  for (let i = 0; i < 100; i++)
+    await db.repository('itRepairs').createOne({
+      values: { ...original, id: randomUUID(), number: `IT-BOUND-${i}` },
+    });
+  const configured = await service.configure(
+    { ...cmd(), id: 'batch', expectedVersion: 0 },
+    {
+      id: 'batch',
+      title: 'Batch IT',
+      leaderIds: [leader.userId],
+      engineerIds: [],
+      categories: ['software'],
+      active: true,
+    },
+  );
+  expect(configured.recovery).toEqual({ processed: 100, hasMore: true });
+  expect(
+    await db.repository('itRepairs').count({
+      filter: { status: 'triage', groupId: null, category: 'software' },
+    }),
+  ).toBe(1);
+  const recovery = { ...cmd(), id: 'batch', expectedVersion: 1 };
+  expect(await service.recoverRouting(recovery)).toEqual({
+    processed: 1,
+    hasMore: false,
+  });
+  const receiptCount = await db.repository('itRepairCommands').count();
+  expect(await service.recoverRouting(recovery)).toEqual({
+    processed: 1,
+    hasMore: false,
+  });
+  expect(await db.repository('itRepairCommands').count()).toBe(receiptCount);
+  expect(
+    await service.recoverRouting({ ...cmd(), id: 'batch', expectedVersion: 1 }),
+  ).toEqual({ processed: 0, hasMore: false });
+  const repaired = await service.get(first.id, a.userId, ALL);
+  expect(repaired.groupId).toBe('batch');
+  for (const key of [
+    'number',
+    'submittedAt',
+    'responseDueAt',
+    'resolutionDueAt',
+    'calendarSnapshot',
+    'ruleSnapshot',
+  ])
+    expect(repaired[key]).toEqual(first[key]);
+  expect(await writer.listBySourceKey(first.id, db.connection())).toHaveLength(
+    1,
+  );
 }, 60000);

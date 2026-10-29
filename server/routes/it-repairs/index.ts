@@ -304,6 +304,36 @@ export default [
         });
       },
     );
+    r.post(
+      '/itRepairs/groups/:id/recoverRouting',
+      describeRoute({
+        summary: 'Recover a bounded batch of unassigned triage repairs',
+        responses: response,
+      }),
+      apiValidator(
+        'param',
+        z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/) }),
+      ),
+      apiValidator(
+        'json',
+        z
+          .object({
+            requestKey: z.string().min(1).max(100),
+            expectedVersion: z.number().int().min(1),
+          })
+          .strict(),
+      ),
+      async (ctx) => {
+        await settings(ctx, 'update');
+        return ctx.json({
+          data: await service.recoverRouting({
+            actorId: actor(ctx),
+            id: ctx.req.valid('param').id,
+            ...ctx.req.valid('json'),
+          }),
+        });
+      },
+    );
     r.get(
       '/itRepairs/assets',
       describeRoute({
