@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 env:
-  NB_STUDIO_URL: 'https://studio.v2.test.nocobase.com/main'
+  NB_STUDIO_URL: 'https://web-a-nbstudio.roguehosts.com/main'
 jobs:
   deploy:
     name: Deploy nocooa to Studio
@@ -35,6 +35,8 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - name: Test Studio deployment scripts
+        run: node --test tests/ci/studio-deployment.test.mjs
       - name: Configure private package registry
         run: |
           if [ -z "$NOCOBASE_NPM_PASSWORD" ]; then
