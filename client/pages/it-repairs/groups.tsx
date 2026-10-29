@@ -30,6 +30,7 @@ interface Group {
   engineerIds: string[];
   categories: string[];
   active: boolean;
+  security?: boolean;
   version: number;
 }
 export default function Groups() {
@@ -190,8 +191,16 @@ function GroupEditor({ old }: { old?: Group }) {
     setBusy(true);
     setError(undefined);
     try {
-      const { id, version, title, leaderIds, engineerIds, categories, active } =
-        g;
+      const {
+        id,
+        version,
+        title,
+        leaderIds,
+        engineerIds,
+        categories,
+        active,
+        security,
+      } = g;
       await api.request({
         method: 'POST',
         path: `itRepairs/groups/${encodeURIComponent(id)}`,
@@ -201,6 +210,7 @@ function GroupEditor({ old }: { old?: Group }) {
           engineerIds,
           categories,
           active,
+          security: security ?? false,
           requestKey: key,
           expectedVersion: version,
         },
@@ -262,12 +272,32 @@ function GroupEditor({ old }: { old?: Group }) {
                 />
               </Field>
             ))}
+            <Field orientation='horizontal'>
+              <Checkbox
+                id='group-security'
+                disabled={busy}
+                checked={g.security ?? false}
+                onCheckedChange={(value) =>
+                  patch({
+                    security: !!value,
+                    ...(value ? { categories: [] } : {}),
+                  })
+                }
+              />
+              <FieldLabel htmlFor='group-security'>
+                {t('itRepairs.securityGroup')}
+              </FieldLabel>
+            </Field>
+            <p className='text-sm text-muted-foreground'>
+              {t('itRepairs.securityHelp')}
+            </p>
             {['device', 'network', 'software', 'account', 'other'].map((c) => (
               <Field key={c} orientation='horizontal'>
                 <Checkbox
                   id={`group-${c}`}
-                  disabled={busy}
+                  disabled={busy || g.security}
                   checked={g.categories.includes(c)}
+                  aria-disabled={g.security || undefined}
                   onCheckedChange={(checked) =>
                     patch({
                       categories: checked

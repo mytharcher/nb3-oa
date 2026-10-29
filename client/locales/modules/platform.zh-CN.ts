@@ -306,6 +306,10 @@ const platformZhCN: LocaleResource<PlatformLocale> = {
         rank: '级',
       },
       keys: {
+        itRepair_securityTransfer: {
+          label: '安全转交开关（0关闭，1开启）',
+          description: '隔离验证通过后才开启；生产配置另行授权。',
+        },
         itRepair_acceptanceDays: {
           label: '验收催办（工作日）',
           description: '提交时冻结，不自动关闭报修。',

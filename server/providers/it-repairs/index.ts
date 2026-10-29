@@ -285,6 +285,15 @@ export default class RepairProvider extends ServiceProvider<Application> {
                 read.update('*').options(owned).default(owned),
               ),
           );
+        for (const action of ['reports', 'export'])
+          resource = resource.action(action, (x) =>
+            x
+              .title({ key: `itRepairs.${action}`, ns: 'nb3-oa' })
+              .grant(
+                'itRepairs',
+                read.options(visible, owned).default(visible),
+              ),
+          );
         for (const action of ACTIONS)
           resource = resource.action(action, (x) =>
             x

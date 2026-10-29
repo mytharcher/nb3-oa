@@ -88,6 +88,7 @@ function rule(
 }
 
 export const RULE_DEFINITIONS: readonly RuleDefinition[] = [
+  rule('itRepair.securityTransfer', 'sla', 'integer', 0, { min: 0, max: 1 }),
   rule('itRepair.acceptanceDays', 'sla', 'integer', 2, { min: 1, max: 30 }),
   rule('itRepair.followUpDays', 'sla', 'integer', 2, { min: 1, max: 30 }),
   rule('itRepair.morning', 'calendar', 'workHours', {

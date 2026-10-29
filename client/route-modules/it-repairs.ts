@@ -1,5 +1,5 @@
 import { defineAppRoutes } from '@nocobase/app-client/plugins';
-import { Wrench, Users } from 'lucide-react';
+import { Wrench, Users, ChartNoAxesCombined } from 'lucide-react';
 const view = {
   resource: { type: 'composite' as const, id: 'oa.itRepairs' },
   action: 'view',
@@ -16,6 +16,14 @@ export default defineAppRoutes([
     componentLoader: () => import('../pages/it-repairs/index.js'),
     children: [
       {
+        name: 'it-repairs-filters',
+        path: 'filters',
+        componentLoader: () =>
+          import('../pages/it-repairs/query.js').then((m) => ({
+            default: m.RepairFilters,
+          })),
+      },
+      {
         name: 'it-repairs-new',
         path: 'new',
         authz: { ...view, action: 'create' },
@@ -25,6 +33,29 @@ export default defineAppRoutes([
         name: 'it-repairs-detail',
         path: ':repairId',
         componentLoader: () => import('../pages/it-repairs/detail.js'),
+      },
+    ],
+  },
+  {
+    name: 'it-repair-reports',
+    parent: 'oa-office',
+    path: '/it-repair-reports',
+    auth: 'required',
+    authz: { ...view, action: 'reports' },
+    navigation: {
+      title: 'itRepairs.reports',
+      icon: ChartNoAxesCombined,
+      order: 36,
+    },
+    componentLoader: () => import('../pages/it-repairs/reports.js'),
+    children: [
+      {
+        name: 'it-repair-report-filters',
+        path: 'filters',
+        componentLoader: () =>
+          import('../pages/it-repairs/query.js').then((m) => ({
+            default: m.RepairFilters,
+          })),
       },
     ],
   },

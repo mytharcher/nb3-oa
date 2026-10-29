@@ -1,3 +1,6 @@
+import { getReportTranslator } from '../reports/i18n.js';
+import { stream as streamResponse } from 'hono/streaming';
+import { SUMMARY_FIELDS } from '../../providers/it-repairs/reporting.js';
 import type { NotificationConfig } from '@nocobase/app-plugin-notification';
 import { employeeServiceToken } from '../../providers/employees/contract.js';
 import { assetServiceToken } from '../../providers/assets/contract.js';
@@ -74,11 +77,13 @@ export default [
               reason: e.code,
               message: e.code,
               status:
-                e.code === 'ACCESS_DENIED'
-                  ? 'PERMISSION_DENIED'
-                  : e.code.includes('CONFLICT')
-                    ? 'ABORTED'
-                    : 'INVALID_ARGUMENT',
+                e.code === 'REPORTS_PREPARING'
+                  ? 'UNAVAILABLE'
+                  : e.code === 'ACCESS_DENIED'
+                    ? 'PERMISSION_DENIED'
+                    : e.code.includes('CONFLICT')
+                      ? 'ABORTED'
+                      : 'INVALID_ARGUMENT',
               ...(e.field
                 ? { fieldViolations: [{ field: e.field, description: e.code }] }
                 : {}),
@@ -114,7 +119,48 @@ export default [
         pageSize: z.coerce.number().int().min(1).max(100).default(20),
         q: z.string().max(120).default(''),
         status: z.enum(STATES).optional(),
-        sort: z.enum(['createdAt', 'updatedAt']).default('updatedAt'),
+        groupId: z.string().max(64).optional(),
+        assigneeId: z.string().max(64).optional(),
+        category: z.string().max(32).optional(),
+        priority: z.enum(['P1', 'P2', 'P3', 'P4']).optional(),
+        from: z.iso.datetime({ offset: true }).optional(),
+        to: z.iso.datetime({ offset: true }).optional(),
+        dateField: z
+          .enum([
+            'submittedAt',
+            'createdAt',
+            'updatedAt',
+            'firstRespondedAt',
+            'metricEndedAt',
+          ])
+          .optional(),
+        overdue: z.enum(['all', 'response', 'solution', 'either']).optional(),
+        cohort: z
+          .enum([
+            'submitted',
+            'responses',
+            'responseMet',
+            'userClosed',
+            'solutionMet',
+            'managementClosed',
+            'cancelled',
+            'currentOpen',
+            'responseOverdue',
+            'solutionOverdue',
+            'rated',
+            'waiting',
+          ])
+          .optional(),
+        sort: z
+          .enum([
+            'createdAt',
+            'updatedAt',
+            'submittedAt',
+            'responseDueAt',
+            'resolutionDueAt',
+            'priority',
+          ])
+          .default('updatedAt'),
         direction: z.enum(['asc', 'desc']).default('desc'),
       })
       .strict();
@@ -127,17 +173,166 @@ export default [
       apiValidator('query', query),
       async (ctx) => {
         const q = ctx.req.valid('query');
+        validateRange(q);
         return ctx.json({
-          data: await service.list(
+          data: await service.query.list(
             actor(ctx),
             await policy(ctx, 'view'),
             q.page,
             q.pageSize,
-            q.q,
-            q.status,
-            q.sort,
-            q.direction,
+            q,
           ),
+        });
+      },
+    );
+    async function queryPolicy(ctx: Context<Env>, action: string) {
+      const view = await policy(ctx, 'view'),
+        operation = await policy(ctx, action);
+      return db
+        .repository('itRepairs')
+        .withPolicy(operation)
+        .narrow(view)
+        .explainPolicy();
+    }
+    function validateRange(q: { from?: string; to?: string }) {
+      if (q.from && q.to && +new Date(q.from) >= +new Date(q.to))
+        fail('INVALID_INPUT', 'to');
+    }
+    r.get(
+      '/itRepairs/queryOptions',
+      describeRoute({
+        summary: 'Read authorized repair filter choices',
+        responses: response,
+      }),
+      async (ctx) =>
+        ctx.json({
+          data: await service.queryOptions(
+            actor(ctx),
+            await policy(ctx, 'view'),
+          ),
+        }),
+    );
+    r.get(
+      '/itRepairs/reports',
+      describeRoute({
+        summary: 'Read scoped repair operating statistics',
+        responses: response,
+      }),
+      apiValidator('query', query),
+      async (ctx) => {
+        const q = ctx.req.valid('query');
+        validateRange(q);
+        return ctx.json({
+          data: await service.query.reports(
+            actor(ctx),
+            await queryPolicy(ctx, 'reports'),
+            q,
+          ),
+        });
+      },
+    );
+    r.post(
+      '/itRepairs/export',
+      describeRoute({
+        summary:
+          'Export the authorized public repair cohort and audit the request',
+        responses: response,
+      }),
+      apiValidator(
+        'json',
+        z
+          .object({ requestKey: z.string().min(1).max(100), query: query })
+          .strict(),
+      ),
+      async (ctx) => {
+        const { requestKey, query: q } = ctx.req.valid('json');
+        validateRange(q);
+        const p = await queryPolicy(ctx, 'export');
+        await service.auditExport(actor(ctx), requestKey, q, p);
+        const { t } = await getReportTranslator(app, ctx);
+        const options = await service.queryOptions(actor(ctx), p);
+        const columns = SUMMARY_FIELDS.filter(
+          (k) => !['id', 'requesterId', 'version'].includes(k),
+        );
+        ctx.header('Content-Type', 'text/csv; charset=utf-8');
+        ctx.header(
+          'Content-Disposition',
+          'attachment; filename="it-repairs.csv"',
+        );
+        ctx.header('Cache-Control', 'no-store');
+        const csv = (value: unknown) => {
+          let v =
+            value === null || value === undefined
+              ? ''
+              : value instanceof Date
+                ? value.toISOString()
+                : typeof value === 'string'
+                  ? value
+                  : typeof value === 'number' || typeof value === 'boolean'
+                    ? String(value)
+                    : '';
+          if (/^\s*[=+\-@]|^[\t\r]/.test(v)) v = "'" + v;
+          return '"' + v.replaceAll('"', '""') + '"';
+        };
+        return streamResponse(ctx, async (stream) => {
+          await stream.write(
+            '\uFEFF' +
+              columns
+                .map((k) =>
+                  csv(
+                    t(
+                      k === 'title'
+                        ? 'itRepairs.titleField'
+                        : k === 'number'
+                          ? 'itRepairs.number'
+                          : k === 'status'
+                            ? 'itRepairs.status'
+                            : `itRepairs.query.${k}`,
+                    ),
+                  ),
+                )
+                .join(',') +
+              '\r\n',
+          );
+          let after: string | undefined;
+          while (!stream.aborted) {
+            const { repo, filter } = await service.query.prepare(
+              actor(ctx),
+              p,
+              q,
+            );
+            const rows = await repo.findMany({
+              filter,
+              select: (s) => s.fields(...SUMMARY_FIELDS),
+              sort: (s) => s.field('id').asc(),
+              cursor: after ? { id: after } : undefined,
+              direction: after ? 'forward' : undefined,
+              limit: 100,
+            });
+            if (!rows.length) break;
+            for (const row of rows)
+              await stream.write(
+                columns
+                  .map((k) =>
+                    csv(
+                      k === 'status'
+                        ? t(`itRepairs.states.${String(row[k])}`)
+                        : k === 'category'
+                          ? t(`itRepairs.options.${String(row[k])}`)
+                          : k === 'groupId'
+                            ? (options.groups.find((g) => g.id === row[k])
+                                ?.title ?? '')
+                            : k === 'assigneeId'
+                              ? (options.engineers.find((e) => e.id === row[k])
+                                  ?.name ?? '')
+                              : row[k],
+                    ),
+                  )
+                  .join(',') + '\r\n',
+              );
+            after = rows.at(-1)!.id;
+            if (rows.length < 100) break;
+          }
         });
       },
     );
@@ -290,6 +485,7 @@ export default [
               z.enum(['device', 'network', 'software', 'account', 'other']),
             ),
             active: z.boolean(),
+            security: z.boolean().optional(),
           })
           .strict(),
       ),
@@ -464,6 +660,29 @@ export default [
           await policy(ctx, 'view'),
           ctx.req.valid('query').historyPage,
         );
+        const sourcePolicies: Record<
+          string,
+          import('@nocobase/db').RepositoryPolicy | undefined
+        > = {};
+        for (const [kind, resource, collection] of [
+          ['purchase', 'oa.purchase', 'purchaseRequests'],
+          ['expensePlan', 'oa.expensePlan', 'expensePlans'],
+        ] as const) {
+          const decision = await ctx.get('authz').authorize({
+            resource: { type: 'composite', id: resource },
+            action: 'view',
+          });
+          sourcePolicies[kind] =
+            decision.effect === 'deny'
+              ? undefined
+              : decision.conditions?.database?.[collection];
+        }
+        const references = await service.referenceSummaries(
+          ctx.req.valid('param').id,
+          actor(ctx),
+          await policy(ctx, 'view'),
+          sourcePolicies,
+        );
         const actions = [];
         for (const action of result.actions) {
           try {
@@ -473,7 +692,7 @@ export default [
             /* No grant means no control. */
           }
         }
-        return ctx.json({ data: { ...result, actions } });
+        return ctx.json({ data: { ...result, actions, references } });
       },
     );
     r.post(

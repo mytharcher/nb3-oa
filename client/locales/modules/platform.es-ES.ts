@@ -356,6 +356,11 @@ const platformEnUS = {
         rank: 'nivel',
       },
       keys: {
+        itRepair_securityTransfer: {
+          label: 'Restricted transfer (0 off, 1 on)',
+          description:
+            'Enable only after isolation verification; production configuration needs separate authorization.',
+        },
         itRepair_acceptanceDays: {
           label: 'Acceptance reminder (working days)',
           description:

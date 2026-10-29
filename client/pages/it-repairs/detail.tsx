@@ -345,7 +345,10 @@ export default function RepairDetail() {
           setRow(next);
           parent?.reload?.();
         }}
-        onClose={() => void navigate('..')}
+        onClose={() => {
+          parent?.reload?.();
+          void navigate('..', { state: { focusRepairSearch: true } });
+        }}
       />
     );
   return (
@@ -566,7 +569,10 @@ export default function RepairDetail() {
                     disabled={busy}
                     onClick={() => {
                       if (dirty) setDiscard(true);
-                      else void navigate('..');
+                      else
+                        void navigate('..', {
+                          state: { focusRepairSearch: true },
+                        });
                     }}
                   >
                     {t('actions.cancel')}
@@ -610,7 +616,7 @@ export default function RepairDetail() {
               onClick={() => {
                 leavingRef.current = true;
                 setIsLeaving(true);
-                void navigate('..');
+                void navigate('..', { state: { focusRepairSearch: true } });
               }}
             >
               {t('workItems.leave')}

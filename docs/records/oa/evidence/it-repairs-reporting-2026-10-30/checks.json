@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-30",
+  "timeZone": "Asia/Singapore",
+  "database": "isolated PostgreSQL15",
+  "regression": {
+    "files": 15,
+    "tests": 31,
+    "durationSeconds": 302.59
+  },
+  "followupReporting": {
+    "files": 1,
+    "tests": 1,
+    "durationSeconds": 27.28,
+    "includedInRegressionCount": true,
+    "assertions": [
+      "101-row CSV",
+      "structured filter/paging",
+      "legacy metric503/backfill",
+      "overdue list/report consistency"
+    ]
+  },
+  "groupMembershipSample": {
+    "records": 101,
+    "configuredBatch": 100,
+    "remainingBatch": 1,
+    "configurationMs": 4127,
+    "sqlCount": 5503,
+    "isP95": false
+  },
+  "functionalLedger": {
+    "total": 42,
+    "previousPassEvidence": 29,
+    "newPassEvidence": 13
+  },
+  "capacity": {
+    "records": 100000,
+    "concurrentReaders": 50,
+    "status": "not executed; fourth phase"
+  },
+  "production": "not merged or released",
+  "routeCheck": {
+    "files": 1,
+    "tests": 1,
+    "durationSeconds": 0.75
+  },
+  "browserFinal": {
+    "files": 1,
+    "tests": 1,
+    "durationSeconds": 57.96,
+    "locales": ["en-US", "zh-CN"],
+    "mobileWidth": 375,
+    "desktopWidth": 1440,
+    "darkMode": true
+  },
+  "static": {
+    "clientTypeScript": "pass",
+    "serverTypeScript": "pass",
+    "changedFileESLint": "pass; 0 warnings",
+    "prettier": "pass",
+    "relativeDocumentLinks": "pass"
+  }
+}

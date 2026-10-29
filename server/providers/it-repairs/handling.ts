@@ -18,6 +18,7 @@ export const OPEN = STATES.filter(
   (s) => !['draft', 'closed', 'cancelled'].includes(s),
 );
 export const ACTIONS = [
+  'transferSecurity',
   'requestSupplement',
   'supplement',
   'triage',
@@ -70,6 +71,7 @@ export interface Processing {
   rating?: number;
   evaluation?: string;
   round?: number;
+  returnCount?: number;
   duplicateId?: string;
   alerted?: string[];
 }
@@ -94,9 +96,15 @@ export function edges() {
       ],
     };
   };
+  for (const s of OPEN)
+    add(
+      'transferSecurity',
+      s,
+      ['acceptance', 'supplement'].includes(s) ? s : 'triage',
+    );
   add('requestSupplement', 'triage', 'supplement');
   add('supplement', 'supplement', 'triage');
-  for (const to of ['pool', 'assigned']) add('triage', 'triage', to);
+  for (const to of ['pool', 'assigned', 'triage']) add('triage', 'triage', to);
   for (const from of ['pool', 'assigned', 'processing', 'waiting'])
     add('assign', from, from === 'pool' ? 'assigned' : from);
   add('claim', 'pool', 'assigned');

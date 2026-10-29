@@ -1,3 +1,4 @@
+import { createRepairQueries, metricsOf, METRIC_FIELDS } from './reporting.js';
 import type { Knex } from 'knex';
 import type { FilterBuilder } from '@nocobase/db';
 import { createHash, randomUUID } from 'node:crypto';
@@ -65,6 +66,7 @@ export const INPUT_FIELDS = [
   'assetId',
 ] as const;
 export const FIELDS = [
+  ...METRIC_FIELDS,
   'id',
   'requesterId',
   'number',
@@ -111,6 +113,7 @@ export interface Repair extends RepositoryRecord {
   processing?: Processing | null;
 }
 export interface Group extends RepositoryRecord {
+  security?: boolean;
   routingCursor?: string | null;
   id: string;
   title: string;
@@ -407,6 +410,19 @@ export function createRepairService(d: {
           );
     },
   });
+  const projectMetrics = async ({
+    record,
+    transactionHandle,
+  }: {
+    record: Repair;
+    transactionHandle: unknown;
+  }) => {
+    const tx = transactionHandle as DatabaseConnection;
+    await tx.repository('itRepairs').updateMany({
+      filter: { id: record.id, version: record.version },
+      values: metricsOf(record, now()),
+    });
+  };
   const lifecycle = defineLifecycle<{ record: Repair; state: string }>({
     name: 'oa.itRepair',
     collection: 'itRepairs',
@@ -419,7 +435,11 @@ export function createRepairService(d: {
       ...Object.fromEntries(
         Object.entries(edges()).map(([key, edge]) => [
           key,
-          { ...edge, effects: key.startsWith('timer_') ? [] : [updateNotice] },
+          {
+            ...edge,
+            onTransition: projectMetrics,
+            effects: key.startsWith('timer_') ? [] : [updateNotice],
+          },
         ]),
       ),
       edit: {
@@ -432,11 +452,13 @@ export function createRepairService(d: {
         from: 'triage',
         to: 'triage',
         accept: ['updatedAt', 'groupId'],
+        onTransition: projectMetrics,
         effects: [notice],
       },
       submit: {
         from: 'draft',
         to: 'triage',
+        onTransition: projectMetrics,
         effects: [notice],
         accept: [
           'number',
@@ -795,6 +817,11 @@ export function createRepairService(d: {
     }
     if (leader) {
       a.push('priority', 'internal', 'comment', 'manageClose', 'link');
+      if (
+        (await d.rules.get<number>('itRepair.securityTransfer', now(), tx)) ===
+        1
+      )
+        a.push('transferSecurity');
       if (row.status === 'triage') a.push('requestSupplement', 'triage');
       if (['pool', 'assigned', 'processing', 'waiting'].includes(row.status))
         a.push('assign');
@@ -968,6 +995,7 @@ export function createRepairService(d: {
             expect: { version: row.version },
             input: {
               updatedAt: now().toISOString(),
+              nextDueAt: now().toISOString(),
               processing: (await noticeProcessing(row, tx)) as JsonObject,
             },
             transaction: tx,
@@ -1086,6 +1114,7 @@ export function createRepairService(d: {
     referencePolicy?: RepositoryPolicy,
   ) {
     const accepted: Record<Action, string[]> = {
+      transferSecurity: ['groupId', 'reason'],
       requestSupplement: ['reason'],
       supplement: ['message'],
       triage: [
@@ -1199,6 +1228,56 @@ export function createRepairService(d: {
           });
           break;
         }
+        case 'transferSecurity': {
+          reason();
+          const enabled = await d.rules.snapshot(
+            ['itRepair.securityTransfer'],
+            at,
+            tx,
+          );
+          if (enabled['itRepair.securityTransfer'] !== 1)
+            fail('SECURITY_TRANSFER_DISABLED');
+          const target = await tx.repository<Group>('itRepairGroups').findOne({
+            filter: {
+              id: text(data, 'groupId', 64),
+              active: true,
+              security: true,
+            },
+          });
+          if (
+            !target ||
+            target.id === row.groupId ||
+            !(
+              await Promise.all(
+                target.leaderIds
+                  .filter((id) => id !== row.requesterId)
+                  .map((id) => active(id, tx)),
+              )
+            ).some(Boolean)
+          )
+            fail('INVALID_INPUT', 'groupId');
+          await holdGroup(tx, target.id);
+          values.groupId = target.id;
+          values.assigneeId = null;
+          if (status !== 'acceptance' && status !== 'supplement') {
+            if (p.waitSince)
+              p.waitHours =
+                (p.waitHours ?? 0) +
+                cal.workingHoursBetween(new Date(p.waitSince), at);
+            if (p.pauseSince) {
+              p.pausedHours =
+                (p.pausedHours ?? 0) +
+                cal.workingHoursBetween(new Date(p.pauseSince), at);
+              p.runningSince = iso;
+            }
+            p.waitSince = null;
+            p.pauseSince = null;
+            p.pauseRequested = false;
+            p.followUpAt = null;
+            status = 'triage';
+          }
+          break;
+        }
         case 'requestSupplement':
           reason();
           status = 'supplement';
@@ -1218,6 +1297,8 @@ export function createRepairService(d: {
             const target = await tx
               .repository<Group>('itRepairGroups')
               .findOne({ filter: { id: String(data.groupId), active: true } });
+            if (target?.security || (await groupFor(row, tx))?.security)
+              fail('ACCESS_DENIED');
             if (!target?.leaderIds.includes(input.actorId))
               fail('ACCESS_DENIED');
             await holdGroup(tx, target.id);
@@ -1248,7 +1329,14 @@ export function createRepairService(d: {
           if (data.assigneeId) {
             await assign(data.assigneeId);
             status = 'assigned';
-          } else status = 'pool';
+          } else {
+            const target = { ...row, ...values },
+              g = await groupFor(target, tx);
+            const available = await Promise.all(
+              (g?.engineerIds ?? []).map((id) => qualified(target, id, tx)),
+            );
+            status = available.some(Boolean) ? 'pool' : 'triage';
+          }
           break;
         }
         case 'assign':
@@ -1403,6 +1491,9 @@ export function createRepairService(d: {
           break;
         case 'return':
           reason();
+          p.returnCount =
+            (p.returnCount ??
+              Number(row.returnCount ?? Math.max(0, (p.round ?? 0) - 1))) + 1;
           delete p.resolutionTargetHours;
           delete p.completedResolutionDueAt;
           p.acceptanceHours =
@@ -1533,13 +1624,22 @@ export function createRepairService(d: {
           .toISOString();
       }
       thresholdAlerts.push(...settleThresholds(candidate, p, at));
+      if (action === 'triage' && status === 'triage') {
+        const key = `noCandidates:${candidate.groupId}`;
+        if (!p.alerted?.includes(key)) {
+          p.alerted = [...(p.alerted ?? []), key];
+          thresholdAlerts.push(key);
+        }
+      }
       Object.assign(
         p,
         await noticeProcessing(
           candidate,
           tx,
           action === 'internal',
-          action === 'assign' ? row.assigneeId : null,
+          ['assign', 'transferSecurity'].includes(action)
+            ? row.assigneeId
+            : null,
         ),
       );
 
@@ -1549,7 +1649,17 @@ export function createRepairService(d: {
       });
       await check(
         tx,
-        policy,
+        action === 'transferSecurity'
+          ? {
+              ...policy,
+              update:
+                policy.update === true
+                  ? true
+                  : policy.update
+                    ? { ...policy.update, scope: true }
+                    : false,
+            }
+          : policy,
         { ...values, status, statusChangedAt: at, version: row.version + 1 },
         row.id,
       );
@@ -1597,6 +1707,16 @@ export function createRepairService(d: {
         row,
         typeof data.reason === 'string' ? data.reason : undefined,
       );
+      if (
+        action === 'transferSecurity' &&
+        !(await canRead(result, input.actorId, tx))
+      )
+        return {
+          id: result.id,
+          status: result.status,
+          version: result.version,
+          transferred: true,
+        };
       return present(result, input.actorId, tx);
     }).catch((error) => {
       if (
@@ -1654,6 +1774,14 @@ export function createRepairService(d: {
         })
       : [];
     return {
+      securityTargets:
+        (await isLeader(row, actorId, tx)) &&
+        (await d.rules.get<number>('itRepair.securityTransfer', now(), tx)) ===
+          1
+          ? (await groups(tx))
+              .filter((g) => g.security && g.id !== row.groupId)
+              .map((g) => ({ id: g.id, title: g.title }))
+          : [],
       internalFiles: internal
         ? (
             await tx.repository('itRepairFiles').findMany({
@@ -1692,8 +1820,36 @@ export function createRepairService(d: {
           : null,
     };
   }
+  async function rebuildMetrics(limit = 100) {
+    const rows = await d.db.repository<Repair>('itRepairs').findMany({
+      filter: (f) =>
+        f.and([
+          f.string('status').ne('draft'),
+          f.number('metricRevision').empty(),
+        ]),
+      sort: (s) => s.field('id').asc(),
+      limit,
+    });
+    for (const candidate of rows)
+      await d.db.transaction(async (tx) => {
+        const row = await tx.repository<Repair>('itRepairs').findOne({
+          filter: { id: candidate.id, version: candidate.version },
+        });
+        if (!row) return;
+        const returns = await tx
+          .repository('itRepairEvents')
+          .count({ filter: { repairId: row.id, type: 'return' } });
+        await tx.repository('itRepairs').updateMany({
+          filter: { id: row.id, version: row.version, metricRevision: null },
+          values: { ...metricsOf(row, now()), returnCount: returns },
+        });
+      });
+    return rows.length;
+  }
   /** Bounded index scan, one transaction per due record, idempotent event keys survive restarts. */
+  let eligibilityCursor: string | undefined;
   async function tick(limit = 100) {
+    await rebuildMetrics(limit);
     const pending = await d.db.repository<Group>('itRepairGroups').findMany({
       filter: (f) => f.string('routingCursor').notEmpty(),
       limit: 10,
@@ -1723,8 +1879,59 @@ export function createRepairService(d: {
       sort: (s) => s.field('nextDueAt').asc(),
       limit,
     });
+    // Read-only bounded eligibility repair scan; valid rows are never rewritten.
+    const eligibility = await d.db.repository<Repair>('itRepairs').findMany({
+      filter: (f) =>
+        f.and([
+          f.string('assigneeId').notEmpty(),
+          ...['draft', 'closed', 'cancelled'].map((state) =>
+            f.string('status').ne(state),
+          ),
+        ]),
+      sort: (s) => s.field('id').asc(),
+      cursor: eligibilityCursor ? { id: eligibilityCursor } : undefined,
+      direction: eligibilityCursor ? 'forward' : undefined,
+      limit,
+    });
+    eligibilityCursor =
+      eligibility.length === limit ? eligibility.at(-1)!.id : undefined;
+    const assigneeIds = [
+      ...new Set(
+        eligibility.flatMap((row) => (row.assigneeId ? [row.assigneeId] : [])),
+      ),
+    ];
+    const people = assigneeIds.length
+      ? await d.users.list({
+          userIds: assigneeIds,
+          pageSize: 100,
+          kind: 'person',
+        })
+      : { items: [] };
+    const accounts = new Map(people.items.map((user) => [user.id, user]));
+    const employees = await d.employees.getByUserIds(assigneeIds);
+    const currentGroups = new Map(
+      (await groups(d.db.connection())).map((group) => [group.id, group]),
+    );
+    const invalid: Repair[] = eligibility.filter((row) => {
+      const id = row.assigneeId!,
+        account = accounts.get(id),
+        employee = employees.get(id),
+        group = currentGroups.get(row.groupId ?? '');
+      return (
+        !row.processing?.alerted?.includes(`invalidAssignee:${id}`) &&
+        (!account ||
+          account.disabledAt ||
+          !employee?.active ||
+          employee.status === 'left' ||
+          !group?.engineerIds.includes(id) ||
+          id === row.requesterId)
+      );
+    });
+    const selected = [
+      ...new Map([...invalid, ...rows].map((row) => [row.id, row])).values(),
+    ].slice(0, limit);
     let changed = 0;
-    for (const candidate of rows) {
+    for (const candidate of selected) {
       try {
         await d.db.transaction(async (tx) => {
           const row = await tx
@@ -1766,6 +1973,18 @@ export function createRepairService(d: {
             p.cancelFollowUpAt = cal
               .addWorkingDays(at, Number(values['itRepair.followUpDays'] ?? 2))
               .toISOString();
+          }
+          if (['triage', 'pool'].includes(row.status)) {
+            const g = await groupFor(row, tx);
+            if (
+              g &&
+              !(
+                await Promise.all(
+                  g.engineerIds.map((id) => qualified(row, id, tx)),
+                )
+              ).some(Boolean)
+            )
+              add(`noCandidates:${row.groupId}`);
           }
           if (row.assigneeId && !(await qualified(row, row.assigneeId, tx)))
             add(`invalidAssignee:${row.assigneeId}`);
@@ -1824,6 +2043,7 @@ export function createRepairService(d: {
     }
     return {
       scanned: rows.length,
+      eligibilityScanned: eligibility.length,
       changed,
       references: await followReferences(limit),
     };
@@ -2031,6 +2251,8 @@ export function createRepairService(d: {
         },
       );
     },
+    query: createRepairQueries({ db: d.db, now, active, groups, fail }),
+    rebuildMetrics,
     async list(
       actorId: string,
       policy: RepositoryPolicy,
@@ -2041,72 +2263,131 @@ export function createRepairService(d: {
       sort: 'createdAt' | 'updatedAt' = 'updatedAt',
       direction: 'asc' | 'desc' = 'desc',
     ) {
-      if (!(await active(actorId, d.db.connection()))) fail('ACCESS_DENIED');
-      const ids = await leaderGroups(actorId, d.db.connection());
-      const poolGroups = (await groups(d.db.connection()))
-        .filter((g) => g.engineerIds.includes(actorId))
-        .map((g) => g.id);
-      const filter = (f: FilterBuilder) =>
-        f.and([
-          f.or([
-            f.string('requesterId').eq(actorId),
-            ...poolGroups.map((id) =>
-              f.and([
-                f.string('assigneeId').eq(actorId),
-                f.string('groupId').eq(id),
-                f.string('requesterId').ne(actorId),
-              ]),
-            ),
-            ...poolGroups.map((id) =>
-              f.and([
-                f.string('status').eq('pool'),
-                f.string('groupId').eq(id),
-                f.string('requesterId').ne(actorId),
-              ]),
-            ),
-            ...(ids.length
-              ? [
-                  f.and([
-                    f.string('status').ne('draft'),
-                    f.or(ids.map((id) => f.string('groupId').eq(id))),
-                  ]),
-                ]
-              : []),
-          ]),
-          ...(q
-            ? [
-                f.or([
-                  f.string('title').includes(q),
-                  f.string('number').includes(q),
-                ]),
-              ]
-            : []),
-          ...(status ? [f.string('status').eq(status)] : []),
-        ]);
-      const repo = d.db.repository<Repair>('itRepairs').withPolicy(policy);
-      return {
-        items: await repo.findMany({
-          select: (s) =>
-            s.fields(
-              'id',
-              'title',
-              'number',
-              'status',
-              'version',
-              'updatedAt',
-              'createdAt',
-              'priority',
-              'groupId',
-              'requesterId',
-            ),
-          filter,
-          sort: (s) =>
-            direction === 'asc' ? s.field(sort).asc() : s.field(sort).desc(),
-          limit: pageSize,
-          offset: (page - 1) * pageSize,
+      return createRepairQueries({ db: d.db, now, active, groups, fail }).list(
+        actorId,
+        policy,
+        page,
+        pageSize,
+        { q, status, sort, direction },
+      );
+    },
+    async referenceSummaries(
+      id: string,
+      actorId: string,
+      viewPolicy: RepositoryPolicy,
+      policies: Record<string, RepositoryPolicy | undefined>,
+    ) {
+      await get(id, actorId, viewPolicy);
+      const tx = d.db.connection();
+      const links = await tx
+        .repository<{
+          id: string;
+          repairId: string;
+          kind: string;
+          sourceId: string;
+        }>('itRepairLinks')
+        .findMany({ filter: { repairId: id }, limit: 100 });
+      return Promise.all(
+        links.map(async (link) => {
+          const p = policies[link.kind];
+          const summary =
+            p && d.references
+              ? await d.references.summary(
+                  link.kind,
+                  actorId,
+                  p,
+                  link.sourceId,
+                  tx,
+                )
+              : null;
+          return summary
+            ? {
+                key: link.id,
+                kind: link.kind,
+                readable: true,
+                number: summary.number,
+                status: summary.status,
+                path: `/${link.kind === 'purchase' ? 'purchase' : 'expensePlan'}/${encodeURIComponent(summary.id)}`,
+              }
+            : { key: link.id, kind: link.kind, readable: false };
         }),
-        total: await repo.count({ filter }),
+      );
+    },
+    async queryOptions(actorId: string, policy: RepositoryPolicy) {
+      const query = createRepairQueries({
+        db: d.db,
+        now,
+        active,
+        groups,
+        fail,
+      });
+      const { repo, scope } = await query.prepare(actorId, policy, {});
+      const groupIds = (
+        await repo.groupBy({
+          by: ['groupId'],
+          filter: scope,
+          aggregate: (a) => ({ count: a.count() }),
+        })
+      )
+        .map((r) => r.groupId)
+        .filter((id): id is string => typeof id === 'string');
+      const accessible = (
+        await d.db.repository<Group>('itRepairGroups').findMany()
+      ).filter((g) => groupIds.includes(g.id));
+      const assignees = (
+        await repo.groupBy({
+          by: ['assigneeId'],
+          filter: scope,
+          aggregate: (a) => ({ count: a.count() }),
+        })
+      )
+        .map((r) => r.assigneeId)
+        .filter((id): id is string => typeof id === 'string');
+      const ids = [
+        ...new Set([...assignees, ...accessible.flatMap((g) => g.engineerIds)]),
+      ];
+      const employees = await d.employees.getByUserIds(ids);
+      return {
+        groups: accessible.map((g) => ({ id: g.id, title: g.title })),
+        engineers: ids.flatMap((id) => {
+          const e = employees.get(id);
+          return e ? [{ id, name: e.name }] : [];
+        }),
+        actorId,
+        timeZone: await d.rules.get<string>('calendar.timeZone'),
       };
+    },
+    async auditExport(
+      actorId: string,
+      requestKey: string,
+      query: import('./reporting.js').RepairQuery,
+      policy: RepositoryPolicy,
+    ) {
+      await createRepairQueries({
+        db: d.db,
+        now,
+        active,
+        groups,
+        fail,
+      }).prepare(actorId, policy, query);
+      return command(
+        { actorId, requestKey },
+        'export',
+        query,
+        null,
+        async (tx) => {
+          await d.audit.record(
+            {
+              actorId,
+              action: 'itRepair.export',
+              targetType: 'itRepairs',
+              after: { query: JSON.parse(JSON.stringify(query)) as JsonObject },
+            },
+            tx,
+          );
+          return { accepted: true };
+        },
+      );
     },
     async save(input: Command, draft: Draft, policy: RepositoryPolicy) {
       const normalized: Draft = {
@@ -2371,7 +2652,13 @@ export function createRepairService(d: {
       input: Command & { id: string; expectedVersion: number },
       group: Pick<
         Group,
-        'id' | 'title' | 'leaderIds' | 'engineerIds' | 'categories' | 'active'
+        | 'id'
+        | 'title'
+        | 'leaderIds'
+        | 'engineerIds'
+        | 'categories'
+        | 'active'
+        | 'security'
       >,
     ) {
       return command(input, 'configure', group, null, async (tx) => {
@@ -2390,8 +2677,20 @@ export function createRepairService(d: {
           )
         )
           fail('CONFIGURATION_REQUIRED', 'categories');
+        const security = group.security ?? old?.security ?? false;
+        if (security && group.categories.length)
+          fail('INVALID_INPUT', 'categories');
+        if (
+          old &&
+          !!old.security !== security &&
+          (await tx
+            .repository('itRepairs')
+            .exists({ filter: { groupId: old.id } }))
+        )
+          fail('INVALID_INPUT', 'security');
         const values = {
           ...group,
+          security,
           version: input.expectedVersion + 1,
           updatedAt: now(),
         };

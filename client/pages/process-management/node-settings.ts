@@ -21,6 +21,7 @@ export const nodeRuleBindings: Readonly<
       'itRepair.P3.resolution',
       'itRepair.P4.response',
       'itRepair.P4.resolution',
+      'itRepair.securityTransfer',
       'itRepair.acceptanceDays',
       'itRepair.followUpDays',
     ],

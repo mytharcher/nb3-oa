@@ -1,5 +1,6 @@
+import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import {
   useApiClient,
   useToaster,
@@ -36,6 +37,15 @@ import { Failure, Loading } from '../work-items/states.js';
 import { OptionSelect } from '../work-items/select.js';
 import type { Item } from './index.js';
 interface Handling {
+  references?: {
+    key: string;
+    kind: string;
+    readable: boolean;
+    number?: string;
+    status?: string;
+    path?: string;
+  }[];
+  securityTargets?: { id: string; title: string }[];
   hasMoreHistory: boolean;
   internalFiles: string[];
   groups: {
@@ -65,6 +75,7 @@ interface Handling {
   } | null;
 }
 const fields: Record<string, string[]> = {
+  transferSecurity: ['groupId', 'reason'],
   link: ['sourceId', 'reason'],
   requestSupplement: ['reason'],
   supplement: ['message'],
@@ -95,6 +106,10 @@ export function HandlingDetail({
   onChange: (r: Item) => void;
   onClose: () => void;
 }) {
+  const sourcePage = useCan({
+    resource: { type: 'page', id: 'oa.approvals' },
+    action: 'access',
+  });
   const { t, i18n } = useTranslation(),
     api = useApiClient(),
     toast = useToaster(),
@@ -238,6 +253,17 @@ export function HandlingDetail({
           expectedVersion: row.version,
         },
       });
+      if (action === 'transferSecurity') {
+        leavingRef.current = true;
+        setFiles([]);
+        setData({});
+        onClose();
+        toast.show({
+          title: tr('securityTransferred', { number: row.number }),
+          type: 'success',
+        });
+        return;
+      }
       onChange(result.data);
       context.reload();
       closeAction();
@@ -263,7 +289,12 @@ export function HandlingDetail({
       ['category', 'groupId', 'reason', 'assigneeId'].includes(name)
     ) &&
     !(action === 'comment' && name === 'advice');
-  const destructive = ['cancel', 'duplicate', 'manageClose'].includes(action);
+  const destructive = [
+    'cancel',
+    'duplicate',
+    'manageClose',
+    'transferSecurity',
+  ].includes(action);
   const format = (value: string) =>
     new Date(value).toLocaleString(i18n.language);
   function eventLines(event: Handling['events'][number]): [string, string][] {
@@ -274,7 +305,7 @@ export function HandlingDetail({
         [
           tr('sourceProgress'),
           tr(
-            `sourceStates.${['approved', 'rejected', 'withdrawn', 'cancelled', 'received', 'accepted'].includes(String(event.data.status)) ? String(event.data.status) : 'pending'}`,
+            `sourceStates.${['draft', 'head', 'purchasing', 'exception', 'finance', 'executive', 'gm', 'revision', 'terminated', 'awaitingReceipt', 'approved', 'rejected', 'withdrawn', 'cancelled', 'received', 'accepted'].includes(String(event.data.status)) ? String(event.data.status) : 'pending'}`,
           ),
         ],
       ];
@@ -397,7 +428,11 @@ export function HandlingDetail({
                 {(fields[action] ?? []).map((name) => (
                   <Field key={name}>
                     <FieldLabel htmlFor={`handling-${name}`}>
-                      {tr(`handlingFields.${name}`)}
+                      {tr(
+                        action === 'transferSecurity' && name === 'groupId'
+                          ? 'query.groupId'
+                          : `handlingFields.${name}`,
+                      )}
                       {required(name) ? (
                         <span aria-hidden='true'> *</span>
                       ) : null}
@@ -410,12 +445,16 @@ export function HandlingDetail({
                         disabled={busy}
                         onChange={(v) => {
                           update(name, v === 'none' ? '' : v);
-                          if (name === 'groupId') update('assigneeId', '');
+                          if (name === 'groupId' && action === 'triage')
+                            update('assigneeId', '');
                         }}
                         options={[
                           { value: 'none', label: tr('options.none') },
                           ...(name === 'groupId'
-                            ? (context.data?.data.groups ?? []).map((g) => ({
+                            ? (action === 'transferSecurity'
+                                ? (context.data?.data.securityTargets ?? [])
+                                : (context.data?.data.groups ?? [])
+                              ).map((g) => ({
                                 value: g.id,
                                 label: g.title,
                               }))
@@ -674,6 +713,31 @@ export function HandlingDetail({
                         {tr('olderHistory')}
                       </Button>
                     </div>
+                    {context.data.data.references?.length ? (
+                      <section>
+                        <h3 className='font-medium'>{tr('linkedSources')}</h3>
+                        {context.data.data.references.map((source) => (
+                          <p key={source.key} className='text-sm'>
+                            {source.readable ? (
+                              <>
+                                {source.number} ·{' '}
+                                {tr(`sourceStates.${source.status}`)}
+                                {sourcePage.can && source.path ? (
+                                  <Link
+                                    className='ml-2 underline'
+                                    to={source.path}
+                                  >
+                                    {tr('openSource')}
+                                  </Link>
+                                ) : null}
+                              </>
+                            ) : (
+                              tr('restrictedSource')
+                            )}
+                          </p>
+                        ))}
+                      </section>
+                    ) : null}
                     <BusinessAttachmentList
                       files={files.filter(
                         (f) =>
@@ -777,6 +841,7 @@ export function HandlingDetail({
             ) : (
               <>
                 <OptionSelect
+                  ariaLabel={tr('selectAction')}
                   disabled={busy}
                   value={chosen}
                   onChange={setChosen}
@@ -812,14 +877,23 @@ export function HandlingDetail({
                 {tr(`actions.${action}`)} · {row.number}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                {tr('destructiveConfirm', { number: row.number })}
+                {tr(
+                  action === 'transferSecurity'
+                    ? 'securityConfirm'
+                    : 'destructiveConfirm',
+                  { number: row.number },
+                )}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={busy}>
                 {t('actions.cancel')}
               </AlertDialogCancel>
-              <AlertDialogAction disabled={busy} onClick={() => void submit()}>
+              <AlertDialogAction
+                variant='destructive'
+                disabled={busy}
+                onClick={() => void submit()}
+              >
                 {tr(`actions.${action}`)}
               </AlertDialogAction>
             </AlertDialogFooter>

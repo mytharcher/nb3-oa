@@ -14,3 +14,6 @@
 - [第二阶段界面验收](records/oa/it-repairs-handling-ui-2026-10-29.md)
 
 - [2026-10-30 通知与阈值修复](records/oa/it-repairs-thresholds-2026-10-30.md)
+
+- [2026-10-30 报表、导出与42项台账](records/oa/it-repairs-reporting-2026-10-30.md)
+- [第三阶段界面验收](records/oa/it-repairs-reporting-ui-2026-10-30.md)

@@ -1,8 +1,11 @@
+import { repairQuery, useRepairOptions } from './query-state.js';
+import { ExportRepairs, QuerySummary, RepairAdminLinks } from './query.js';
 import { TruncatedText } from '#components/truncated-text';
 import { useIsMobile } from '#hooks/use-mobile';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
-import { Link, Outlet } from 'react-router';
+import { Link, Outlet, useLocation } from 'react-router';
+import { useEffect, useRef } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useBusinessResource } from '#hooks/use-business-resource';
 import { useUrlSearch } from '#hooks/use-url-search';
@@ -39,6 +42,7 @@ export interface Item {
   responseDueAt: string | null;
   resolutionDueAt: string | null;
   groupId: string | null;
+  priority: string | null;
   assigneeId?: string | null;
   processing?: {
     cancelPending?: boolean;
@@ -49,6 +53,16 @@ export interface Item {
 }
 
 export default function Repairs() {
+  const location = useLocation(),
+    searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (
+      (location.state as { focusRepairSearch?: boolean } | null)
+        ?.focusRepairSearch &&
+      location.pathname.endsWith('/it-repairs')
+    )
+      searchRef.current?.focus();
+  }, [location]);
   const mobile = useIsMobile();
   const { t, i18n } = useTranslation(),
     {
@@ -73,8 +87,22 @@ export default function Repairs() {
     ].includes(params.get('status') ?? '')
       ? params.get('status')!
       : 'all',
-    sort = params.get('sort') === 'createdAt' ? 'createdAt' : 'updatedAt',
+    sort = [
+      'createdAt',
+      'updatedAt',
+      'submittedAt',
+      'responseDueAt',
+      'resolutionDueAt',
+      'priority',
+    ].includes(params.get('sort') ?? '')
+      ? params.get('sort')!
+      : 'updatedAt',
     direction = params.get('direction') === 'asc' ? 'asc' : 'desc';
+  const options = useRepairOptions(),
+    reports = useCan({
+      resource: { type: 'composite', id: 'oa.itRepairs' },
+      action: 'reports',
+    });
   const create = useCan({
     resource: { type: 'composite', id: 'oa.itRepairs' },
     action: 'create',
@@ -82,6 +110,7 @@ export default function Repairs() {
   const r = useBusinessResource<{ data: { items: Item[]; total: number } }>(
     'itRepairs',
     {
+      ...repairQuery(params),
       page: String(page),
       pageSize: '20',
       q: search,
@@ -95,10 +124,12 @@ export default function Repairs() {
       {t('itRepairs.create')}
     </Button>
   );
-  const filtered = !!search || status !== 'all',
+  const filtered = Object.keys(repairQuery(params)).some(
+      (k) => !['sort', 'direction'].includes(k),
+    ),
     reset = () =>
       clear((p) => {
-        p.delete('status');
+        for (const key of Object.keys(repairQuery(params))) p.delete(key);
         p.delete('page');
       });
   const columns: ColumnDef<Item>[] = [
@@ -107,12 +138,24 @@ export default function Repairs() {
       enableSorting: false,
       header: t('itRepairs.titleField'),
       cell: ({ row }) => (
-        <Link
-          className='block max-w-48 truncate font-medium text-foreground hover:underline underline-offset-4'
-          to={{ pathname: row.original.id, search: `?${params}` }}
-        >
-          <TruncatedText text={row.original.title || t('itRepairs.untitled')} />
-        </Link>
+        <div className='flex max-w-48 flex-col gap-1'>
+          <Link
+            className='block truncate font-medium text-foreground hover:underline underline-offset-4'
+            to={{ pathname: row.original.id, search: `?${params}` }}
+          >
+            <TruncatedText
+              text={row.original.title || t('itRepairs.untitled')}
+            />
+          </Link>
+          {mobile && row.original.resolutionDueAt ? (
+            <span className='text-xs text-muted-foreground whitespace-normal'>
+              {t('itRepairs.query.resolutionDueAt')}:{' '}
+              {new Date(row.original.resolutionDueAt).toLocaleString(
+                i18n.language,
+              )}
+            </span>
+          ) : null}
+        </div>
       ),
     },
     {
@@ -168,6 +211,63 @@ export default function Repairs() {
       ),
     },
   ];
+  columns.splice(
+    2,
+    0,
+    ...(
+      [
+        'priority',
+        'groupId',
+        'assigneeId',
+        'responseDueAt',
+        'resolutionDueAt',
+      ] as const
+    ).map((key) => ({
+      accessorKey: key,
+      enableSorting: ['priority', 'responseDueAt', 'resolutionDueAt'].includes(
+        key,
+      ),
+      header: ({
+        column,
+      }: {
+        column: import('@tanstack/react-table').Column<Item, unknown>;
+      }) =>
+        ['priority', 'responseDueAt', 'resolutionDueAt'].includes(key) ? (
+          <DataTableColumnHeader
+            column={column}
+            title={t(`itRepairs.query.${key}`)}
+          />
+        ) : (
+          t(`itRepairs.query.${key}`)
+        ),
+      cell: ({ row }: { row: import('@tanstack/react-table').Row<Item> }) =>
+        key === 'priority' ? (
+          <Badge variant='outline'>{row.original.priority ?? '—'}</Badge>
+        ) : (
+          <span className='block max-w-36'>
+            <TruncatedText
+              text={
+                key === 'groupId'
+                  ? (options.data?.data.groups.find(
+                      (g) => g.id === row.original.groupId,
+                    )?.title ?? '—')
+                  : key === 'assigneeId'
+                    ? (options.data?.data.engineers.find(
+                        (g) => g.id === row.original.assigneeId,
+                      )?.name ?? '—')
+                    : key.includes('DueAt')
+                      ? row.original[key]
+                        ? new Date(row.original[key]).toLocaleString(
+                            i18n.language,
+                          )
+                        : '—'
+                      : (row.original.priority ?? '—')
+              }
+            />
+          </span>
+        ),
+    })),
+  );
   return (
     <>
       <PageContainer>
@@ -175,7 +275,16 @@ export default function Repairs() {
           title={t('itRepairs.title')}
           description={t('itRepairs.description')}
           actions={
-            <>
+            <div className='flex w-full flex-wrap items-center gap-2'>
+              {reports.can ? (
+                <Button
+                  variant='outline'
+                  render={<Link to='/it-repair-reports' />}
+                >
+                  {t('itRepairs.reports')}
+                </Button>
+              ) : null}
+              <ExportRepairs params={params} />
               {r.data && (r.data.data.total > 0 || filtered) && create.can
                 ? add
                 : null}
@@ -184,12 +293,13 @@ export default function Repairs() {
                 loading={r.loading}
                 onClick={r.reload}
               />
-            </>
+            </div>
           }
         />
         <ApplicationToolbar>
           <ApplicationSearch
             {...inputProps}
+            ref={searchRef}
             placeholder={t('itRepairs.search')}
           />
           <OptionSelect
@@ -202,7 +312,19 @@ export default function Repairs() {
                 p.delete('page');
               })
             }
-            options={['all', 'draft', 'triage'].map((value) => ({
+            options={[
+              'all',
+              'draft',
+              'triage',
+              'supplement',
+              'pool',
+              'assigned',
+              'processing',
+              'waiting',
+              'acceptance',
+              'closed',
+              'cancelled',
+            ].map((value) => ({
               value,
               label: t(
                 value === 'all'
@@ -212,12 +334,22 @@ export default function Repairs() {
             }))}
             className='w-full sm:w-40'
           />
+          <Button
+            variant='outline'
+            render={<Link to={{ pathname: 'filters', search: `?${params}` }} />}
+          >
+            {t('itRepairs.query.filters')}
+          </Button>
           {filtered ? (
             <Button variant='ghost' onClick={reset}>
               {t('workItems.clear')}
             </Button>
           ) : null}
         </ApplicationToolbar>
+        <QuerySummary params={params} options={options.data?.data} />
+        <div className='flex flex-wrap gap-2'>
+          <RepairAdminLinks />
+        </div>
         {r.loading && !r.data ? (
           <ApplicationTableSkeleton columns={4} />
         ) : r.error ? (
@@ -229,9 +361,15 @@ export default function Repairs() {
                 ? columns.filter(
                     (column) =>
                       !('accessorKey' in column) ||
-                      !['number', 'createdAt'].includes(
-                        String(column.accessorKey),
-                      ),
+                      ![
+                        'number',
+                        'createdAt',
+                        'updatedAt',
+                        'groupId',
+                        'assigneeId',
+                        'responseDueAt',
+                        'resolutionDueAt',
+                      ].includes(String(column.accessorKey)),
                   )
                 : columns
             }
