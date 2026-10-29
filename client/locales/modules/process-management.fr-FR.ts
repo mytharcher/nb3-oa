@@ -478,6 +478,7 @@ export default {
     covered: 'Champs couverts',
     management: 'Intervention administrative',
     kinds: {
+      itRepair: 'IT repair',
       leave: 'Congé',
       overtime: 'Heures supplémentaires',
       leaveCancellation: 'Annulation de congé',

@@ -1,3 +1,4 @@
+import { HandlingDetail } from './handling.js';
 import { LongText } from '#components/long-text';
 import { fieldViolationsOf, statusOf } from '../platform/shared/errors.js';
 import {
@@ -125,6 +126,7 @@ export default function RepairDetail() {
     ? changed
     : JSON.stringify(draft) !== JSON.stringify(initial);
   useNavigationGuard(() => {
+    if (row && row.status !== 'draft') return true;
     if (leavingRef.current) return true;
     if (busy) return false;
     if (dirty) {
@@ -334,6 +336,18 @@ export default function RepairDetail() {
       setBusy(false);
     }
   }
+  if (row && row.status !== 'draft')
+    return (
+      <HandlingDetail
+        key={row.id + location.search}
+        row={row}
+        onChange={(next) => {
+          setRow(next);
+          parent?.reload?.();
+        }}
+        onClose={() => void navigate('..')}
+      />
+    );
   return (
     <>
       <RouteFormPage

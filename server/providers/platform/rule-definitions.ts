@@ -88,6 +88,8 @@ function rule(
 }
 
 export const RULE_DEFINITIONS: readonly RuleDefinition[] = [
+  rule('itRepair.acceptanceDays', 'sla', 'integer', 2, { min: 1, max: 30 }),
+  rule('itRepair.followUpDays', 'sla', 'integer', 2, { min: 1, max: 30 }),
   rule('itRepair.morning', 'calendar', 'workHours', {
     start: '09:00',
     end: '12:00',

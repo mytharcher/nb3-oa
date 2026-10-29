@@ -471,6 +471,7 @@ export default {
     covered: 'Covered fields',
     management: 'Administrator intervention',
     kinds: {
+      itRepair: 'IT repair',
       leave: 'Leave',
       overtime: 'Overtime',
       leaveCancellation: 'Leave cancellation',

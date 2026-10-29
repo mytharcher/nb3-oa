@@ -431,6 +431,7 @@ export default {
     covered: '対象フィールド',
     management: '管理者介入',
     kinds: {
+      itRepair: 'IT repair',
       leave: '休暇',
       overtime: '時間外勤務',
       leaveCancellation: '休暇取消',

@@ -34,11 +34,18 @@ import {
   dictionaryServiceToken,
   calendarServiceToken,
 } from '../platform/index.js';
+import { registerOwnedRequestSearch } from '../request-search/owned-source.js';
+import { purchaseServiceToken } from '../purchases/service.js';
+import { purchaseOrderServiceToken } from '../purchases/contract.js';
+import { expensePlanServiceToken } from '../expense-plan/service.js';
+import { ACTIONS } from './handling.js';
+import type { ScheduleExecutor } from '@nocobase/jobs';
 import { createRepairService, repairServiceToken, FIELDS } from './service.js';
 export * from './service.js';
 export default class RepairProvider extends ServiceProvider<Application> {
   readonly name = 'oa/it-repairs';
   private jobs?: LifecycleJobs;
+  private timers?: ScheduleExecutor;
   override register() {
     const c = this.app.container;
     c.singleton(repairServiceToken, () => {
@@ -63,6 +70,24 @@ export default class RepairProvider extends ServiceProvider<Application> {
         files: c.resolve(serverFileRepositoryManagerToken),
         writer: c.resolve(userTaskServiceToken).registerSource('oa.itRepair'),
         dispatcher: this.jobs,
+        references: {
+          summary: (kind, actorId, policy, id, tx) =>
+            kind === 'purchase'
+              ? c
+                  .resolve(purchaseServiceToken)
+                  .referenceSummary(actorId, policy, id, tx)
+              : c
+                  .resolve(expensePlanServiceToken)
+                  .referenceSummary(actorId, policy, id, tx),
+          changes: (kind, id, cursor, tx) =>
+            kind === 'purchase'
+              ? c.resolve(purchaseServiceToken).referenceChanges(id, cursor, tx)
+              : c
+                  .resolve(expensePlanServiceToken)
+                  .referenceChanges(id, cursor, tx),
+          receipts: (id, tx) =>
+            c.resolve(purchaseOrderServiceToken).referenceProgress(id, tx),
+        },
         notify: async (id, number, recipients, key) => {
           const config =
             this.app.config.get<NotificationConfig>('notification');
@@ -137,6 +162,16 @@ export default class RepairProvider extends ServiceProvider<Application> {
   }
   override async boot() {
     const a = this.app.container.resolve(authorizationToken);
+    registerOwnedRequestSearch(this.app, {
+      kind: 'oa.itRepair',
+      resource: 'oa.itRepairs',
+      collection: 'itRepairs',
+      titleField: 'title',
+      titleType: 'string',
+      applicantField: 'requesterId',
+      validate: (id, actor, policy) =>
+        this.app.container.resolve(repairServiceToken).get(id, actor, policy),
+    });
     a.database.collections.add({
       name: 'itRepairs',
       title: { key: 'itRepairs.title', ns: 'nb3-oa' },
@@ -166,7 +201,26 @@ export default class RepairProvider extends ServiceProvider<Application> {
                 principal.id,
                 this.app.container.resolve(databaseManagerToken).connection(),
               );
+            const pool = await this.app.container
+              .resolve(repairServiceToken)
+              .engineerGroups(principal.id);
             return anyScope([
+              ...pool.map((id) => ({
+                kind: 'group' as const,
+                logic: 'and' as const,
+                items: [
+                  condition('groupId', '$eq', id),
+                  condition('assigneeId', '$eq', principal.id),
+                ],
+              })),
+              ...pool.map((id) => ({
+                kind: 'group' as const,
+                logic: 'and' as const,
+                items: [
+                  condition('groupId', '$eq', id),
+                  condition('status', '$eq', 'pool'),
+                ],
+              })),
               condition('requesterId', '$eq', principal.id),
               ...groups.map((id) => ({
                 kind: 'group' as const,
@@ -184,8 +238,8 @@ export default class RepairProvider extends ServiceProvider<Application> {
       p.collection('itRepairs').read((r) => r.fields(...FIELDS)),
     );
     a.compositeResources.define(
-      defineCompositeResource('oa.itRepairs', (r) =>
-        r
+      defineCompositeResource('oa.itRepairs', (r) => {
+        let resource = r
           .title({ key: 'itRepairs.title', ns: 'nb3-oa' })
           .action('view', (x) =>
             x
@@ -218,8 +272,18 @@ export default class RepairProvider extends ServiceProvider<Application> {
                 'itRepairs',
                 read.update('*').options(owned).default(owned),
               ),
-          ),
-      ),
+          );
+        for (const action of ACTIONS)
+          resource = resource.action(action, (x) =>
+            x
+              .title({ key: `itRepairs.actions.${action}`, ns: 'nb3-oa' })
+              .grant(
+                'itRepairs',
+                read.update('*').options(visible, owned).default(visible),
+              ),
+          );
+        return resource;
+      }),
     );
     a.settings.add({
       id: 'oa.itRepairGroups',
@@ -243,8 +307,27 @@ export default class RepairProvider extends ServiceProvider<Application> {
   override async start() {
     const service = this.app.container.resolve(repairServiceToken);
     await this.jobs!.start(service.runtime);
+    this.timers = this.app.container
+      .resolve(jobExecutorServiceToken)
+      .getScheduleExecutor('oa-it-repair-timers');
+    const config = this.app.config.get<{
+      scanEveryMs: number;
+      batchSize: number;
+    }>('itRepairs') ?? { scanEveryMs: 60000, batchSize: 100 };
+    const batch = Math.min(100, Math.max(1, Math.floor(config.batchSize)));
+    await this.timers.addJob({
+      name: 'deadlines',
+      options: { every: Math.max(1000, config.scanEveryMs) },
+      payload: {},
+      execute: async () => {
+        await service.tick(batch);
+      },
+    });
+    await this.timers.setup();
+    await service.tick(batch);
   }
   override async shutdown() {
+    await this.timers?.shutdown();
     await this.jobs?.shutdown();
   }
 }

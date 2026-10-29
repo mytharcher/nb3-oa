@@ -419,6 +419,7 @@ export default {
     covered: '覆盖字段',
     management: '管理员干预',
     kinds: {
+      itRepair: 'IT 报修',
       leave: '请假',
       overtime: '加班申请',
       leaveCancellation: '销假申请',

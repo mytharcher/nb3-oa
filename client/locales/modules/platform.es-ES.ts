@@ -356,6 +356,15 @@ const platformEnUS = {
         rank: 'nivel',
       },
       keys: {
+        itRepair_acceptanceDays: {
+          label: 'Acceptance reminder (working days)',
+          description:
+            'Frozen on submission; never closes a repair automatically.',
+        },
+        itRepair_followUpDays: {
+          label: 'Follow-up interval (working days)',
+          description: 'Frozen interval after a waiting reminder.',
+        },
         itRepair_morning: {
           label: 'IT repair morning hours',
           description:

@@ -28,6 +28,7 @@ import database from './database.js';
 import snowflake from './snowflake.js';
 import users from './users.js';
 import oaApprovals from './oa-approvals.js';
+import itRepairs from './it-repairs.js';
 import demoMode from './demo-mode.js';
 
 const defaultConfigs: AppConfigFactory<{
@@ -52,6 +53,7 @@ const defaultConfigs: AppConfigFactory<{
   snowflake: ReturnType<typeof snowflake>;
   users: ReturnType<typeof users>;
   oaApprovals: ReturnType<typeof oaApprovals>;
+  itRepairs: ReturnType<typeof itRepairs>;
   demoMode: ReturnType<typeof demoMode>;
 }> = defaultAppConfigs({
   auth,
@@ -83,6 +85,7 @@ const defaultConfigs: AppConfigFactory<{
   snowflake,
   users,
   oaApprovals,
+  itRepairs,
   demoMode,
 });
 

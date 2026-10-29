@@ -39,6 +39,13 @@ export interface Item {
   responseDueAt: string | null;
   resolutionDueAt: string | null;
   groupId: string | null;
+  assigneeId?: string | null;
+  processing?: {
+    cancelPending?: boolean;
+    pauseSince?: string | null;
+    pauseRequested?: boolean;
+    [key: string]: unknown;
+  } | null;
 }
 
 export default function Repairs() {
@@ -52,7 +59,18 @@ export default function Repairs() {
       clear,
     } = useUrlSearch({ resetParams: ['page'] });
   const page = Math.max(1, Number(params.get('page')) || 1),
-    status = ['draft', 'triage'].includes(params.get('status') ?? '')
+    status = [
+      'draft',
+      'triage',
+      'supplement',
+      'pool',
+      'assigned',
+      'processing',
+      'waiting',
+      'acceptance',
+      'closed',
+      'cancelled',
+    ].includes(params.get('status') ?? '')
       ? params.get('status')!
       : 'all',
     sort = params.get('sort') === 'createdAt' ? 'createdAt' : 'updatedAt',

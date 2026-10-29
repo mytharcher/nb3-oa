@@ -116,6 +116,32 @@ export class FrozenCalendar {
     }
     throw new RangeError('Calendar has no working day within a year');
   }
+  /** Advance local working dates at the same clock time, then normalize into a working window. */
+  addWorkingDays(from: Date, count: number): Date {
+    if (!Number.isInteger(count) || count < 0)
+      throw new RangeError('Invalid working days');
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: this.snapshot.timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(from);
+    const minute =
+      Number(parts.find((p) => p.type === 'hour')!.value) * 60 +
+      Number(parts.find((p) => p.type === 'minute')!.value);
+    let day = dayNumberOf(localDateOf(this.snapshot.timeZone, from));
+    for (let left = count, idle = 0; left > 0;) {
+      day++;
+      if (this.windows(day).length) {
+        left--;
+        idle = 0;
+      } else if (++idle > 366) throw new RangeError('No working day');
+    }
+    return this.addWorkingHours(
+      new Date(instantOfLocal(this.snapshot.timeZone, day, minute)),
+      0,
+    );
+  }
   workingHoursBetween(from: Date, to: Date): number {
     if (to < from) return -this.workingHoursBetween(to, from);
     let total = 0;

@@ -19,29 +19,34 @@ import {
   type AppRouteContribution,
 } from '@nocobase/app-server/router';
 import { repairServiceToken } from '../../providers/it-repairs/index.js';
-const principals = new WeakMap<object, string>();
-const routes = defineFileRepositoryApiRoutes<string>({
-  principal: (c) => principals.get(c)!,
-  repositories: [
-    {
-      name: 'itRepairAttachments',
-      collection: 'itRepairFiles',
-      disk: 'local',
-      accessPath: '/uploads/it-repairs',
-      accessMode: 'stream',
-      policy: (id) => ({
-        read: {
-          scope: { repairId: id, purpose: 'fault', visibility: 'public' },
-          fields: FILE_COLUMNS.filter((f) => f !== 'disk' && f !== 'key'),
-        },
-        create: false,
-        update: false,
-        delete: false,
-      }),
-      actions: { findMany: { maxLimit: 10 }, findOne: {} },
-    },
-  ],
-});
+const principals = new WeakMap<object, { id: string; internal: boolean }>();
+const routes = defineFileRepositoryApiRoutes<{ id: string; internal: boolean }>(
+  {
+    principal: (c) => principals.get(c)!,
+    repositories: [
+      {
+        name: 'itRepairAttachments',
+        collection: 'itRepairFiles',
+        disk: 'local',
+        accessPath: '/uploads/it-repairs',
+        accessMode: 'stream',
+        policy: ({ id, internal }) => ({
+          read: {
+            scope: {
+              repairId: id,
+              ...(!internal ? { visibility: 'public' } : {}),
+            },
+            fields: FILE_COLUMNS.filter((f) => f !== 'disk' && f !== 'key'),
+          },
+          create: false,
+          update: false,
+          delete: false,
+        }),
+        actions: { findMany: { maxLimit: 100 }, findOne: {} },
+      },
+    ],
+  },
+);
 export default routes.map((contribution) => ({
   scope: contribution.scope,
   createRouter: async (app: Application) => {
@@ -67,6 +72,7 @@ export default routes.map((contribution) => ({
           status: 'PERMISSION_DENIED',
         });
       let id = ctx.req.header('x-repair-id');
+      let fileVisibility: string | undefined;
       if (contribution.scope === 'root') {
         const fileId = ctx.req.path.split('/').at(-1)?.split('.')[0];
         const f = await db
@@ -79,11 +85,10 @@ export default routes.map((contribution) => ({
           .findOne({
             filter: {
               id: fileId ?? '',
-              purpose: 'fault',
-              visibility: 'public',
             },
           });
         id = f ? f.repairId : undefined;
+        fileVisibility = f?.visibility;
       }
       if (!id) throw denied();
       const decision = await ctx.get('authz').authorize({
@@ -96,13 +101,22 @@ export default routes.map((contribution) => ({
           : undefined;
       if (!policy) throw denied();
       try {
-        await c
-          .resolve(repairServiceToken)
-          .get(id, ctx.get('auth')!.user.id, policy);
+        const service = c.resolve(repairServiceToken);
+        const row = await service.get(id, ctx.get('auth')!.user.id, policy);
+        if (
+          !(await service.fullAccess(row, ctx.get('auth')!.user.id)) ||
+          (fileVisibility === 'internal' &&
+            row.requesterId === ctx.get('auth')!.user.id)
+        )
+          throw denied();
+        principals.set(ctx, {
+          id,
+          internal: row.requesterId !== ctx.get('auth')!.user.id,
+        });
       } catch {
         throw denied();
       }
-      principals.set(ctx, id);
+
       ctx.header('Cache-Control', 'private, no-store');
       ctx.header('X-Content-Type-Options', 'nosniff');
       ctx.header('Content-Security-Policy', 'sandbox');

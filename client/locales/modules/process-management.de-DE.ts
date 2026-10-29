@@ -479,6 +479,7 @@ export default {
     covered: 'Abgedeckte Felder',
     management: 'Administratoreingriff',
     kinds: {
+      itRepair: 'IT repair',
       leave: 'Urlaub',
       overtime: 'Überstunden',
       leaveCancellation: 'Urlaubsstornierung',

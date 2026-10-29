@@ -29,6 +29,7 @@ import {
   RepairError,
   fail,
 } from '../../providers/it-repairs/index.js';
+import { STATES, ACTIONS } from '../../providers/it-repairs/handling.js';
 import attachments from './attachments.js';
 type Env = AuthEnv & AuthorizationEnv;
 const command = z
@@ -112,7 +113,7 @@ export default [
         page: z.coerce.number().int().min(1).default(1),
         pageSize: z.coerce.number().int().min(1).max(100).default(20),
         q: z.string().max(120).default(''),
-        status: z.enum(['draft', 'triage']).optional(),
+        status: z.enum(STATES).optional(),
         sort: z.enum(['createdAt', 'updatedAt']).default('updatedAt'),
         direction: z.enum(['asc', 'desc']).default('desc'),
       })
@@ -351,15 +352,42 @@ export default [
           decision.effect !== 'deny'
             ? decision.conditions?.database?.assets
             : undefined;
-        if (!p) fail('ACCESS_DENIED');
+        const explicit = await ctx.get('authz').authorize({
+          resource: { type: 'composite', id: 'oa.assets' },
+          action: 'reportRepair',
+        });
+        const ep =
+          explicit.effect !== 'deny'
+            ? explicit.conditions?.database?.assets
+            : undefined;
+        if (!p && !ep) fail('ACCESS_DENIED');
         const employee = await c
           .resolve(employeeServiceToken)
           .getByUserId(actor(ctx));
         if (!employee) fail('ACCESS_DENIED');
         const q = ctx.req.valid('query');
-        const list = await c
-          .resolve(assetServiceToken)
-          .list({ ...q, holderEmployeeId: employee.id }, db.connection(), p);
+        const owner = c.resolve(assetServiceToken);
+        const held = p
+          ? await owner.list(
+              { ...q, holderEmployeeId: employee.id },
+              db.connection(),
+              p,
+            )
+          : { rows: [], total: 0 };
+        const extra = ep
+          ? await owner.list(q, db.connection(), ep)
+          : { rows: [], total: 0 };
+        const unique = [
+          ...new Map(
+            [...held.rows, ...extra.rows]
+              .filter((a) => a.status !== 'scrapped')
+              .map((a) => [a.id, a]),
+          ).values(),
+        ];
+        const list = {
+          rows: unique.slice(0, q.pageSize),
+          total: held.total + extra.total,
+        };
         return ctx.json({
           data: {
             items: list.rows.map((row) => ({
@@ -387,23 +415,112 @@ export default [
         );
         let assetLabel: string | null = null;
         if (row.assetId) {
-          const decision = await ctx.get('authz').authorize({
-            resource: { type: 'composite', id: 'oa.assets' },
-            action: 'viewHeld',
-          });
-          const p =
-            decision.effect === 'deny'
-              ? undefined
-              : decision.conditions?.database?.assets;
-          if (p) {
+          for (const action of ['viewHeld', 'reportRepair']) {
+            const decision = await ctx.get('authz').authorize({
+              resource: { type: 'composite', id: 'oa.assets' },
+              action,
+            });
+            const p =
+              decision.effect === 'deny'
+                ? undefined
+                : decision.conditions?.database?.assets;
+            if (!p) continue;
             const asset = await c
               .resolve(assetServiceToken)
               .read(row.assetId, db.connection(), p);
-            if (asset?.name && asset.code)
+            if (asset?.name && asset.code) {
               assetLabel = `${asset.code} · ${asset.name}`;
+              break;
+            }
           }
         }
-        return ctx.json({ data: { ...row, assetLabel } });
+        return ctx.json({
+          data: {
+            ...(await service.present(row, actor(ctx))),
+            ...((await service.fullAccess(row, actor(ctx)))
+              ? { assetLabel }
+              : {}),
+          },
+        });
+      },
+    );
+    r.get(
+      '/itRepairs/:id/handling',
+      describeRoute({
+        summary: 'Read scoped handling context',
+        responses: response,
+      }),
+      apiValidator('param', z.object({ id: z.uuid() })),
+      apiValidator(
+        'query',
+        z.object({
+          historyPage: z.coerce.number().int().min(1).max(10000).default(1),
+        }),
+      ),
+      async (ctx) => {
+        const result = await service.handling(
+          ctx.req.valid('param').id,
+          actor(ctx),
+          await policy(ctx, 'view'),
+          ctx.req.valid('query').historyPage,
+        );
+        const actions = [];
+        for (const action of result.actions) {
+          try {
+            await policy(ctx, action);
+            actions.push(action);
+          } catch {
+            /* No grant means no control. */
+          }
+        }
+        return ctx.json({ data: { ...result, actions } });
+      },
+    );
+    r.post(
+      '/itRepairs/:id/actions',
+      describeRoute({
+        summary: 'Perform a versioned repair action',
+        responses: response,
+      }),
+      apiValidator('param', z.object({ id: z.uuid() })),
+      apiValidator(
+        'json',
+        command.extend({
+          expectedVersion: z.number().int().min(1),
+          action: z.enum(ACTIONS),
+          data: z.record(z.string(), z.unknown()),
+        }),
+      ),
+      async (ctx) => {
+        const { action, data, ...input } = ctx.req.valid('json');
+        let referencePolicy;
+        if (action === 'link') {
+          const kind =
+            data.kind === 'purchase'
+              ? ['oa.purchase', 'purchaseRequests']
+              : data.kind === 'expensePlan'
+                ? ['oa.expensePlan', 'expensePlans']
+                : null;
+          if (!kind) fail('INVALID_INPUT', 'kind');
+          const decision = await ctx.get('authz').authorize({
+            resource: { type: 'composite', id: kind[0] },
+            action: 'view',
+          });
+          referencePolicy =
+            decision.effect !== 'deny'
+              ? decision.conditions?.database?.[kind[1]]
+              : undefined;
+          if (!referencePolicy) fail('ACCESS_DENIED');
+        }
+        return ctx.json({
+          data: await service.act(
+            { ...input, id: ctx.req.valid('param').id, actorId: actor(ctx) },
+            action,
+            data,
+            await policy(ctx, action),
+            referencePolicy,
+          ),
+        });
       },
     );
     r.post(
@@ -441,6 +558,10 @@ export default [
           resource: { type: 'composite', id: 'oa.assets' },
           action: 'viewHeld',
         });
+        const explicit = await ctx.get('authz').authorize({
+          resource: { type: 'composite', id: 'oa.assets' },
+          action: 'reportRepair',
+        });
         return ctx.json({
           data: await service.submit(
             {
@@ -451,6 +572,9 @@ export default [
             p,
             asset.effect !== 'deny'
               ? asset.conditions?.database?.assets
+              : undefined,
+            explicit.effect !== 'deny'
+              ? explicit.conditions?.database?.assets
               : undefined,
           ),
         });
@@ -468,6 +592,10 @@ export default [
         z.object({
           'x-request-key': z.string().min(1).max(100),
           'x-expected-version': z.coerce.number().int().min(1),
+          'x-file-purpose': z
+            .enum(['fault', 'processing', 'resolution'])
+            .default('fault'),
+          'x-file-visibility': z.enum(['public', 'internal']).default('public'),
         }),
       ),
       bodyLimit({
@@ -477,7 +605,20 @@ export default [
         },
       }),
       async (ctx) => {
-        const p = await policy(ctx, 'edit');
+        const headers = ctx.req.valid('header');
+        const current = await service.get(
+          ctx.req.valid('param').id,
+          actor(ctx),
+          await policy(ctx, 'view'),
+        );
+        const p = await policy(
+          ctx,
+          current.status === 'draft'
+            ? 'edit'
+            : headers['x-file-visibility'] === 'internal'
+              ? 'internal'
+              : 'comment',
+        );
         const form = await ctx.req.raw.formData();
         const files = form.getAll('file');
         if (files.length !== 1 || !(files[0] instanceof File))
@@ -491,6 +632,10 @@ export default [
           },
           files[0],
           p,
+          {
+            purpose: headers['x-file-purpose'],
+            visibility: headers['x-file-visibility'],
+          },
         );
         return ctx.json({
           data: {

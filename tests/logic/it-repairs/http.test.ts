@@ -143,7 +143,7 @@ test('real identities enforce API, field, file and service-group isolation with 
         body: form,
       })
     ).status,
-  ).toBe(409);
+  ).toBe(403);
   expect(
     (await db.repository('itRepairs').findOne({ filter: { id: row.id } }))
       ?.version,
@@ -188,4 +188,91 @@ test('real identities enforce API, field, file and service-group isolation with 
   );
   expect(result.status).toBe(200);
   expect((await l.fetch(`/itRepairs/${row.id}`)).status).toBe(403);
+}, 60000);
+
+test('ordinary asset reading does not grant repair reference, dedicated owner authorization does, and stock is unchanged', async ({
+  testApp,
+}) => {
+  const f = await prepareRepairs(testApp),
+    a = await f.a.session(),
+    c = testApp.application.container,
+    db = c.resolve(databaseManagerToken),
+    assets = c.resolve(assetServiceToken);
+  const category = (
+    await c.resolve(dictionaryServiceToken).list('assetCategory')
+  )[0].code;
+  const asset = await assets.create(
+    {
+      code: 'SHARED-REPAIR',
+      name: 'Shared authorized device',
+      category,
+      serialNumber: null,
+      originalValueCents: 100,
+      actorId: f.admin.userId,
+      reason: 'Synthetic',
+    },
+    db.connection(),
+  );
+  const before = await assets.get(asset.id, db.connection());
+  const { grantToUser } = await import('../employees/helpers.js');
+  await grantToUser(
+    testApp,
+    'ordinary-asset-read',
+    [
+      {
+        resource: { type: 'composite', id: 'oa.assets' },
+        actions: [{ action: 'view' }],
+      },
+    ],
+    f.a.userId,
+  );
+  const saved = (
+    await (
+      await a.fetch(
+        '/itRepairs/save',
+        write('POST', {
+          requestKey: randomUUID(),
+          draft: {
+            title: 'Shared device',
+            description: 'Fault',
+            category: 'device',
+            impact: 'partial',
+            location: 'Test office',
+            contact: '',
+            occurredAt: null,
+            assetId: asset.id,
+          },
+        }),
+      )
+    ).json()
+  ).data;
+  const input = { requestKey: randomUUID(), expectedVersion: saved.version };
+  expect(
+    (await a.fetch(`/itRepairs/${saved.id}/submit`, write('POST', input)))
+      .status,
+  ).toBe(400);
+  expect(
+    (await db.repository('itRepairs').findOne({ filter: { id: saved.id } }))
+      ?.status,
+  ).toBe('draft');
+  await grantToUser(
+    testApp,
+    'dedicated-asset-repair',
+    [
+      {
+        resource: { type: 'composite', id: 'oa.assets' },
+        actions: [{ action: 'reportRepair' }],
+      },
+    ],
+    f.a.userId,
+  );
+  const options = (await (await a.fetch('/itRepairs/assets')).json()).data;
+  expect(options.items.some((r: { id: string }) => r.id === asset.id)).toBe(
+    true,
+  );
+  expect(
+    (await a.fetch(`/itRepairs/${saved.id}/submit`, write('POST', input)))
+      .status,
+  ).toBe(200);
+  expect(await assets.get(asset.id, db.connection())).toEqual(before);
 }, 60000);

@@ -306,6 +306,14 @@ const platformZhCN: LocaleResource<PlatformLocale> = {
         rank: '级',
       },
       keys: {
+        itRepair_acceptanceDays: {
+          label: '验收催办（工作日）',
+          description: '提交时冻结，不自动关闭报修。',
+        },
+        itRepair_followUpDays: {
+          label: '等待跟进间隔（工作日）',
+          description: '等待提醒后的冻结跟进间隔。',
+        },
         itRepair_morning: {
           label: '报修上午时段',
           description: '仅新提交报修使用；时段必须有序且不重叠。',

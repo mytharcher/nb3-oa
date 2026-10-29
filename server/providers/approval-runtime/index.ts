@@ -33,6 +33,7 @@ export default class ApprovalQueryProvider extends ServiceProvider<Application> 
     for (const owner of processOwners) {
       if (!(await db.connection().collections.get(owner.collection))) continue;
       const sdk = await owner.sdk(this.app);
+      if (!sdk.approvals) continue;
       for (const source of approvalQuerySources(sdk.approvals))
         this.changes!.register(source);
     }
@@ -41,6 +42,7 @@ export default class ApprovalQueryProvider extends ServiceProvider<Application> 
       if (!['oa.leave', 'oa.leaveCancellation'].includes(owner.kind)) continue;
       if (!(await db.connection().collections.get(owner.collection))) continue;
       const sdk = await owner.sdk(this.app);
+      if (!sdk.approvals) continue;
       this.disposers.push(
         installDelegationWriteBoundary(
           sdk.runtime,

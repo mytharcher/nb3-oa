@@ -36,6 +36,14 @@ export interface AssetService extends AssetClearanceService, AssetStockService {
     tx: DatabaseConnection,
     policy: RepositoryPolicy,
   ): Promise<{ receiptId: string }>;
+  /** Holds or a dedicated reportRepair grant; ordinary asset read permission never qualifies. */
+  repairEligibility(
+    id: string,
+    employeeId: string,
+    connection: DatabaseConnection,
+    heldPolicy?: RepositoryPolicy,
+    explicitPolicy?: RepositoryPolicy,
+  ): Promise<Partial<Asset> | null>;
   read(
     id: string,
     connection: DatabaseConnection,

@@ -128,12 +128,10 @@ export default [
       }),
       apiValidator('query', Query),
       async (ctx) => {
-        const access = await ctx
-          .get('authz')
-          .authorize({
-            resource: { type: 'settings', id: PROCESS_OPERATIONS },
-            action: 'read',
-          });
+        const access = await ctx.get('authz').authorize({
+          resource: { type: 'settings', id: PROCESS_OPERATIONS },
+          action: 'read',
+        });
         if (access.effect === 'deny') denied();
         const query = ctx.req.valid('query'),
           calendar = c.resolve(calendarServiceToken),
@@ -155,12 +153,10 @@ export default [
         for (const source of c.resolve(requestSearchRegistryToken).sources()) {
           const owner = processOwners.find((item) => item.kind === source.kind);
           if (!owner) continue;
-          const decision = await ctx
-            .get('authz')
-            .authorize({
-              resource: { type: 'composite', id: source.resource },
-              action: 'view',
-            });
+          const decision = await ctx.get('authz').authorize({
+            resource: { type: 'composite', id: source.resource },
+            action: 'view',
+          });
           const policy =
             decision.effect === 'deny'
               ? undefined
@@ -183,8 +179,10 @@ export default [
                 batch.slice(offset, offset + 4).map(async (row) => {
                   try {
                     await source.validate(row.id, actorId, policy);
-                    const runs = await sdk.read(() =>
-                      sdk.approvals.runViewsFor(source.kind, row.id),
+                    const runs = await sdk.read(
+                      () =>
+                        sdk.approvals?.runViewsFor(source.kind, row.id) ??
+                        Promise.resolve([]),
                     );
                     const first = Math.min(
                       ...runs.map((view) => Date.parse(view.run.startedAt)),

@@ -9,3 +9,6 @@
 - [设计索引](designs/README.md)
 - [记录索引](records/README.md)
 - [2026-10-29 通知与路由恢复验证](records/oa/it-repairs-recovery-2026-10-29.md)
+
+- [第二阶段办理与42项台账](records/oa/it-repairs-handling-2026-10-29.md)
+- [第二阶段界面验收](records/oa/it-repairs-handling-ui-2026-10-29.md)

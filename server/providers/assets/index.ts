@@ -30,6 +30,20 @@ export const assetResource = defineCompositeResource('oa.assets', (r) =>
         defineDatabasePermission((p) => p.collection('assets').read('*')),
       ),
     )
+    .action('reportRepair', (a) =>
+      a.title({ key: 'itRepairs.assetAuthorization', ns: 'nb3-oa' }).grant(
+        'assets',
+        defineDatabasePermission((p) =>
+          p
+            .collection('assets')
+            .read((r) =>
+              r
+                .fields('id', 'code', 'name', 'status', 'holderEmployeeId')
+                .recordAccess('allRecords'),
+            ),
+        ),
+      ),
+    )
     .action('viewHeld', (a) =>
       a.title({ key: 'assets.authz.viewHeld', ns: 'nb3-oa' }).grant(
         'assets',

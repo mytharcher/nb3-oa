@@ -36,6 +36,16 @@ import {
   type CalendarService,
 } from '../platform/index.js';
 
+import { localDateOf } from '../platform/time-zone.js';
+import {
+  STATES,
+  OPEN,
+  edges,
+  clock,
+  deadlines,
+  type Action,
+  type Processing,
+} from './handling.js';
 export const CATEGORIES = [
   'device',
   'network',
@@ -72,6 +82,9 @@ export const FIELDS = [
   'submissionSnapshot',
   'calendarSnapshot',
   'ruleSnapshot',
+  'assigneeId',
+  'processing',
+  'nextDueAt',
 ] as const;
 export interface Repair extends RepositoryRecord {
   id: string;
@@ -94,8 +107,11 @@ export interface Repair extends RepositoryRecord {
   submittedAt: string | null;
   responseDueAt: string | null;
   resolutionDueAt: string | null;
+  assigneeId?: string | null;
+  processing?: Processing | null;
 }
 export interface Group extends RepositoryRecord {
+  routingCursor?: string | null;
   id: string;
   title: string;
   leaderIds: string[];
@@ -138,6 +154,8 @@ export const RULE_KEYS = [
   'calendar.timeZone',
   'itRepair.morning',
   'itRepair.afternoon',
+  'itRepair.acceptanceDays',
+  'itRepair.followUpDays',
   ...['P1', 'P2', 'P3', 'P4'].flatMap((p) => [
     `itRepair.${p}.response`,
     `itRepair.${p}.resolution`,
@@ -225,6 +243,38 @@ export function createRepairService(d: {
   onLockAcquired?: (milliseconds: number) => void;
   dispatcher?: EffectDispatcher;
   now?: () => Date;
+  references?: {
+    summary(
+      kind: string,
+      actorId: string,
+      policy: RepositoryPolicy,
+      id: string,
+      tx: DatabaseConnection,
+    ): Promise<{
+      id: string;
+      number: string;
+      status: string;
+      version: number;
+    } | null>;
+    changes(
+      kind: string,
+      id: string,
+      cursor: number,
+      tx: DatabaseConnection,
+    ): Promise<
+      {
+        id: string;
+        sourceId: string;
+        status: string;
+        version: number;
+        at: string;
+      }[]
+    >;
+    receipts(
+      id: string,
+      tx: DatabaseConnection,
+    ): Promise<{ id: string; status: string; version: number }[]>;
+  };
   notify: (
     id: string,
     number: string,
@@ -253,7 +303,9 @@ export function createRepairService(d: {
       (await active(actorId, tx)) &&
       (row.requesterId === actorId ||
         (row.status !== 'draft' &&
-          (await leaderGroups(actorId, tx)).includes(row.groupId ?? '')))
+          ((await leaderGroups(actorId, tx)).includes(row.groupId ?? '') ||
+            ((await qualified(row, actorId, tx)) &&
+              (row.status === 'pool' || row.assigneeId === actorId)))))
     );
   }
   async function get(
@@ -301,8 +353,47 @@ export function createRepairService(d: {
           [userId],
           `oa.itRepair:${current.id}:submitted:${userId}`,
         );
-      if (!group?.leaderIds.some((id) => recipients.includes(id)))
+      if (
+        !group?.leaderIds.some(
+          (id) => id !== current.requesterId && recipients.includes(id),
+        )
+      )
         throw new Error('IT_REPAIR_GROUP_UNCONFIGURED');
+    },
+  });
+  const updateNotice = defineEffect<{ record: Repair; state: string }>({
+    name: 'oa.itRepair.updated',
+    retry: { attempts: 8, backoffMs: 5000, factor: 2 },
+    run: async ({ record, transition, idempotencyKey }) => {
+      const current = await d.db
+        .repository<Repair>('itRepairs')
+        .findOne({ filter: { id: record.id } });
+      if (!current) return;
+      const g = await groupFor(current, d.db.connection());
+      const recipients = new Set([
+        ...(g?.leaderIds ?? []),
+        ...(current.assigneeId ? [current.assigneeId] : []),
+        ...(!transition.startsWith('internal_') &&
+        !transition.startsWith('uploadInternal_')
+          ? [current.requesterId]
+          : []),
+      ]);
+      for (const id of recipients)
+        if (
+          !(
+            id === current.requesterId &&
+            (transition.startsWith('internal_') ||
+              transition.startsWith('uploadInternal_'))
+          ) &&
+          (await active(id, d.db.connection())) &&
+          (await canRead(current, id, d.db.connection()))
+        )
+          await d.notify(
+            current.id,
+            current.number!,
+            [id],
+            `${idempotencyKey}:${id}`,
+          );
     },
   });
   const lifecycle = defineLifecycle<{ record: Repair; state: string }>({
@@ -310,8 +401,16 @@ export function createRepairService(d: {
     collection: 'itRepairs',
     initial: 'draft',
     versionField: 'version',
-    states: ['draft', 'triage'],
+    states: STATES.map((name) =>
+      name === 'cancelled' ? { name, final: true } : name,
+    ),
     transitions: {
+      ...Object.fromEntries(
+        Object.entries(edges()).map(([key, edge]) => [
+          key,
+          { ...edge, effects: key.startsWith('timer_') ? [] : [updateNotice] },
+        ]),
+      ),
       edit: {
         from: 'draft',
         to: 'draft',
@@ -338,6 +437,7 @@ export function createRepairService(d: {
           'submissionSnapshot',
           'calendarSnapshot',
           'ruleSnapshot',
+          'nextDueAt',
           'updatedAt',
         ],
       },
@@ -498,6 +598,8 @@ export function createRepairService(d: {
     input: Command,
     action: string,
     row: Repair,
+    before?: Repair,
+    reason?: string,
   ) {
     await d.audit.record(
       {
@@ -505,7 +607,19 @@ export function createRepairService(d: {
         action: `itRepair.${action}`,
         targetType: 'itRepairs',
         targetId: row.id,
+        ...(before
+          ? {
+              before: {
+                status: before.status,
+                version: before.version,
+                priority: before.priority,
+                groupId: before.groupId,
+                assigneeId: before.assigneeId ?? null,
+              },
+            }
+          : {}),
         after: {
+          ...(reason ? { reason: reason.slice(0, 1000) } : {}),
           version: row.version,
           status: row.status,
           requestKey: input.requestKey,
@@ -541,11 +655,12 @@ export function createRepairService(d: {
     const assigned = refreshAssigned
       ? await repo.findMany({ filter: { groupId: group.id, status: 'triage' } })
       : [];
-    const recipients: string[] = [];
+    const eligible: string[] = [];
     for (const id of new Set(group.active ? group.leaderIds : []))
-      if (await active(id, tx)) recipients.push(id);
+      if (await active(id, tx)) eligible.push(id);
     let changed = 0;
     for (const row of [...assigned, ...orphans.slice(0, 100)]) {
+      const recipients = eligible.filter((id) => id !== row.requesterId);
       const previous = await d.writer.listBySourceKey(row.id, tx);
       const pending = previous.filter((item) => item.status === 'pending');
       if (
@@ -607,6 +722,1134 @@ export function createRepairService(d: {
     }
     return { processed: changed, hasMore: orphans.length > 100 };
   }
+  async function groupFor(row: Repair, tx: DatabaseConnection) {
+    return row.groupId
+      ? tx
+          .repository<Group>('itRepairGroups')
+          .findOne({ filter: { id: row.groupId, active: true } })
+      : undefined;
+  }
+  async function fullAccess(
+    row: Repair,
+    actorId: string,
+    tx = d.db.connection(),
+  ) {
+    if (!(await active(actorId, tx))) return false;
+    if (row.requesterId === actorId) return true;
+    const g = await groupFor(row, tx);
+    if (g?.leaderIds.includes(actorId)) return true;
+    return !!g?.engineerIds.includes(actorId) && row.assigneeId === actorId;
+  }
+  async function isLeader(
+    row: Repair,
+    actorId: string,
+    tx: DatabaseConnection,
+  ) {
+    return (
+      row.requesterId !== actorId &&
+      !!(await groupFor(row, tx))?.leaderIds.includes(actorId) &&
+      (await active(actorId, tx))
+    );
+  }
+  async function qualified(row: Repair, id: string, tx: DatabaseConnection) {
+    return (
+      id !== row.requesterId &&
+      !!(await groupFor(row, tx))?.engineerIds.includes(id) &&
+      (await active(id, tx))
+    );
+  }
+  async function allowed(
+    row: Repair,
+    actorId: string,
+    tx: DatabaseConnection,
+  ): Promise<Action[]> {
+    const owner = row.requesterId === actorId;
+    const leader = await isLeader(row, actorId, tx);
+    const engineer =
+      row.assigneeId === actorId && (await qualified(row, actorId, tx));
+    const a: Action[] = [];
+    if (row.status === 'closed')
+      return owner &&
+        row.processing?.closureMode === 'user' &&
+        !row.processing.rating
+        ? ['rate']
+        : [];
+    if (!OPEN.includes(row.status as (typeof OPEN)[number])) return [];
+    if (owner) {
+      a.push('comment');
+      if (!row.processing?.cancelPending) a.push('cancel');
+      if (row.status === 'supplement') a.push('supplement');
+      if (row.status === 'acceptance' && !row.processing?.cancelPending)
+        a.push('accept', 'return');
+    }
+    if (leader) {
+      a.push('priority', 'internal', 'comment', 'manageClose', 'link');
+      if (row.status === 'triage') a.push('requestSupplement', 'triage');
+      if (['pool', 'assigned', 'processing', 'waiting'].includes(row.status))
+        a.push('assign');
+      if (['triage', 'pool'].includes(row.status)) a.push('duplicate');
+      if (row.processing?.cancelPending) a.push('reviewCancel');
+      if (
+        row.status === 'waiting' &&
+        row.processing?.pauseRequested &&
+        !row.processing.pauseSince
+      )
+        a.push('approvePause');
+    }
+    if (row.status === 'pool' && (await qualified(row, actorId, tx)))
+      a.push('claim');
+    if (engineer) {
+      a.push('comment', 'internal', 'link');
+      if (row.status === 'assigned') a.push('release', 'start');
+      if (row.status === 'processing') {
+        a.push('wait');
+        if (!row.processing?.cancelPending) a.push('resolve');
+      }
+      if (row.status === 'waiting') a.push('resume');
+    }
+    return [...new Set(a)];
+  }
+  async function present(row: Repair, actorId: string, tx = d.db.connection()) {
+    if (await fullAccess(row, actorId, tx)) {
+      if (row.requesterId === actorId && row.processing) {
+        const { duplicateId, alerted: _alerted, ...safe } = row.processing;
+        return {
+          ...row,
+          processing: {
+            ...safe,
+            ...(duplicateId ? { duplicateLinked: true } : {}),
+          },
+        };
+      }
+
+      return row;
+    }
+    // Engineers in a pool see only a safe summary until an assignment grants full material access.
+    return {
+      id: row.id,
+      number: row.number,
+      title: row.title,
+      category: row.category,
+      priority: row.priority,
+      groupId: row.groupId,
+      status: row.status,
+      version: row.version,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      requesterId: row.requesterId,
+    };
+  }
+  async function syncTasks(row: Repair, tx: DatabaseConnection) {
+    let changed = false;
+    const g = await groupFor(row, tx),
+      recipients = new Set<string>();
+    if (['triage'].includes(row.status))
+      for (const id of g?.leaderIds ?? [])
+        if (id !== row.requesterId && (await active(id, tx)))
+          recipients.add(id);
+    if (
+      ['supplement', 'acceptance'].includes(row.status) &&
+      (await active(row.requesterId, tx))
+    )
+      recipients.add(row.requesterId);
+    if (row.status === 'pool')
+      for (const id of g?.engineerIds ?? [])
+        if (await qualified(row, id, tx)) recipients.add(id);
+    if (
+      ['assigned', 'processing', 'waiting'].includes(row.status) &&
+      row.assigneeId &&
+      (await qualified(row, row.assigneeId, tx))
+    )
+      recipients.add(row.assigneeId);
+    const reconcile = async (key: string, ids: Set<string>) => {
+      const old = await d.writer.listBySourceKey(key, tx);
+      if (
+        hash(
+          old
+            .filter((i) => i.status === 'pending')
+            .map((i) => i.userId)
+            .sort(),
+        ) !== hash([...ids].sort())
+      )
+        changed = true;
+      for (const item of old)
+        if (item.status === 'pending' && !ids.has(item.userId))
+          await d.writer.setStatus(
+            { userId: item.userId, sourceKey: key },
+            ['closed', 'cancelled'].includes(row.status)
+              ? 'completed'
+              : 'cancelled',
+            tx,
+          );
+      for (const id of ids)
+        if (
+          !old.some((item) => item.userId === id && item.status === 'pending')
+        )
+          await d.writer.put(
+            {
+              userId: id,
+              sourceKey: key,
+              subject: 'oa.itRepair',
+              title: row.number!,
+              status: 'pending',
+            },
+            tx,
+          );
+    };
+    await reconcile(row.id, recipients);
+    const review = new Set<string>();
+    if (
+      row.processing?.cancelPending &&
+      !['closed', 'cancelled'].includes(row.status)
+    )
+      for (const id of g?.leaderIds ?? [])
+        if (id !== row.requesterId && (await active(id, tx))) review.add(id);
+    await reconcile(`${row.id}:cancel`, review);
+    if (
+      review.size &&
+      !(await tx.repository('oaTaskCenterTargets').findOne({
+        filter: { sourceType: 'oa.itRepair', sourceKey: `${row.id}:cancel` },
+      }))
+    )
+      await tx.repository('oaTaskCenterTargets').createOne({
+        values: {
+          sourceType: 'oa.itRepair',
+          sourceKey: `${row.id}:cancel`,
+          subject: 'oa.itRepair',
+          recordId: row.id,
+        },
+      });
+    return changed;
+  }
+
+  async function recoverMembership(
+    group: Group,
+    tx: DatabaseConnection,
+    actorId: string,
+  ) {
+    const rows = await tx.repository<Repair>('itRepairs').findMany({
+      filter: (f) =>
+        f.and([
+          f.string('groupId').eq(group.id),
+          f.or(OPEN.map((state) => f.string('status').eq(state))),
+        ]),
+      sort: (s) => s.field('id').asc(),
+      cursor: group.routingCursor ? { id: group.routingCursor } : undefined,
+      direction: group.routingCursor ? 'forward' : undefined,
+      limit: 101,
+    });
+    for (const row of rows.slice(0, 100))
+      if (await syncTasks(row, tx)) {
+        const result = await runtime.fire(
+          'oa.itRepair',
+          row.id,
+          `routing_${row.status}_${row.status}`,
+          {
+            actor: { id: actorId },
+            expect: { version: row.version },
+            input: { updatedAt: now().toISOString() },
+            transaction: tx,
+          },
+        );
+        await appendEvent(
+          tx,
+          row,
+          'routing',
+          actorId,
+          {},
+          `routing:${group.id}:${group.version}:${row.id}`,
+          'internal',
+        );
+        await d.audit.record(
+          {
+            actorId,
+            action: 'itRepair.refreshMembership',
+            targetType: 'itRepairs',
+            targetId: row.id,
+            after: {
+              version: result.record.version,
+              groupVersion: group.version,
+            },
+          },
+          tx,
+        );
+      }
+    await tx.repository('itRepairGroups').updateMany({
+      filter: { id: group.id, version: group.version },
+      values: { routingCursor: rows.length > 100 ? rows[99].id : null },
+    });
+  }
+  function text(data: Record<string, unknown>, key: string, max = 2000) {
+    const value = data[key];
+    if (typeof value !== 'string' || !value.trim() || value.trim().length > max)
+      fail('INVALID_INPUT', key);
+    return value.trim();
+  }
+  async function appendEvent(
+    tx: DatabaseConnection,
+    row: Repair,
+    type: string,
+    actorId: string | null,
+    data: JsonObject,
+    eventKey: string,
+    visibility = 'public',
+  ) {
+    await tx.repository('itRepairEvents').createOne({
+      values: {
+        id: randomUUID(),
+        repairId: row.id,
+        type,
+        actorId,
+        data,
+        eventKey,
+        visibility,
+        createdAt: now(),
+      },
+    });
+  }
+  async function act(
+    input: Command & { id: string; expectedVersion: number },
+    action: Action,
+    data: Record<string, unknown>,
+    policy: RepositoryPolicy,
+    referencePolicy?: RepositoryPolicy,
+  ) {
+    const accepted: Record<Action, string[]> = {
+      requestSupplement: ['reason'],
+      supplement: ['message'],
+      triage: [
+        'priority',
+        'advice',
+        'assigneeId',
+        'category',
+        'groupId',
+        'reason',
+      ],
+      assign: ['assigneeId', 'reason'],
+      claim: [],
+      release: ['reason'],
+      start: [],
+      comment: ['message', 'effective', 'advice'],
+      internal: ['message'],
+      wait: ['reason', 'party', 'followUpAt', 'pauseRequested'],
+      approvePause: ['reason'],
+      resume: ['reason'],
+      resolve: ['cause', 'solution', 'completion', 'resultType'],
+      accept: ['rating', 'evaluation'],
+      return: ['reason'],
+      rate: ['rating', 'evaluation'],
+      cancel: ['reason'],
+      reviewCancel: ['approve', 'reason'],
+      duplicate: ['mainId', 'reason'],
+      manageClose: ['reason', 'completion'],
+      priority: ['priority', 'reason'],
+      link: ['kind', 'sourceId', 'reason'],
+    };
+    if (Object.keys(data).some((k) => !accepted[action].includes(k)))
+      fail('INVALID_INPUT');
+    for (const k of ['effective', 'pauseRequested'])
+      if (data[k] !== undefined && typeof data[k] !== 'boolean')
+        fail('INVALID_INPUT', k);
+    return command(input, action, data, policy, async (tx) => {
+      const row = await get(input.id, input.actorId, policy, tx);
+      if (row.groupId)
+        await tx.repository('itRepairGroups').updateMany({
+          filter: { id: row.groupId },
+          values: { version: { increment: 0 } },
+        });
+      if (row.version !== input.expectedVersion) fail('VERSION_CONFLICT');
+      if (!(await allowed(row, input.actorId, tx)).includes(action))
+        fail('ACCESS_DENIED');
+      const at = now(),
+        iso = at.toISOString();
+      const { p, cal, consumed } = clock(row, at);
+      let status = row.status;
+      const values: RepositoryRecord = {};
+      const stop = () => {
+        p.consumedHours = consumed;
+        p.runningSince = null;
+      };
+      const respond = () => {
+        if (!p.firstResponseAt && row.requesterId !== input.actorId)
+          p.firstResponseAt = iso;
+      };
+      const reason = () => text(data, 'reason', 1000);
+      const assign = async (id: unknown) => {
+        if (typeof id === 'string') await lockUserForAdministration(tx, id);
+        if (
+          typeof id !== 'string' ||
+          !(await qualified(
+            {
+              ...row,
+              groupId:
+                typeof values.groupId === 'string'
+                  ? values.groupId
+                  : row.groupId,
+            },
+            id,
+            tx,
+          ))
+        )
+          fail('INVALID_INPUT', 'assigneeId');
+        values.assigneeId = id;
+      };
+      switch (action) {
+        case 'link': {
+          reason();
+          const kind = text(data, 'kind', 32),
+            sourceId = text(data, 'sourceId', 64);
+          if (
+            !['purchase', 'expensePlan'].includes(kind) ||
+            !referencePolicy ||
+            !d.references ||
+            !(await d.references.summary(
+              kind,
+              input.actorId,
+              referencePolicy,
+              sourceId,
+              tx,
+            ))
+          )
+            fail('ACCESS_DENIED');
+          if (
+            await tx
+              .repository('itRepairLinks')
+              .exists({ filter: { repairId: row.id, kind, sourceId } })
+          )
+            fail('INVALID_INPUT', 'sourceId');
+          await tx.repository('itRepairLinks').createOne({
+            values: {
+              id: randomUUID(),
+              repairId: row.id,
+              kind,
+              sourceId,
+              cursor: 0,
+              receipts: {},
+              nextCheckAt: at,
+              createdAt: at,
+            },
+          });
+          break;
+        }
+        case 'requestSupplement':
+          reason();
+          status = 'supplement';
+          break;
+        case 'supplement':
+          text(data, 'message', 5000);
+          status = 'triage';
+          break;
+        case 'triage': {
+          text(data, 'advice');
+          respond();
+          if (
+            typeof data.groupId === 'string' &&
+            data.groupId &&
+            data.groupId !== row.groupId
+          ) {
+            const target = await tx
+              .repository<Group>('itRepairGroups')
+              .findOne({ filter: { id: String(data.groupId), active: true } });
+            if (!target?.leaderIds.includes(input.actorId))
+              fail('ACCESS_DENIED');
+            await tx.repository('itRepairGroups').updateMany({
+              filter: { id: target.id },
+              values: { version: { increment: 0 } },
+            });
+            reason();
+            values.groupId = target.id;
+          }
+          if (
+            typeof data.category === 'string' &&
+            data.category &&
+            data.category !== row.category
+          ) {
+            const category = await d.dictionaries.get(
+              'itRepairCategory',
+              String(data.category),
+              tx,
+            );
+            if (!category?.active) fail('INVALID_INPUT', 'category');
+            reason();
+            values.category = String(data.category);
+          }
+
+          if (
+            typeof data.priority !== 'string' ||
+            !['P1', 'P2', 'P3', 'P4'].includes(data.priority)
+          )
+            fail('INVALID_INPUT', 'priority');
+          values.priority = data.priority;
+          if (data.assigneeId) {
+            await assign(data.assigneeId);
+            status = 'assigned';
+          } else status = 'pool';
+          break;
+        }
+        case 'assign':
+          reason();
+          await assign(data.assigneeId);
+          if (status === 'pool') status = 'assigned';
+          break;
+        case 'claim':
+          values.assigneeId = input.actorId;
+          status = 'assigned';
+          break;
+        case 'release':
+          reason();
+          values.assigneeId = null;
+          status = 'pool';
+          break;
+        case 'start':
+          status = 'processing';
+          break;
+        case 'comment':
+          text(data, 'message', 5000);
+          if (data.effective === true) {
+            if (row.requesterId === input.actorId) fail('ACCESS_DENIED');
+            text(data, 'advice');
+            respond();
+          }
+          break;
+        case 'internal':
+          text(data, 'message', 5000);
+          break;
+        case 'wait': {
+          reason();
+          if (
+            ![
+              'employee',
+              'vendor',
+              'purchase',
+              'authorization',
+              'internal',
+            ].includes(String(data.party))
+          )
+            fail('INVALID_INPUT', 'party');
+          if (
+            typeof data.followUpAt !== 'string' ||
+            !Number.isFinite(+new Date(data.followUpAt)) ||
+            +new Date(data.followUpAt) <= +at
+          )
+            fail('INVALID_INPUT', 'followUpAt');
+          if (data.pauseRequested && data.party === 'internal')
+            fail('INVALID_INPUT', 'party');
+          if (
+            ['purchase', 'authorization'].includes(String(data.party)) &&
+            !(await tx.repository('itRepairLinks').exists({
+              filter: {
+                repairId: row.id,
+                kind: data.party === 'purchase' ? 'purchase' : 'expensePlan',
+              },
+            }))
+          )
+            fail('REFERENCE_REQUIRED', 'party');
+          p.waitingParty = String(data.party);
+          p.followUpAt = data.followUpAt;
+          p.waitSince = iso;
+          p.pauseRequested = data.pauseRequested === true;
+          status = 'waiting';
+          break;
+        }
+        case 'approvePause':
+          reason();
+          if (
+            !['employee', 'vendor', 'purchase', 'authorization'].includes(
+              p.waitingParty ?? '',
+            )
+          )
+            fail('INVALID_INPUT', 'party');
+          stop();
+          p.pauseSince = iso;
+          break;
+        case 'resume':
+          reason();
+          if (p.pauseSince) {
+            p.pausedHours =
+              (p.pausedHours ?? 0) +
+              cal.workingHoursBetween(new Date(p.pauseSince), at);
+            p.pauseSince = null;
+            p.runningSince = iso;
+          }
+          p.waitHours =
+            (p.waitHours ?? 0) +
+            cal.workingHoursBetween(new Date(p.waitSince!), at);
+          p.waitSince = null;
+          p.followUpAt = null;
+          p.pauseRequested = false;
+          status = 'processing';
+          break;
+        case 'resolve':
+          for (const key of ['cause', 'solution', 'completion'])
+            text(data, key);
+          if (
+            !['restored', 'alternative', 'otherService'].includes(
+              String(data.resultType),
+            )
+          )
+            fail('INVALID_INPUT', 'resultType');
+          stop();
+          p.round = (p.round ?? 0) + 1;
+          p.acceptanceSince = iso;
+          p.acceptanceDueAt = cal
+            .addWorkingDays(
+              at,
+              Number(
+                (row.ruleSnapshot as { values: Record<string, number> }).values[
+                  'itRepair.acceptanceDays'
+                ] ?? 2,
+              ),
+            )
+            .toISOString();
+          status = 'acceptance';
+          break;
+        case 'accept':
+          status = 'closed';
+          p.closureMode = 'user';
+          p.closedAt = iso;
+          p.acceptanceHours =
+            (p.acceptanceHours ?? 0) +
+            cal.workingHoursBetween(new Date(p.acceptanceSince!), at);
+          p.acceptanceSince = null;
+          p.acceptanceDueAt = null;
+          if (data.rating !== undefined) {
+            if (
+              !Number.isInteger(data.rating) ||
+              Number(data.rating) < 1 ||
+              Number(data.rating) > 5
+            )
+              fail('INVALID_INPUT', 'rating');
+            p.rating = Number(data.rating);
+          }
+          if (data.evaluation !== undefined) {
+            if (
+              typeof data.evaluation !== 'string' ||
+              data.evaluation.length > 1000
+            )
+              fail('INVALID_INPUT', 'evaluation');
+            p.evaluation = data.evaluation;
+          }
+          break;
+        case 'return':
+          reason();
+          p.acceptanceHours =
+            (p.acceptanceHours ?? 0) +
+            cal.workingHoursBetween(new Date(p.acceptanceSince!), at);
+          p.acceptanceSince = null;
+          p.acceptanceDueAt = null;
+          p.runningSince = iso;
+          status =
+            row.assigneeId && (await qualified(row, row.assigneeId, tx))
+              ? 'processing'
+              : 'triage';
+          if (status === 'triage') values.assigneeId = null;
+          break;
+        case 'rate':
+          if (
+            !Number.isInteger(data.rating) ||
+            Number(data.rating) < 1 ||
+            Number(data.rating) > 5
+          )
+            fail('INVALID_INPUT', 'rating');
+          if (
+            data.evaluation !== undefined &&
+            (typeof data.evaluation !== 'string' ||
+              data.evaluation.length > 1000)
+          )
+            fail('INVALID_INPUT', 'evaluation');
+          p.rating = Number(data.rating);
+          p.evaluation = String(data.evaluation ?? '');
+          break;
+        case 'cancel':
+          reason();
+          if (['triage', 'supplement', 'pool'].includes(status))
+            status = 'cancelled';
+          else {
+            if (p.cancelPending) fail('VERSION_CONFLICT');
+            p.cancelPending = true;
+            p.cancelReason = String(data.reason);
+            p.cancelFollowUpAt = cal
+              .addWorkingDays(
+                at,
+                Number(
+                  (row.ruleSnapshot as { values: Record<string, number> })
+                    .values['itRepair.followUpDays'] ?? 2,
+                ),
+              )
+              .toISOString();
+          }
+          break;
+        case 'reviewCancel':
+          reason();
+          if (typeof data.approve !== 'boolean')
+            fail('INVALID_INPUT', 'approve');
+          p.cancelPending = false;
+          p.cancelFollowUpAt = null;
+          if (data.approve) status = 'cancelled';
+          break;
+        case 'duplicate': {
+          reason();
+          const id = text(data, 'mainId', 64);
+          if (id === row.id) fail('INVALID_INPUT', 'mainId');
+          const main = await get(id, input.actorId, policy, tx);
+          if (main.status === 'cancelled' || main.status === 'draft')
+            fail('INVALID_INPUT', 'mainId');
+          let next: Repair | undefined = main;
+          const seen = new Set([row.id]);
+          while (next) {
+            if (seen.has(next.id)) fail('INVALID_INPUT', 'mainId');
+            seen.add(next.id);
+            next = next.processing?.duplicateId
+              ? await get(
+                  next.processing.duplicateId,
+                  input.actorId,
+                  policy,
+                  tx,
+                )
+              : undefined;
+          }
+          p.duplicateId = id;
+          status = 'cancelled';
+          break;
+        }
+        case 'manageClose':
+          reason();
+          text(data, 'completion');
+          p.closureMode = 'management';
+          p.closedAt = iso;
+          status = 'closed';
+          break;
+        case 'priority':
+          reason();
+          if (!['P1', 'P2', 'P3', 'P4'].includes(String(data.priority)))
+            fail('INVALID_INPUT', 'priority');
+          values.priority = String(data.priority);
+          break;
+      }
+      if (['closed', 'cancelled'].includes(status)) {
+        stop();
+        if (p.waitSince)
+          p.waitHours =
+            (p.waitHours ?? 0) +
+            cal.workingHoursBetween(new Date(p.waitSince), at);
+        if (p.pauseSince)
+          p.pausedHours =
+            (p.pausedHours ?? 0) +
+            cal.workingHoursBetween(new Date(p.pauseSince), at);
+        if (p.acceptanceSince)
+          p.acceptanceHours =
+            (p.acceptanceHours ?? 0) +
+            cal.workingHoursBetween(new Date(p.acceptanceSince), at);
+        p.waitSince = null;
+        p.pauseSince = null;
+        p.acceptanceSince = null;
+        p.followUpAt = null;
+        p.acceptanceDueAt = null;
+        p.cancelPending = false;
+        p.cancelFollowUpAt = null;
+      }
+      const candidate = { ...row, ...values, status, processing: p } as Repair;
+      Object.assign(values, deadlines(candidate, p, at), {
+        processing: p,
+        updatedAt: iso,
+      });
+      await check(
+        tx,
+        policy,
+        { ...values, status, statusChangedAt: at, version: row.version + 1 },
+        row.id,
+      );
+      const result = (
+        await runtime.fire(
+          'oa.itRepair',
+          row.id,
+          `${action}_${row.status}_${status}`,
+          {
+            actor: { id: input.actorId },
+            expect: { version: row.version },
+            input: JSON.parse(JSON.stringify(values)) as JsonObject,
+            transaction: tx,
+          },
+        )
+      ).record as unknown as Repair;
+      await appendEvent(
+        tx,
+        result,
+        action,
+        input.actorId,
+        (action === 'link'
+          ? { kind: String(data.kind), reason: String(data.reason) }
+          : action === 'duplicate'
+            ? { reason: String(data.reason) }
+            : JSON.parse(JSON.stringify(data))) as JsonObject,
+        `${row.id}:${input.actorId}:${input.requestKey}`,
+        action === 'internal' ? 'internal' : 'public',
+      );
+      await syncTasks(result, tx);
+      await audit(
+        tx,
+        input,
+        action,
+        result,
+        row,
+        typeof data.reason === 'string' ? data.reason : undefined,
+      );
+      return present(result, input.actorId, tx);
+    }).catch((error) => {
+      if (
+        action === 'claim' &&
+        error instanceof RepairError &&
+        error.code === 'ACCESS_DENIED'
+      )
+        fail('VERSION_CONFLICT');
+      throw error;
+    });
+  }
+  async function handling(
+    id: string,
+    actorId: string,
+    policy: RepositoryPolicy,
+    historyPage = 1,
+  ) {
+    const row = await get(id, actorId, policy),
+      tx = d.db.connection();
+    const full = await fullAccess(row, actorId, tx),
+      internal = full && row.requesterId !== actorId;
+    const g = await groupFor(row, tx),
+      candidates: { id: string; name: string }[] = [];
+    if (await isLeader(row, actorId, tx))
+      for (const id of g?.engineerIds ?? [])
+        if (await qualified(row, id, tx)) {
+          const u = await d.users.withConnection(tx).get(id);
+          candidates.push({ id, name: u!.name });
+        }
+    const routingGroups = [];
+    if (await isLeader(row, actorId, tx))
+      for (const target of await groups(tx))
+        if (target.leaderIds.includes(actorId)) {
+          const candidates = [];
+          for (const id of target.engineerIds)
+            if (await qualified({ ...row, groupId: target.id }, id, tx))
+              candidates.push({
+                id,
+                name: (await d.users.withConnection(tx).get(id))!.name,
+              });
+          routingGroups.push({
+            id: target.id,
+            title: target.title,
+            candidates,
+          });
+        }
+    const history = full
+      ? await tx.repository('itRepairEvents').findMany({
+          filter: internal
+            ? { repairId: id }
+            : { repairId: id, visibility: 'public' },
+          sort: (s) => [s.field('createdAt').desc(), s.field('id').desc()],
+          offset: (historyPage - 1) * 100,
+          limit: 101,
+        })
+      : [];
+    return {
+      internalFiles: internal
+        ? (
+            await tx.repository('itRepairFiles').findMany({
+              filter: { repairId: row.id, visibility: 'internal' },
+              select: (s) => s.fields('id'),
+              limit: 100,
+            })
+          ).map((f) => String(f.id as string))
+        : [],
+      groups: routingGroups,
+      categories: (await isLeader(row, actorId, tx))
+        ? (await d.dictionaries.list('itRepairCategory'))
+            .filter((c) => c.active)
+            .map((c) => ({ code: c.code, label: c.label }))
+        : [],
+      actions: await allowed(row, actorId, tx),
+      candidates,
+      assigneeLabel:
+        full && row.assigneeId
+          ? ((await d.users.withConnection(tx).get(row.assigneeId))?.name ??
+            null)
+          : null,
+      full,
+      internal,
+      events: history.slice(0, 100).reverse(),
+      hasMoreHistory: history.length > 100,
+      clocks:
+        row.submittedAt && full
+          ? (({ consumed, response, paused, acceptance, waiting }) => ({
+              consumed,
+              response,
+              paused,
+              acceptance,
+              waiting,
+            }))(clock(row, now()))
+          : null,
+    };
+  }
+  /** Bounded index scan, one transaction per due record, idempotent event keys survive restarts. */
+  async function tick(limit = 100) {
+    const pending = await d.db.repository<Group>('itRepairGroups').findMany({
+      filter: (f) => f.string('routingCursor').notEmpty(),
+      limit: 10,
+    });
+    for (const group of pending)
+      await d.db.transaction(async (tx) => {
+        const fence = await tx.repository('itRepairGroups').updateMany({
+          filter: {
+            id: group.id,
+            version: group.version,
+            routingCursor: group.routingCursor,
+          },
+          values: { version: { increment: 0 } },
+        });
+        if (fence.updatedCount === 1)
+          await recoverMembership(group, tx, 'system');
+      });
+    const at = now();
+    const rows = await d.db.repository<Repair>('itRepairs').findMany({
+      filter: (f) =>
+        f.and([
+          f.string('status').ne('draft'),
+          f.string('status').ne('closed'),
+          f.string('status').ne('cancelled'),
+          f.or([f.date('nextDueAt').notAfter(at), f.date('nextDueAt').empty()]),
+        ]),
+      sort: (s) => s.field('nextDueAt').asc(),
+      limit,
+    });
+    let changed = 0;
+    for (const candidate of rows) {
+      try {
+        await d.db.transaction(async (tx) => {
+          const row = await tx
+            .repository<Repair>('itRepairs')
+            .findOne({ filter: { id: candidate.id } });
+          if (
+            !row ||
+            row.version !== candidate.version ||
+            ['closed', 'cancelled'].includes(row.status)
+          )
+            return;
+          const { p, cal, consumed, response } = clock(row, at),
+            values = (row.ruleSnapshot as { values: Record<string, number> })
+              .values;
+          const alerts: string[] = [],
+            seen = new Set(p.alerted ?? []);
+          const add = (key: string) => {
+            if (!seen.has(key)) {
+              seen.add(key);
+              alerts.push(key);
+            }
+          };
+          for (const [metric, used, done] of [
+            ['response', response, !!p.firstResponseAt],
+            ['resolution', consumed, p.runningSince === null],
+          ] as const) {
+            if (done) continue;
+            const target = Number(values[`itRepair.${row.priority}.${metric}`]);
+            if (used >= target * 0.8) add(`${metric}80`);
+            if (used >= target) add(`${metric}Overdue`);
+            if (used >= target)
+              add(
+                `${metric}Daily:${localDateOf((row.calendarSnapshot as unknown as CalendarSnapshot).timeZone, at)}`,
+              );
+          }
+          if (p.acceptanceDueAt && +at >= +new Date(p.acceptanceDueAt))
+            add(`acceptance:${p.round ?? 0}`);
+          if (p.followUpAt && +at >= +new Date(p.followUpAt)) {
+            add(`followUp:${p.followUpAt}`);
+            p.followUpAt = cal
+              .addWorkingDays(at, Number(values['itRepair.followUpDays'] ?? 2))
+              .toISOString();
+          }
+          if (
+            p.cancelPending &&
+            p.cancelFollowUpAt &&
+            +at >= +new Date(p.cancelFollowUpAt)
+          ) {
+            add(`cancelFollowUp:${p.cancelFollowUpAt}`);
+            p.cancelFollowUpAt = cal
+              .addWorkingDays(at, Number(values['itRepair.followUpDays'] ?? 2))
+              .toISOString();
+          }
+          if (row.assigneeId && !(await qualified(row, row.assigneeId, tx)))
+            add(`invalidAssignee:${row.assigneeId}`);
+          p.alerted = [...seen];
+          const timing = deadlines(row, p, at);
+          // No timers remain: park in a bounded eligibility check instead of repeatedly selecting NULL.
+          if (!timing.nextDueAt)
+            timing.nextDueAt = cal.addWorkingHours(at, 8).toISOString();
+          const result = (
+            await runtime.fire(
+              'oa.itRepair',
+              row.id,
+              `${alerts.length ? 'alert' : 'timer'}_${row.status}_${row.status}`,
+              {
+                actor: { id: 'system' },
+                expect: { version: row.version },
+                input: {
+                  ...timing,
+                  processing: p as unknown as JsonObject,
+                  updatedAt: at.toISOString(),
+                },
+                transaction: tx,
+              },
+            )
+          ).record as unknown as Repair;
+          for (const key of alerts)
+            await appendEvent(
+              tx,
+              row,
+              'alert',
+              null,
+              { key },
+              `${row.id}:alert:${key}`,
+            );
+          await syncTasks(result, tx);
+          await d.audit.record(
+            {
+              actorId: null,
+              action: 'itRepair.timer',
+              targetType: 'itRepairs',
+              targetId: row.id,
+              after: { alerts, version: result.version },
+            },
+            tx,
+          );
+          changed++;
+        });
+      } catch (e) {
+        if (!(e instanceof LifecycleError && e.code === 'CONFLICT')) throw e;
+      }
+    }
+    return {
+      scanned: rows.length,
+      changed,
+      references: await followReferences(limit),
+    };
+  }
+
+  async function followReferences(limit: number) {
+    if (!d.references) return 0;
+    const at = now(),
+      links = await d.db
+        .repository<{
+          id: string;
+          repairId: string;
+          kind: string;
+          sourceId: string;
+          cursor: number;
+          nextCheckAt: string;
+          receipts: Record<string, number>;
+        }>('itRepairLinks')
+        .findMany({
+          filter: (f) => f.date('nextCheckAt').notAfter(at),
+          sort: (s) => s.field('nextCheckAt').asc(),
+          limit,
+        });
+    let changes = 0;
+    for (const link of links)
+      await d.db.transaction(async (tx) => {
+        const current = await tx
+          .repository<typeof link>('itRepairLinks')
+          .findOne({ filter: { id: link.id, cursor: link.cursor } });
+        if (!current) return;
+        const row = await tx
+          .repository<Repair>('itRepairs')
+          .findOne({ filter: { id: link.repairId } });
+        if (!row) return;
+        if (['closed', 'cancelled'].includes(row.status)) {
+          await tx.repository('itRepairLinks').updateMany({
+            filter: { id: link.id },
+            values: { nextCheckAt: null },
+          });
+          return;
+        }
+        const events = await d.references!.changes(
+          link.kind,
+          link.sourceId,
+          link.cursor,
+          tx,
+        );
+        const receipts =
+          link.kind === 'purchase'
+            ? await d.references!.receipts(link.sourceId, tx)
+            : [];
+        const additions = [
+          ...events.map((e) => ({
+            key: `source:${link.id}:${e.id}`,
+            status: e.status,
+          })),
+          ...receipts
+            .filter((r) => (current.receipts[r.id] ?? 0) < r.version)
+            .map((r) => ({
+              key: `receipt:${link.id}:${r.id}:${r.version}`,
+              status: r.status,
+            })),
+        ];
+        const cursor = events.at(-1)?.version ?? link.cursor;
+        // Predicate update is the single consumer competition point, rollback includes cursor and appended events.
+        const updated = await tx.repository('itRepairLinks').updateMany({
+          filter: (f) =>
+            f.and([
+              f.string('id').eq(link.id),
+              f.number('cursor').eq(link.cursor),
+              f.date('nextCheckAt').notBefore(new Date(link.nextCheckAt)),
+              f.date('nextCheckAt').notAfter(new Date(link.nextCheckAt)),
+            ]),
+          values: {
+            cursor,
+            receipts: Object.fromEntries(
+              receipts.map((r) => [r.id, r.version]),
+            ),
+            nextCheckAt: new Date(+at + 60000),
+          },
+        });
+        if (updated.updatedCount !== 1) return;
+        if (additions.length) {
+          await runtime.fire(
+            'oa.itRepair',
+            row.id,
+            `sourceProgress_${row.status}_${row.status}`,
+            {
+              actor: { id: 'system' },
+              expect: { version: row.version },
+              input: { updatedAt: at.toISOString() },
+              transaction: tx,
+            },
+          );
+          for (const e of additions)
+            if (
+              !(await tx
+                .repository('itRepairEvents')
+                .exists({ filter: { eventKey: e.key } }))
+            )
+              await appendEvent(
+                tx,
+                row,
+                'sourceChange',
+                null,
+                { kind: link.kind, status: e.status },
+                e.key,
+              );
+          await d.audit.record(
+            {
+              actorId: null,
+              action: 'itRepair.sourceFollowUp',
+              targetType: 'itRepairs',
+              targetId: row.id,
+              after: { count: additions.length },
+            },
+            tx,
+          );
+          changes += additions.length;
+        }
+      });
+    return changes;
+  }
   async function calendarConfiguration(tx = d.db.connection()) {
     const keys = ['itRepair.morning', 'itRepair.afternoon'];
     const values = await d.rules.snapshot(keys, now(), tx);
@@ -624,6 +1867,17 @@ export function createRepairService(d: {
   return {
     runtime,
     get,
+    act,
+    handling,
+    present,
+    fullAccess,
+    syncTasks,
+    tick,
+    async engineerGroups(actorId: string, tx = d.db.connection()) {
+      return (await groups(tx))
+        .filter((g) => g.engineerIds.includes(actorId))
+        .map((g) => g.id);
+    },
     leaderGroups,
     calendarConfiguration,
     async notificationHealth() {
@@ -689,10 +1943,27 @@ export function createRepairService(d: {
     ) {
       if (!(await active(actorId, d.db.connection()))) fail('ACCESS_DENIED');
       const ids = await leaderGroups(actorId, d.db.connection());
+      const poolGroups = (await groups(d.db.connection()))
+        .filter((g) => g.engineerIds.includes(actorId))
+        .map((g) => g.id);
       const filter = (f: FilterBuilder) =>
         f.and([
           f.or([
             f.string('requesterId').eq(actorId),
+            ...poolGroups.map((id) =>
+              f.and([
+                f.string('assigneeId').eq(actorId),
+                f.string('groupId').eq(id),
+                f.string('requesterId').ne(actorId),
+              ]),
+            ),
+            ...poolGroups.map((id) =>
+              f.and([
+                f.string('status').eq('pool'),
+                f.string('groupId').eq(id),
+                f.string('requesterId').ne(actorId),
+              ]),
+            ),
             ...(ids.length
               ? [
                   f.and([
@@ -785,6 +2056,7 @@ export function createRepairService(d: {
       input: Command & { id: string; expectedVersion: number },
       policy: RepositoryPolicy,
       assetPolicy?: RepositoryPolicy,
+      explicitAssetPolicy?: RepositoryPolicy,
     ) {
       return command(input, 'submit', null, policy, async (tx) => {
         const at = now();
@@ -799,9 +2071,14 @@ export function createRepairService(d: {
         const employee = await d.employees.getByUserId(input.actorId, tx);
         if (
           row.assetId &&
-          (!assetPolicy ||
-            !employee ||
-            !(await d.assets.read(row.assetId, tx, assetPolicy, employee.id)))
+          (!employee ||
+            !(await d.assets.repairEligibility(
+              row.assetId,
+              employee.id,
+              tx,
+              assetPolicy,
+              explicitAssetPolicy,
+            )))
         )
           fail('INVALID_INPUT', 'assetId');
         const matching = (await groups(tx)).filter((g) =>
@@ -850,6 +2127,10 @@ export function createRepairService(d: {
             at,
             Number(rules[`itRepair.${priority}.resolution`]),
           ),
+          nextDueAt: cal.addWorkingHours(
+            at,
+            Number(rules[`itRepair.${priority}.response`]) * 0.8,
+          ),
           calendarSnapshot: { ...calendarSnapshot },
           ruleSnapshot: { values: rules, versions },
           submissionSnapshot: {
@@ -863,7 +2144,7 @@ export function createRepairService(d: {
         const result = await mutate(input, 'submit', values, policy, tx);
         const previous = await d.writer.listBySourceKey(row.id, tx);
         for (const userId of new Set(g?.leaderIds ?? []))
-          if (await active(userId, tx)) {
+          if (userId !== row.requesterId && (await active(userId, tx))) {
             if (
               !previous.some(
                 (p) => p.userId === userId && p.status === 'pending',
@@ -897,33 +2178,63 @@ export function createRepairService(d: {
       input: Command & { id: string; expectedVersion: number },
       file: File,
       policy: RepositoryPolicy,
+      metadata: {
+        purpose: 'fault' | 'processing' | 'resolution';
+        visibility: 'public' | 'internal';
+      } = { purpose: 'fault', visibility: 'public' },
     ) {
       const digest = await validateFile(file);
       return command(
         input,
         'upload',
-        { digest, name: file.name, type: file.type, size: file.size },
+        { digest, name: file.name, type: file.type, size: file.size, metadata },
         policy,
         async (tx) => {
           const row = await get(input.id, input.actorId, policy, tx);
+          if (row.groupId)
+            await tx.repository('itRepairGroups').updateMany({
+              filter: { id: row.groupId },
+              values: { version: { increment: 0 } },
+            });
+          if (row.version !== input.expectedVersion) fail('VERSION_CONFLICT');
+          const isDraft = row.status === 'draft';
+          const permitted = isDraft
+            ? row.requesterId === input.actorId &&
+              metadata.purpose === 'fault' &&
+              metadata.visibility === 'public'
+            : (await allowed(row, input.actorId, tx)).includes(
+                metadata.visibility === 'internal' ? 'internal' : 'comment',
+              ) &&
+              (row.requesterId !== input.actorId ||
+                (metadata.visibility === 'public' &&
+                  metadata.purpose === 'fault'));
+          if (!permitted) fail('ACCESS_DENIED');
+          if (!isDraft)
+            await check(
+              tx,
+              policy,
+              { updatedAt: now(), version: row.version + 1 },
+              row.id,
+            );
+          const result = isDraft
+            ? await mutate(input, 'upload', { updatedAt: now() }, policy, tx)
+            : ((
+                await runtime.fire(
+                  'oa.itRepair',
+                  row.id,
+                  `${metadata.visibility === 'internal' ? 'uploadInternal' : 'upload'}_${row.status}_${row.status}`,
+                  {
+                    actor: { id: input.actorId },
+                    expect: { version: row.version },
+                    input: { updatedAt: now().toISOString() },
+                    transaction: tx,
+                  },
+                )
+              ).record as unknown as Repair);
           if (
-            row.requesterId !== input.actorId ||
-            row.status !== 'draft' ||
-            row.version !== input.expectedVersion
-          )
-            fail('VERSION_CONFLICT');
-          // Acquire the same conditional version point before counting slots or uploading bytes.
-          const result = await mutate(
-            input,
-            'upload',
-            { updatedAt: now() },
-            policy,
-            tx,
-          );
-          if (
-            (await tx
-              .repository('itRepairFiles')
-              .count({ filter: { repairId: row.id, purpose: 'fault' } })) >= 10
+            (await tx.repository('itRepairFiles').count({
+              filter: { repairId: row.id, purpose: metadata.purpose },
+            })) >= 10
           )
             fail('ATTACHMENT_LIMIT');
           const upload = await d.files
@@ -938,8 +2249,8 @@ export function createRepairService(d: {
                   defaults: {
                     repairId: row.id,
                     ownerId: input.actorId,
-                    purpose: 'fault',
-                    visibility: 'public',
+                    purpose: metadata.purpose,
+                    visibility: metadata.visibility,
                   },
                 },
                 update: false,
@@ -999,6 +2310,17 @@ export function createRepairService(d: {
           tx,
           routingChanged,
         );
+        if (
+          routingChanged ||
+          !old ||
+          hash([...new Set(old.engineerIds)].sort()) !==
+            hash([...new Set(group.engineerIds)].sort())
+        )
+          await recoverMembership(
+            { ...values, routingCursor: null },
+            tx,
+            input.actorId,
+          );
         await d.audit.record(
           {
             actorId: input.actorId,

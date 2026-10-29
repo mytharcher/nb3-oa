@@ -42,10 +42,12 @@ export async function pendingCandidateRecordIds(
   ]);
   const sdk = await owner.sdk(app);
   const ids = new Set<string>();
+  const approvals = sdk.approvals;
+  if (!approvals) return [...ids];
   await sdk.read(async () => {
     for (const principal of principals) {
       for (let offset = 0; ; offset += 1000) {
-        const tasks = await sdk.approvals.tasksOf(principal, OPEN, {
+        const tasks = await approvals.tasksOf(principal, OPEN, {
           limit: 1000,
           offset,
         });
