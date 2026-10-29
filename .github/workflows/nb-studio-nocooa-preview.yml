@@ -57,7 +57,8 @@ jobs:
         env:
           NB_STUDIO_API_KEY: ${{ secrets.NB_STUDIO_API_KEY }}
         run: |
-          eval "$(curl -fsS -H "x-api-key: $NB_STUDIO_API_KEY" "$NB_STUDIO_URL/api/agents/dist/products/nb-studio/targets/linux-x64?format=env")"
+          cli_manifest=$(curl -fsS -H "x-api-key: $NB_STUDIO_API_KEY" "$NB_STUDIO_URL/api/agents/dist/products/nb-studio/targets/linux-x64?format=env")
+          eval "$cli_manifest"
           mkdir -p "$RUNNER_TEMP/nb-studio"
           curl -fsS -H "x-api-key: $NB_STUDIO_API_KEY" "$NB_STUDIO_URL$url" | tar -xz --strip-components=1 -C "$RUNNER_TEMP/nb-studio"
           echo "$RUNNER_TEMP/nb-studio/bin" >> "$GITHUB_PATH"

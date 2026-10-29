@@ -64,7 +64,9 @@ test('header switches accounts, reloads permissions and describes persistent cha
     .toBe(target!.username);
   await expect(menu).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  await page
+    .locator('html')
+    .evaluate((element) => element.classList.add('dark'));
   await menu.click();
   await expect(page.getByRole('menuitemradio').first()).toBeVisible();
   await expect(
