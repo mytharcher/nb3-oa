@@ -1,5 +1,6 @@
-# Deploy PR heads to isolated nb3-oa preview Apps; retain the existing main deployment.
-# PR previews use NB_STUDIO_API_KEY; the original Studio uses NB_STUDIO_MAIN_API_KEY.
+# Managed for NocoBase Studio (https://web-a-nbstudio.roguehosts.com/main).
+# Deploy PR heads to isolated nb3-oa preview Apps and main commits to nocooa.
+# Store this Studio repository CI key in NB_STUDIO_API_KEY.
 name: NocoBase Studio nocooa
 on:
   workflow_dispatch:
@@ -10,7 +11,7 @@ on:
 permissions:
   contents: read
 env:
-  NB_STUDIO_URL: ${{ github.event_name == 'pull_request' && 'https://web-a-nbstudio.roguehosts.com/main' || 'https://studio.v2.test.nocobase.com/main' }}
+  NB_STUDIO_URL: 'https://web-a-nbstudio.roguehosts.com/main'
 jobs:
   deploy:
     name: Deploy nocooa to Studio
@@ -56,7 +57,7 @@ jobs:
       - name: Install the nb-studio CLI
         id: studio-cli
         env:
-          NB_STUDIO_API_KEY: ${{ secrets[github.event_name == 'pull_request' && 'NB_STUDIO_API_KEY' || 'NB_STUDIO_MAIN_API_KEY'] }}
+          NB_STUDIO_API_KEY: ${{ secrets.NB_STUDIO_API_KEY }}
         run: |
           NB_STUDIO_CLI_ENV="$(curl -fsS -H "x-api-key: $NB_STUDIO_API_KEY" "$NB_STUDIO_URL/api/agents/dist/products/nb-studio/targets/linux-x64?format=env")"
           eval "$NB_STUDIO_CLI_ENV"
@@ -65,8 +66,7 @@ jobs:
           echo "$RUNNER_TEMP/nb-studio/bin" >> "$GITHUB_PATH"
           printf %s "$NB_STUDIO_API_KEY" | NB_STUDIO_KEYCHAIN=off "$RUNNER_TEMP/nb-studio/bin/nb-studio" login --server "$NB_STUDIO_URL" --api-key-stdin
       # Studio links the first PR-head deployment to its PR and removes the App on merge/close.
-      - name: Ensure PR preview App
-        if: github.event_name == 'pull_request'
+      - name: Ensure deployment App
         run: nb-studio app ensure "$APP_ID" --environment "$ENVIRONMENT"
       - run: nb-studio build status --app "$APP_ID" --state building --logs "$LOGS"
       - run: pnpm install --frozen-lockfile
