@@ -1,6 +1,8 @@
 // @vitest-environment node
 /* eslint vitest/no-standalone-expect: ["error", {"additionalTestBlockFunctions": ["benchmark"]}] */
 import { createAppTest } from '@nocobase/app-testing/server';
+import { gzipSync } from 'node:zlib';
+import { traceQueries } from './query-trace.js';
 import { expect, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
@@ -142,6 +144,7 @@ benchmark(
           tx,
         );
     });
+    const natural = process.env.OA_CONFIGURATION_MODE === 'natural';
     let reached!: () => void, release!: () => void;
     const held = new Promise<void>((r) => {
         reached = r;
@@ -160,7 +163,7 @@ benchmark(
           first = false;
           firstAuditAt = performance.now();
           reached();
-          await gate;
+          if (!natural) await gate;
         }
         return original(input, tx);
       });
@@ -176,26 +179,29 @@ benchmark(
       },
       pool: { min: 0, max: 1 },
     });
+    const tracing = traceQueries(await db.connection().client());
     try {
       const start = performance.now();
       let configurationMs = 0;
       let lockedWorkMs = 0;
-      const config = s
-        .fetch(
-          '/itRepairs/groups/blocking',
-          write('POST', {
-            ...group,
-            engineerIds: [e2.userId],
-            expectedVersion: 1,
-            requestKey: randomUUID(),
-          }),
+      const config = tracing
+        .request('configuration', () =>
+          s.fetch(
+            '/itRepairs/groups/blocking',
+            write('POST', {
+              ...group,
+              engineerIds: [e2.userId],
+              expectedVersion: 1,
+              requestKey: randomUUID(),
+            }),
+          ),
         )
         .then((response) => {
           configurationMs = performance.now() - start;
           lockedWorkMs = performance.now() - firstAuditAt;
           return response;
         });
-      await held;
+      if (!natural) await held;
       const target = rows[99],
         begin = performance.now();
       const concurrency =
@@ -204,16 +210,18 @@ benchmark(
         .sort((a, b) => a.id.localeCompare(b.id))
         .slice(-concurrency);
       const blocked = Promise.all(
-        targets.map(async (target) => {
+        targets.map(async (target, index) => {
           const began = performance.now();
-          const response = await l.fetch(
-            `/itRepairs/${target.id}/actions`,
-            write('POST', {
-              requestKey: randomUUID(),
-              expectedVersion: target.version,
-              action: 'comment',
-              data: { message: 'Synthetic concurrent comment' },
-            }),
+          const response = await tracing.request(`write-${index}`, () =>
+            l.fetch(
+              `/itRepairs/${target.id}/actions`,
+              write('POST', {
+                requestKey: randomUUID(),
+                expectedVersion: target.version,
+                action: 'comment',
+                data: { message: 'Synthetic concurrent comment' },
+              }),
+            ),
           );
           await response.arrayBuffer();
           return { status: response.status, ms: performance.now() - began };
@@ -221,7 +229,7 @@ benchmark(
       );
       let waits: unknown[] = [];
       const deadline = performance.now() + 2000;
-      while (!waits.length && performance.now() < deadline) {
+      while (!natural && !waits.length && performance.now() < deadline) {
         waits = (
           await knex.raw(
             "SELECT wait_event_type, wait_event FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND wait_event_type='Lock'",
@@ -229,13 +237,14 @@ benchmark(
         ).rows;
         if (!waits.length) await new Promise((r) => setTimeout(r, 10));
       }
+      if (!natural) tracing.gate(firstAuditAt);
       release();
       const [configured, writes] = await Promise.all([config, blocked]);
       expect(configured.status).toBe(200);
       expect(writes.map((write) => write.status)).toEqual(
         Array(concurrency).fill(200),
       );
-      expect(waits.length).toBeGreaterThan(0);
+      if (!natural) expect(waits.length).toBeGreaterThan(0);
       const refreshed = await db
         .repository('auditLogs')
         .count({ filter: { action: 'itRepair.refreshMembership' } });
@@ -262,27 +271,37 @@ benchmark(
           .hasMore;
         expect(++batches).toBeLessThanOrEqual(22);
       }
-      expect(
-        await db
-          .repository('auditLogs')
-          .count({ filter: { action: 'itRepair.refreshMembership' } }),
-      ).toBe(101 - concurrency);
+      const finalRefreshes = await db
+        .repository('auditLogs')
+        .count({ filter: { action: 'itRepair.refreshMembership' } });
+      if (!natural) expect(finalRefreshes).toBe(101 - concurrency);
+      else {
+        // Natural writes may complete before the configuration commits and keep
+        // the old task index; the continuation must then repair those rows too.
+        expect(finalRefreshes).toBeGreaterThanOrEqual(101 - concurrency);
+        expect(finalRefreshes).toBeLessThanOrEqual(101);
+      }
       for (const r of rows) {
         const tasks = await writer.listBySourceKey(r.id, db.connection());
         expect(
           tasks.filter((t) => t.status === 'pending').map((t) => t.userId),
         ).toEqual([e2.userId]);
       }
+      const convergenceMs = performance.now() - start;
+      const trace = tracing.snapshot();
       const result = {
         date: new Date().toISOString(),
         fixture:
           '101 same-group pool records;5 per configuration or continuation; old member denied before convergence',
         configurationMs,
+        mode: natural ? 'natural' : 'controlled',
+        samples: writes.map((write) => write.ms),
+        stages: trace.requests,
         lockedWorkMs,
         lockMeasurement:
           'first membership audit while holding the group fence through configuration response; includes controlled gate, commit and response',
         initialWriteBatchMs: firstBatchMs,
-        convergenceMs: performance.now() - start,
+        convergenceMs,
         batches,
         blockedWriteMs,
         configurationStatus: configured.status,
@@ -296,18 +315,26 @@ benchmark(
             Math.ceil(writes.length * 0.95) - 1
           ] <= 3000,
         refreshed,
+        finalRefreshes,
         lockWaits: waits,
-        gate: 'released as soon as PG reports a real Lock wait; no arbitrary hold duration',
+        gate: natural
+          ? 'none; configuration and fifty writes launched together'
+          : 'released as soon as PG reports a real Lock wait; no arbitrary hold duration',
         p95: concurrency === 50,
       };
       const output = process.env.OA_OPERATIONS_OUTPUT!;
       await mkdir(output, { recursive: true });
+      await writeFile(
+        `${output}/query-trace.json.gz`,
+        gzipSync(JSON.stringify(trace)),
+      );
       await writeFile(
         `${output}/configuration.json`,
         JSON.stringify(result, null, 2) + '\n',
       );
     } finally {
       release();
+      tracing.stop();
       spy.mockRestore();
       await knex.destroy();
     }

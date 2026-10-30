@@ -16,3 +16,5 @@
 - [最终交付准备及配置待确认](it-repairs-delivery-readiness-2026-10-30.md)
 
 - [2026-10-30 权限批量读取与回退断点核验](it-repairs-permission-batching-2026-10-30.md)
+
+- [2026-10-30 事务内资格事实及正式容量](it-repairs-transaction-facts-2026-10-30.md)

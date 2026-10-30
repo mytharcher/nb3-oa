@@ -292,14 +292,49 @@ export function createRepairService(d: {
     if (d.readOnly) fail('READ_ONLY');
   };
   const now = () => d.now?.() ?? new Date();
+  // This service never writes user/employee facts. Group-writing commands are
+  // excluded from group reuse; their own writes must be read back from the DB.
+  // Each attempt owns its context and drops it before commit/effect dispatch.
+  type UserFact = Awaited<ReturnType<UserAdministrationService['get']>>;
+  type EmployeeFact = Awaited<ReturnType<EmployeeService['getByUserId']>>;
+  const attempts = new WeakMap<
+    DatabaseConnection,
+    {
+      users: Map<string, Promise<UserFact>>;
+      employees: Map<string, Promise<EmployeeFact>>;
+      groups: Map<string, Promise<Group | undefined>>;
+      lockedGroups: Set<string>;
+      reuseGroups: boolean;
+    }
+  >();
+  function fact<T>(
+    cache: Map<string, Promise<T>> | undefined,
+    id: string,
+    read: () => Promise<T>,
+  ) {
+    if (!cache) return read();
+    let result = cache.get(id);
+    if (!result) {
+      result = read();
+      cache.set(id, result);
+      void result.catch(() => cache.delete(id));
+    }
+    return result;
+  }
+  const userFact = (id: string, tx: DatabaseConnection) =>
+    fact(attempts.get(tx)?.users, id, () => d.users.withConnection(tx).get(id));
+  const employeeFact = (id: string, tx: DatabaseConnection) =>
+    fact(attempts.get(tx)?.employees, id, () =>
+      d.employees.getByUserId(id, tx),
+    );
   async function active(id: string, tx: DatabaseConnection) {
     return requestConnectionRead(
       d.db.connection(),
       tx,
       `repair:active:${id}`,
       async () => {
-        const user = await d.users.withConnection(tx).get(id);
-        const e = await d.employees.getByUserId(id, tx);
+        const user = await userFact(id, tx);
+        const e = await employeeFact(id, tx);
         return !!user && !user.disabledAt && !!e?.active && e.status !== 'left';
       },
     );
@@ -320,12 +355,26 @@ export function createRepairService(d: {
       .filter((g) => g.leaderIds.includes(actorId))
       .map((g) => g.id);
   }
+  async function leadsRecordGroup(
+    row: Repair,
+    actorId: string,
+    tx: DatabaseConnection,
+  ) {
+    const context = attempts.get(tx);
+    if (
+      context?.reuseGroups &&
+      row.groupId &&
+      context.lockedGroups.has(row.groupId)
+    )
+      return !!(await groupFor(row, tx))?.leaderIds.includes(actorId);
+    return (await leaderGroups(actorId, tx)).includes(row.groupId ?? '');
+  }
   async function canRead(row: Repair, actorId: string, tx: DatabaseConnection) {
     return (
       (await active(actorId, tx)) &&
       (row.requesterId === actorId ||
         (row.status !== 'draft' &&
-          ((await leaderGroups(actorId, tx)).includes(row.groupId ?? '') ||
+          ((await leadsRecordGroup(row, actorId, tx)) ||
             ((await qualified(row, actorId, tx)) &&
               (row.status === 'pool' || row.assigneeId === actorId)))))
     );
@@ -532,69 +581,86 @@ export function createRepairService(d: {
   ): Promise<T> {
     assertWritable();
     return d.db.transaction(async (tx) => {
-      // Freeze intake snapshots; configuration also needs predicate conflict detection across actors.
-      if (tx.dialect === 'postgres')
-        await (
-          await tx.client<Knex.Transaction>()
-        ).raw(
-          ['configure', 'configureCalendar', 'recoverRouting'].includes(action)
-            ? 'SET TRANSACTION ISOLATION LEVEL SERIALIZABLE'
-            : 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ',
-        );
-      const lockStarted = performance.now();
-      const target =
-        payload && typeof payload === 'object' && 'assigneeId' in payload
-          ? payload.assigneeId
-          : undefined;
-      const identities = [
-        ...new Set([
-          input.actorId,
-          ...(typeof target === 'string' ? [target] : []),
-        ]),
-      ].sort();
-      for (const identity of identities)
-        await lockUserForAdministration(tx, identity, 'shared');
-      d.onLockAcquired?.(performance.now() - lockStarted);
-      const account = await d.users.withConnection(tx).get(input.actorId);
-      if (
-        !account ||
-        account.disabledAt ||
-        (!['configure', 'configureCalendar', 'recoverRouting'].includes(
-          action,
-        ) &&
-          !(await active(input.actorId, tx)))
-      )
-        fail('ACCESS_DENIED');
-      const id = hash([input.actorId, input.requestKey]),
-        payloadHash = hash({ action, input, payload });
-      if (input.id && policy) await get(input.id, input.actorId, policy, tx);
-      const previous = await tx
-        .repository<{
-          id: string;
-          payloadHash: string;
-          repairId: string | null;
-          result: unknown;
-        }>('itRepairCommands')
-        .findOne({ filter: { id } });
-      if (previous) {
-        if (previous.payloadHash !== payloadHash) fail('REQUEST_CONFLICT');
-        if (previous.repairId && policy)
-          await get(previous.repairId, input.actorId, policy, tx);
-        return previous.result as T;
-      }
-      const result = await work(tx);
-      await tx.repository('itRepairCommands').createOne({
-        values: {
-          id,
-          actorId: input.actorId,
-          repairId:
-            input.id ?? (action === 'save' ? (result as Repair).id : null),
-          payloadHash,
-          result: JSON.parse(JSON.stringify(result)) as JsonObject,
-          createdAt: now(),
-        },
+      attempts.set(tx, {
+        users: new Map(),
+        employees: new Map(),
+        groups: new Map(),
+        lockedGroups: new Set(),
+        reuseGroups: ![
+          'configure',
+          'configureCalendar',
+          'recoverRouting',
+        ].includes(action),
       });
-      return result;
+      try {
+        // Freeze intake snapshots; configuration also needs predicate conflict detection across actors.
+        if (tx.dialect === 'postgres')
+          await (
+            await tx.client<Knex.Transaction>()
+          ).raw(
+            ['configure', 'configureCalendar', 'recoverRouting'].includes(
+              action,
+            )
+              ? 'SET TRANSACTION ISOLATION LEVEL SERIALIZABLE'
+              : 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ',
+          );
+        const lockStarted = performance.now();
+        const target =
+          payload && typeof payload === 'object' && 'assigneeId' in payload
+            ? payload.assigneeId
+            : undefined;
+        const identities = [
+          ...new Set([
+            input.actorId,
+            ...(typeof target === 'string' ? [target] : []),
+          ]),
+        ].sort();
+        for (const identity of identities)
+          await lockUserForAdministration(tx, identity, 'shared');
+        d.onLockAcquired?.(performance.now() - lockStarted);
+        const account = await userFact(input.actorId, tx);
+        if (
+          !account ||
+          account.disabledAt ||
+          (!['configure', 'configureCalendar', 'recoverRouting'].includes(
+            action,
+          ) &&
+            !(await active(input.actorId, tx)))
+        )
+          fail('ACCESS_DENIED');
+        const id = hash([input.actorId, input.requestKey]),
+          payloadHash = hash({ action, input, payload });
+        if (input.id && policy) await get(input.id, input.actorId, policy, tx);
+        const previous = await tx
+          .repository<{
+            id: string;
+            payloadHash: string;
+            repairId: string | null;
+            result: unknown;
+          }>('itRepairCommands')
+          .findOne({ filter: { id } });
+        if (previous) {
+          if (previous.payloadHash !== payloadHash) fail('REQUEST_CONFLICT');
+          if (previous.repairId && policy)
+            await get(previous.repairId, input.actorId, policy, tx);
+          return previous.result as T;
+        }
+        const result = await work(tx);
+        await tx.repository('itRepairCommands').createOne({
+          values: {
+            id,
+            actorId: input.actorId,
+            repairId:
+              input.id ?? (action === 'save' ? (result as Repair).id : null),
+            payloadHash,
+            result: JSON.parse(JSON.stringify(result)) as JsonObject,
+            createdAt: now(),
+          },
+        });
+        return result;
+      } finally {
+        attempts.delete(tx);
+      }
     });
   }
   async function command<T>(
@@ -784,11 +850,18 @@ export function createRepairService(d: {
     return { processed: changed, hasMore: orphans.length > 5 };
   }
   async function groupFor(row: Repair, tx: DatabaseConnection) {
-    return row.groupId
-      ? tx
+    if (!row.groupId) return undefined;
+    const context = attempts.get(tx);
+    return fact(
+      context?.reuseGroups && context.lockedGroups.has(row.groupId)
+        ? context.groups
+        : undefined,
+      row.groupId,
+      () =>
+        tx
           .repository<Group>('itRepairGroups')
-          .findOne({ filter: { id: row.groupId, active: true } })
-      : undefined;
+          .findOne({ filter: { id: row.groupId, active: true } }),
+    );
   }
   async function fullAccess(
     row: Repair,
@@ -1155,6 +1228,8 @@ export function createRepairService(d: {
       .select('id')
       .where('id', id)
       .forShare();
+    // A pre-lock locating read is never admitted as a protected group fact.
+    attempts.get(tx)?.lockedGroups.add(id);
   }
   async function act(
     input: Command & { id: string; expectedVersion: number },
@@ -2521,7 +2596,7 @@ export function createRepairService(d: {
           tx,
         );
         if (!category?.active) fail('INVALID_INPUT', 'category');
-        const employee = await d.employees.getByUserId(input.actorId, tx);
+        const employee = await employeeFact(input.actorId, tx);
         if (
           row.assetId &&
           (!employee ||

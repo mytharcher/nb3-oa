@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-30 Asia/Singapore",
+  "sourceBase": "9280e53",
+  "logic": {
+    "files": 10,
+    "cases": 19,
+    "passed": 19,
+    "seconds": 228.95
+  },
+  "browser": {
+    "files": 3,
+    "cases": 3,
+    "passed": 3,
+    "seconds": 169.66,
+    "roles": "A/E1/L/K/S; native isolated PG;en/zh375px"
+  },
+  "operations": {
+    "files": 1,
+    "cases": 1,
+    "passed": 1,
+    "seconds": 60.01,
+    "attempts": [1, 1, 2],
+    "receiptCounts": [2, 2, 3],
+    "replayUnchanged": true
+  },
+  "formalMeasurements": {
+    "completeCapacityRounds": 2,
+    "controlledRounds": 3,
+    "naturalRounds": 3,
+    "allGatesPass": true,
+    "additionalRounds": 0,
+    "smallestNaturalMarginMs": 93.07716699999946
+  },
+  "static": {
+    "serverTypes": "passed in build",
+    "fixtureTypes": "passed",
+    "scopedZeroWarningEslint": "passed",
+    "archiveBuild": "passed"
+  },
+  "limits": [
+    "Original capacity failures retained; prior2.93s diagnostic excluded from formal measurements",
+    "Small natural concurrency margin93ms; synthetic workload and environment recorded",
+    "R7 and snapshot evidence retained; no migration or snapshot replay in this step",
+    "Original report menu/task-center/30s startup failures retained",
+    "No production merge/deployment; company policy pending"
+  ]
+}
