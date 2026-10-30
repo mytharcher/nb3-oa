@@ -3,7 +3,8 @@ import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
 // @vitest-environment node
 /* eslint vitest/no-standalone-expect: ["error", {"additionalTestBlockFunctions": ["benchmark"]}] */
 import { createAppTest } from '@nocobase/app-testing/server';
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
+import { notificationServiceToken } from '@nocobase/app-plugin-notification/server';
 import { spawn, execFileSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import {
@@ -42,7 +43,11 @@ const test = createAppTest({
     jobs: {
       default: 'redis',
       redis: {
-        connection: { host: '127.0.0.1', port: 16385, db: 0 },
+        connection: {
+          host: '127.0.0.1',
+          port: Number(process.env.OA_OPERATIONS_REDIS_PORT ?? '16385'),
+          db: 0,
+        },
         namespace: `isolated-repair-operations-${randomUUID()}`,
         attempts: 3,
       },
@@ -228,6 +233,7 @@ benchmark(
                 id,
                 operation,
                 recordId: row.id,
+                recipientId: f.a.userId,
                 cookie,
               }) + '\n',
             );
@@ -382,6 +388,26 @@ benchmark(
         .repository<Repair>('itRepairs')
         .findOne({ filter: { id: row.id } });
       const leaderSession = await f.leader.session();
+      const notifications = c.resolve(notificationServiceToken);
+      const receiptIds = async () =>
+        (
+          await c
+            .resolve(inAppNotificationStoreToken)
+            .list({ userId: f.a.userId, limit: 100 })
+        )
+          .map((m) => m.id)
+          .sort();
+      const beforePendingReceipts = await receiptIds();
+      const interrupted = vi
+        .spyOn(notifications, 'send')
+        .mockRejectedValue(
+          Error('Controlled stop before notification delivery'),
+        );
+      const previousEffects = new Set(
+        (await svc.runtime.listEffectRuns({ recordId: row.id })).map(
+          (e) => e.id,
+        ),
+      );
       expect(
         (
           await leaderSession.fetch(
@@ -398,8 +424,31 @@ benchmark(
           )
         ).status,
       ).toBe(200);
-      // Stop all active application nodes before the compiled read-only cutover.
+      await expect
+        .poll(async () => {
+          const effect = (
+            await svc.runtime.listEffectRuns({ recordId: row.id })
+          ).find((e) => !previousEffects.has(e.id));
+          return (
+            effect?.status === 'queued' &&
+            effect.error === 'Controlled stop before notification delivery'
+          );
+        })
+        .toBe(true);
+      const pendingEffect = (
+        await svc.runtime.listEffectRuns({ recordId: row.id })
+      ).find((e) => !previousEffects.has(e.id))!;
+      // Make it due before switching. Both automatic effect consumers are stopped;
+      // the native read-only artifact must leave attempts, result and status intact.
+      await db.repository('oaLifecycleEffectRuns').updateMany({
+        filter: { id: Number(pendingEffect.id) },
+        values: { runAfter: new Date(Date.now() - 60000).toISOString() },
+      });
+      const pendingCheckpoint = (
+        await svc.runtime.listEffectRuns({ recordId: row.id })
+      ).find((e) => e.id === pendingEffect.id)!;
       await testApp.server.close();
+      interrupted.mockRestore();
       other = await worker('compatible');
       const rollbackRead = (await other.tick('read')) as {
         result: { status: number; body: { data: Repair } };
@@ -416,6 +465,15 @@ benchmark(
       expect(deniedWrite.result.status).toBe(503);
       const frozen = (await other.tick()) as { error: string };
       expect(frozen.error).toContain('READ_ONLY');
+      const frozenEffects = (await other.tick('effects')) as {
+        result: { runs: unknown[]; receiptIds: string[] };
+      };
+      expect(
+        frozenEffects.result.runs.find(
+          (e) => (e as { id: string }).id === pendingEffect.id,
+        ),
+      ).toEqual(pendingCheckpoint);
+      expect(frozenEffects.result.receiptIds).toEqual(beforePendingReceipts);
       await other.close();
       resumed = await createStandaloneServer({
         configPath: testApp.config.path,
@@ -445,6 +503,23 @@ benchmark(
           ),
         )
         .toBe(true);
+      const recoveredEffect = (
+        await svc.runtime.listEffectRuns({ recordId: row.id })
+      ).find((e) => e.id === pendingEffect.id)!;
+      expect(recoveredEffect.status).toBe('succeeded');
+      expect(recoveredEffect.attempts).toBe(pendingCheckpoint.attempts + 1);
+      await svc.runtime.runEffect(pendingEffect.id);
+      expect(
+        (await svc.runtime.listEffectRuns({ recordId: row.id })).find(
+          (e) => e.id === pendingEffect.id,
+        ),
+      ).toEqual(recoveredEffect);
+      await expect
+        .poll(async () => (await receiptIds()).length)
+        .toBe(beforePendingReceipts.length + 1);
+      const recoveredReceipts = await receiptIds();
+      await svc.runtime.runEffect(pendingEffect.id);
+      expect(await receiptIds()).toEqual(recoveredReceipts);
       const inbox = c.resolve(inAppNotificationStoreToken),
         messages = (
           await inbox.list({ userId: f.leader.userId, limit: 100 })
@@ -466,6 +541,19 @@ benchmark(
               numberPreserved: true,
               structure:
                 'retained current security contracts, immutable migrations and permission registry; writes and tick rejected in readOnly; raw old artifact rejected',
+            },
+            pendingEffect: {
+              before: pendingCheckpoint,
+              readOnly: frozenEffects.result.runs.find(
+                (e) => (e as { id: string }).id === pendingEffect.id,
+              ),
+              recovered: recoveredEffect,
+              replayUnchanged: true,
+              receiptCounts: {
+                before: beforePendingReceipts.length,
+                readOnly: frozenEffects.result.receiptIds.length,
+                recovered: recoveredReceipts.length,
+              },
             },
             database: 'shared isolated PG schema',
             jobs: 'shared Redis7 AOF/noeviction;3attempts',

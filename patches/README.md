@@ -21,3 +21,12 @@ changes applied by pnpm, never edits to the shared dependency store.
 Regression coverage: repair reporting T09–T12 and restricted-field probes;
 shared-qualification concurrency/revocation; the isolated 100k capacity fixture.
 No arbitrary SQL expressions are exposed to application callers.
+
+- `@nocobase/authorization`: optional `PermissionSetStore.getMany` returns ordered
+  slots (undefined for absent keys). Resolution still deduplicates assignment
+  keys, preserves first assignment order and fails on the first missing set.
+  Stores without the method retain the existing `get` path and merge semantics.
+- `@nocobase/app-plugin-authorization`: the owner database store uses the same
+  bound connection for parameterized batches of at most 200 distinct keys, then
+  restores input order and duplicates. Empty input performs no query. No cache,
+  schema, locks or permission protection rules change.

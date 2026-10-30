@@ -693,7 +693,7 @@ export function createRepairService(d: {
       tx,
     );
   }
-  /** A configuration save recovers at most 100 orphans. Further batches use the same restricted command. */
+  /** A configuration save recovers at most five orphans. Further batches use the same restricted command. */
   async function reconcileRouting(
     input: Command,
     group: Group,
@@ -713,14 +713,14 @@ export function createRepairService(d: {
         ? await repo.findMany({
             filter,
             sort: (s) => s.field('id').asc(),
-            limit: 11,
+            limit: 6,
           })
         : [];
     const eligible: string[] = [];
     for (const id of new Set(group.active ? group.leaderIds : []))
       if (await active(id, tx)) eligible.push(id);
     let changed = 0;
-    for (const row of orphans.slice(0, 10)) {
+    for (const row of orphans.slice(0, 5)) {
       const recipients = eligible.filter((id) => id !== row.requesterId);
       const previous = await d.writer.listBySourceKey(row.id, tx);
       const pending = previous.filter((item) => item.status === 'pending');
@@ -781,7 +781,7 @@ export function createRepairService(d: {
       );
       changed++;
     }
-    return { processed: changed, hasMore: orphans.length > 10 };
+    return { processed: changed, hasMore: orphans.length > 5 };
   }
   async function groupFor(row: Repair, tx: DatabaseConnection) {
     return row.groupId
@@ -1023,10 +1023,10 @@ export function createRepairService(d: {
       sort: (s) => s.field('id').asc(),
       cursor: group.routingCursor ? { id: group.routingCursor } : undefined,
       direction: group.routingCursor ? 'forward' : undefined,
-      limit: 11,
+      limit: 6,
     });
     let changed = 0;
-    for (const row of rows.slice(0, 10))
+    for (const row of rows.slice(0, 5))
       if (await syncTasks(row, tx)) {
         changed++;
         const result = await runtime.fire(
@@ -1074,10 +1074,10 @@ export function createRepairService(d: {
       }
     const fence = await tx.repository('itRepairGroups').updateMany({
       filter: { id: group.id, version: group.version },
-      values: { routingCursor: rows.length > 10 ? rows[9].id : null },
+      values: { routingCursor: rows.length > 5 ? rows[4].id : null },
     });
     if (fence.updatedCount !== 1) fail('VERSION_CONFLICT');
-    return { processed: changed, hasMore: rows.length > 10 };
+    return { processed: changed, hasMore: rows.length > 5 };
   }
   function text(data: Record<string, unknown>, key: string, max = 2000) {
     const value = data[key];

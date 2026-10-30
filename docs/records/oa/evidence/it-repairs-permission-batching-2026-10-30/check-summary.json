@@ -1,0 +1,104 @@
+{
+  "date": "2026-10-30 Asia/Singapore",
+  "sourceBase": "bb11e5bf7ee47c887dcabedf3e892f35ac881fad",
+  "gates": {
+    "readP95Ms": 2000,
+    "ordinaryWriteP95Ms": 3000,
+    "formal": {
+      "list": {
+        "p95": 1787.757967999998,
+        "pass": true
+      },
+      "filtered": {
+        "p95": 791.9827520000035,
+        "pass": true
+      },
+      "deepPage": {
+        "p95": 1446.769515,
+        "pass": true
+      },
+      "reports38": {
+        "p95": 1675.5721090000006,
+        "pass": true
+      },
+      "writeSerial": {
+        "p95": 181.41818600000988,
+        "pass": true
+      },
+      "writeSameAccount": {
+        "p95": 2783.054105999996,
+        "pass": true
+      }
+    },
+    "configurationBatch10": {
+      "p95": 3655.6280880000013,
+      "pass": false
+    },
+    "configurationBatch5": {
+      "p95": 3624.4532499999987,
+      "pass": false
+    }
+  },
+  "permissionSetReads": {
+    "list": 1,
+    "filtered": 1,
+    "deepPage": 1,
+    "reports38": 1
+  },
+  "checks": {
+    "logicAndComponents": {
+      "files": 11,
+      "cases": 18,
+      "initial": {
+        "passed": 17,
+        "failed": 1
+      },
+      "correctedR7": {
+        "files": 1,
+        "cases": 1,
+        "passed": 1
+      },
+      "result": "18 passed across initial unaffected cases and corrected R7; not a second full 18-case run"
+    },
+    "ownerPg": "49 keys one query;206 keys200+6;empty zero;transaction visibility and rollback passed",
+    "capacityFinal": {
+      "files": 1,
+      "cases": 1,
+      "execution": "passed; configuration gate measured separately remains failed"
+    },
+    "operations": {
+      "files": 1,
+      "cases": 1,
+      "passed": 1,
+      "seconds": 59.12,
+      "checkpoint": {
+        "attempts": [1, 1, 2],
+        "receiptCounts": [2, 2, 3],
+        "replayUnchanged": true
+      }
+    },
+    "static": "server and fixture TypeScript; scoped zero-warning ESLint; build --tar passed",
+    "browser": {
+      "files": 3,
+      "cases": 3,
+      "passed": 3,
+      "seconds": 169.27,
+      "roles": "A/E1/L/K/S native sessions",
+      "paths": "handling/acceptance return; reports/CSV/security;readOnly;en/zh375px"
+    }
+  },
+  "initialCheckCorrections": [
+    "PG fixture member grant included in 49 keys",
+    "R7 normalizes visible column ordinal positions only because PG keeps dropped attnum holes; all definitions/indexes/constraints remain compared",
+    "Old Redis16385 MISCONF: isolated own16486 AOF/noeviction",
+    "Effect fixture integer id conversion",
+    "Wait for controlled failure returned to queued, not initial unattempted queued"
+  ],
+  "limitations": [
+    "Configuration contention still misses3s; do not merge/release",
+    "50k CSV process RSS includes seed/GC; browser JS heap excludes Blob external memory; no50concurrentCSV",
+    "Snapshot restore evidence retained from previous independent verification; not rerun in this step",
+    "Original migration down failure and raw legacy startup rejection retained",
+    "T01/T02 noon erratum retained; company policy and production separately authorized"
+  ]
+}

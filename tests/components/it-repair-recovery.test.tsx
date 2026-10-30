@@ -20,7 +20,7 @@ const runtime = await createTestI18nRuntime({
 it('retries a failed batch with the same request key, then advances to a new batch', async () => {
   mocks.request
     .mockRejectedValueOnce(new Error('Offline'))
-    .mockResolvedValueOnce({ data: { processed: 10, hasMore: true } })
+    .mockResolvedValueOnce({ data: { processed: 5, hasMore: true } })
     .mockResolvedValueOnce({ data: { processed: 1, hasMore: false } });
   const user = userEvent.setup();
   render(
@@ -36,7 +36,7 @@ it('retries a failed batch with the same request key, then advances to a new bat
     screen.getByRole('button', { name: 'Synchronize repair tasks' }),
   );
   await screen.findByText(
-    'Updated 10 repairs. Task synchronization remains; run another batch.',
+    'Updated 5 repairs. Task synchronization remains; run another batch.',
   );
   expect(mocks.request.mock.calls[0][0]).toEqual(
     mocks.request.mock.calls[1][0],

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createInterface } from 'node:readline';
 import { createStandaloneServer } from '../../../server/standalone.js';
 import { pathToFileURL } from 'node:url';
+import { inAppNotificationStoreToken } from '@nocobase/app-plugin-notification-in-app/server';
 import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
 import { repairServiceToken } from '../../../server/providers/it-repairs/service.js';
 const configPath = process.env.OA_OPS_CONFIG;
@@ -46,6 +47,16 @@ const repairToken: typeof repairServiceToken = built
       )
     ).repairServiceToken
   : repairServiceToken;
+const inboxToken: typeof inAppNotificationStoreToken = built
+  ? (
+      await import(
+        import.meta.resolve(
+          '@nocobase/app-plugin-notification-in-app/server',
+          pathToFileURL(process.env.OA_OPS_SERVER!).href,
+        )
+      )
+    ).inAppNotificationStoreToken
+  : inAppNotificationStoreToken;
 const events: { name: string; jobId: string }[] = [];
 app.application.container
   .resolve(jobToken)
@@ -57,14 +68,32 @@ app.application.container
 process.stdout.write('CAPACITY_WORKER_READY\n');
 const input = createInterface({ input: process.stdin });
 for await (const line of input) {
-  const { id, operation, recordId, cookie } = JSON.parse(line) as {
+  const { id, operation, recordId, cookie, recipientId } = JSON.parse(line) as {
     id: string;
     operation: string;
     recordId?: string;
     cookie?: string;
+    recipientId?: string;
   };
   if (operation === 'close') break;
   try {
+    if (operation === 'effects') {
+      const runs = await app.application.container
+        .resolve(repairToken)
+        .runtime.listEffectRuns({ recordId: recordId! });
+      const receiptIds = (
+        await app.application.container
+          .resolve(inboxToken)
+          .list({ userId: recipientId!, limit: 100 })
+      )
+        .map((m) => m.id)
+        .sort();
+      const result = { runs, receiptIds };
+      process.stdout.write(
+        'CAPACITY_WORKER_RESULT ' + JSON.stringify({ id, result }) + '\n',
+      );
+      continue;
+    }
     if (operation === 'events') {
       process.stdout.write(
         'CAPACITY_WORKER_RESULT ' +

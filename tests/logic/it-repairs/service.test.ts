@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 // @vitest-environment node
 import { randomUUID } from 'node:crypto';
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import { driveManagerToken } from '@nocobase/app-server/drive';
 import { databaseManagerToken } from '@nocobase/db';
 import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
@@ -444,6 +444,56 @@ test('routing recovery is bounded, repeatable and preserves frozen intake facts'
     await db.repository('itRepairs').createOne({
       values: { ...original, id: randomUUID(), number: `IT-BOUND-${i}` },
     });
+  const audit = c.resolve(auditServiceToken),
+    record = audit.record.bind(audit);
+  const facts = async () =>
+    Promise.all(
+      [
+        'itRepairCommands',
+        'oaLifecycleTransitions',
+        'oaLifecycleEffectRuns',
+        'userTasks',
+        'auditLogs',
+      ].map((name) => db.repository(name).count()),
+    );
+  const beforeBatch = await facts();
+  let audited = 0;
+  const fault = vi
+    .spyOn(audit, 'record')
+    .mockImplementation(async (entry, tx) => {
+      if (entry.action === 'itRepair.refreshRouting' && ++audited === 3)
+        throw Error('THIRD_RECOVERY_AUDIT');
+      return record(entry, tx);
+    });
+  try {
+    await expect(
+      service.configure(
+        { ...cmd(), id: 'batch', expectedVersion: 0 },
+        {
+          id: 'batch',
+          title: 'Batch IT',
+          leaderIds: [leader.userId],
+          engineerIds: [],
+          categories: ['software'],
+          active: true,
+        },
+      ),
+    ).rejects.toThrow('THIRD_RECOVERY_AUDIT');
+  } finally {
+    fault.mockRestore();
+  }
+  expect(audited).toBe(3);
+  expect(await facts()).toEqual(beforeBatch);
+  expect(
+    await db.repository('itRepairGroups').findOne({ filter: { id: 'batch' } }),
+  ).toBeUndefined();
+  expect(
+    await db
+      .repository('itRepairs')
+      .count({
+        filter: { status: 'triage', groupId: null, category: 'software' },
+      }),
+  ).toBe(101);
   const configured = await service.configure(
     { ...cmd(), id: 'batch', expectedVersion: 0 },
     {
@@ -455,20 +505,20 @@ test('routing recovery is bounded, repeatable and preserves frozen intake facts'
       active: true,
     },
   );
-  expect(configured.recovery).toEqual({ processed: 10, hasMore: true });
+  expect(configured.recovery).toEqual({ processed: 5, hasMore: true });
   expect(
     await db.repository('itRepairs').count({
       filter: { status: 'triage', groupId: null, category: 'software' },
     }),
-  ).toBe(91);
-  for (let batch = 0; batch < 9; batch++) {
+  ).toBe(96);
+  for (let batch = 0; batch < 19; batch++) {
     expect(
       await service.recoverRouting({
         ...cmd(),
         id: 'batch',
         expectedVersion: 1,
       }),
-    ).toEqual({ processed: 10, hasMore: true });
+    ).toEqual({ processed: 5, hasMore: true });
   }
   const recovery = { ...cmd(), id: 'batch', expectedVersion: 1 };
   expect(await service.recoverRouting(recovery)).toEqual({

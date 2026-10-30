@@ -54,7 +54,7 @@ benchmark(
     await mkdir(output, { recursive: true });
     const result: Record<string, unknown> = {
       date: new Date().toISOString(),
-      base: '09c49bb; remediation working tree',
+      base: 'bb11e5b; permission batching working tree',
       node: process.version,
       host: {
         platform: os.platform(),

@@ -152,11 +152,13 @@ benchmark(
     const audit = c.resolve(auditServiceToken),
       original = audit.record.bind(audit);
     let first = true;
+    let firstAuditAt = 0;
     const spy = vi
       .spyOn(audit, 'record')
       .mockImplementation(async (input, tx) => {
         if (first && input.action === 'itRepair.refreshMembership') {
           first = false;
+          firstAuditAt = performance.now();
           reached();
           await gate;
         }
@@ -166,16 +168,18 @@ benchmark(
     const knex = knexFactory({
       client: 'pg',
       connection: {
-        host: '127.0.0.1',
-        port: 15435,
-        user: 'postgres',
-        database: 'nocobase_collection_builder',
+        host: OA_TEST_DATABASE_ENV.POSTGRES_HOST,
+        port: Number(OA_TEST_DATABASE_ENV.POSTGRES_PORT),
+        user: OA_TEST_DATABASE_ENV.POSTGRES_USER,
+        password: OA_TEST_DATABASE_ENV.POSTGRES_PASSWORD,
+        database: OA_TEST_DATABASE_ENV.POSTGRES_DATABASE,
       },
       pool: { min: 0, max: 1 },
     });
     try {
       const start = performance.now();
       let configurationMs = 0;
+      let lockedWorkMs = 0;
       const config = s
         .fetch(
           '/itRepairs/groups/blocking',
@@ -188,6 +192,7 @@ benchmark(
         )
         .then((response) => {
           configurationMs = performance.now() - start;
+          lockedWorkMs = performance.now() - firstAuditAt;
           return response;
         });
       await held;
@@ -234,7 +239,7 @@ benchmark(
       const refreshed = await db
         .repository('auditLogs')
         .count({ filter: { action: 'itRepair.refreshMembership' } });
-      expect(refreshed).toBe(10);
+      expect(refreshed).toBe(5);
       const configuredBody = (await configured.json()) as {
         data: { recovery: { hasMore: boolean } };
       };
@@ -255,7 +260,7 @@ benchmark(
         expect(next.status).toBe(200);
         hasMore = ((await next.json()) as { data: { hasMore: boolean } }).data
           .hasMore;
-        expect(++batches).toBeLessThanOrEqual(12);
+        expect(++batches).toBeLessThanOrEqual(22);
       }
       expect(
         await db
@@ -271,8 +276,11 @@ benchmark(
       const result = {
         date: new Date().toISOString(),
         fixture:
-          '101 same-group pool records;10 per configuration or continuation; old member denied before convergence',
+          '101 same-group pool records;5 per configuration or continuation; old member denied before convergence',
         configurationMs,
+        lockedWorkMs,
+        lockMeasurement:
+          'first membership audit while holding the group fence through configuration response; includes controlled gate, commit and response',
         initialWriteBatchMs: firstBatchMs,
         convergenceMs: performance.now() - start,
         batches,
