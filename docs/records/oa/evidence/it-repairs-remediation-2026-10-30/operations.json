@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-30T02:31:41.338Z",
+  "processes": 2,
+  "sharedScheduleFiring": [
+    {
+      "name": "ScheduleEnd",
+      "jobId": "repeat:deadlines:1793327468702"
+    }
+  ],
+  "codeRollback": {
+    "from": "f938c3a44733",
+    "to": "compiled dist/server/standalone.js in readOnly mode",
+    "status": 200,
+    "oldItRead": 403,
+    "stoppedActiveNodes": true,
+    "numberPreserved": true,
+    "structure": "retained current security contracts, immutable migrations and permission registry; writes and tick rejected in readOnly; raw old artifact rejected"
+  },
+  "database": "shared isolated PG schema",
+  "jobs": "shared Redis7 AOF/noeviction;3attempts",
+  "runs": [
+    [
+      {
+        "status": "fulfilled",
+        "value": {
+          "scanned": 1,
+          "eligibilityScanned": 0,
+          "changed": 1,
+          "references": 0
+        }
+      },
+      {
+        "status": "fulfilled",
+        "value": {
+          "id": "ff266369-9918-4f9a-b4f2-aef1707356b9",
+          "result": {
+            "scanned": 1,
+            "eligibilityScanned": 0,
+            "changed": 0,
+            "references": 0
+          }
+        }
+      }
+    ],
+    [
+      {
+        "status": "fulfilled",
+        "value": {
+          "scanned": 0,
+          "eligibilityScanned": 0,
+          "changed": 0,
+          "references": 0
+        }
+      },
+      {
+        "status": "fulfilled",
+        "value": {
+          "id": "e537aaef-b058-48df-b138-a6575ca9eca9",
+          "result": {
+            "scanned": 0,
+            "eligibilityScanned": 0,
+            "changed": 0,
+            "references": 0
+          }
+        }
+      }
+    ]
+  ],
+  "alerts": [
+    "response80",
+    "responseOverdue",
+    "responseDaily:2026-10-30",
+    "resolution80",
+    "resolutionOverdue",
+    "resolutionDaily:2026-10-30"
+  ],
+  "alertEvents": 6,
+  "notifications": 2,
+  "effects": [
+    {
+      "status": "succeeded"
+    },
+    {
+      "status": "succeeded"
+    },
+    {
+      "status": "succeeded"
+    }
+  ],
+  "restart": "secondary OS application stopped and recreated; repeated sweep did not add alert events"
+}

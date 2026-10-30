@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { databaseManagerToken } from '@nocobase/db';
-import type { Knex } from 'knex';
+import knexFactory from 'knex';
 import { authorizationToken } from '@nocobase/app-plugin-authorization/server';
 import { createStandaloneServer } from '../../../server/standalone.js';
 import {
@@ -162,28 +162,56 @@ benchmark(
         }
         return original(input, tx);
       });
-    const knex = await db.connection().client<Knex>();
+    // Diagnostic connection cannot queue behind the deliberately blocked application pool.
+    const knex = knexFactory({
+      client: 'pg',
+      connection: {
+        host: '127.0.0.1',
+        port: 15435,
+        user: 'postgres',
+        database: 'nocobase_collection_builder',
+      },
+      pool: { min: 0, max: 1 },
+    });
     try {
       const start = performance.now();
-      const config = s.fetch(
-        '/itRepairs/groups/blocking',
-        write('POST', {
-          ...group,
-          engineerIds: [e2.userId],
-          expectedVersion: 1,
-          requestKey: randomUUID(),
-        }),
-      );
+      let configurationMs = 0;
+      const config = s
+        .fetch(
+          '/itRepairs/groups/blocking',
+          write('POST', {
+            ...group,
+            engineerIds: [e2.userId],
+            expectedVersion: 1,
+            requestKey: randomUUID(),
+          }),
+        )
+        .then((response) => {
+          configurationMs = performance.now() - start;
+          return response;
+        });
       await held;
       const target = rows[99],
         begin = performance.now();
-      const blocked = l.fetch(
-        `/itRepairs/${target.id}/actions`,
-        write('POST', {
-          requestKey: randomUUID(),
-          expectedVersion: target.version,
-          action: 'comment',
-          data: { message: 'Synthetic concurrent comment' },
+      const concurrency =
+        process.env.OA_CONFIGURATION_CONCURRENCY === '50' ? 50 : 1;
+      const targets = [...rows]
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .slice(-concurrency);
+      const blocked = Promise.all(
+        targets.map(async (target) => {
+          const began = performance.now();
+          const response = await l.fetch(
+            `/itRepairs/${target.id}/actions`,
+            write('POST', {
+              requestKey: randomUUID(),
+              expectedVersion: target.version,
+              action: 'comment',
+              data: { message: 'Synthetic concurrent comment' },
+            }),
+          );
+          await response.arrayBuffer();
+          return { status: response.status, ms: performance.now() - began };
         }),
       );
       let waits: unknown[] = [];
@@ -197,26 +225,72 @@ benchmark(
         if (!waits.length) await new Promise((r) => setTimeout(r, 10));
       }
       release();
-      const [configured, response] = await Promise.all([config, blocked]);
+      const [configured, writes] = await Promise.all([config, blocked]);
       expect(configured.status).toBe(200);
-      expect(response.status).toBe(200);
+      expect(writes.map((write) => write.status)).toEqual(
+        Array(concurrency).fill(200),
+      );
       expect(waits.length).toBeGreaterThan(0);
       const refreshed = await db
         .repository('auditLogs')
         .count({ filter: { action: 'itRepair.refreshMembership' } });
-      expect(refreshed).toBe(100);
+      expect(refreshed).toBe(10);
+      const configuredBody = (await configured.json()) as {
+        data: { recovery: { hasMore: boolean } };
+      };
+      expect(configuredBody.data.recovery.hasMore).toBe(true);
+      // Old membership is denied before the remaining task indices have caught up.
+      expect(
+        (await (await e1.session()).fetch(`/itRepairs/${target.id}`)).status,
+      ).toBe(403);
+      const blockedWriteMs = performance.now() - begin;
+      const firstBatchMs = performance.now() - start;
+      let batches = 1,
+        hasMore = true;
+      while (hasMore) {
+        const next = await s.fetch(
+          '/itRepairs/groups/blocking/recoverRouting',
+          write('POST', { requestKey: randomUUID(), expectedVersion: 2 }),
+        );
+        expect(next.status).toBe(200);
+        hasMore = ((await next.json()) as { data: { hasMore: boolean } }).data
+          .hasMore;
+        expect(++batches).toBeLessThanOrEqual(12);
+      }
+      expect(
+        await db
+          .repository('auditLogs')
+          .count({ filter: { action: 'itRepair.refreshMembership' } }),
+      ).toBe(101 - concurrency);
+      for (const r of rows) {
+        const tasks = await writer.listBySourceKey(r.id, db.connection());
+        expect(
+          tasks.filter((t) => t.status === 'pending').map((t) => t.userId),
+        ).toEqual([e2.userId]);
+      }
       const result = {
         date: new Date().toISOString(),
         fixture:
-          '101 same-group pool records with native pending task indices;100 configured before commit, one different-actor write',
-        configurationMs: performance.now() - start,
-        blockedWriteMs: performance.now() - begin,
+          '101 same-group pool records;10 per configuration or continuation; old member denied before convergence',
+        configurationMs,
+        initialWriteBatchMs: firstBatchMs,
+        convergenceMs: performance.now() - start,
+        batches,
+        blockedWriteMs,
         configurationStatus: configured.status,
-        writeStatus: response.status,
+        writeStatuses: writes.map((write) => write.status),
+        writeConcurrency: concurrency,
+        writeP95Ms: writes.map((write) => write.ms).sort((a, b) => a - b)[
+          Math.ceil(writes.length * 0.95) - 1
+        ],
+        writeP95Pass:
+          writes.map((write) => write.ms).sort((a, b) => a - b)[
+            Math.ceil(writes.length * 0.95) - 1
+          ] <= 3000,
         refreshed,
         lockWaits: waits,
         gate: 'released as soon as PG reports a real Lock wait; no arbitrary hold duration',
-        p95: false,
+        p95: concurrency === 50,
       };
       const output = process.env.OA_OPERATIONS_OUTPUT!;
       await mkdir(output, { recursive: true });
@@ -227,6 +301,7 @@ benchmark(
     } finally {
       release();
       spy.mockRestore();
+      await knex.destroy();
     }
   },
   120000,

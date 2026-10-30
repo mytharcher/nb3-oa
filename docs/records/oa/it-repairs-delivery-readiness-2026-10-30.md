@@ -97,3 +97,7 @@
 - [PR #3](https://github.com/mytharcher/nb3-oa/pull/3)，基点f938c3a；本轮追加记录和可执行夹具，新增失败断言保留。
 - [模块设计](../../designs/oa/it-repairs-design.md)、[功能台账](it-repairs-reporting-2026-10-30.md)、[界面审查](it-repairs-reporting-ui-2026-10-30.md)、[容量及回退结果](it-repairs-capacity-2026-10-30.md)。
 - 最终回复应列匹配提交的CI与预览；CI构建成功不覆盖本记录的容量失败或回退断言失败，不能作为生产授权。
+
+## 后续补救记录
+
+原始第四阶段失败原样保留。后续共享资格锁、3条业务报表查询、小批恢复、只读编译产物切换及R7补偿见[2026-10-30补救记录](it-repairs-remediation-2026-10-30.md)。42项原功能依据与T01/T02勘误不变；C1列表/报表仍未达2秒，整体继续不具备最终交付/生产发布条件。

@@ -8,6 +8,11 @@
   },
   "include": [
     "./capacity.test.ts",
+    "./snapshot-restore.test.ts",
+    "./read-only-browser.test.ts",
+    "../../logic/it-repairs/shared-qualification.test.ts",
+    "../../logic/it-repairs/read-only.test.ts",
+    "../../logic/it-repairs/compensated-migration.test.ts",
     "./configuration-cost.test.ts",
     "./operations.test.ts",
     "./operations-worker.ts",

@@ -54,7 +54,7 @@ benchmark(
     await mkdir(output, { recursive: true });
     const result: Record<string, unknown> = {
       date: new Date().toISOString(),
-      base: 'f938c3a44733',
+      base: '09c49bb; remediation working tree',
       node: process.version,
       host: {
         platform: os.platform(),
@@ -394,9 +394,11 @@ benchmark(
     };
     const plansOnly = process.env.OA_CAPACITY_PLANS_ONLY === '1';
     let captureGroup = '';
+    const allQueries: { sql: string; workload: string }[] = [];
     const captured: { sql: string; bindings: unknown[]; workload: string }[] =
       [];
     const capture = (q: { sql: string; bindings: unknown[] }) => {
+      allQueries.push({ sql: q.sql, workload: captureGroup });
       if (
         /it_repairs|itRepairs/.test(q.sql) &&
         /^select/i.test(q.sql) &&
@@ -435,20 +437,27 @@ benchmark(
           },
           2,
         );
+      await writeFile(
+        `${output}/query-shapes.json`,
+        JSON.stringify(allQueries, null, 2) + '\n',
+      );
+      result.queryCounts = Object.fromEntries(
+        ['list', 'filtered', 'deepPage', 'reports38'].map((name) => [
+          name,
+          allQueries.filter((q) => q.workload === name).length,
+        ]),
+      );
       const plans = [];
       const listPlans = ['list', 'filtered', 'deepPage']
         .map((name) =>
           captured.find(
-            (q) =>
-              q.workload === name &&
-              q.sql.includes('order by') &&
-              q.sql.includes('"title"'),
+            (q) => q.workload === name && q.sql.includes('order by'),
           ),
         )
         .filter((q): q is (typeof captured)[number] => !!q);
       const reportPlans = captured
         .filter(
-          (q) => q.workload === 'reports38' && !q.sql.includes('count(*)'),
+          (q) => q.workload === 'reports38' && q.sql.includes('filter (where'),
         )
         .slice(-12);
       for (const q of [...listPlans, ...reportPlans]) {

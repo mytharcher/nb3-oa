@@ -48,6 +48,9 @@ export default class RepairProvider extends ServiceProvider<Application> {
   private timers?: ScheduleExecutor;
   override register() {
     const c = this.app.container;
+    const mode = this.app.config.get<{ mode?: string }>('itRepairs')?.mode;
+    if (mode && !['active', 'readOnly'].includes(mode))
+      throw new Error('Invalid IT_REPAIR_MODE');
     c.singleton(repairServiceToken, () => {
       const jobs = c.resolve(jobExecutorServiceToken);
       this.jobs = createLifecycleJobs({
@@ -57,6 +60,9 @@ export default class RepairProvider extends ServiceProvider<Application> {
         sweepEveryMs: 60000,
       });
       return createRepairService({
+        readOnly:
+          this.app.config.get<{ mode?: string }>('itRepairs')?.mode ===
+          'readOnly',
         db: c.resolve(databaseManagerToken),
         audit: c.resolve(auditServiceToken),
         employees: c.resolve(employeeServiceToken),
@@ -327,6 +333,7 @@ export default class RepairProvider extends ServiceProvider<Application> {
   }
   override async start() {
     const service = this.app.container.resolve(repairServiceToken);
+    if (service.mode === 'readOnly') return;
     await this.jobs!.start(service.runtime);
     this.timers = this.app.container
       .resolve(jobExecutorServiceToken)

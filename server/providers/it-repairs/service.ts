@@ -1,3 +1,4 @@
+import { requestConnectionRead } from '../request-performance/business-reads.js';
 import { createRepairQueries, metricsOf, METRIC_FIELDS } from './reporting.js';
 import type { Knex } from 'knex';
 import type { FilterBuilder } from '@nocobase/db';
@@ -246,6 +247,7 @@ export function createRepairService(d: {
   onLockAcquired?: (milliseconds: number) => void;
   dispatcher?: EffectDispatcher;
   now?: () => Date;
+  readOnly?: boolean;
   references?: {
     summary(
       kind: string,
@@ -286,16 +288,32 @@ export function createRepairService(d: {
     mode?: 'handover',
   ) => Promise<void>;
 }) {
+  const assertWritable = () => {
+    if (d.readOnly) fail('READ_ONLY');
+  };
   const now = () => d.now?.() ?? new Date();
   async function active(id: string, tx: DatabaseConnection) {
-    const user = await d.users.withConnection(tx).get(id);
-    const e = await d.employees.getByUserId(id, tx);
-    return !!user && !user.disabledAt && !!e?.active && e.status !== 'left';
+    return requestConnectionRead(
+      d.db.connection(),
+      tx,
+      `repair:active:${id}`,
+      async () => {
+        const user = await d.users.withConnection(tx).get(id);
+        const e = await d.employees.getByUserId(id, tx);
+        return !!user && !user.disabledAt && !!e?.active && e.status !== 'left';
+      },
+    );
   }
   async function groups(tx: DatabaseConnection) {
-    return tx
-      .repository<Group>('itRepairGroups')
-      .findMany({ filter: { active: true } });
+    return requestConnectionRead(
+      d.db.connection(),
+      tx,
+      'repair:groups',
+      async () =>
+        await tx
+          .repository<Group>('itRepairGroups')
+          .findMany({ filter: { active: true } }),
+    );
   }
   async function leaderGroups(actorId: string, tx: DatabaseConnection) {
     return (await groups(tx))
@@ -334,6 +352,7 @@ export function createRepairService(d: {
     name: 'oa.itRepair.submitted',
     retry: { attempts: 8, backoffMs: 5000, factor: 2 },
     run: async ({ record }) => {
+      assertWritable();
       const current = await d.db
         .repository<Repair>('itRepairs')
         .findOne({ filter: { id: record.id } });
@@ -369,6 +388,7 @@ export function createRepairService(d: {
     name: 'oa.itRepair.updated',
     retry: { attempts: 8, backoffMs: 5000, factor: 2 },
     run: async ({ record, input, transition, idempotencyKey }) => {
+      assertWritable();
       const current = await d.db
         .repository<Repair>('itRepairs')
         .findOne({ filter: { id: record.id } });
@@ -510,6 +530,7 @@ export function createRepairService(d: {
     policy: RepositoryPolicy | null,
     work: (tx: DatabaseConnection) => Promise<T>,
   ): Promise<T> {
+    assertWritable();
     return d.db.transaction(async (tx) => {
       // Freeze intake snapshots; configuration also needs predicate conflict detection across actors.
       if (tx.dialect === 'postgres')
@@ -521,7 +542,18 @@ export function createRepairService(d: {
             : 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ',
         );
       const lockStarted = performance.now();
-      await lockUserForAdministration(tx, input.actorId);
+      const target =
+        payload && typeof payload === 'object' && 'assigneeId' in payload
+          ? payload.assigneeId
+          : undefined;
+      const identities = [
+        ...new Set([
+          input.actorId,
+          ...(typeof target === 'string' ? [target] : []),
+        ]),
+      ].sort();
+      for (const identity of identities)
+        await lockUserForAdministration(tx, identity, 'shared');
       d.onLockAcquired?.(performance.now() - lockStarted);
       const account = await d.users.withConnection(tx).get(input.actorId);
       if (
@@ -666,7 +698,6 @@ export function createRepairService(d: {
     input: Command,
     group: Group,
     tx: DatabaseConnection,
-    refreshAssigned: boolean,
   ) {
     const repo = tx.repository<Repair>('itRepairs');
     const filter = (f: FilterBuilder) =>
@@ -682,17 +713,14 @@ export function createRepairService(d: {
         ? await repo.findMany({
             filter,
             sort: (s) => s.field('id').asc(),
-            limit: 101,
+            limit: 11,
           })
         : [];
-    const assigned = refreshAssigned
-      ? await repo.findMany({ filter: { groupId: group.id, status: 'triage' } })
-      : [];
     const eligible: string[] = [];
     for (const id of new Set(group.active ? group.leaderIds : []))
       if (await active(id, tx)) eligible.push(id);
     let changed = 0;
-    for (const row of [...assigned, ...orphans.slice(0, 100)]) {
+    for (const row of orphans.slice(0, 10)) {
       const recipients = eligible.filter((id) => id !== row.requesterId);
       const previous = await d.writer.listBySourceKey(row.id, tx);
       const pending = previous.filter((item) => item.status === 'pending');
@@ -753,7 +781,7 @@ export function createRepairService(d: {
       );
       changed++;
     }
-    return { processed: changed, hasMore: orphans.length > 100 };
+    return { processed: changed, hasMore: orphans.length > 10 };
   }
   async function groupFor(row: Repair, tx: DatabaseConnection) {
     return row.groupId
@@ -973,6 +1001,19 @@ export function createRepairService(d: {
     tx: DatabaseConnection,
     actorId: string,
   ) {
+    // Zero is an orphan-only continuation marker, never a membership scan position.
+    if (group.routingCursor === '00000000-0000-0000-0000-000000000000') {
+      const result = await tx.repository('itRepairGroups').updateMany({
+        filter: {
+          id: group.id,
+          version: group.version,
+          routingCursor: group.routingCursor,
+        },
+        values: { routingCursor: null },
+      });
+      if (result.updatedCount !== 1) fail('VERSION_CONFLICT');
+      return { processed: 0, hasMore: false };
+    }
     const rows = await tx.repository<Repair>('itRepairs').findMany({
       filter: (f) =>
         f.and([
@@ -982,22 +1023,29 @@ export function createRepairService(d: {
       sort: (s) => s.field('id').asc(),
       cursor: group.routingCursor ? { id: group.routingCursor } : undefined,
       direction: group.routingCursor ? 'forward' : undefined,
-      limit: 101,
+      limit: 11,
     });
-    for (const row of rows.slice(0, 100))
+    let changed = 0;
+    for (const row of rows.slice(0, 10))
       if (await syncTasks(row, tx)) {
+        changed++;
         const result = await runtime.fire(
           'oa.itRepair',
           row.id,
-          `routing_${row.status}_${row.status}`,
+          row.status === 'triage'
+            ? 'refreshRouting'
+            : `routing_${row.status}_${row.status}`,
           {
             actor: { id: actorId },
             expect: { version: row.version },
-            input: {
-              updatedAt: now().toISOString(),
-              nextDueAt: now().toISOString(),
-              processing: (await noticeProcessing(row, tx)) as JsonObject,
-            },
+            input:
+              row.status === 'triage'
+                ? { groupId: group.id, updatedAt: now().toISOString() }
+                : {
+                    updatedAt: now().toISOString(),
+                    nextDueAt: now().toISOString(),
+                    processing: (await noticeProcessing(row, tx)) as JsonObject,
+                  },
             transaction: tx,
           },
         );
@@ -1024,10 +1072,12 @@ export function createRepairService(d: {
           tx,
         );
       }
-    await tx.repository('itRepairGroups').updateMany({
+    const fence = await tx.repository('itRepairGroups').updateMany({
       filter: { id: group.id, version: group.version },
-      values: { routingCursor: rows.length > 100 ? rows[99].id : null },
+      values: { routingCursor: rows.length > 10 ? rows[9].id : null },
     });
+    if (fence.updatedCount !== 1) fail('VERSION_CONFLICT');
+    return { processed: changed, hasMore: rows.length > 10 };
   }
   function text(data: Record<string, unknown>, key: string, max = 2000) {
     const value = data[key];
@@ -1172,7 +1222,8 @@ export function createRepairService(d: {
       };
       const reason = () => text(data, 'reason', 1000);
       const assign = async (id: unknown) => {
-        if (typeof id === 'string') await lockUserForAdministration(tx, id);
+        if (typeof id === 'string')
+          await lockUserForAdministration(tx, id, 'shared');
         if (
           typeof id !== 'string' ||
           !(await qualified(
@@ -1821,6 +1872,7 @@ export function createRepairService(d: {
     };
   }
   async function rebuildMetrics(limit = 100) {
+    assertWritable();
     const rows = await d.db.repository<Repair>('itRepairs').findMany({
       filter: (f) =>
         f.and([
@@ -1849,6 +1901,7 @@ export function createRepairService(d: {
   /** Bounded index scan, one transaction per due record, idempotent event keys survive restarts. */
   let eligibilityCursor: string | undefined;
   async function tick(limit = 100) {
+    assertWritable();
     await rebuildMetrics(limit);
     const pending = await d.db.repository<Group>('itRepairGroups').findMany({
       filter: (f) => f.string('routingCursor').notEmpty(),
@@ -1864,8 +1917,24 @@ export function createRepairService(d: {
           },
           values: { version: { increment: 0 } },
         });
-        if (fence.updatedCount === 1)
-          await recoverMembership(group, tx, 'system');
+        if (fence.updatedCount === 1) {
+          const recovery = await reconcileRouting(
+            {
+              actorId: 'system',
+              requestKey: `routing:${group.id}:${group.version}`,
+            },
+            group,
+            tx,
+          );
+          const membership = await recoverMembership(group, tx, 'system');
+          if (recovery.hasMore && !membership.hasMore)
+            await tx.repository('itRepairGroups').updateMany({
+              filter: { id: group.id, version: group.version },
+              values: {
+                routingCursor: '00000000-0000-0000-0000-000000000000',
+              },
+            });
+        }
       });
     const at = now();
     const rows = await d.db.repository<Repair>('itRepairs').findMany({
@@ -2186,6 +2255,8 @@ export function createRepairService(d: {
   }
   return {
     runtime,
+    assertWritable,
+    mode: d.readOnly ? ('readOnly' as const) : ('active' as const),
     get,
     act,
     handling,
@@ -2390,6 +2461,7 @@ export function createRepairService(d: {
       );
     },
     async save(input: Command, draft: Draft, policy: RepositoryPolicy) {
+      assertWritable();
       const normalized: Draft = {
         ...draft,
         title: draft.title.trim(),
@@ -2706,23 +2778,29 @@ export function createRepairService(d: {
           old.active !== group.active ||
           hash([...new Set(old.leaderIds)].sort()) !==
             hash([...new Set(group.leaderIds)].sort());
-        const recovery = await reconcileRouting(
-          input,
-          values,
-          tx,
-          routingChanged,
-        );
+        const recovery = await reconcileRouting(input, values, tx);
         if (
           routingChanged ||
           !old ||
           hash([...new Set(old.engineerIds)].sort()) !==
             hash([...new Set(group.engineerIds)].sort())
-        )
-          await recoverMembership(
+        ) {
+          const membership = await recoverMembership(
             { ...values, routingCursor: null },
             tx,
             input.actorId,
           );
+          recovery.hasMore ||= membership.hasMore;
+          recovery.processed += membership.processed;
+        }
+        if (recovery.hasMore) {
+          const stored = await repo.findOne({ filter: { id: group.id } });
+          if (!stored?.routingCursor)
+            await repo.updateMany({
+              filter: { id: group.id, version: values.version },
+              values: { routingCursor: '00000000-0000-0000-0000-000000000000' },
+            });
+        }
         await d.audit.record(
           {
             actorId: input.actorId,
@@ -2745,7 +2823,25 @@ export function createRepairService(d: {
           .findOne({ filter: { id: input.id } });
         if (!group || group.version !== input.expectedVersion)
           fail('VERSION_CONFLICT');
-        return reconcileRouting(input, group, tx, false);
+        const recovery = await reconcileRouting(input, group, tx);
+        if (group.routingCursor) {
+          const membership = await recoverMembership(group, tx, input.actorId);
+          recovery.hasMore ||= membership.hasMore;
+          recovery.processed += membership.processed;
+        }
+        if (recovery.hasMore) {
+          const stored = await tx
+            .repository<Group>('itRepairGroups')
+            .findOne({ filter: { id: group.id } });
+          if (!stored?.routingCursor)
+            await tx.repository('itRepairGroups').updateMany({
+              filter: { id: group.id, version: group.version },
+              values: {
+                routingCursor: '00000000-0000-0000-0000-000000000000',
+              },
+            });
+        }
+        return recovery;
       });
     },
   };

@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-30T02:37:43.048Z",
+  "fixture": "101 same-group pool records;10 per configuration or continuation; old member denied before convergence",
+  "configurationMs": 1858.0869960000018,
+  "initialWriteBatchMs": 4323.499587999999,
+  "convergenceMs": 8863.680713000002,
+  "batches": 11,
+  "blockedWriteMs": 4183.364135,
+  "configurationStatus": 200,
+  "writeStatuses": [
+    200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+    200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+    200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+    200, 200, 200, 200, 200
+  ],
+  "writeConcurrency": 50,
+  "writeP95Ms": 4049.6159079999998,
+  "writeP95Pass": false,
+  "refreshed": 10,
+  "lockWaits": [
+    {
+      "wait_event_type": "Lock",
+      "wait_event": "transactionid"
+    }
+  ],
+  "gate": "released as soon as PG reports a real Lock wait; no arbitrary hold duration",
+  "p95": true
+}

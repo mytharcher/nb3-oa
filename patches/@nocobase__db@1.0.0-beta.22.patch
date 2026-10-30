@@ -1,0 +1,97 @@
+diff --git a/dist/src/repository/internal/knex-execution-adapter.js b/dist/src/repository/internal/knex-execution-adapter.js
+index 64bca1c74e57a933c37810ea8375653915e3d4d7..4987b10a685d359abc79220ce537d3ddfda9b10d 100644
+--- a/dist/src/repository/internal/knex-execution-adapter.js
++++ b/dist/src/repository/internal/knex-execution-adapter.js
+@@ -172,6 +172,28 @@ export class KnexRepositoryExecutionAdapter {
+         applyFilter(query, plan.collection, plan.filter?.root, graph, alias, client);
+         return (await query.first()) !== undefined;
+     }
++    async aggregateScoped(plan) {
++        const client = this.getClient();
++        if (client.client.config.client !== 'pg') throw new Error('Conditional numeric aggregates require PostgreSQL');
++        const alias = 'repository_root';
++        const query = tableQuery(client, plan.collection, alias);
++        for (const item of plan.items) {
++            const predicate = client.queryBuilder();
++            const graph = await this.prepareFilterGraph(plan.collection, item.filter?.root);
++            applyFilter(predicate, plan.collection, item.filter?.root, graph, alias, client);
++            const compiled = predicate.toSQL();
++            const where = compiled.sql.replace(/^select \*(?: where )?/i, '').replace(/^where /i, '');
++            const value = item.field === undefined ? client.raw('*') : client.ref(qualified(alias, column(plan.collection, item.field)));
++            const expression = item.kind === 'median' || item.kind === 'p90'
++                ? client.raw(`${item.kind === 'median' ? 'percentile_cont(0.5)' : 'percentile_disc(0.9)'} within group (order by ?)`, [value])
++                : client.raw(`${item.kind}(?)`, [value]);
++            query.select(client.raw('? filter (where ' + (where || 'true') + ') as ??', [expression, ...compiled.bindings, item.alias]));
++        }
++        const graph = await this.prepareFilterGraph(plan.collection, plan.filter?.root);
++        applyFilter(query, plan.collection, plan.filter?.root, graph, alias, client);
++        const row = await query.first();
++        return Object.fromEntries(plan.items.map(item => [item.alias, row?.[item.alias] == null ? null : Number(row[item.alias])]));
++    }
+     async aggregate(plan) {
+         const client = this.getClient();
+         const alias = 'repository_root';
+@@ -2188,7 +2210,9 @@ export class KnexRepositoryExecutionAdapter {
+     async applySort(query, collection, item, sourceAlias) {
+         const client = this.getClient();
+         if (item.kind === 'field' && item.path.length === 1) {
+-            applyOrderBy(query, client, qualified(sourceAlias, column(collection, item.path[0])), item.direction, item.nulls ?? 'last');
++            const source = scalarFields(collection).find(field => field.name === item.path[0]);
++            if (source?.nullable === false || source?.primaryKey) query.orderBy(qualified(sourceAlias, column(collection, item.path[0])), item.direction);
++            else applyOrderBy(query, client, qualified(sourceAlias, column(collection, item.path[0])), item.direction, item.nulls ?? 'last');
+             return;
+         }
+         const relationPath = item.kind === 'field' ? item.path.slice(0, -1) : item.relation;
+diff --git a/dist/src/repository/repository.d.ts b/dist/src/repository/repository.d.ts
+index 135a62e4b39c3b9d8c21edeb403a3f99c7c2dfa4..ce0ec95cc65783e4cc592a24408865891cf4e6f7 100644
+--- a/dist/src/repository/repository.d.ts
++++ b/dist/src/repository/repository.d.ts
+@@ -29,6 +29,7 @@ export declare class DefaultRepository<TRecord extends object = RepositoryRecord
+     findOne(options: FindOneOptions<TRecord>): Promise<TRecord | undefined>;
+     count(options?: FilterOnlyOptions<TRecord>): Promise<number>;
+     exists(options?: FilterOnlyOptions<TRecord>): Promise<boolean>;
++    aggregateScoped(options: FilterOnlyOptions<TRecord> & { metrics: readonly { alias: string; operation: 'count' | 'sum' | 'avg' | 'median' | 'p90'; field?: string; filter?: FilterOnlyOptions<TRecord>['filter'] }[] }): Promise<Record<string, number | null>>;
+     aggregate<TSelection extends AggregateSelection>(options: AggregateOptions<TRecord> & {
+         readonly aggregate: (aggregate: AggregateBuilder<TRecord>) => TSelection;
+     }): Promise<AggregateSelectionResult<TSelection>>;
+diff --git a/dist/src/repository/repository.js b/dist/src/repository/repository.js
+index d0069270579388dde559f992cb1bc43496d357b3..67c7d2f84f3f1e3045ef4d8fc4fe88da5d215e5b 100644
+--- a/dist/src/repository/repository.js
++++ b/dist/src/repository/repository.js
+@@ -131,6 +131,24 @@ export class DefaultRepository {
+             filter: await this.normalizeFilter(collection, options.filter, options.context, this.readContext(collection)),
+         });
+     }
++    async aggregateScoped(options) {
++        const collection = await this.collection();
++        const policy = this.readContext(collection);
++        if (!Array.isArray(options.metrics) || !options.metrics.length) throw new Error('INVALID_AGGREGATE');
++        const aliases = new Set();
++        const items = [];
++        for (const metric of options.metrics) {
++            if (!['count', 'sum', 'avg', 'median', 'p90'].includes(metric.operation) || typeof metric.alias !== 'string' || !metric.alias || aliases.has(metric.alias)) throw new Error('INVALID_AGGREGATE');
++            aliases.add(metric.alias);
++            validateAggregate(collection, { kind: 'aggregate', version: 1, items: [{ kind: ['median','p90'].includes(metric.operation) ? 'avg' : metric.operation, alias: metric.alias, field: metric.field }] }, policy);
++            const normalized = await this.normalizeFilterWithoutPolicy(collection, metric.filter, options.context);
++            const filter = normalized && policy.kind !== 'unrestricted' ? { ...normalized, root: await scopeCallerFilterGroup(this.options.collections, collection, normalized.root, policy, ['root']) } : normalized;
++            // Root record scope is applied once to the common input below; relation/field guards remain per metric.
++            items.push({ kind: metric.operation, alias: metric.alias, field: metric.field, filter });
++        }
++        const filter = await this.normalizeFilter(collection, options.filter, options.context, policy);
++        return this.options.adapter.aggregateScoped({ collection, items, filter });
++    }
+     async aggregate(options) {
+         const collection = await this.collection();
+         const policy = this.readContext(collection);
+diff --git a/dist/src/repository/types.d.ts b/dist/src/repository/types.d.ts
+index e2fdee5e82c8c67ba203250b161cf6b0d6e8585e..f305d91716aa02d8b93b5d07631aef6647430179 100644
+--- a/dist/src/repository/types.d.ts
++++ b/dist/src/repository/types.d.ts
+@@ -209,6 +209,7 @@ export interface Repository<TRecord extends object = RepositoryRecord, TCreate e
+     findOne(options: FindOneOptions<TRecord>): Promise<TRecord | undefined>;
+     count(options?: FilterOnlyOptions<TRecord>): Promise<number>;
+     exists(options?: FilterOnlyOptions<TRecord>): Promise<boolean>;
++    aggregateScoped(options: FilterOnlyOptions<TRecord> & { metrics: readonly { alias: string; operation: 'count' | 'sum' | 'avg' | 'median' | 'p90'; field?: string; filter?: FilterOnlyOptions<TRecord>['filter'] }[] }): Promise<Record<string, number | null>>;
+     aggregate<TSelection extends AggregateSelection>(options: AggregateOptions<TRecord> & {
+         readonly aggregate: (aggregate: AggregateBuilder<TRecord>) => TSelection;
+     }): Promise<AggregateSelectionResult<TSelection>>;

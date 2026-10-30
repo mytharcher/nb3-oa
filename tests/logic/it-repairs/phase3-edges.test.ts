@@ -464,7 +464,7 @@ test('V18 membership recovery continues a 101-record legacy queue in bounded bat
         status: 'pending',
       },
     }),
-  ).toBe(1);
+  ).toBe(91);
   expect(
     (
       await db
@@ -472,7 +472,7 @@ test('V18 membership recovery continues a 101-record legacy queue in bounded bat
         .findOne({ filter: { id: 'edge-network' } })
     )?.routingCursor,
   ).toBeTruthy();
-  await svc.tick(1);
+  for (let batch = 0; batch < 10; batch++) await svc.tick(1);
   expect(
     await db.repository('userTasks').count({
       filter: {

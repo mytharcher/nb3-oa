@@ -20,7 +20,7 @@ const runtime = await createTestI18nRuntime({
 it('retries a failed batch with the same request key, then advances to a new batch', async () => {
   mocks.request
     .mockRejectedValueOnce(new Error('Offline'))
-    .mockResolvedValueOnce({ data: { processed: 100, hasMore: true } })
+    .mockResolvedValueOnce({ data: { processed: 10, hasMore: true } })
     .mockResolvedValueOnce({ data: { processed: 1, hasMore: false } });
   const user = userEvent.setup();
   render(
@@ -29,24 +29,24 @@ it('retries a failed batch with the same request key, then advances to a new bat
     </TestI18nProvider>,
   );
   await user.click(
-    screen.getByRole('button', { name: 'Recover unassigned repairs' }),
+    screen.getByRole('button', { name: 'Synchronize repair tasks' }),
   );
   await screen.findByRole('alert');
   await user.click(
-    screen.getByRole('button', { name: 'Recover unassigned repairs' }),
+    screen.getByRole('button', { name: 'Synchronize repair tasks' }),
   );
   await screen.findByText(
-    'Recovered 100 repairs. More remain; run another batch.',
+    'Updated 10 repairs. Task synchronization remains; run another batch.',
   );
   expect(mocks.request.mock.calls[0][0]).toEqual(
     mocks.request.mock.calls[1][0],
   );
   await user.click(
-    screen.getByRole('button', { name: 'Recover unassigned repairs' }),
+    screen.getByRole('button', { name: 'Synchronize repair tasks' }),
   );
   await waitFor(() =>
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Recovered 1 repairs. No matching unassigned repairs remain.',
+      'Updated 1 repairs. This synchronization batch is complete.',
     ),
   );
   expect(mocks.request.mock.calls[2][0].json.requestKey).not.toBe(

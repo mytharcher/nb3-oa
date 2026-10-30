@@ -1,3 +1,4 @@
+import { Alert, AlertDescription } from '#components/ui/alert';
 import { repairQuery, useRepairOptions } from './query-state.js';
 import { ExportRepairs, QuerySummary, RepairAdminLinks } from './query.js';
 import { TruncatedText } from '#components/truncated-text';
@@ -107,19 +108,19 @@ export default function Repairs() {
     resource: { type: 'composite', id: 'oa.itRepairs' },
     action: 'create',
   });
-  const r = useBusinessResource<{ data: { items: Item[]; total: number } }>(
-    'itRepairs',
-    {
-      ...repairQuery(params),
-      page: String(page),
-      pageSize: '20',
-      q: search,
-      ...(status === 'all' ? {} : { status }),
-      sort,
-      direction,
-    },
-  );
-  const add = (
+  const r = useBusinessResource<{
+    data: { items: Item[]; total: number; mode?: 'active' | 'readOnly' };
+  }>('itRepairs', {
+    ...repairQuery(params),
+    page: String(page),
+    pageSize: '20',
+    q: search,
+    ...(status === 'all' ? {} : { status }),
+    sort,
+    direction,
+  });
+  const readOnly = r.data?.data.mode === 'readOnly';
+  const add = readOnly ? null : (
     <Button render={<Link to={{ pathname: 'new', search: `?${params}` }} />}>
       {t('itRepairs.create')}
     </Button>
@@ -284,7 +285,7 @@ export default function Repairs() {
                   {t('itRepairs.reports')}
                 </Button>
               ) : null}
-              <ExportRepairs params={params} />
+              {readOnly ? null : <ExportRepairs params={params} />}
               {r.data && (r.data.data.total > 0 || filtered) && create.can
                 ? add
                 : null}
@@ -296,6 +297,11 @@ export default function Repairs() {
             </div>
           }
         />
+        {r.data?.data.mode === 'readOnly' ? (
+          <Alert>
+            <AlertDescription>{t('itRepairs.readOnly')}</AlertDescription>
+          </Alert>
+        ) : null}
         <ApplicationToolbar>
           <ApplicationSearch
             {...inputProps}
@@ -395,7 +401,9 @@ export default function Repairs() {
               <ApplicationTableEmpty
                 title={t(filtered ? 'itRepairs.noMatches' : 'itRepairs.empty')}
                 description={
-                  filtered ? undefined : t('itRepairs.emptyDescription')
+                  filtered || readOnly
+                    ? undefined
+                    : t('itRepairs.emptyDescription')
                 }
                 clearFilters={
                   filtered

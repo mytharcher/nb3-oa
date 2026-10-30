@@ -1,5 +1,6 @@
 export default {
   itRepairs: {
+    readOnly: 'IT报修暂时只读，可查看已有工单与文件，办理和导出已暂停。',
     openSource: '查看来源',
     linkedSources: '关联业务',
     restrictedSource: '已关联业务事项；来源资料受限。',
@@ -216,8 +217,9 @@ export default {
     destructiveConfirm:
       '确认对 {{number}} 执行此操作。结案保留历史并结束活动待办；取消申请仍需负责人审核。',
     recoverRouting: '恢复未分组报修',
-    recoveryMore: '已恢复 {{count}} 张工单，仍有剩余，请继续恢复。',
-    recoveryDone: '已恢复 {{count}} 张工单，暂无匹配的未分组工单。',
+    recoveryPending: '配置已保存，报修待办仍待分批同步。',
+    recoveryMore: '已更新 {{count}} 张工单，待办仍在同步，请继续执行下一批。',
+    recoveryDone: '已更新 {{count}} 张工单，本次同步已完成。',
     createdAt: '创建时间',
     assetAuthorization: '授权资产报修',
     asset: '关联本人资产',
@@ -288,6 +290,7 @@ export default {
       triage: '待分诊',
     },
     errors: {
+      READ_ONLY: 'IT报修暂时只读，请在恢复办理后重试。',
       REPORTS_PREPARING: '历史统计事实正在准备，请稍后重试。',
       SECURITY_TRANSFER_DISABLED: '尚未开启受限转交。',
       INVALID_INPUT: '未能完成操作，请检查输入后重试。',

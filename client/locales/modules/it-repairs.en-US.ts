@@ -1,5 +1,7 @@
 export default {
   itRepairs: {
+    readOnly:
+      'IT repairs are temporarily read only. Existing records and files remain available; handling and export are paused.',
     openSource: 'Open source',
     linkedSources: 'Linked business records',
     restrictedSource: 'Business record linked; source details are restricted.',
@@ -218,11 +220,13 @@ export default {
     openAction: 'Open action',
     destructiveConfirm:
       'Confirm this action for {{number}}. Closure preserves the history and ends active work. A pending cancellation requires leader review.',
-    recoverRouting: 'Recover unassigned repairs',
+    recoverRouting: 'Synchronize repair tasks',
+    recoveryPending:
+      'Configuration saved. Repair task synchronization is still pending.',
     recoveryMore:
-      'Recovered {{count}} repairs. More remain; run another batch.',
+      'Updated {{count}} repairs. Task synchronization remains; run another batch.',
     recoveryDone:
-      'Recovered {{count}} repairs. No matching unassigned repairs remain.',
+      'Updated {{count}} repairs. This synchronization batch is complete.',
     createdAt: 'Created',
     assetAuthorization: 'Authorize asset repair reporting',
     asset: 'Held asset',
@@ -297,6 +301,8 @@ export default {
       triage: 'Awaiting triage',
     },
     errors: {
+      READ_ONLY:
+        'IT repairs are temporarily read only. Please try again after handling resumes.',
       REPORTS_PREPARING:
         'Historical reporting facts are being prepared. Try again shortly.',
       SECURITY_TRANSFER_DISABLED: 'Restricted transfer is not enabled.',

@@ -455,12 +455,21 @@ test('routing recovery is bounded, repeatable and preserves frozen intake facts'
       active: true,
     },
   );
-  expect(configured.recovery).toEqual({ processed: 100, hasMore: true });
+  expect(configured.recovery).toEqual({ processed: 10, hasMore: true });
   expect(
     await db.repository('itRepairs').count({
       filter: { status: 'triage', groupId: null, category: 'software' },
     }),
-  ).toBe(1);
+  ).toBe(91);
+  for (let batch = 0; batch < 9; batch++) {
+    expect(
+      await service.recoverRouting({
+        ...cmd(),
+        id: 'batch',
+        expectedVersion: 1,
+      }),
+    ).toEqual({ processed: 10, hasMore: true });
+  }
   const recovery = { ...cmd(), id: 'batch', expectedVersion: 1 };
   expect(await service.recoverRouting(recovery)).toEqual({
     processed: 1,

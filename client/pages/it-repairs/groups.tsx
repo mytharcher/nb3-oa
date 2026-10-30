@@ -32,6 +32,7 @@ interface Group {
   active: boolean;
   security?: boolean;
   version: number;
+  routingCursor?: string | null;
 }
 export default function Groups() {
   const health = useBusinessResource<{
@@ -85,12 +86,18 @@ export default function Groups() {
                     .map((c) => t(`itRepairs.options.${c}`))
                     .join(', ')}
                 </p>
+                {g.routingCursor ? (
+                  <p role='status' className='text-sm text-muted-foreground'>
+                    {t('itRepairs.recoveryPending')}
+                  </p>
+                ) : null}
                 {can.can ? (
                   <div className='flex flex-wrap items-start gap-2'>
                     <Button variant='outline' render={<Link to={g.id} />}>
                       {t('itRepairs.edit')}
                     </Button>
-                    {g.active && g.categories.length > 0 ? (
+                    {g.active &&
+                    (g.categories.length > 0 || g.routingCursor) ? (
                       <RecoverRoutingButton group={g} />
                     ) : null}
                   </div>

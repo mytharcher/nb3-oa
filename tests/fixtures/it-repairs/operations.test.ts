@@ -1,3 +1,4 @@
+import { ruleServiceToken } from '../../../server/providers/platform/index.js';
 import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
 // @vitest-environment node
 /* eslint vitest/no-standalone-expect: ["error", {"additionalTestBlockFunctions": ["benchmark"]}] */
@@ -52,10 +53,10 @@ const benchmark = test.runIf(process.env.OA_IT_REPAIR_OPERATIONS === '1');
 benchmark(
   'two native OS instances share PG/Redis and recover due effects after restart',
   async ({ testApp }) => {
-    const c = testApp.application.container,
-      db = c.resolve(databaseManagerToken),
-      svc = c.resolve(repairServiceToken),
-      auth = c.resolve(authorizationToken),
+    let c = testApp.application.container;
+    let db = c.resolve(databaseManagerToken),
+      svc = c.resolve(repairServiceToken);
+    const auth = c.resolve(authorizationToken),
       f = await prepareRepairs(testApp),
       engineer = await createEmployee(testApp, 'Ops E');
     for (const [p, role] of [
@@ -68,7 +69,8 @@ benchmark(
         subject: { type: 'user', id: p.userId },
       });
     const a = await f.a.session(),
-      s = await f.admin.session();
+      s = await f.admin.session(),
+      l = await f.leader.session();
     expect(
       (
         await s.fetch(
@@ -158,6 +160,7 @@ benchmark(
       const child = spawn(
         process.execPath,
         [
+          '--experimental-import-meta-resolve',
           '--import',
           'tsx',
           path.resolve('tests/fixtures/it-repairs/operations-worker.ts'),
@@ -166,7 +169,13 @@ benchmark(
           env: {
             ...process.env,
             OA_OPS_CONFIG: testApp.config.path,
-            ...(rollback
+            ...(rollback === 'compatible'
+              ? {
+                  IT_REPAIR_MODE: 'readOnly',
+                  OA_OPS_SERVER: path.resolve('dist/server/standalone.js'),
+                }
+              : {}),
+            ...(rollback === 'raw'
               ? {
                   OA_OPS_SERVER: path.join(
                     process.env.TMPDIR!,
@@ -210,6 +219,7 @@ benchmark(
       await prepared;
       return {
         async tick(operation = 'tick') {
+          const cookie = operation === 'oldRead' ? l.cookie : a.cookie;
           const id = randomUUID();
           return new Promise((resolve) => {
             pending.set(id, resolve);
@@ -218,7 +228,7 @@ benchmark(
                 id,
                 operation,
                 recordId: row.id,
-                cookie: a.cookie,
+                cookie,
               }) + '\n',
             );
           });
@@ -238,6 +248,7 @@ benchmark(
         },
       };
     }
+    let resumed: Awaited<ReturnType<typeof createStandaloneServer>> | undefined;
     let other = await worker();
     await db.repository('itRepairs').updateMany({
       filter: { id: row.id },
@@ -339,13 +350,80 @@ benchmark(
           2,
         ),
       );
+      const restrictedLeader = await createEmployee(
+        testApp,
+        'Ops restricted leader',
+      );
+      await auth.permissionSets.assign({
+        permissionSet: 'oa-it-repairs-securityTransfer',
+        subject: { type: 'user', id: f.leader.userId },
+      });
+      await c
+        .resolve(ruleServiceToken)
+        .set({ key: 'itRepair.securityTransfer', value: 1, actorId: null });
+      expect(
+        (
+          await s.fetch(
+            '/itRepairs/groups/operations-security',
+            write('POST', {
+              requestKey: randomUUID(),
+              expectedVersion: 0,
+              title: 'Restricted',
+              active: true,
+              security: true,
+              categories: [],
+              leaderIds: [restrictedLeader.userId],
+              engineerIds: [],
+            }),
+          )
+        ).status,
+      ).toBe(200);
+      const original = await db
+        .repository<Repair>('itRepairs')
+        .findOne({ filter: { id: row.id } });
+      const leaderSession = await f.leader.session();
+      expect(
+        (
+          await leaderSession.fetch(
+            `/itRepairs/${row.id}/actions`,
+            write('POST', {
+              requestKey: randomUUID(),
+              expectedVersion: original!.version,
+              action: 'transferSecurity',
+              data: {
+                groupId: 'operations-security',
+                reason: 'Isolated compatibility verification',
+              },
+            }),
+          )
+        ).status,
+      ).toBe(200);
+      // Stop all active application nodes before the compiled read-only cutover.
+      await testApp.server.close();
       other = await worker('compatible');
       const rollbackRead = (await other.tick('read')) as {
         result: { status: number; body: { data: Repair } };
       };
       expect(rollbackRead.result.status).toBe(200);
       expect(rollbackRead.result.body.data.number).toBe(row.number);
+      const oldRead = (await other.tick('oldRead')) as {
+        result: { status: number };
+      };
+      expect(oldRead.result.status).toBe(403);
+      const deniedWrite = (await other.tick('writeProbe')) as {
+        result: { status: number };
+      };
+      expect(deniedWrite.result.status).toBe(503);
+      const frozen = (await other.tick()) as { error: string };
+      expect(frozen.error).toContain('READ_ONLY');
       await other.close();
+      resumed = await createStandaloneServer({
+        configPath: testApp.config.path,
+        viteDevUrl: false,
+      });
+      c = resumed.application.container;
+      db = c.resolve(databaseManagerToken);
+      svc = c.resolve(repairServiceToken);
       other = await worker();
       const current = await db
         .repository<Repair>('itRepairs')
@@ -381,11 +459,13 @@ benchmark(
             sharedScheduleFiring: firingProof,
             codeRollback: {
               from: 'f938c3a44733',
-              to: '5415f2305b13',
+              to: 'compiled dist/server/standalone.js in readOnly mode',
               status: rollbackRead.result.status,
+              oldItRead: oldRead.result.status,
+              stoppedActiveNodes: true,
               numberPreserved: true,
               structure:
-                'retained all additive fields plus immutable migration/seed manifest in compatibility rollback bundle; raw old artifact rejected at migration validation',
+                'retained current security contracts, immutable migrations and permission registry; writes and tick rejected in readOnly; raw old artifact rejected',
             },
             database: 'shared isolated PG schema',
             jobs: 'shared Redis7 AOF/noeviction;3attempts',
@@ -405,6 +485,7 @@ benchmark(
       );
     } finally {
       await other.close();
+      await resumed?.close();
     }
   },
   180000,

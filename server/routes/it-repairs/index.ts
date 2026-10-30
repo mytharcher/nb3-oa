@@ -1,3 +1,4 @@
+import { withBusinessReads } from '../../providers/request-performance/business-reads.js';
 import { getReportTranslator } from '../reports/i18n.js';
 import { stream as streamResponse } from 'hono/streaming';
 import { SUMMARY_FIELDS } from '../../providers/it-repairs/reporting.js';
@@ -69,6 +70,11 @@ export default [
       c.resolve(authenticationToken).required(),
       c.resolve(authorizationToken).middleware(),
     );
+    r.use('/itRepairs/*', async (ctx, next) => {
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(ctx.req.method))
+        service.assertWritable();
+      await next();
+    });
     r.onError((e, ctx) =>
       apiErrorHandler(
         e instanceof RepairError
@@ -77,7 +83,7 @@ export default [
               reason: e.code,
               message: e.code,
               status:
-                e.code === 'REPORTS_PREPARING'
+                e.code === 'REPORTS_PREPARING' || e.code === 'READ_ONLY'
                   ? 'UNAVAILABLE'
                   : e.code === 'ACCESS_DENIED'
                     ? 'PERMISSION_DENIED'
@@ -93,8 +99,12 @@ export default [
       ),
     );
     const actor = (ctx: Context<Env>) => ctx.get('auth')!.user.id;
-    async function policy(ctx: Context<Env>, action: string) {
-      const decision = await ctx.get('authz').authorize({
+    async function policy(
+      ctx: Context<Env>,
+      action: string,
+      authorization = ctx.get('authz'),
+    ) {
+      const decision = await authorization.authorize({
         resource: { type: 'composite', id: 'oa.itRepairs' },
         action,
       });
@@ -175,19 +185,37 @@ export default [
         const q = ctx.req.valid('query');
         validateRange(q);
         return ctx.json({
-          data: await service.query.list(
-            actor(ctx),
-            await policy(ctx, 'view'),
-            q.page,
-            q.pageSize,
-            q,
-          ),
+          data: {
+            mode: service.mode,
+            ...(await service.query.list(
+              actor(ctx),
+              await policy(ctx, 'view'),
+              q.page,
+              q.pageSize,
+              q,
+            )),
+          },
         });
       },
     );
-    async function queryPolicy(ctx: Context<Env>, action: string) {
-      const view = await policy(ctx, 'view'),
-        operation = await policy(ctx, action);
+    async function queryPolicy(
+      ctx: Context<Env>,
+      action: string,
+      fresh = false,
+    ) {
+      const principal = { type: 'user' as const, id: actor(ctx) };
+      const authz = c.resolve(authorizationToken);
+      const authorization = fresh
+        ? authz.for({
+            principal,
+            subjects: [
+              { type: 'authenticated', id: '*' },
+              ...(await authz.subjects.resolveFor(principal)),
+            ],
+          })
+        : ctx.get('authz');
+      const view = await policy(ctx, 'view', authorization),
+        operation = await policy(ctx, action, authorization);
       return db
         .repository('itRepairs')
         .withPolicy(operation)
@@ -274,66 +302,95 @@ export default [
           if (/^\s*[=+\-@]|^[\t\r]/.test(v)) v = "'" + v;
           return '"' + v.replaceAll('"', '""') + '"';
         };
-        return streamResponse(ctx, async (stream) => {
-          await stream.write(
-            '\uFEFF' +
-              columns
-                .map((k) =>
-                  csv(
-                    t(
-                      k === 'title'
-                        ? 'itRepairs.titleField'
-                        : k === 'number'
-                          ? 'itRepairs.number'
-                          : k === 'status'
-                            ? 'itRepairs.status'
-                            : `itRepairs.query.${k}`,
-                    ),
-                  ),
-                )
-                .join(',') +
-              '\r\n',
-          );
-          let after: string | undefined;
-          while (!stream.aborted) {
-            const { repo, filter } = await service.query.prepare(
-              actor(ctx),
-              p,
-              q,
-            );
-            const rows = await repo.findMany({
-              filter,
-              select: (s) => s.fields(...SUMMARY_FIELDS),
-              sort: (s) => s.field('id').asc(),
-              cursor: after ? { id: after } : undefined,
-              direction: after ? 'forward' : undefined,
-              limit: 100,
-            });
-            if (!rows.length) break;
-            for (const row of rows)
-              await stream.write(
+        let streamError: Error | undefined;
+        const response = streamResponse(
+          ctx,
+          async (stream) => {
+            await stream.write(
+              '\uFEFF' +
                 columns
                   .map((k) =>
                     csv(
-                      k === 'status'
-                        ? t(`itRepairs.states.${String(row[k])}`)
-                        : k === 'category'
-                          ? t(`itRepairs.options.${String(row[k])}`)
-                          : k === 'groupId'
-                            ? (options.groups.find((g) => g.id === row[k])
-                                ?.title ?? '')
-                            : k === 'assigneeId'
-                              ? (options.engineers.find((e) => e.id === row[k])
-                                  ?.name ?? '')
-                              : row[k],
+                      t(
+                        k === 'title'
+                          ? 'itRepairs.titleField'
+                          : k === 'number'
+                            ? 'itRepairs.number'
+                            : k === 'status'
+                              ? 'itRepairs.status'
+                              : `itRepairs.query.${k}`,
+                      ),
                     ),
                   )
-                  .join(',') + '\r\n',
-              );
-            after = rows.at(-1)!.id;
-            if (rows.length < 100) break;
-          }
-        });
+                  .join(',') +
+                '\r\n',
+            );
+            let after: string | undefined;
+            while (!stream.aborted) {
+              const rows = await withBusinessReads(async () => {
+                const { repo, filter } = await service.query.prepare(
+                  actor(ctx),
+                  await queryPolicy(ctx, 'export', true),
+                  q,
+                );
+                return await repo.findMany({
+                  filter,
+                  select: (s) => s.fields(...SUMMARY_FIELDS),
+                  sort: (s) => s.field('id').asc(),
+                  cursor: after ? { id: after } : undefined,
+                  direction: after ? 'forward' : undefined,
+                  limit: 100,
+                });
+              });
+              if (!rows.length) break;
+              for (const row of rows)
+                await stream.write(
+                  columns
+                    .map((k) =>
+                      csv(
+                        k === 'status'
+                          ? t(`itRepairs.states.${String(row[k])}`)
+                          : k === 'category'
+                            ? t(`itRepairs.options.${String(row[k])}`)
+                            : k === 'groupId'
+                              ? (options.groups.find((g) => g.id === row[k])
+                                  ?.title ?? '')
+                              : k === 'assigneeId'
+                                ? (options.engineers.find(
+                                    (e) => e.id === row[k],
+                                  )?.name ?? '')
+                                : row[k],
+                      ),
+                    )
+                    .join(',') + '\r\n',
+                );
+              after = rows.at(-1)!.id;
+              if (rows.length < 100) break;
+            }
+          },
+          async (error, stream) => {
+            streamError = error;
+            stream.abort();
+          },
+        );
+        // A revoked grant must fail the download, rather than save a truncated CSV.
+        const reader = response.body!.getReader();
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            async pull(controller) {
+              try {
+                const result = await reader.read();
+                if (streamError) throw streamError;
+                if (result.done) controller.close();
+                else controller.enqueue(result.value as Uint8Array);
+              } catch (error) {
+                controller.error(error);
+              }
+            },
+            cancel: (reason) => reader.cancel(reason),
+          }),
+          { headers: response.headers, status: response.status },
+        );
       },
     );
     r.get(

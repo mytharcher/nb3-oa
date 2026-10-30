@@ -1,3 +1,7 @@
+import {
+  installRequestSchemaReads,
+  withRequestSchemaReads,
+} from '../request-performance/schema.js';
 import type { Knex } from 'knex';
 import type {
   DatabaseConnection,
@@ -291,20 +295,59 @@ export function createRepairQueries(d: {
     pageSize: number,
     q: RepairQuery = {},
   ) {
-    const { repo, filter } = await prepare(actor, policy, q);
-    return {
-      items: await repo.findMany({
-        select: (s) => s.fields(...SUMMARY_FIELDS),
-        filter,
-        sort: (s) =>
-          q.direction === 'asc'
-            ? [s.field(q.sort ?? 'updatedAt').asc(), s.field('id').asc()]
-            : [s.field(q.sort ?? 'updatedAt').desc(), s.field('id').desc()],
-        limit: pageSize,
-        offset: (page - 1) * pageSize,
-      }),
-      total: await repo.count({ filter }),
+    const read = async (tx: DatabaseConnection) => {
+      const { repo, filter } = await prepare(actor, policy, q, tx);
+      const sort = (s: import('@nocobase/db').SortBuilder<Repair>) =>
+        q.direction === 'asc'
+          ? [s.field(q.sort ?? 'updatedAt').asc(), s.field('id').asc()]
+          : [s.field(q.sort ?? 'updatedAt').desc(), s.field('id').desc()];
+      const offset = (page - 1) * pageSize;
+      let items;
+      if (offset >= 1000) {
+        const keys = await repo.findMany({
+          select: (s) => s.fields('id', q.sort ?? 'updatedAt'),
+          filter,
+          sort,
+          limit: pageSize,
+          offset,
+        });
+        const rows = keys.length
+          ? await repo.findMany({
+              select: (s) => s.fields(...SUMMARY_FIELDS),
+              filter: (f) =>
+                f.and([
+                  filter(f),
+                  f.or(keys.map((r) => f.string('id').eq(r.id as string))),
+                ]),
+            })
+          : [];
+        const byId = new Map(rows.map((row) => [row.id, row]));
+        items = keys.flatMap((key) =>
+          byId.has(key.id as string) ? [byId.get(key.id as string)!] : [],
+        );
+      } else
+        items = await repo.findMany({
+          select: (s) => s.fields(...SUMMARY_FIELDS),
+          filter,
+          sort,
+          limit: pageSize,
+          offset,
+        });
+      return { items, total: await repo.count({ filter }) };
     };
+    if ((page - 1) * pageSize < 1000) return read(d.db.connection());
+    return d.db.transaction(async (tx) => {
+      if (tx.dialect === 'postgres')
+        await (
+          await tx.client<Knex.Transaction>()
+        ).raw('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+      const restoreSchema = installRequestSchemaReads(tx.collections);
+      try {
+        return await withRequestSchemaReads(() => read(tx));
+      } finally {
+        restoreSchema();
+      }
+    });
   }
   async function reports(
     actor: string,
@@ -318,146 +361,287 @@ export function createRepairQueries(d: {
         await (
           await tx.client<Knex.Transaction>()
         ).raw('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
-      const { repo, base, cohort, asOf } = await prepare(actor, policy, q, tx);
-      const filter = (name: string) => (f: FilterBuilder) =>
-        f.and([
-          base(f),
-          cohort(f, name),
-          ...(q.overdue && q.overdue !== 'all'
-            ? [
-                q.overdue === 'either'
-                  ? f.or([
-                      cohort(f, 'responseOverdue'),
-                      cohort(f, 'solutionOverdue'),
-                    ])
-                  : cohort(
-                      f,
-                      q.overdue === 'response'
-                        ? 'responseOverdue'
-                        : 'solutionOverdue',
-                    ),
-              ]
-            : []),
-        ]);
-      const missing = await repo.count({
-        filter: (f) =>
-          f.and([
-            base(f),
-            f.string('status').ne('draft'),
-            f.number('metricRevision').empty(),
-          ]),
-      });
-      if (missing) d.fail('REPORTS_PREPARING');
-      const names = [
-        'submitted',
-        'responses',
-        'responseMet',
-        'userClosed',
-        'solutionMet',
-        'managementClosed',
-        'cancelled',
-        'currentOpen',
-        'responseOverdue',
-        'solutionOverdue',
-        'rated',
-        'waiting',
-      ];
-      const counts = Object.fromEntries(
-        await Promise.all(
-          names.map(
-            async (n) => [n, await repo.count({ filter: filter(n) })] as const,
-          ),
-        ),
-      );
-      const distribution = async (field: string, name = 'userClosed') => {
-        const f = (b: FilterBuilder) =>
-          b.and([filter(name)(b), b.number(field).notEmpty()]);
-        const a = await repo.aggregate({
-          filter: f,
-          aggregate: (b) => ({ n: b.count(field), mean: b.avg(field) }),
-        });
-        const n = Number(a.n);
-        if (!n) return { samples: 0, mean: null, median: null, p90: null };
-        const middle = await repo.findMany({
-          filter: f,
-          select: (s) => s.fields(field),
-          sort: (s) => [s.field(field).asc(), s.field('id').asc()],
-          offset: Math.floor((n - 1) / 2),
-          limit: n % 2 ? 1 : 2,
-        });
-        const high = await repo.findMany({
-          filter: f,
-          select: (s) => s.fields(field),
-          sort: (s) => [s.field(field).asc(), s.field('id').asc()],
-          offset: Math.ceil(n * 0.9) - 1,
-          limit: 1,
-        });
-        return {
-          samples: n,
-          mean: a.mean === null ? null : Number(a.mean),
-          median:
-            middle.reduce((sum, r) => sum + Number(r[field]), 0) /
-            middle.length,
-          p90: Number(high[0][field]),
-        };
-      };
-      const durations = Object.fromEntries(
-        await Promise.all(
-          [
-            'responseHours',
-            'solutionHours',
-            'waitingHours',
-            'pausedHours',
-            'acceptanceHours',
-            'totalHours',
-            'naturalHours',
-          ].map(
-            async (field) =>
-              [
-                field,
-                await distribution(
-                  field,
-                  field === 'responseHours' ? 'responses' : 'userClosed',
+      const restoreSchema = installRequestSchemaReads(tx.collections);
+      try {
+        return await withRequestSchemaReads(async () => {
+          const { repo, base, cohort, asOf } = await prepare(
+            actor,
+            policy,
+            q,
+            tx,
+          );
+          const filter =
+            (name: string, includeBase = true) =>
+            (f: FilterBuilder) =>
+              f.and([
+                ...(includeBase ? [base(f)] : []),
+                cohort(f, name),
+                ...(q.overdue && q.overdue !== 'all'
+                  ? [
+                      q.overdue === 'either'
+                        ? f.or([
+                            cohort(f, 'responseOverdue'),
+                            cohort(f, 'solutionOverdue'),
+                          ])
+                        : cohort(
+                            f,
+                            q.overdue === 'response'
+                              ? 'responseOverdue'
+                              : 'solutionOverdue',
+                          ),
+                    ]
+                  : []),
+              ]);
+          if (tx.dialect === 'postgres') {
+            type Metric = Parameters<
+              typeof repo.aggregateScoped
+            >[0]['metrics'][number];
+            const metrics: Metric[] = [];
+            const names = [
+              'submitted',
+              'responses',
+              'responseMet',
+              'userClosed',
+              'solutionMet',
+              'managementClosed',
+              'cancelled',
+              'currentOpen',
+              'responseOverdue',
+              'solutionOverdue',
+              'rated',
+              'waiting',
+            ];
+            for (const name of names)
+              metrics.push({
+                alias: name,
+                operation: 'count',
+                filter: filter(name, false),
+              });
+            metrics.push({
+              alias: 'missing',
+              operation: 'count',
+              filter: (f) =>
+                f.and([
+                  base(f),
+                  f.string('status').ne('draft'),
+                  f.number('metricRevision').empty(),
+                ]),
+            });
+            for (const field of ['everResponseOverdue', 'everSolutionOverdue'])
+              metrics.push({
+                alias: field,
+                operation: 'count',
+                filter: (f) =>
+                  f.and([
+                    filter('submitted', false)(f),
+                    f.boolean(field).isTrue(),
+                  ]),
+              });
+            metrics.push({
+              alias: 'returns',
+              operation: 'sum',
+              field: 'returnCount',
+              filter: filter('submitted', false),
+            });
+            const facts = await repo.aggregateScoped({ filter: base, metrics });
+            if (facts.missing) d.fail('REPORTS_PREPARING');
+            const counts = Object.fromEntries(
+              names.map((name) => [name, Number(facts[name] ?? 0)]),
+            );
+            const distributionMetrics = (fields: string[]): Metric[] =>
+              fields.flatMap((field) =>
+                (['count', 'avg', 'median', 'p90'] as const).map(
+                  (operation) => ({
+                    alias: field + '_' + operation,
+                    field,
+                    operation,
+                  }),
                 ),
-              ] as const,
-          ),
-        ),
-      );
-      const ratings = await repo.aggregate({
-        filter: filter('rated'),
-        aggregate: (a) => ({ mean: a.avg('rating') }),
-      });
-      const facts = await repo.aggregate({
-        filter: filter('submitted'),
-        aggregate: (a) => ({ returns: a.sum('returnCount') }),
-      });
-      const ever = await Promise.all(
-        ['everResponseOverdue', 'everSolutionOverdue'].map((field) =>
-          repo.count({
+              );
+            const response = await repo.aggregateScoped({
+              filter: filter('responses'),
+              metrics: distributionMetrics(['responseHours']),
+            });
+            const completed = await repo.aggregateScoped({
+              filter: filter('userClosed'),
+              metrics: [
+                ...distributionMetrics([
+                  'solutionHours',
+                  'waitingHours',
+                  'pausedHours',
+                  'acceptanceHours',
+                  'totalHours',
+                  'naturalHours',
+                ]),
+                { alias: 'rating', operation: 'avg', field: 'rating' },
+              ],
+            });
+            const durations = Object.fromEntries(
+              [
+                'responseHours',
+                'solutionHours',
+                'waitingHours',
+                'pausedHours',
+                'acceptanceHours',
+                'totalHours',
+                'naturalHours',
+              ].map((field) => {
+                const values = field === 'responseHours' ? response : completed;
+                return [
+                  field,
+                  {
+                    samples: Number(values[field + '_count'] ?? 0),
+                    mean: values[field + '_avg'],
+                    median: values[field + '_median'],
+                    p90: values[field + '_p90'],
+                  },
+                ];
+              }),
+            );
+            return {
+              asOf: asOf.toISOString(),
+              counts,
+              durations,
+              responseRate: counts.responses
+                ? counts.responseMet / counts.responses
+                : null,
+              solutionRate: counts.userClosed
+                ? counts.solutionMet / counts.userClosed
+                : null,
+              satisfaction: completed.rating,
+              ratedCount: counts.rated,
+              participation: counts.userClosed
+                ? counts.rated / counts.userClosed
+                : null,
+              returnCount: Number(facts.returns ?? 0),
+              everResponseOverdue: Number(facts.everResponseOverdue ?? 0),
+              everSolutionOverdue: Number(facts.everSolutionOverdue ?? 0),
+            };
+          }
+          const missing = await repo.count({
             filter: (f) =>
-              f.and([filter('submitted')(f), f.boolean(field).isTrue()]),
-          }),
-        ),
-      );
-      return {
-        asOf: asOf.toISOString(),
-        counts,
-        durations,
-        responseRate: counts.responses
-          ? counts.responseMet / counts.responses
-          : null,
-        solutionRate: counts.userClosed
-          ? counts.solutionMet / counts.userClosed
-          : null,
-        satisfaction: ratings.mean === null ? null : Number(ratings.mean),
-        ratedCount: counts.rated,
-        participation: counts.userClosed
-          ? counts.rated / counts.userClosed
-          : null,
-        returnCount: Number(facts.returns ?? 0),
-        everResponseOverdue: ever[0],
-        everSolutionOverdue: ever[1],
-      };
+              f.and([
+                base(f),
+                f.string('status').ne('draft'),
+                f.number('metricRevision').empty(),
+              ]),
+          });
+          if (missing) d.fail('REPORTS_PREPARING');
+          const names = [
+            'submitted',
+            'responses',
+            'responseMet',
+            'userClosed',
+            'solutionMet',
+            'managementClosed',
+            'cancelled',
+            'currentOpen',
+            'responseOverdue',
+            'solutionOverdue',
+            'rated',
+            'waiting',
+          ];
+          const counts = Object.fromEntries(
+            await Promise.all(
+              names.map(
+                async (n) =>
+                  [n, await repo.count({ filter: filter(n) })] as const,
+              ),
+            ),
+          );
+          const distribution = async (field: string, name = 'userClosed') => {
+            const f = (b: FilterBuilder) =>
+              b.and([filter(name)(b), b.number(field).notEmpty()]);
+            const a = await repo.aggregate({
+              filter: f,
+              aggregate: (b) => ({ n: b.count(field), mean: b.avg(field) }),
+            });
+            const n = Number(a.n);
+            if (!n) return { samples: 0, mean: null, median: null, p90: null };
+            const middle = await repo.findMany({
+              filter: f,
+              select: (s) => s.fields(field),
+              sort: (s) => [s.field(field).asc(), s.field('id').asc()],
+              offset: Math.floor((n - 1) / 2),
+              limit: n % 2 ? 1 : 2,
+            });
+            const high = await repo.findMany({
+              filter: f,
+              select: (s) => s.fields(field),
+              sort: (s) => [s.field(field).asc(), s.field('id').asc()],
+              offset: Math.ceil(n * 0.9) - 1,
+              limit: 1,
+            });
+            return {
+              samples: n,
+              mean: a.mean === null ? null : Number(a.mean),
+              median:
+                middle.reduce((sum, r) => sum + Number(r[field]), 0) /
+                middle.length,
+              p90: Number(high[0][field]),
+            };
+          };
+          const durations = Object.fromEntries(
+            await Promise.all(
+              [
+                'responseHours',
+                'solutionHours',
+                'waitingHours',
+                'pausedHours',
+                'acceptanceHours',
+                'totalHours',
+                'naturalHours',
+              ].map(
+                async (field) =>
+                  [
+                    field,
+                    await distribution(
+                      field,
+                      field === 'responseHours' ? 'responses' : 'userClosed',
+                    ),
+                  ] as const,
+              ),
+            ),
+          );
+          const ratings = await repo.aggregate({
+            filter: filter('rated'),
+            aggregate: (a) => ({ mean: a.avg('rating') }),
+          });
+          const facts = await repo.aggregate({
+            filter: filter('submitted'),
+            aggregate: (a) => ({ returns: a.sum('returnCount') }),
+          });
+          const ever = await Promise.all(
+            ['everResponseOverdue', 'everSolutionOverdue'].map((field) =>
+              repo.count({
+                filter: (f) =>
+                  f.and([filter('submitted')(f), f.boolean(field).isTrue()]),
+              }),
+            ),
+          );
+          return {
+            asOf: asOf.toISOString(),
+            counts,
+            durations,
+            responseRate: counts.responses
+              ? counts.responseMet / counts.responses
+              : null,
+            solutionRate: counts.userClosed
+              ? counts.solutionMet / counts.userClosed
+              : null,
+            satisfaction: ratings.mean === null ? null : Number(ratings.mean),
+            ratedCount: counts.rated,
+            participation: counts.userClosed
+              ? counts.rated / counts.userClosed
+              : null,
+            returnCount: Number(facts.returns ?? 0),
+            everResponseOverdue: ever[0],
+            everSolutionOverdue: ever[1],
+          };
+        });
+      } finally {
+        restoreSchema();
+      }
     });
   }
   return { list, reports, prepare };

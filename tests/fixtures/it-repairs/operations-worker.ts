@@ -1,3 +1,4 @@
+import path from 'node:path';
 // A second native application process; only its parent's isolated config path is accepted.
 import { createInterface } from 'node:readline';
 import { createStandaloneServer } from '../../../server/standalone.js';
@@ -13,12 +14,41 @@ const factory = process.env.OA_OPS_SERVER
   : createStandaloneServer;
 const app = await factory({
   configPath,
-  env: { APP_STORAGE_DIR: process.env.OA_OPS_STORAGE },
+  env: {
+    APP_STORAGE_DIR: process.env.OA_OPS_STORAGE,
+    ...(process.env.IT_REPAIR_MODE
+      ? { IT_REPAIR_MODE: process.env.IT_REPAIR_MODE }
+      : {}),
+  },
   viteDevUrl: false,
 });
+// A built artifact has its own dependency graph; resolve its public tokens there.
+const built = process.env.OA_OPS_SERVER?.includes('/dist/');
+const jobToken: typeof jobExecutorServiceToken = built
+  ? (
+      await import(
+        import.meta.resolve(
+          '@nocobase/app-server/jobs',
+          pathToFileURL(process.env.OA_OPS_SERVER!).href,
+        )
+      )
+    ).jobExecutorServiceToken
+  : jobExecutorServiceToken;
+const repairToken: typeof repairServiceToken = built
+  ? (
+      await import(
+        pathToFileURL(
+          path.join(
+            path.dirname(process.env.OA_OPS_SERVER!),
+            'providers/it-repairs/service.js',
+          ),
+        ).href
+      )
+    ).repairServiceToken
+  : repairServiceToken;
 const events: { name: string; jobId: string }[] = [];
 app.application.container
-  .resolve(jobExecutorServiceToken)
+  .resolve(jobToken)
   .getScheduleExecutor('oa-it-repair-timers')
   .subscribe(async (event) => {
     if (event.name === 'ScheduleEnd')
@@ -43,11 +73,23 @@ for await (const line of input) {
       );
       continue;
     }
-    if (operation === 'read') {
+    if (
+      operation === 'read' ||
+      operation === 'oldRead' ||
+      operation === 'writeProbe'
+    ) {
       const response = await app.fetch(
         new Request(
-          `http://127.0.0.1:13000${app.application.publicBasePath}/api/itRepairs/${recordId}`,
-          { headers: { cookie: cookie! } },
+          `http://127.0.0.1:13000${app.application.publicBasePath}/api/itRepairs/${recordId}${operation === 'writeProbe' ? '/actions' : ''}`,
+          {
+            method: operation === 'writeProbe' ? 'POST' : 'GET',
+            headers: {
+              cookie: cookie!,
+              origin: 'http://127.0.0.1:13000',
+              'content-type': 'application/json',
+            },
+            ...(operation === 'writeProbe' ? { body: '{}' } : {}),
+          },
         ),
       );
       process.stdout.write(
@@ -61,7 +103,7 @@ for await (const line of input) {
       continue;
     }
     const result = await app.application.container
-      .resolve(repairServiceToken)
+      .resolve(repairToken)
       .tick(100);
     process.stdout.write(
       'CAPACITY_WORKER_RESULT ' + JSON.stringify({ id, result }) + '\n',

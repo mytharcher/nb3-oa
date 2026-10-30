@@ -32,6 +32,7 @@ test('T09–T12 native cohorts, median/P90, zero samples, scoped CSV and indepen
     db = c.resolve(databaseManagerToken),
     svc = c.resolve(repairServiceToken),
     e1 = await createEmployee(testApp, 'Report E1');
+  let exportAssignment = '';
   for (const [p, role] of [
     [f.a, 'handling-employee'],
     [f.b, 'handling-employee'],
@@ -41,11 +42,13 @@ test('T09–T12 native cohorts, median/P90, zero samples, scoped CSV and indepen
     [f.leader, 'handling-exception'],
     [f.leader, 'reportLeader'],
     [e1, 'handling-engineer'],
-  ] as const)
-    await authz.permissionSets.assign({
+  ] as const) {
+    const assigned = await authz.permissionSets.assign({
       permissionSet: `oa-it-repairs-${role}`,
       subject: { type: 'user', id: p.userId },
     });
+    if (p === f.a && role === 'reportEmployee') exportAssignment = assigned.id;
+  }
   const a = await f.a.session(),
     b = await f.b.session(),
     l = await f.leader.session(),
@@ -331,6 +334,38 @@ test('T09–T12 native cohorts, median/P90, zero samples, scoped CSV and indepen
     const lines = (await pagedCsv.text()).trim().split('\r\n');
     expect(lines).toHaveLength(102);
     expect(new Set(lines.slice(1)).size).toBe(101);
+    const scopedAggregate = db.repository<Repair>('itRepairs').withPolicy({
+      read: {
+        scope: { requesterId: f.a.userId },
+        fields: ['id', 'responseHours'],
+      },
+      create: false,
+      update: false,
+      delete: false,
+    });
+    expect(
+      (
+        await scopedAggregate.aggregateScoped({
+          metrics: [{ alias: 'n', operation: 'count' }],
+        })
+      ).n,
+    ).toBe(await scopedAggregate.count());
+    await expect(
+      scopedAggregate.aggregateScoped({
+        metrics: [{ alias: 'forbidden', operation: 'avg', field: 'rating' }],
+      }),
+    ).rejects.toMatchObject({ code: 'FIELD_READ_FORBIDDEN' });
+    await expect(
+      scopedAggregate.aggregateScoped({
+        metrics: [
+          {
+            alias: 'forbidden',
+            operation: 'count',
+            filter: (b) => b.number('rating').notEmpty(),
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: 'FIELD_READ_FORBIDDEN' });
     const ruleScope = {
       read: { scope: { requesterId: f.a.userId }, fields: ['id'] },
       create: false,
@@ -340,6 +375,52 @@ test('T09–T12 native cohorts, median/P90, zero samples, scoped CSV and indepen
     await expect(
       svc.query.reports(f.a.userId, ruleScope, {}),
     ).rejects.toMatchObject({ code: 'ACCESS_DENIED' });
+    // Revoke the native export grant after the first batch has been authorized.
+    // The next batch must create a fresh authorization context and stop.
+    const prepare = svc.query.prepare.bind(svc.query);
+    let batches = 0;
+    const batchSpy = vi
+      .spyOn(svc.query, 'prepare')
+      .mockImplementation(async (...args) => {
+        const prepared = await prepare(...args);
+        if (++batches === 1)
+          await authz.permissionSets.revoke(exportAssignment);
+        return prepared;
+      });
+    try {
+      const response = await a.fetch(
+        '/itRepairs/export',
+        write('POST', { requestKey: randomUUID(), query: { q: 'Bulk' } }),
+      );
+      const reader = response.body!.getReader();
+      const chunks: Uint8Array[] = [];
+      let interrupted = false;
+      try {
+        for (;;) {
+          const r = await reader.read();
+          if (r.done) break;
+          chunks.push(r.value);
+        }
+      } catch {
+        interrupted = true;
+      }
+      expect(batches).toBe(1);
+      const csv = new TextDecoder().decode(Buffer.concat(chunks));
+      expect(
+        csv.split('\r\n').filter((line) => line.includes('CSV-')),
+      ).toHaveLength(100);
+      expect(interrupted).toBe(true);
+      expect(
+        (
+          await a.fetch(
+            '/itRepairs/export',
+            write('POST', { requestKey: randomUUID(), query: {} }),
+          )
+        ).status,
+      ).toBe(403);
+    } finally {
+      batchSpy.mockRestore();
+    }
   } finally {
     vi.useRealTimers();
   }

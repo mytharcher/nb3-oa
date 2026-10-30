@@ -188,3 +188,10 @@ logging:
     enabled: true
     # Set true for human-readable terminal output.
     pretty: false
+
+# IT repair deployment safety. Use IT_REPAIR_MODE=readOnly for compatibility rollback.
+# Stop active nodes and drain repair jobs before switching; other modules remain active.
+itRepairs:
+  mode: active # active | readOnly
+  scanEveryMs: 60000
+  batchSize: 100
