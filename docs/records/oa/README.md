@@ -11,3 +11,6 @@
 
 - [2026-10-30 报表、导出与42项台账](it-repairs-reporting-2026-10-30.md)
 - [第三阶段界面验收](it-repairs-reporting-ui-2026-10-30.md)
+
+- [2026-10-30 容量与回退门槛](it-repairs-capacity-2026-10-30.md)
+- [最终交付准备及配置待确认](it-repairs-delivery-readiness-2026-10-30.md)

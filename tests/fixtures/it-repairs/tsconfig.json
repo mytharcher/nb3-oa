@@ -1,0 +1,17 @@
+{
+  "extends": "../../../tsconfig.server.json",
+  "compilerOptions": {
+    "rootDir": "../../..",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "lib": ["ESNext"]
+  },
+  "include": [
+    "./capacity.test.ts",
+    "./configuration-cost.test.ts",
+    "./operations.test.ts",
+    "./operations-worker.ts",
+    "../../logic/it-repairs/operational-probes.test.ts",
+    "../../logic/it-repairs/migration-rehearsal.test.ts"
+  ]
+}
