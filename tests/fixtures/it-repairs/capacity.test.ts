@@ -392,14 +392,17 @@ benchmark(
       };
       await save();
     };
-    const captured: { sql: string; bindings: unknown[] }[] = [];
+    const plansOnly = process.env.OA_CAPACITY_PLANS_ONLY === '1';
+    let captureGroup = '';
+    const captured: { sql: string; bindings: unknown[]; workload: string }[] =
+      [];
     const capture = (q: { sql: string; bindings: unknown[] }) => {
       if (
         /it_repairs|itRepairs/.test(q.sql) &&
         /^select/i.test(q.sql) &&
         captured.length < 500
       )
-        captured.push(q);
+        captured.push({ ...q, workload: captureGroup });
     };
     try {
       for (const [name, path] of Object.entries({
@@ -409,29 +412,46 @@ benchmark(
         deepPage:
           '/itRepairs?pageSize=20&page=2000&sort=updatedAt&direction=desc',
       })) {
+        captureGroup = name;
         knex.on('query', capture);
         await (await request(path)).arrayBuffer();
         knex.off('query', capture);
-        await measure(name, 50, 4, async () => {
-          await (await request(path)).arrayBuffer();
-        });
+        if (!plansOnly)
+          await measure(name, 50, 4, async () => {
+            await (await request(path)).arrayBuffer();
+          });
       }
+      captureGroup = 'reports38';
       knex.on('query', capture);
       await (await request('/itRepairs/reports')).arrayBuffer();
       knex.off('query', capture);
-      await measure(
-        'reports38',
-        50,
-        2,
-        async () => {
-          await (await request('/itRepairs/reports')).arrayBuffer();
-        },
-        2,
-      );
+      if (!plansOnly)
+        await measure(
+          'reports38',
+          50,
+          2,
+          async () => {
+            await (await request('/itRepairs/reports')).arrayBuffer();
+          },
+          2,
+        );
       const plans = [];
-      for (const q of captured
-        .filter((q) => !q.sql.includes('count(*)'))
-        .slice(-12)) {
+      const listPlans = ['list', 'filtered', 'deepPage']
+        .map((name) =>
+          captured.find(
+            (q) =>
+              q.workload === name &&
+              q.sql.includes('order by') &&
+              q.sql.includes('"title"'),
+          ),
+        )
+        .filter((q): q is (typeof captured)[number] => !!q);
+      const reportPlans = captured
+        .filter(
+          (q) => q.workload === 'reports38' && !q.sql.includes('count(*)'),
+        )
+        .slice(-12);
+      for (const q of [...listPlans, ...reportPlans]) {
         const bindings: unknown[] = [];
         const sql = q.sql.replace(/\$(\d+)/g, (_match, n) => {
           bindings.push(q.bindings[Number(n) - 1]);
@@ -441,13 +461,21 @@ benchmark(
           `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${sql}`,
           bindings as Knex.RawBinding[],
         );
-        plans.push({ sql: q.sql, plan: plan.rows[0]['QUERY PLAN'] });
+        plans.push({
+          workload: q.workload,
+          sql: q.sql,
+          plan: plan.rows[0]['QUERY PLAN'],
+        });
       }
       await writeFile(
         `${output}/plans.json`,
         JSON.stringify(plans, null, 2) + '\n',
       );
       result.plans = { count: plans.length, file: 'plans.json' };
+      if (plansOnly) {
+        expect(listPlans).toHaveLength(3);
+        return;
+      }
       const rss: number[] = [];
       const mem = setInterval(() => rss.push(process.memoryUsage().rss), 20);
       const csvStart = performance.now(),

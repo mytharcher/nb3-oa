@@ -45,5 +45,12 @@
     "sixChangedTsFilesESLint": "passed; zero warnings",
     "formatAndDocumentLinks": "checked before commit"
   },
-  "production": "not merged or deployed; safety transfer defaults off"
+  "production": "not merged or deployed; safety transfer defaults off",
+  "additionalPlans": {
+    "status": "passed",
+    "rows": 100000,
+    "plans": 15,
+    "seconds": 43.43,
+    "replacesCapacitySamples": false
+  }
 }
