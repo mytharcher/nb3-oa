@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-30T03:12:48.998Z",
+  "fixture": "101 same-group pool records;10 per configuration or continuation; old member denied before convergence",
+  "configurationMs": 1469.7547579999991,
+  "lockedWorkMs": 1364.217410000001,
+  "lockMeasurement": "first membership audit while holding the group fence through configuration response; includes controlled gate, commit and response",
+  "initialWriteBatchMs": 3902.9514290000006,
+  "convergenceMs": 7779.826021000001,
+  "batches": 11,
+  "blockedWriteMs": 3797.393261999998,
+  "configurationStatus": 200,
+  "writeStatuses": [
+    200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+    200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+    200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+    200, 200, 200, 200, 200
+  ],
+  "writeConcurrency": 50,
+  "writeP95Ms": 3655.6280880000013,
+  "writeP95Pass": false,
+  "refreshed": 10,
+  "lockWaits": [
+    {
+      "wait_event_type": "Lock",
+      "wait_event": "transactionid"
+    }
+  ],
+  "gate": "released as soon as PG reports a real Lock wait; no arbitrary hold duration",
+  "p95": true
+}

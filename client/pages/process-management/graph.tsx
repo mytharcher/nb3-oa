@@ -148,7 +148,18 @@ export function ProcessGraph({
   onConfigure?: (node: string) => void;
 }) {
   const { t } = useTranslation(),
-    text = useProcessText();
+    baseText = useProcessText();
+  const text =
+    kind === 'oa.itRepair'
+      ? {
+          ...baseText,
+          state: (name: string) => t(`itRepairs.states.${name}`),
+          transition: (name: string) =>
+            t(`itRepairs.actions.${name.split('_')[0]}`, {
+              defaultValue: baseText.transition(name),
+            }),
+        }
+      : baseText;
   const historyKeys = new Set(
     history?.map((edge) => JSON.stringify([edge.name, edge.from, edge.to])),
   );

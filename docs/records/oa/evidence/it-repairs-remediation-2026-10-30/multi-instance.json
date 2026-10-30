@@ -1,0 +1,76 @@
+{
+  "processes": 2,
+  "backend": "shared isolated PG and unique Redis7 namespace with AOF",
+  "runs": [
+    [
+      {
+        "status": "fulfilled",
+        "value": {
+          "scanned": 1,
+          "eligibilityScanned": 0,
+          "changed": 1,
+          "references": 0
+        }
+      },
+      {
+        "status": "fulfilled",
+        "value": {
+          "id": "ff266369-9918-4f9a-b4f2-aef1707356b9",
+          "result": {
+            "scanned": 1,
+            "eligibilityScanned": 0,
+            "changed": 0,
+            "references": 0
+          }
+        }
+      }
+    ],
+    [
+      {
+        "status": "fulfilled",
+        "value": {
+          "scanned": 0,
+          "eligibilityScanned": 0,
+          "changed": 0,
+          "references": 0
+        }
+      },
+      {
+        "status": "fulfilled",
+        "value": {
+          "id": "e537aaef-b058-48df-b138-a6575ca9eca9",
+          "result": {
+            "scanned": 0,
+            "eligibilityScanned": 0,
+            "changed": 0,
+            "references": 0
+          }
+        }
+      }
+    ]
+  ],
+  "sharedScheduleFirings": [
+    {
+      "name": "ScheduleEnd",
+      "jobId": "repeat:deadlines:1793327468702"
+    }
+  ],
+  "alerts": [
+    "response80",
+    "responseOverdue",
+    "responseDaily:2026-10-30",
+    "resolution80",
+    "resolutionOverdue",
+    "resolutionDaily:2026-10-30"
+  ],
+  "alertEvents": 6,
+  "effects": [
+    {
+      "status": "succeeded"
+    },
+    {
+      "status": "succeeded"
+    }
+  ],
+  "restart": "secondary native application stopped and recreated before this checkpoint; no duplicate alert"
+}

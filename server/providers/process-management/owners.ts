@@ -6,6 +6,7 @@ import type {
   PerformInput,
   Approval,
 } from '@nocobase/app-plugin-approval/server';
+import { repairServiceToken } from '../it-repairs/service.js';
 import { leaveServiceToken } from '../leave/index.js';
 import { overtimeServiceToken } from '../overtime/index.js';
 import { cancellationServiceToken } from '../leave-cancellations/index.js';
@@ -36,7 +37,7 @@ import { departureServiceToken } from '../departure/index.js';
 import { certificateRequestServiceToken } from '../certificates/index.js';
 export interface ProcessSdk {
   runtime: LifecycleRuntime;
-  approvals: ApprovalService;
+  approvals: ApprovalService | null;
   read<T>(work: () => Promise<T>, connection?: DatabaseConnection): Promise<T>;
   definition?: Approval<never>;
 }
@@ -128,6 +129,19 @@ async function publicSdk(service: unknown): Promise<ProcessSdk> {
   };
 }
 export const processOwners: readonly ProcessOwner[] = [
+  {
+    kind: 'oa.itRepair',
+    collection: 'itRepairs',
+    domain: 'office',
+    zh: 'IT 报修',
+    en: 'IT repair',
+    resource: 'oa.itRepairs',
+    sdk: async (app) => ({
+      runtime: app.container.resolve(repairServiceToken).runtime,
+      approvals: null,
+      read: async (work) => work(),
+    }),
+  },
   {
     kind: 'oa.leave',
     collection: 'leaveRequests',

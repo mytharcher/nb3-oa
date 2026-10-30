@@ -1,0 +1,877 @@
+{
+  "date": "2026-10-30T04:06:25.122Z",
+  "fixture": "101 same-group pool records;5 per configuration or continuation; old member denied before convergence",
+  "configurationMs": 1182.132999999998,
+  "mode": "controlled",
+  "samples": [
+    2729.604771000002, 2661.1418120000017, 2715.6342609999992,
+    2736.3181269999986, 1421.5495759999976, 2704.014508, 2695.1394359999977,
+    2687.698475000001, 1405.0756230000006, 1395.545304000003,
+    2671.8736379999973, 1385.8332610000034, 2642.381999000001,
+    1383.0225009999995, 1734.0823979999986, 1449.9215130000011,
+    1387.8575839999976, 1399.635087999999, 1406.584826000002,
+    1703.2292679999991, 1741.5024789999989, 1712.6575420000008,
+    1451.8563450000001, 1722.5183490000018, 1734.9192409999996,
+    2028.4335649999994, 2052.9068530000004, 1735.513181000002,
+    1822.1695250000012, 1757.1796959999992, 1800.820212999999,
+    2063.740561999999, 2336.805317999999, 2060.3801459999995,
+    2042.8580280000024, 2163.2191190000012, 2066.7520229999973,
+    2076.9807709999986, 2169.945581, 2080.144079999998, 2347.5972470000015,
+    2348.3446589999985, 2647.860578, 2508.670542, 2401.077810999999,
+    2378.962972999998, 2400.0809950000003, 2368.987606999999,
+    2387.9883090000003, 2475.8627510000006
+  ],
+  "stages": [
+    {
+      "who": "configuration",
+      "ms": 1182.0530379999982,
+      "sqlCount": 317,
+      "completedSqlCount": 276,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 88.11663000000408,
+        "connectionAcquisition": 1.8140309999944293,
+        "identityAuthorization": 4.997009999999136,
+        "businessOtherSql": 42.54479800000263,
+        "structure": 121.60528799999156,
+        "lockStatement": 2.5091949999987264,
+        "lifecycleNotificationQueue": 2.6098560000064026,
+        "controlledGate": 917.8562300000012
+      }
+    },
+    {
+      "who": "write-13",
+      "ms": 1382.8518470000017,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 361.2237750000131,
+        "connectionAcquisition": 729.8200539999962,
+        "identityAuthorization": 60.91745800000717,
+        "businessOtherSql": 121.39013399999385,
+        "structure": 97.43546399999468,
+        "lockStatement": 4.9428679999982705,
+        "lifecycleNotificationQueue": 7.122093999998469
+      }
+    },
+    {
+      "who": "write-11",
+      "ms": 1385.7824440000004,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 347.2915790000152,
+        "connectionAcquisition": 721.794328,
+        "identityAuthorization": 61.38723100000061,
+        "businessOtherSql": 136.50658999998268,
+        "structure": 101.02184400000624,
+        "lockStatement": 7.621114999998099,
+        "lifecycleNotificationQueue": 10.159756999997626
+      }
+    },
+    {
+      "who": "write-16",
+      "ms": 1387.8092120000001,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 348.3319890000312,
+        "connectionAcquisition": 733.1480919999922,
+        "identityAuthorization": 53.038642999999865,
+        "businessOtherSql": 135.6916709999823,
+        "structure": 101.37472300000081,
+        "lockStatement": 9.674850999992486,
+        "lifecycleNotificationQueue": 6.549243000001297
+      }
+    },
+    {
+      "who": "write-9",
+      "ms": 1395.4960610000016,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 355.04403799998545,
+        "connectionAcquisition": 724.3482110000004,
+        "identityAuthorization": 63.36570200000642,
+        "businessOtherSql": 129.38479100000768,
+        "structure": 104.47148400000151,
+        "lockStatement": 9.993548999998893,
+        "lifecycleNotificationQueue": 8.888286000001244
+      }
+    },
+    {
+      "who": "write-17",
+      "ms": 1399.5885499999968,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 344.3876889999992,
+        "connectionAcquisition": 726.3391129999982,
+        "identityAuthorization": 57.2295199999935,
+        "businessOtherSql": 139.33653400000185,
+        "structure": 113.38717600000018,
+        "lockStatement": 14.41459500000201,
+        "lifecycleNotificationQueue": 4.493923000001814
+      }
+    },
+    {
+      "who": "write-8",
+      "ms": 1405.0264690000004,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 345.3512440000304,
+        "connectionAcquisition": 717.1807369999951,
+        "identityAuthorization": 66.51863999999114,
+        "businessOtherSql": 156.1812749999881,
+        "structure": 103.32556000000113,
+        "lockStatement": 9.189628999996785,
+        "lifecycleNotificationQueue": 7.279383999997663
+      }
+    },
+    {
+      "who": "write-18",
+      "ms": 1406.5341690000023,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 351.74959399998625,
+        "connectionAcquisition": 724.7172880000107,
+        "identityAuthorization": 51.659696999995504,
+        "businessOtherSql": 145.71667500001058,
+        "structure": 116.74352199999703,
+        "lockStatement": 9.119587000001047,
+        "lifecycleNotificationQueue": 6.8278060000011465
+      }
+    },
+    {
+      "who": "write-4",
+      "ms": 1421.483479999999,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 349.00440099999105,
+        "connectionAcquisition": 701.5337229999968,
+        "identityAuthorization": 89.86081700000068,
+        "businessOtherSql": 155.2620170000082,
+        "structure": 111.75479899999846,
+        "lockStatement": 10.199541000001773,
+        "lifecycleNotificationQueue": 3.8681820000019798
+      }
+    },
+    {
+      "who": "write-15",
+      "ms": 1449.8583529999996,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 351.2510039999943,
+        "connectionAcquisition": 726.8298730000097,
+        "identityAuthorization": 59.48887900000045,
+        "businessOtherSql": 174.80186599999433,
+        "structure": 114.5059250000013,
+        "lockStatement": 19.908698999999615,
+        "lifecycleNotificationQueue": 3.07210699999996
+      }
+    },
+    {
+      "who": "write-22",
+      "ms": 1451.8087449999985,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 350.3712020000021,
+        "connectionAcquisition": 734.0560639999967,
+        "identityAuthorization": 54.501766000004864,
+        "businessOtherSql": 155.22095300000728,
+        "structure": 138.99913999999262,
+        "lockStatement": 11.304131999993842,
+        "lifecycleNotificationQueue": 7.35548800000106
+      }
+    },
+    {
+      "who": "write-19",
+      "ms": 1703.1810350000014,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 354.1259470000223,
+        "connectionAcquisition": 1037.0767500000002,
+        "identityAuthorization": 45.9620550000036,
+        "businessOtherSql": 134.00571399997352,
+        "structure": 116.1430490000057,
+        "lockStatement": 9.420871999995143,
+        "lifecycleNotificationQueue": 6.446648000001005
+      }
+    },
+    {
+      "who": "write-21",
+      "ms": 1712.618237999999,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 348.9054179999948,
+        "connectionAcquisition": 1039.7198390000012,
+        "identityAuthorization": 67.54687200000262,
+        "businessOtherSql": 133.3526489999931,
+        "structure": 108.8546920000008,
+        "lockStatement": 7.55823400000736,
+        "lifecycleNotificationQueue": 6.68053399999917
+      }
+    },
+    {
+      "who": "write-23",
+      "ms": 1722.4759679999988,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 346.5169539999988,
+        "connectionAcquisition": 1051.419065999995,
+        "identityAuthorization": 61.971463000005315,
+        "businessOtherSql": 132.39621399999305,
+        "structure": 117.84875800000736,
+        "lockStatement": 7.703590999997687,
+        "lifecycleNotificationQueue": 4.619922000001679
+      }
+    },
+    {
+      "who": "write-14",
+      "ms": 1734.0384940000004,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 350.183771,
+        "connectionAcquisition": 1049.6913270000114,
+        "identityAuthorization": 61.98694299998897,
+        "businessOtherSql": 144.304197999998,
+        "structure": 108.74597400000494,
+        "lockStatement": 12.193295999994007,
+        "lifecycleNotificationQueue": 6.9329850000031
+      }
+    },
+    {
+      "who": "write-24",
+      "ms": 1734.8830519999974,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 340.9281409999894,
+        "connectionAcquisition": 1060.3784769999947,
+        "identityAuthorization": 60.337294000004476,
+        "businessOtherSql": 144.77033600000505,
+        "structure": 114.39729100000477,
+        "lockStatement": 9.455657999998948,
+        "lifecycleNotificationQueue": 4.6158550000000105
+      }
+    },
+    {
+      "who": "write-27",
+      "ms": 1735.4872209999994,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 346.00462299999344,
+        "connectionAcquisition": 1049.784294000001,
+        "identityAuthorization": 65.72047000000384,
+        "businessOtherSql": 146.96213400000124,
+        "structure": 113.88751400000183,
+        "lockStatement": 11.089956999996502,
+        "lifecycleNotificationQueue": 2.038229000001593
+      }
+    },
+    {
+      "who": "write-20",
+      "ms": 1741.462481999999,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 348.9565590000093,
+        "connectionAcquisition": 1037.504100000002,
+        "identityAuthorization": 74.58739399999467,
+        "businessOtherSql": 150.09667600000103,
+        "structure": 117.50854299999264,
+        "lockStatement": 10.434699999997974,
+        "lifecycleNotificationQueue": 2.3745100000014645
+      }
+    },
+    {
+      "who": "write-29",
+      "ms": 1757.1268459999992,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 346.69028399998206,
+        "connectionAcquisition": 1056.1217910000014,
+        "identityAuthorization": 71.2764640000023,
+        "businessOtherSql": 149.2810810000119,
+        "structure": 113.44243399999687,
+        "lockStatement": 11.892334000003757,
+        "lifecycleNotificationQueue": 8.422458000000915
+      }
+    },
+    {
+      "who": "write-30",
+      "ms": 1800.7789649999977,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 352.2031629999801,
+        "connectionAcquisition": 1105.3173930000012,
+        "identityAuthorization": 57.960430000006454,
+        "businessOtherSql": 147.79758700001548,
+        "structure": 127.65047699999195,
+        "lockStatement": 6.176774999999907,
+        "lifecycleNotificationQueue": 3.673140000002604
+      }
+    },
+    {
+      "who": "write-28",
+      "ms": 1822.1299,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 350.5546649999851,
+        "connectionAcquisition": 1086.2848619999968,
+        "identityAuthorization": 73.92502300000706,
+        "businessOtherSql": 165.4434880000008,
+        "structure": 128.69293400000606,
+        "lockStatement": 11.247175000000425,
+        "lifecycleNotificationQueue": 5.981753000003664
+      }
+    },
+    {
+      "who": "write-25",
+      "ms": 2028.391655000003,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 345.9398349999756,
+        "connectionAcquisition": 1382.8130530000126,
+        "identityAuthorization": 50.71116200000324,
+        "businessOtherSql": 133.49244900000485,
+        "structure": 95.00961400000597,
+        "lockStatement": 12.522020000000339,
+        "lifecycleNotificationQueue": 7.903522000000521
+      }
+    },
+    {
+      "who": "write-34",
+      "ms": 2042.8190539999996,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 337.80899500001397,
+        "connectionAcquisition": 1388.5659760000017,
+        "identityAuthorization": 58.60424599999169,
+        "businessOtherSql": 138.30120499998884,
+        "structure": 103.10642799999914,
+        "lockStatement": 9.471004999999423,
+        "lifecycleNotificationQueue": 6.961199000004854
+      }
+    },
+    {
+      "who": "write-26",
+      "ms": 2052.8656740000006,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 340.16581700000097,
+        "connectionAcquisition": 1353.780207000007,
+        "identityAuthorization": 62.44155799999862,
+        "businessOtherSql": 145.76256599999033,
+        "structure": 134.6468240000031,
+        "lockStatement": 7.151198999999906,
+        "lifecycleNotificationQueue": 8.917503000000579
+      }
+    },
+    {
+      "who": "write-33",
+      "ms": 2060.3372549999985,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 342.0210600000064,
+        "connectionAcquisition": 1387.3398420000012,
+        "identityAuthorization": 65.77573500001381,
+        "businessOtherSql": 138.04294399998616,
+        "structure": 111.15814599999067,
+        "lockStatement": 9.408103000001574,
+        "lifecycleNotificationQueue": 6.591424999998708
+      }
+    },
+    {
+      "who": "write-31",
+      "ms": 2063.7010660000014,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 341.709002999989,
+        "connectionAcquisition": 1362.5223860000006,
+        "identityAuthorization": 60.42873000000327,
+        "businessOtherSql": 164.8789080000097,
+        "structure": 117.75115500000175,
+        "lockStatement": 10.222055999998702,
+        "lifecycleNotificationQueue": 6.188827999998466
+      }
+    },
+    {
+      "who": "write-36",
+      "ms": 2066.7143910000013,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 343.67659999999523,
+        "connectionAcquisition": 1395.176475999997,
+        "identityAuthorization": 62.39939100000265,
+        "businessOtherSql": 144.6627920000028,
+        "structure": 109.1592700000001,
+        "lockStatement": 8.977335999999923,
+        "lifecycleNotificationQueue": 2.6625260000037088
+      }
+    },
+    {
+      "who": "write-37",
+      "ms": 2076.9402240000018,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 333.50608899997314,
+        "connectionAcquisition": 1407.5752129999964,
+        "identityAuthorization": 56.783220000001165,
+        "businessOtherSql": 140.73645900002157,
+        "structure": 122.0445320000108,
+        "lockStatement": 12.93818199999805,
+        "lifecycleNotificationQueue": 3.3565290000005916
+      }
+    },
+    {
+      "who": "write-39",
+      "ms": 2080.107572000001,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 341.6229459999922,
+        "connectionAcquisition": 1420.4271320000043,
+        "identityAuthorization": 54.53479900000093,
+        "businessOtherSql": 139.56996699999945,
+        "structure": 108.43973499999993,
+        "lockStatement": 10.905466000003798,
+        "lifecycleNotificationQueue": 4.607527000000118
+      }
+    },
+    {
+      "who": "write-35",
+      "ms": 2163.1784320000006,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 336.3073810000096,
+        "connectionAcquisition": 1460.126143000005,
+        "identityAuthorization": 62.4477399999887,
+        "businessOtherSql": 166.28583699999945,
+        "structure": 125.00182199999836,
+        "lockStatement": 9.566365999999107,
+        "lifecycleNotificationQueue": 3.4431430000004184
+      }
+    },
+    {
+      "who": "write-38",
+      "ms": 2169.905275000001,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 334.4093750000029,
+        "connectionAcquisition": 1487.5306839999976,
+        "identityAuthorization": 62.58633299999565,
+        "businessOtherSql": 151.7075410000034,
+        "structure": 120.67658199999642,
+        "lockStatement": 9.866996000000654,
+        "lifecycleNotificationQueue": 3.1277640000043903
+      }
+    },
+    {
+      "who": "write-32",
+      "ms": 2336.761193000002,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 336.87139700001717,
+        "connectionAcquisition": 1681.9481480000031,
+        "identityAuthorization": 62.78838900000119,
+        "businessOtherSql": 123.71008499998788,
+        "structure": 115.271424999999,
+        "lockStatement": 9.3022849999943,
+        "lifecycleNotificationQueue": 6.869463999999425
+      }
+    },
+    {
+      "who": "write-40",
+      "ms": 2347.5535530000016,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 331.5559150000081,
+        "connectionAcquisition": 1723.9588619999886,
+        "identityAuthorization": 55.3344690000049,
+        "businessOtherSql": 118.35371999999552,
+        "structure": 106.70225600000413,
+        "lockStatement": 8.094466999998986,
+        "lifecycleNotificationQueue": 3.55386400000134
+      }
+    },
+    {
+      "who": "write-41",
+      "ms": 2348.3147819999976,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 334.05281000001196,
+        "connectionAcquisition": 1707.5814849999952,
+        "identityAuthorization": 52.85925900000075,
+        "businessOtherSql": 132.5154479999983,
+        "structure": 105.09264400000029,
+        "lockStatement": 9.270823999995628,
+        "lifecycleNotificationQueue": 6.942311999995582
+      }
+    },
+    {
+      "who": "write-47",
+      "ms": 2368.9450450000004,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 328.21328300001187,
+        "connectionAcquisition": 1747.677091999998,
+        "identityAuthorization": 53.58068499999354,
+        "businessOtherSql": 124.30591400000048,
+        "structure": 96.59840999999506,
+        "lockStatement": 13.963393999998516,
+        "lifecycleNotificationQueue": 4.606267000002845
+      }
+    },
+    {
+      "who": "write-45",
+      "ms": 2378.9176270000025,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 332.95002600000225,
+        "connectionAcquisition": 1709.301075999996,
+        "identityAuthorization": 60.19983900000443,
+        "businessOtherSql": 147.7969370000028,
+        "structure": 117.17539299999771,
+        "lockStatement": 8.683465999998589,
+        "lifecycleNotificationQueue": 2.8108900000006543
+      }
+    },
+    {
+      "who": "write-48",
+      "ms": 2387.945638000001,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 331.49191199999404,
+        "connectionAcquisition": 1735.5663390000082,
+        "identityAuthorization": 47.969375999993645,
+        "businessOtherSql": 148.186741000005,
+        "structure": 110.41638399999647,
+        "lockStatement": 5.775033000005351,
+        "lifecycleNotificationQueue": 8.539852999998402
+      }
+    },
+    {
+      "who": "write-46",
+      "ms": 2400.0417099999977,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 329.92344100002083,
+        "connectionAcquisition": 1743.5264039999965,
+        "identityAuthorization": 55.55302400000437,
+        "businessOtherSql": 141.14788499997667,
+        "structure": 110.0918550000024,
+        "lockStatement": 14.05518899999879,
+        "lifecycleNotificationQueue": 5.74391199999809
+      }
+    },
+    {
+      "who": "write-44",
+      "ms": 2401.0506989999994,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 334.32989999999336,
+        "connectionAcquisition": 1727.2472600000037,
+        "identityAuthorization": 58.67267700000593,
+        "businessOtherSql": 146.62075999998706,
+        "structure": 120.94830800000273,
+        "lockStatement": 11.09670100000585,
+        "lifecycleNotificationQueue": 2.1350930000007793
+      }
+    },
+    {
+      "who": "write-49",
+      "ms": 2475.802416999999,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 336.4223600000223,
+        "connectionAcquisition": 1833.425815999999,
+        "identityAuthorization": 46.808145000002696,
+        "businessOtherSql": 137.65219299998716,
+        "structure": 107.45421999998871,
+        "lockStatement": 9.869925999999396,
+        "lifecycleNotificationQueue": 4.169756999999663
+      }
+    },
+    {
+      "who": "write-43",
+      "ms": 2508.626336999998,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 329.100155000011,
+        "connectionAcquisition": 1841.326563000006,
+        "identityAuthorization": 51.5830539999879,
+        "businessOtherSql": 148.7121019999904,
+        "structure": 120.58690299999944,
+        "lockStatement": 12.188317000003735,
+        "lifecycleNotificationQueue": 5.129242999999406
+      }
+    },
+    {
+      "who": "write-12",
+      "ms": 2642.341732000001,
+      "sqlCount": 136,
+      "completedSqlCount": 125,
+      "serializationErrors": 1,
+      "phases": {
+        "unattributed": 364.9308990000027,
+        "connectionAcquisition": 1753.4684559999987,
+        "identityAuthorization": 53.50006000000576,
+        "businessOtherSql": 155.06720099999075,
+        "structure": 132.244625000003,
+        "lockStatement": 174.67064100000061,
+        "lifecycleNotificationQueue": 8.459849999999278
+      }
+    },
+    {
+      "who": "write-42",
+      "ms": 2647.821924,
+      "sqlCount": 111,
+      "completedSqlCount": 102,
+      "serializationErrors": 0,
+      "phases": {
+        "unattributed": 347.7276380000003,
+        "connectionAcquisition": 1976.1650790000058,
+        "identityAuthorization": 65.02340799999729,
+        "businessOtherSql": 145.36271499999566,
+        "structure": 104.28955400000268,
+        "lockStatement": 6.258699999998498,
+        "lifecycleNotificationQueue": 2.994829999999638
+      }
+    },
+    {
+      "who": "write-1",
+      "ms": 2661.0962949999994,
+      "sqlCount": 136,
+      "completedSqlCount": 125,
+      "serializationErrors": 1,
+      "phases": {
+        "unattributed": 372.36863399998765,
+        "connectionAcquisition": 1739.8604870000017,
+        "identityAuthorization": 63.791459000010946,
+        "businessOtherSql": 154.41631100000086,
+        "structure": 151.40044899999702,
+        "lockStatement": 170.62978200000362,
+        "lifecycleNotificationQueue": 8.629172999997536
+      }
+    },
+    {
+      "who": "write-10",
+      "ms": 2671.8347240000003,
+      "sqlCount": 136,
+      "completedSqlCount": 125,
+      "serializationErrors": 1,
+      "phases": {
+        "unattributed": 363.378619000021,
+        "connectionAcquisition": 1761.7422910000023,
+        "identityAuthorization": 57.262792000001355,
+        "businessOtherSql": 165.03010899997753,
+        "structure": 139.59829000000173,
+        "lockStatement": 182.34112099999766,
+        "lifecycleNotificationQueue": 2.481501999998727
+      }
+    },
+    {
+      "who": "write-7",
+      "ms": 2687.6592009999986,
+      "sqlCount": 136,
+      "completedSqlCount": 125,
+      "serializationErrors": 1,
+      "phases": {
+        "unattributed": 359.0896760000105,
+        "connectionAcquisition": 1772.173999000006,
+        "identityAuthorization": 57.07262899999114,
+        "businessOtherSql": 168.5742839999839,
+        "structure": 149.6331740000096,
+        "lockStatement": 172.19104399999924,
+        "lifecycleNotificationQueue": 8.924394999998185
+      }
+    },
+    {
+      "who": "write-6",
+      "ms": 2695.0827480000007,
+      "sqlCount": 136,
+      "completedSqlCount": 125,
+      "serializationErrors": 1,
+      "phases": {
+        "unattributed": 355.2606440000236,
+        "connectionAcquisition": 1767.0578959999984,
+        "identityAuthorization": 77.75298900000053,
+        "businessOtherSql": 170.7146999999968,
+        "structure": 146.89965799998754,
+        "lockStatement": 174.30158899999515,
+        "lifecycleNotificationQueue": 3.0952719999986584
+      }
+    },
+    {
+      "who": "write-5",
+      "ms": 2703.9706240000014,
+      "sqlCount": 136,
+      "completedSqlCount": 125,
+      "serializationErrors": 1,
+      "phases": {
+        "unattributed": 360.7192220000252,
+        "connectionAcquisition": 1783.7386709999992,
+        "identityAuthorization": 76.86926799999492,
+        "businessOtherSql": 174.91361399998277,
+        "structure": 135.20655200000328,
+        "lockStatement": 170.316816999999,
+        "lifecycleNotificationQueue": 2.2064799999971
+      }
+    },
+    {
+      "who": "write-2",
+      "ms": 2715.5759300000027,
+      "sqlCount": 136,
+      "completedSqlCount": 125,
+      "serializationErrors": 1,
+      "phases": {
+        "unattributed": 360.17401700001574,
+        "connectionAcquisition": 1781.1915040000022,
+        "identityAuthorization": 70.61186799999268,
+        "businessOtherSql": 166.37742099999014,
+        "structure": 151.40698799999882,
+        "lockStatement": 183.41579700000148,
+        "lifecycleNotificationQueue": 2.39833500000168
+      }
+    },
+    {
+      "who": "write-0",
+      "ms": 2729.553143000001,
+      "sqlCount": 138,
+      "completedSqlCount": 127,
+      "serializationErrors": 1,
+      "phases": {
+        "unattributed": 315.63405500000954,
+        "connectionAcquisition": 1891.8905870000053,
+        "identityAuthorization": 58.17786400000841,
+        "structure": 140.4517339999984,
+        "businessOtherSql": 135.8652819999843,
+        "lockStatement": 181.59401899999648,
+        "lifecycleNotificationQueue": 5.939601999998558
+      }
+    },
+    {
+      "who": "write-3",
+      "ms": 2736.2784210000027,
+      "sqlCount": 137,
+      "completedSqlCount": 125,
+      "serializationErrors": 1,
+      "phases": {
+        "unattributed": 354.3164799999904,
+        "connectionAcquisition": 1877.1357650000027,
+        "identityAuthorization": 79.80654700000377,
+        "businessOtherSql": 124.93612299999586,
+        "structure": 135.57184700001017,
+        "lockStatement": 162.34521600000153,
+        "lifecycleNotificationQueue": 2.166442999998253
+      }
+    }
+  ],
+  "lockedWorkMs": 1083.324156999999,
+  "lockMeasurement": "first membership audit while holding the group fence through configuration response; includes controlled gate, commit and response",
+  "initialWriteBatchMs": 2928.868037999997,
+  "convergenceMs": 7058.039807999998,
+  "batches": 21,
+  "blockedWriteMs": 2830.0301500000023,
+  "configurationStatus": 200,
+  "writeStatuses": [
+    200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+    200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+    200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+    200, 200, 200, 200, 200
+  ],
+  "writeConcurrency": 50,
+  "writeP95Ms": 2715.6342609999992,
+  "writeP95Pass": true,
+  "refreshed": 5,
+  "finalRefreshes": 51,
+  "lockWaits": [
+    {
+      "wait_event_type": "Lock",
+      "wait_event": "transactionid"
+    },
+    {
+      "wait_event_type": "Lock",
+      "wait_event": "transactionid"
+    },
+    {
+      "wait_event_type": "Lock",
+      "wait_event": "transactionid"
+    }
+  ],
+  "gate": "released as soon as PG reports a real Lock wait; no arbitrary hold duration",
+  "p95": true
+}

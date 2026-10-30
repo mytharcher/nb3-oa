@@ -1,3 +1,4 @@
+import itRepairLocale from '../../client/locales/modules/it-repairs.en-US.js';
 import reportExportsLocale from './modules/report-exports.pt-BR.js';
 import reportsLocale from '../../client/locales/modules/reports.pt-BR.js';
 import invoiceRecognitionLocale from '../../client/locales/modules/invoice-recognition.pt-BR.js';
@@ -38,6 +39,7 @@ import annualLeave from './modules/annual-leave.pt-BR.js';
 // plugin's namespace; add keys here as the application starts producing its own, and use `overrides` to reword a
 // plugin's.
 const ptBR: AppServerResource = {
+  ...itRepairLocale,
   ...reportExportsLocale,
   demoData,
   ...accessLocale,

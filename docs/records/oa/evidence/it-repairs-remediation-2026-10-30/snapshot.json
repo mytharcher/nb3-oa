@@ -1,0 +1,12 @@
+{
+  "postgres": "15.10",
+  "separateDatabase": true,
+  "nativeStartup": "readOnly; migrations and permission validation retained",
+  "schemaRestored": true,
+  "fileRestored": true,
+  "ownerRead": 200,
+  "crossPersonFile": 403,
+  "version": 2,
+  "dumpSha256": "1bcc65beae7436b400d883f48a1fc49e7277f4354114a46adf7d72935b4fe547",
+  "limitation": "Synthetic stopped-write sample only; production cutover and post-upgrade data disposition require separate authorization"
+}

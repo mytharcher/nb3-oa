@@ -165,9 +165,10 @@ export default [
         .findOne({ filter: { id } });
       if (!row) fail('NOT_FOUND', 'PROCESS_NOT_FOUND');
       if (
-        ['id', 'applicantId', 'status', 'lifecycleVersion', 'createdAt'].some(
-          (key) => !(key in row),
-        )
+        (owner.kind === 'oa.itRepair'
+          ? ['id', 'requesterId', 'status', 'version', 'createdAt']
+          : ['id', 'applicantId', 'status', 'lifecycleVersion', 'createdAt']
+        ).some((key) => !(key in row))
       )
         fail('PERMISSION_DENIED', 'PROCESS_FIELDS_DENIED');
       return row;
@@ -197,7 +198,9 @@ export default [
         sdk.runtime.history(owner.kind, String(row.id)),
       );
       const states = sdk.runtime.describe(owner.kind).stateInfo;
-      const final = states.some((s) => s.name === row.status && s.final);
+      const final =
+        (owner.kind === 'oa.itRepair' && row.status === 'closed') ||
+        states.some((s) => s.name === row.status && s.final);
       const last = history.transitions.at(-1);
       return {
         id: String(row.id),
@@ -207,12 +210,18 @@ export default [
             ? row.number
             : String(row.id),
         number: typeof row.number === 'string' ? row.number : null,
-        applicant: await person(String(row.applicantId)),
+        applicant: await person(
+          String(
+            owner.kind === 'oa.itRepair' ? row.requesterId : row.applicantId,
+          ),
+        ),
         status: String(row.status),
         currentStage: sdk.definition?.isStage(String(row.status))
           ? String(row.status)
           : null,
-        version: Number(row.lifecycleVersion),
+        version: Number(
+          owner.kind === 'oa.itRepair' ? row.version : row.lifecycleVersion,
+        ),
         createdAt: new Date(String(row.createdAt)).toISOString(),
         endedAt: final && last && last.to === row.status ? last.at : null,
       };
@@ -276,8 +285,8 @@ export default [
       );
       const sdk = await owner.sdk(app),
         actorId = c.get('auth')!.user.id;
-      const runs = await sdk.read(() =>
-        sdk.approvals.runViewsFor(owner.kind, id),
+      const runs = await sdk.read(
+        () => sdk.approvals?.runViewsFor(owner.kind, id) ?? Promise.resolve([]),
       );
       const history = await sdk.read(() => sdk.runtime.history(owner.kind, id));
       // Free text can carry private business data. Only an independent complete ordinary
@@ -327,8 +336,11 @@ export default [
                   )
                 ).allowed;
               } else if (action === 'appoint') {
-                for (const entry of await sdk.read(() =>
-                  sdk.approvals.runActionsFor(owner.kind, id, { id: actorId }),
+                for (const entry of await sdk.read(
+                  () =>
+                    sdk.approvals?.runActionsFor(owner.kind, id, {
+                      id: actorId,
+                    }) ?? Promise.resolve([]),
                 )) {
                   const offer = entry.actions.find((a) => a.name === 'appoint');
                   if (offer) {
@@ -337,8 +349,11 @@ export default [
                   }
                 }
               } else
-                for (const entry of await sdk.read(() =>
-                  sdk.approvals.actionsFor(owner.kind, id, { id: actorId }),
+                for (const entry of await sdk.read(
+                  () =>
+                    sdk.approvals?.actionsFor(owner.kind, id, {
+                      id: actorId,
+                    }) ?? Promise.resolve([]),
                 )) {
                   if (entry.actions.some((a) => a.name === action)) {
                     allowed = true;
@@ -368,11 +383,11 @@ export default [
           reason: allowed ? null : connected ? 'unavailable' : 'notConnected',
         });
       }
-      const timelineActions = await sdk.read(() =>
-        sdk.approvals.actionsOf(owner.kind, id),
+      const timelineActions = await sdk.read(
+        () => sdk.approvals?.actionsOf(owner.kind, id) ?? Promise.resolve([]),
       );
-      const events = await sdk.read(() =>
-        sdk.approvals.eventsFor(owner.kind, id),
+      const events = await sdk.read(
+        () => sdk.approvals?.eventsFor(owner.kind, id) ?? Promise.resolve([]),
       );
       return {
         timeZone: app.container.resolve(calendarServiceToken).timeZone(),
@@ -674,15 +689,21 @@ export default [
               )
                 fail('FAILED_PRECONDITION', 'PROCESS_UNAVAILABLE');
               return {
-                version: Number(row.lifecycleVersion),
+                version: Number(
+                  owner.kind === 'oa.itRepair'
+                    ? row.version
+                    : row.lifecycleVersion,
+                ),
                 people: [],
                 nextOffset: null,
               };
             }
             if (!owner.action || !input.taskId)
               fail('FAILED_PRECONDITION', 'PROCESS_UNAVAILABLE');
-            const runs = await sdk.read(() =>
-              sdk.approvals.runViewsFor(owner.kind, p.recordId),
+            const runs = await sdk.read(
+              () =>
+                sdk.approvals?.runViewsFor(owner.kind, p.recordId) ??
+                Promise.resolve([]),
             );
             const run = runs.find((v) =>
               input.action === 'appoint'
@@ -692,10 +713,11 @@ export default [
             if (!run) fail('NOT_FOUND', 'PROCESS_TASK_NOT_FOUND');
             const offers =
               input.action === 'appoint'
-                ? await sdk.read(() =>
-                    sdk.approvals.runActionsFor(owner.kind, p.recordId, {
-                      id: c.get('auth')!.user.id,
-                    }),
+                ? await sdk.read(
+                    () =>
+                      sdk.approvals?.runActionsFor(owner.kind, p.recordId, {
+                        id: c.get('auth')!.user.id,
+                      }) ?? Promise.resolve([]),
                   )
                 : [];
             const slots = offers
@@ -711,23 +733,28 @@ export default [
                     : [],
                 )
               : [];
-            const page = await sdk.read(() =>
-              sdk.approvals.candidatesFor({
-                target:
-                  input.action === 'appoint'
-                    ? { runId: input.taskId! }
-                    : { taskId: input.taskId! },
-                action: input.action,
-                actor: { id: c.get('auth')!.user.id },
-                query: {
-                  search: input.search,
-                  offset: input.offset,
-                  limit: input.limit,
-                },
-              }),
+            const page = await sdk.read(
+              () =>
+                sdk.approvals?.candidatesFor({
+                  target:
+                    input.action === 'appoint'
+                      ? { runId: input.taskId! }
+                      : { taskId: input.taskId! },
+                  action: input.action,
+                  actor: { id: c.get('auth')!.user.id },
+                  query: {
+                    search: input.search,
+                    offset: input.offset,
+                    limit: input.limit,
+                  },
+                }) ?? Promise.resolve({ people: [], nextOffset: null }),
             );
             return {
-              version: Number(row.lifecycleVersion),
+              version: Number(
+                owner.kind === 'oa.itRepair'
+                  ? row.version
+                  : row.lifecycleVersion,
+              ),
               taskId: input.taskId,
               runId: run.run.id,
               contentHash: run.run.contentHash,
@@ -764,7 +791,13 @@ export default [
           async (policy) => {
             const row = await scopedRow(owner, p.recordId, policy),
               sdk = await owner.sdk(app);
-            if (Number(row.lifecycleVersion) !== input.expectedVersion)
+            if (
+              Number(
+                owner.kind === 'oa.itRepair'
+                  ? row.version
+                  : row.lifecycleVersion,
+              ) !== input.expectedVersion
+            )
               fail('ABORTED', 'PROCESS_CHANGED');
             if (input.action === 'terminate') {
               if (!owner.terminate)
@@ -781,8 +814,10 @@ export default [
             } else {
               if (!owner.action)
                 fail('FAILED_PRECONDITION', 'PROCESS_NOT_CONNECTED');
-              const runs = await sdk.read(() =>
-                sdk.approvals.runViewsFor(owner.kind, p.recordId),
+              const runs = await sdk.read(
+                () =>
+                  sdk.approvals?.runViewsFor(owner.kind, p.recordId) ??
+                  Promise.resolve([]),
               );
               const run = runs.find(
                 (v) =>

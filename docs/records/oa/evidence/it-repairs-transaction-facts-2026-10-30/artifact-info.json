@@ -1,0 +1,9 @@
+{
+  "base": "9280e53; transaction facts working tree",
+  "archiveBytes": 50457224,
+  "archiveSha256": "4bfbb688d4c193d794ada20c64752ff71793da437c4809ff90a79069c46eeb31",
+  "sourceServiceSha256": "ca5fc8ad4fd01326b2d587d059b8449f6d9c3203131ab01a989d43c2a4b2bca0",
+  "compiledServiceSha256": "58b9e515fc0c0e4fe578b0e70ff898da4bcf11d90ffa85bdeaba2d4ea815f01d",
+  "entry": "dist/server/standalone.js;IT_REPAIR_MODE=readOnly",
+  "production": false
+}

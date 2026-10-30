@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-30T02:28:25.097Z",
+  "fixture": "101 same-group pool records;10 per configuration or continuation; old member denied before convergence",
+  "configurationMs": 902.4351449999995,
+  "convergenceMs": 9368.363602000001,
+  "batches": 11,
+  "blockedWriteMs": 801.1948239999983,
+  "configurationStatus": 200,
+  "writeStatus": 200,
+  "refreshed": 10,
+  "lockWaits": [
+    {
+      "wait_event_type": "Lock",
+      "wait_event": "transactionid"
+    }
+  ],
+  "gate": "released as soon as PG reports a real Lock wait; no arbitrary hold duration",
+  "p95": false
+}

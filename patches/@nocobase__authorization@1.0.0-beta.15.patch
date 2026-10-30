@@ -1,0 +1,31 @@
+diff --git a/dist/plugins/permission-sets/plugin.js b/dist/plugins/permission-sets/plugin.js
+index 5b8a5403bc750debcd1ad4fcbfc5496f5fe47202..bc908d51ecda32386085b88885ced86ff5746694 100644
+--- a/dist/plugins/permission-sets/plugin.js
++++ b/dist/plugins/permission-sets/plugin.js
+@@ -422,7 +422,11 @@ class PermissionSetService {
+         const assignments = await this.store.findAssignments(subjects);
+         const keys = new Set(assignments.map((assignment) => assignment.permissionSet));
+         const requested = [...keys];
+-        const sets = await Promise.all(requested.map((key) => this.store.get(key)));
++        const sets = this.store.getMany
++            ? await this.store.getMany(requested)
++            : await Promise.all(requested.map((key) => this.store.get(key)));
++        if (sets.length !== requested.length)
++            throw new Error('Permission Set store returned an invalid batch length');
+         const missing = sets.findIndex((set) => set === undefined);
+         if (missing >= 0) {
+             throw new Error(`Unknown Permission Set: ${requested[missing]}`);
+diff --git a/dist/plugins/permission-sets/store.d.ts b/dist/plugins/permission-sets/store.d.ts
+index 77d9d481642615fd2165dcdff2907f863d65310c..e600e9f21d386f66c86f75a312eeb22902d5ff9a 100644
+--- a/dist/plugins/permission-sets/store.d.ts
++++ b/dist/plugins/permission-sets/store.d.ts
+@@ -2,6 +2,9 @@ import type { PermissionSet, PermissionSetAssignment, PermissionSetSubject } fro
+ export interface PermissionSetStore<TTransaction = unknown> {
+     list(): Promise<readonly PermissionSet[]>;
+     get(key: string): Promise<PermissionSet | undefined>;
++    /** Ordered results, including undefined for missing keys. Empty input performs no I/O.
++     * Implementations must use the bound transaction and bound query sizes. */
++    getMany?(keys: readonly string[]): Promise<readonly (PermissionSet | undefined)[]>;
+     create(permissionSet: PermissionSet): Promise<PermissionSet>;
+     update(key: string, permissionSet: PermissionSet, expectedRevision?: string): Promise<PermissionSet>;
+     delete(key: string): Promise<void>;

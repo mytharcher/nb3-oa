@@ -169,6 +169,7 @@ const platformZhCN: LocaleResource<PlatformLocale> = {
         extraInvalid: '该值不被接受。',
       },
       types: {
+        itRepairCategory: 'IT 报修分类',
         expensePlanType: '事前费用事项',
         officeItem: '办公用品',
         leaveType: '假期类型',
@@ -305,6 +306,58 @@ const platformZhCN: LocaleResource<PlatformLocale> = {
         rank: '级',
       },
       keys: {
+        itRepair_securityTransfer: {
+          label: '安全转交开关（0关闭，1开启）',
+          description: '隔离验证通过后才开启；生产配置另行授权。',
+        },
+        itRepair_acceptanceDays: {
+          label: '验收催办（工作日）',
+          description: '提交时冻结，不自动关闭报修。',
+        },
+        itRepair_followUpDays: {
+          label: '等待跟进间隔（工作日）',
+          description: '等待提醒后的冻结跟进间隔。',
+        },
+        itRepair_morning: {
+          label: '报修上午时段',
+          description: '仅新提交报修使用；时段必须有序且不重叠。',
+        },
+        itRepair_afternoon: {
+          label: '报修下午时段',
+          description: '仅新提交报修使用；时段必须有序且不重叠。',
+        },
+        itRepair_P1_response: {
+          label: 'P1 首响工作小时',
+          description: '仅影响新提交报修；使用冻结工作日历。',
+        },
+        itRepair_P1_resolution: {
+          label: 'P1 解决工作小时',
+          description: '仅影响新提交报修；使用冻结工作日历。',
+        },
+        itRepair_P2_response: {
+          label: 'P2 首响工作小时',
+          description: '仅影响新提交报修；使用冻结工作日历。',
+        },
+        itRepair_P2_resolution: {
+          label: 'P2 解决工作小时',
+          description: '仅影响新提交报修；使用冻结工作日历。',
+        },
+        itRepair_P3_response: {
+          label: 'P3 首响工作小时',
+          description: '仅影响新提交报修；使用冻结工作日历。',
+        },
+        itRepair_P3_resolution: {
+          label: 'P3 解决工作小时',
+          description: '仅影响新提交报修；使用冻结工作日历。',
+        },
+        itRepair_P4_response: {
+          label: 'P4 首响工作小时',
+          description: '仅影响新提交报修；使用冻结工作日历。',
+        },
+        itRepair_P4_resolution: {
+          label: 'P4 解决工作小时',
+          description: '仅影响新提交报修；使用冻结工作日历。',
+        },
         leave_annualAccrualEnabled: {
           label: '年假自动计提',
           description:

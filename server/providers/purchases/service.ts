@@ -1,3 +1,4 @@
+import { scopeAst } from '@nocobase/app-plugin-authorization/server';
 import {
   allActivePeople,
   APPROVAL_COLLECTIONS,
@@ -1412,6 +1413,89 @@ export function createPurchaseService(d: PurchaseDependencies) {
     }
   }
   return {
+    /** Narrow read-only reference contract. No approval, payment or inventory effects. */
+    async referenceSummary(
+      actorId: string,
+      policy: RepositoryPolicy,
+      id: string,
+      connection: DatabaseConnection,
+    ) {
+      if (
+        !actorId ||
+        !policy.read ||
+        (policy.read !== true &&
+          (policy.read.fields === false ||
+            (!policy.read.fields?.includes('*') &&
+              ['id', 'number', 'status', 'lifecycleVersion'].some(
+                (k) =>
+                  !policy.read ||
+                  policy.read === true ||
+                  !policy.read.fields ||
+                  !policy.read.fields.includes(k),
+              ))))
+      )
+        return null;
+      const scope = await this.readableScope(actorId);
+      if (
+        scope === false ||
+        !(await connection
+          .repository('purchaseRequests')
+          .withPolicy({
+            read: {
+              fields: ['id'],
+              scope:
+                scope === true ? true : scopeAst('purchaseRequests', scope),
+            },
+            create: false,
+            update: false,
+            delete: false,
+          })
+          .exists({ filter: { id } }))
+      )
+        return null;
+      const row = await connection
+        .repository('purchaseRequests')
+        .withPolicy(policy)
+        .findOne({
+          filter: { id },
+          select: (s) => s.fields('id', 'number', 'status', 'lifecycleVersion'),
+        });
+      if (
+        !row ||
+        !['id', 'number', 'status', 'lifecycleVersion'].every((k) => k in row)
+      )
+        return null;
+      return {
+        id: typeof row.id === 'string' ? row.id : '',
+        number: typeof row.number === 'string' ? row.number : '',
+        status: typeof row.status === 'string' ? row.status : '',
+        version: Number(row.lifecycleVersion),
+      };
+    },
+    /** Owner journal projection is bounded and preserves transient rejection/withdrawal history. */
+    async referenceChanges(
+      id: string,
+      cursor: number,
+      connection: DatabaseConnection,
+      limit = 100,
+    ) {
+      const events = await connection.query
+        .selectFrom('oaLifecycleTransitions')
+        .select(['id', 'recordId', 'version', 'to', 'at'])
+        .where('lifecycle', '=', 'oa.purchase')
+        .where('recordId', '=', id)
+        .where('version', '>', cursor)
+        .orderBy('version', 'asc')
+        .limit(Math.min(100, limit))
+        .execute();
+      return events.map((e) => ({
+        id: String(e.id),
+        sourceId: String(e.recordId),
+        status: String(e.to),
+        version: Number(e.version),
+        at: new Date(String(e.at)).toISOString(),
+      }));
+    },
     initialize: refresh,
     async options(actorId: string) {
       const [vendors, subjects, department] = await Promise.all([

@@ -74,3 +74,9 @@ minimumReleaseAgeExclude:
   - '@nocobase/db-testing@0.1.0-beta.2'
   - '@nocobase/app-plugin-task-center@0.1.0-beta.0 || 0.1.0-beta.2 || 0.1.0-beta.3'
   - '@nocobase/db-postgres@0.1.0-beta.5'
+
+patchedDependencies:
+  '@nocobase/app-plugin-authentication@2.0.0-beta.15': patches/@nocobase__app-plugin-authentication@2.0.0-beta.15.patch
+  '@nocobase/app-plugin-authorization@1.0.0-beta.32': patches/@nocobase__app-plugin-authorization@1.0.0-beta.32.patch
+  '@nocobase/authorization@1.0.0-beta.15': patches/@nocobase__authorization@1.0.0-beta.15.patch
+  '@nocobase/db@1.0.0-beta.22': patches/@nocobase__db@1.0.0-beta.22.patch

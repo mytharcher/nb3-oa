@@ -1,0 +1,25 @@
+{
+  "extends": "../../../tsconfig.server.json",
+  "compilerOptions": {
+    "rootDir": "../../..",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "lib": ["ESNext"]
+  },
+  "include": [
+    "../../logic/it-repairs/transaction-facts.test.ts",
+    "../../logic/it-repairs/permission-batching.test.ts",
+    "../../logic/it-repairs/permission-batching-pg.test.ts",
+    "./capacity.test.ts",
+    "./snapshot-restore.test.ts",
+    "./read-only-browser.test.ts",
+    "../../logic/it-repairs/shared-qualification.test.ts",
+    "../../logic/it-repairs/read-only.test.ts",
+    "../../logic/it-repairs/compensated-migration.test.ts",
+    "./configuration-cost.test.ts",
+    "./operations.test.ts",
+    "./operations-worker.ts",
+    "../../logic/it-repairs/operational-probes.test.ts",
+    "../../logic/it-repairs/migration-rehearsal.test.ts"
+  ]
+}

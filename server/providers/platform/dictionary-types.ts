@@ -46,6 +46,7 @@ const num = (
 });
 
 export const DICTIONARY_TYPES: readonly DictionaryTypeDefinition[] = [
+  { type: 'itRepairCategory', extraFields: [] },
   {
     type: 'leaveType',
     extraFields: [

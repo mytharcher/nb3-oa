@@ -1,3 +1,4 @@
+import itRepairLocale from './modules/it-repairs.en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.id-ID.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.id-ID.js';
 import wecomAttendanceLocale from './modules/wecom-attendance.id-ID.js';
@@ -81,6 +82,7 @@ import approvalsEnUS from './modules/approvals.id-ID.js';
 import system from './system/id-ID.js';
 
 const idID: AppResource = {
+  ...itRepairLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,

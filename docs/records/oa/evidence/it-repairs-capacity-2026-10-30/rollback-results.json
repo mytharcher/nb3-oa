@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-30",
+  "nativeDown": {
+    "status": "failed",
+    "migration": "202610300001_it_repair_reporting",
+    "assertion": "schema equality after down",
+    "residualIndex": ["submittedAt", "id"],
+    "upgradeOldRecord": "number/version/calendar/rules/processing verified preserved on up",
+    "notReached": ["post-down old-record callback", "second up"]
+  },
+  "rawCodeRollback": {
+    "from": "f938c3a44733",
+    "to": "5415f2305b13",
+    "status": "startup rejected",
+    "reason": "executed reporting migration missing from old artifact sources"
+  },
+  "manifestOnlyRollback": {
+    "status": "startup rejected",
+    "reason": "stored permission sets reference reports/export/transferSecurity actions absent from old code"
+  },
+  "production": "not authorized; neither down nor old-package rollback is ready"
+}

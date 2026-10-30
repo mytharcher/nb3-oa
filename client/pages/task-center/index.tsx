@@ -146,6 +146,7 @@ export default function TaskCenterPage(): ReactElement {
     resource.reload,
   );
   const label = (key: string): string => {
+    if (key === 'oa.itRepair') return t('itRepairs.title');
     const business = approvalBusiness(key);
     return business ? t(`approvalCenter.kinds.${business.label}`) : key;
   };

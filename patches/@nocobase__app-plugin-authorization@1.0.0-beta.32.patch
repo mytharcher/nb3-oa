@@ -1,0 +1,42 @@
+diff --git a/dist/server/stores/permission-sets.d.ts b/dist/server/stores/permission-sets.d.ts
+index 409c4c50b1d480877e3b9ad17b8ca9161a34fbae..4f46075959e66e484f28fdcf5b2cbd06af1d2487 100644
+--- a/dist/server/stores/permission-sets.d.ts
++++ b/dist/server/stores/permission-sets.d.ts
+@@ -11,6 +11,7 @@ export declare class DatabasePermissionSetStore implements PermissionSetStore<Da
+     list(): Promise<readonly PermissionSet[]>;
+     findAssignments(subjects: readonly PermissionSetSubject[]): Promise<readonly PermissionSetAssignment[]>;
+     get(key: string): Promise<PermissionSet | undefined>;
++    getMany(keys: readonly string[]): Promise<readonly (PermissionSet | undefined)[]>;
+     create(input: PermissionSet): Promise<PermissionSet>;
+     update(key: string, input: PermissionSet, expectedRevision?: string): Promise<PermissionSet>;
+     delete(key: string): Promise<void>;
+diff --git a/dist/server/stores/permission-sets.js b/dist/server/stores/permission-sets.js
+index 28e71cea332ba1e5bac79197ef39cf415b3a5b0a..d4ad14fb5746239765a0c935efffb73af0443f2a 100644
+--- a/dist/server/stores/permission-sets.js
++++ b/dist/server/stores/permission-sets.js
+@@ -51,6 +51,25 @@ export class DatabasePermissionSetStore {
+             return undefined;
+         return permissionSetFromRow(row);
+     }
++    async getMany(keys) {
++        const unique = [...new Set(keys)];
++        if (unique.length === 0)
++            return [];
++        const connection = this.connection();
++        const byKey = new Map();
++        // Bound parameters for all supported database drivers, without truncation.
++        for (let offset = 0; offset < unique.length; offset += 200) {
++            const rows = await connection.query.selectFrom('authorizationPermissionSets')
++                .select(['key', 'title', 'grants', 'revision'])
++                .where('key', 'in', unique.slice(offset, offset + 200))
++                .execute();
++            for (const row of rows) {
++                const set = permissionSetFromRow(row);
++                byKey.set(set.key, set);
++            }
++        }
++        return keys.map((key) => byKey.get(key));
++    }
+     async create(input) {
+         const now = new Date();
+         const revision = crypto.randomUUID();

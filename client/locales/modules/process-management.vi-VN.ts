@@ -462,6 +462,7 @@ export default {
     covered: 'Trường được bao phủ',
     management: 'Can thiệp quản trị viên',
     kinds: {
+      itRepair: 'IT repair',
       leave: 'Nghỉ phép',
       overtime: 'Làm thêm giờ',
       leaveCancellation: 'Hủy nghỉ phép',

@@ -98,6 +98,21 @@ export function createPurchaseOrderService(d: {
       fail('INVALID_COMMAND', 'An actor and stable command key are required.');
   }
   return {
+    async referenceProgress(
+      purchaseId: string,
+      connection: DatabaseConnection,
+    ) {
+      const rows = await connection.repository('purchaseOrders').findMany({
+        filter: { purchaseId },
+        select: (s) => s.fields('id', 'status', 'version'),
+        limit: 100,
+      });
+      return rows.map((row) => ({
+        id: typeof row.id === 'string' ? row.id : '',
+        status: typeof row.status === 'string' ? row.status : '',
+        version: Number(row.version),
+      }));
+    },
     async lockPaymentSources(orderIds, connection) {
       for (const id of [...new Set(orderIds)].sort()) {
         if (!id) fail('INVALID_COMMAND', 'A purchase order id is required.');

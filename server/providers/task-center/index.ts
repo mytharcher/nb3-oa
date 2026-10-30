@@ -48,6 +48,7 @@ export default class TaskCenterProvider extends ServiceProvider<Application> {
     for (const owner of processOwners) {
       if (!(await db.connection().collections.get(owner.collection))) continue;
       const sdk = await owner.sdk(this.app);
+      if (!sdk.approvals) continue;
       const binding = approvalTaskBindings(sdk.approvals);
       for (const approval of binding.approvals) {
         registerTaskSynchronizer(

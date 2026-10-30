@@ -25,6 +25,7 @@ export function registerOwnedRequestSearch(
     resource?: string;
     collection: string;
     titleField: string;
+    applicantField?: string;
     titleType?: 'string' | 'text';
     numberField?: string | null;
     validate: RequestSearchSource['validate'];
@@ -38,6 +39,7 @@ export function registerOwnedRequestSearch(
   },
 ) {
   const database = app.container.resolve(databaseManagerToken);
+  const applicantField = definition.applicantField ?? 'applicantId';
   app.container.resolve(requestSearchRegistryToken).register({
     kind: definition.kind,
     resource: definition.resource ?? definition.kind,
@@ -51,7 +53,7 @@ export function registerOwnedRequestSearch(
       policy,
     }) {
       if (
-        !['id', 'applicantId', 'createdAt'].every((field) =>
+        !['id', applicantField, 'createdAt'].every((field) =>
           readableSearchField(policy, field),
         )
       )
@@ -70,14 +72,14 @@ export function registerOwnedRequestSearch(
         .withPolicy(policy)
         .findMany({
           select: (s) =>
-            s.fields('id', 'applicantId', ...(number ? [number] : [])),
+            s.fields('id', applicantField, ...(number ? [number] : [])),
           filter: (f) =>
             f.and([
               f.date('createdAt').before(before),
               ...(applicantIds
                 ? [
                     f.or(
-                      applicantIds.map((id) => f.string('applicantId').eq(id)),
+                      applicantIds.map((id) => f.string(applicantField).eq(id)),
                     ),
                   ]
                 : []),
@@ -90,7 +92,7 @@ export function registerOwnedRequestSearch(
       return rows.map((row) => ({
         id: String(row.id),
         kind: definition.kind,
-        applicantId: String(row.applicantId),
+        applicantId: String(row[applicantField]),
         number: number ? (row[number] ?? null) : null,
         title: null,
       }));
@@ -115,7 +117,7 @@ export function registerOwnedRequestSearch(
       const title = readableSearchField(policy, definition.titleField)
         ? definition.titleField
         : null;
-      const applicant = readableSearchField(policy, 'applicantId');
+      const applicant = readableSearchField(policy, applicantField);
       const related =
         definition.relatedNumber &&
         readableSearchField(policy, definition.relatedNumber.referenceField)
@@ -137,7 +139,7 @@ export function registerOwnedRequestSearch(
         ...new Set([
           ...(number ? [number] : []),
           ...(title ? [title] : []),
-          ...(applicant ? ['applicantId'] : []),
+          ...(applicant ? [applicantField] : []),
           ...(related ? [related.referenceField] : []),
         ]),
       ];
@@ -161,7 +163,7 @@ export function registerOwnedRequestSearch(
                     ]
                   : []),
                 ...(applicant
-                  ? applicantIds.map((id) => f.string('applicantId').eq(id))
+                  ? applicantIds.map((id) => f.string(applicantField).eq(id))
                   : []),
                 ...relatedIds.map((id) => f.string('id').eq(id)),
               ]),
@@ -186,8 +188,8 @@ export function registerOwnedRequestSearch(
                 ? await related.value(row)
                 : null,
           applicantId:
-            applicant && typeof row.applicantId === 'string'
-              ? row.applicantId
+            applicant && typeof row[applicantField] === 'string'
+              ? row[applicantField]
               : null,
         })),
       );

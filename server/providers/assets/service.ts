@@ -94,6 +94,23 @@ export function createAssetService(d: {
     ...createAssetStockService({ audit: d.audit, source: d.source }),
     ...clearance,
     get,
+    async repairEligibility(
+      id,
+      employeeId,
+      connection,
+      heldPolicy,
+      explicitPolicy,
+    ) {
+      const held = heldPolicy
+        ? await this.read(id, connection, heldPolicy, employeeId)
+        : null;
+      const row =
+        held ??
+        (explicitPolicy
+          ? await this.read(id, connection, explicitPolicy)
+          : null);
+      return row?.id && row.status && row.status !== 'scrapped' ? row : null;
+    },
     async read(id, connection, policy, holderEmployeeId) {
       const row = await connection
         .repository<Asset>('assets')

@@ -1,3 +1,4 @@
+import itRepairLocale from './modules/it-repairs.en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.pt-BR.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.pt-BR.js';
 import wecomAttendanceLocale from './modules/wecom-attendance.pt-BR.js';
@@ -81,6 +82,7 @@ import approvalsEnUS from './modules/approvals.pt-BR.js';
 import system from './system/pt-BR.js';
 
 const ptBR: AppResource = {
+  ...itRepairLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,
