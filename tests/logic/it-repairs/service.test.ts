@@ -488,11 +488,9 @@ test('routing recovery is bounded, repeatable and preserves frozen intake facts'
     await db.repository('itRepairGroups').findOne({ filter: { id: 'batch' } }),
   ).toBeUndefined();
   expect(
-    await db
-      .repository('itRepairs')
-      .count({
-        filter: { status: 'triage', groupId: null, category: 'software' },
-      }),
+    await db.repository('itRepairs').count({
+      filter: { status: 'triage', groupId: null, category: 'software' },
+    }),
   ).toBe(101);
   const configured = await service.configure(
     { ...cmd(), id: 'batch', expectedVersion: 0 },
