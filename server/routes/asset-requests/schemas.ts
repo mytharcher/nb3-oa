@@ -163,3 +163,14 @@ export const EligibleAssetSchema = z.strictObject({
   status: z.enum(['available', 'assigned', 'borrowed', 'scrapped']),
   version: z.number().int(),
 });
+
+export const ListRecordSchema = RecordSchema.omit({
+  assetIds: true,
+  scrapReason: true,
+  photos: true,
+  allocation: true,
+  appraisalOpinion: true,
+  handlingUnits: true,
+  handlingReason: true,
+  exceptionReason: true,
+});

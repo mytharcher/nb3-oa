@@ -63,7 +63,7 @@ export const AttendanceChangeRecord = z.strictObject({
   createdAt: z.string(),
 });
 export const Detail = z.strictObject({
-  timeZone:z.string(),
+  timeZone: z.string(),
   record: AttendanceChangeRecord,
   users: z.array(z.strictObject({ id: z.string(), name: z.string() })),
   view: z.json(),
@@ -75,7 +75,11 @@ export const Detail = z.strictObject({
 });
 const User = z.strictObject({ id: z.string(), name: z.string() });
 export const List = z.array(
-  AttendanceChangeRecord.extend({
+  AttendanceChangeRecord.omit({
+    proof: true,
+    attachments: true,
+    ruleSnapshot: true,
+  }).extend({
     applicant: User.nullable(),
     createdBy: User.nullable(),
     managerApprover: User.nullable(),

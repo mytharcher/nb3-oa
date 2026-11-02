@@ -61,6 +61,19 @@ export interface SealRequest extends LifecycleRecord {
   statusChangedAt: string;
   submittedAt: string | null;
 }
+export type SealListItem = Pick<
+  SealRequest,
+  Exclude<
+    (typeof SEAL_REQUEST_FIELDS)[number],
+    | 'fileIds'
+    | 'contact'
+    | 'exceptionReason'
+    | 'administrativeReason'
+    | 'ruleSnapshot'
+    | 'approvedFingerprint'
+    | 'approvedAt'
+  >
+>;
 export interface SealInstance {
   id: string;
   code: string;
@@ -249,7 +262,7 @@ export interface SealRequestService {
   ): Promise<string[]>;
   approvals: Pick<
     ApprovalService,
-    'tasksOf' | 'runsFor' | 'actionsOf' | 'runViewsFor' | 'actionsFor'
+    'tasksFor' | 'runsFor' | 'actionsOf' | 'runViewsFor' | 'actionsFor'
   >;
   create(
     actorId: string,
@@ -279,7 +292,7 @@ export interface SealRequestService {
     policy: RepositoryPolicy,
   ): Promise<{
     record: SealRequest;
-    tasks: Awaited<ReturnType<ApprovalService['tasksOf']>>;
+    tasks: Awaited<ReturnType<ApprovalService['tasksFor']>>;
     runs: Awaited<ReturnType<ApprovalService['runsFor']>>;
     actions: Awaited<ReturnType<ApprovalService['actionsOf']>>;
   }>;
@@ -288,9 +301,9 @@ export interface SealRequestService {
     view: 'mine' | 'pending' | 'done' | 'copied',
     policy: RepositoryPolicy,
   ): Promise<
-    Array<SealRequest & { applicant: { id: string; name: string } | null }>
+    Array<SealListItem & { applicant: { id: string; name: string } | null }>
   >;
-  list(actorId: string, policy: RepositoryPolicy): Promise<SealRequest[]>;
+  list(actorId: string, policy: RepositoryPolicy): Promise<SealListItem[]>;
   upload(
     actorId: string,
     requestId: string,
@@ -417,4 +430,33 @@ export const SEAL_PRINT_RECEIPT_FIELDS = [
   'sealedAt',
   'confirmedById',
   'contractConfirmation',
+] as const;
+
+export const SEAL_LIST_FIELDS = [
+  'id',
+  'applicantId',
+  'createdById',
+  'departmentId',
+  'number',
+  'contractId',
+  'contractVersion',
+  'contractTextVersionId',
+  'sealType',
+  'copies',
+  'executionMode',
+  'external',
+  'returnDueAt',
+  'purpose',
+  'sealId',
+  'actualCopies',
+  'sealedAt',
+  'borrowedAt',
+  'returnedAt',
+  'ledgerId',
+  'electronicEvidenceId',
+  'status',
+  'lifecycleVersion',
+  'createdAt',
+  'statusChangedAt',
+  'submittedAt',
 ] as const;

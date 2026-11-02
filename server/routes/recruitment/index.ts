@@ -516,7 +516,7 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         const rows = await db
           .repository<Requisition>('requisitions')
           .withPolicy(ordinary)
-          .findMany();
+          .findMany({ select: (s) => s.fields('id') });
         return c.json({
           data: await Promise.all(
             rows.map((row) =>

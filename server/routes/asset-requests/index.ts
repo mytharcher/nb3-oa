@@ -49,6 +49,7 @@ import {
   ListQuery,
   CandidatesQuery,
   RecordSchema,
+  ListRecordSchema,
   DetailSchema,
   CandidatesSchema,
   ValueSchema,
@@ -284,7 +285,7 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         operationId: 'listAssetRequests',
         summary: 'List authorized asset applications',
         responses: {
-          '200': listResponse(RecordSchema, ListMeta),
+          '200': listResponse(ListRecordSchema, ListMeta),
           ...apiErrorResponses,
         },
       }),

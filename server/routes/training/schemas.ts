@@ -91,7 +91,11 @@ export const Detail = z.strictObject({
   timeline: z.json(),
 });
 export const List = z.array(
-  TrainingRecord.extend({
+  TrainingRecord.omit({
+    gmMerged: true,
+    headMerged: true,
+    ruleSnapshot: true,
+  }).extend({
     applicant: User.nullable(),
     createdBy: User.nullable(),
     headApprover: User.nullable(),

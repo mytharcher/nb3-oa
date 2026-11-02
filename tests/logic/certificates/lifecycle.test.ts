@@ -237,7 +237,34 @@ test('real manager and HR claim, frozen income DOCX, failed generation and audit
   await org.removeDutyRoleMember('hr', hr.userId, { actorId: head.userId });
   expect(await service.listForCenter(hr.userId, 'pending', ALL)).toEqual([]);
   await org.addDutyRoleMember('hr', hr.userId, { actorId: head.userId });
+  const candidateDetail = await service.detail(request.id, hr.userId, ALL);
+  expect(candidateDetail.tasks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ assigneeId: hr.userId, status: 'candidate' }),
+    ]),
+  );
+  expect((await service.detail(request.id, head.userId, ALL)).tasks).toEqual(
+    [],
+  );
+  expect((await service.detail(request.id, owner.userId, ALL)).tasks).toEqual(
+    [],
+  );
   await action(hr.userId, 'claim');
+  const claimedDetail = await service.detail(request.id, hr.userId, ALL);
+  expect(claimedDetail.tasks).toEqual([
+    expect.objectContaining({
+      assigneeId: hr.userId,
+      status: 'claimed',
+      recordId: request.id,
+      lifecycle: CERTIFICATE_KIND,
+    }),
+  ]);
+  expect(claimedDetail.runs.length).toBeGreaterThan(0);
+  expect(claimedDetail.actions.length).toBeGreaterThan(0);
+  await expect(
+    service.detail(request.id, hr.userId, { read: false }),
+  ).rejects.toThrow();
+
   expect(
     (await service.listForCenter(copied.userId, 'copied', ALL)).map(
       (row) => row.id,

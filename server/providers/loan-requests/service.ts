@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { asyncFilter } from '../approval-runtime/async-filter.js';
 import { type DatabaseScope } from '@nocobase/app-plugin-authorization/server';
 import { z } from 'zod';
@@ -150,6 +151,27 @@ export interface LoanRequestDependencies {
   dispatcher?: EffectDispatcher;
 }
 /** Every ordinary public response, including mutation/history payloads, excludes bank snapshots. */
+export const listFields = [
+  'id',
+  'applicantId',
+  'createdById',
+  'number',
+  'departmentId',
+  'amountCents',
+  'reason',
+  'dueDate',
+  'travelId',
+  'heldCents',
+  'headApproverId',
+  'managerApproverId',
+  'executiveApproverId',
+  'gmApproverId',
+  'status',
+  'lifecycleVersion',
+  'createdAt',
+] as const;
+export type ListRecord = Pick<LoanRequestRecord, (typeof listFields)[number]>;
+
 export function redactLoanPayment<T>(value: T): T {
   if (value === null || typeof value !== 'object' || value instanceof Date)
     return value;
@@ -1075,28 +1097,8 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
       'permission',
     );
   }
-  function fullRows(rows: Partial<LoanRequestRecord>[]): LoanRequestRecord[] {
-    const fields = [
-      'id',
-      'applicantId',
-      'createdById',
-      'number',
-      'departmentId',
-      'amountCents',
-      'reason',
-      'dueDate',
-      'travelId',
-      'heldCents',
-      'ruleSnapshot',
-      'headApproverId',
-      'managerApproverId',
-      'executiveApproverId',
-      'gmApproverId',
-      'gmMerged',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+  function fullRows(rows: Partial<LoanRequestRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new LoanRequestError(
         'LOAN_REQUEST_FIELDS_RESTRICTED',
@@ -1113,7 +1115,7 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
       )
     );
   }
-  async function enrich(records: LoanRequestRecord[], _actorId: string) {
+  async function enrich(records: ListRecord[], _actorId: string) {
     const ids = [
       ...new Set(
         records
@@ -1232,9 +1234,20 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
         (l) => l.sourceId === id,
       );
       if (!loan) return { loan: null, reservations: [] };
-      const reservations = await d.db
-        .repository('loanReservations')
-        .findMany({ filter: { loanId: loan.id } });
+      const reservations = await d.db.repository('loanReservations').findMany({
+        filter: { loanId: loan.id },
+        select: (s) =>
+          s.fields(
+            'id',
+            'loanId',
+            'reference',
+            'kind',
+            'cents',
+            'state',
+            'createdAt',
+            'updatedAt',
+          ),
+      });
       return {
         loan: {
           ...loan,
@@ -1720,6 +1733,12 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
           return enrich(
             fullRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -1730,14 +1749,20 @@ export function createLoanRequestService(d: LoanRequestDependencies) {
             ),
             actorId,
           );
-        // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
+        // Assignment-only reads do not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
         const records = fullRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: LoanRequestRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&

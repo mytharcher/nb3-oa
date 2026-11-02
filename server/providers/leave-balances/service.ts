@@ -54,7 +54,8 @@ function date(value: Date | null | undefined): Date | null {
     fail('LEAVE_BALANCE_INVALID_DATE', 'Invalid leave expiry or event time.');
   return result;
 }
-function normalize(row: LeaveLedgerEntry): LeaveLedgerEntry {
+type LedgerFact = Omit<LeaveLedgerEntry, 'reason'>;
+function normalize<T extends LedgerFact>(row: T): T {
   return {
     ...row,
     availableDelta: Number(row.availableDelta),
@@ -63,7 +64,7 @@ function normalize(row: LeaveLedgerEntry): LeaveLedgerEntry {
     expiresAt: date(row.expiresAt),
   };
 }
-function fold(rows: LeaveLedgerEntry[]): Map<string, Lot> {
+function fold(rows: LedgerFact[]): Map<string, Lot> {
   const lots = new Map<string, Lot>();
   for (const row of rows) {
     const lot = lots.get(row.lotId) ?? {
@@ -99,15 +100,31 @@ export function createLeaveBalanceService(
   async function rowsOf(
     account: LeaveAccount,
     connection: DatabaseConnection,
-  ): Promise<LeaveLedgerEntry[]> {
+  ): Promise<LedgerFact[]> {
     return (
       (await connection.repository('leaveLedger').findMany({
+        // Balance folding needs accounting facts, not free-form history reasons.
+        select: (s) =>
+          s.fields(
+            'id',
+            'employeeId',
+            'leaveType',
+            'kind',
+            'lotId',
+            'reference',
+            'requestKey',
+            'availableDelta',
+            'heldDelta',
+            'at',
+            'expiresAt',
+            'actorId',
+          ),
         filter: {
           employeeId: account.employeeId,
           leaveType: account.leaveType,
         },
         sort: (s) => [s.field('at').asc(), s.field('id').asc()],
-      })) as unknown as LeaveLedgerEntry[]
+      })) as unknown as LedgerFact[]
     ).map(normalize);
   }
   async function lock(
@@ -505,10 +522,15 @@ export function createLeaveBalanceService(
       );
     },
     async list(employeeId, connection = db.connection()) {
-      const rows = (await connection
-        .repository('leaveLedger')
-        .findMany({ filter: { employeeId } })) as unknown as LeaveLedgerEntry[];
-      const types = [...new Set(rows.map((r) => r.leaveType))].sort();
+      const rows = await connection
+        .repository<LeaveLedgerEntry>('leaveLedger')
+        .findMany({
+          filter: { employeeId },
+          select: (s) => s.fields('leaveType'),
+        });
+      const types = [
+        ...new Set(rows.flatMap((r) => (r.leaveType ? [r.leaveType] : []))),
+      ].sort();
       return Promise.all(
         types.map((leaveType) =>
           service.balance({ employeeId, leaveType }, connection),

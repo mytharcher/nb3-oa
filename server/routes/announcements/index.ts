@@ -177,6 +177,7 @@ export default [
       id: string,
       summary: string,
       schema:
+        | typeof S.ListItem
         | typeof S.Detail
         | typeof S.Announcement
         | typeof S.Receipt
@@ -250,7 +251,7 @@ export default [
       doc(
         'listAnnouncements',
         'List authorized effective announcements or own drafts',
-        S.Announcement,
+        S.ListItem,
         true,
       ),
       gate('view'),
@@ -258,34 +259,16 @@ export default [
       async (ctx) => {
         const q = ctx.req.valid('query'),
           p = await policy(ctx, 'view');
-        const rows = await db
-          .repository<Announcement>('announcements')
-          .withPolicy(p)
-          .findMany({
-            sort: (s) => s.field('publishedAt').desc(),
-          });
-        const visible = [];
-        for (const row of rows) {
-          if (q.status && row.status !== q.status) continue;
-          if (q.mode === 'mine' && row.publisherUserId !== actor(ctx)) continue;
-          if (q.mode === 'received' && row.status !== 'published') continue;
-          const a = await service.get(row.id!, actor(ctx), db.connection(), p);
-          if (
-            a &&
-            !(
-              q.mode === 'received' &&
-              (new Date(a.validFrom) > new Date() ||
-                new Date(a.validUntil) <= new Date())
-            )
-          )
-            if (
-              !q.q ||
-              `${a.title} ${a.body}`
-                .toLocaleLowerCase()
-                .includes(q.q.toLocaleLowerCase())
-            )
-              visible.push(a);
-        }
+        const rows = await service.list(actor(ctx), db.connection(), p, q.q);
+        const visible = rows.filter(
+          (row) =>
+            (!q.status || row.status === q.status) &&
+            (q.mode !== 'mine' || row.publisherUserId === actor(ctx)) &&
+            (q.mode !== 'received' ||
+              (row.status === 'published' &&
+                new Date(row.validFrom) <= new Date() &&
+                new Date(row.validUntil) > new Date())),
+        );
         visible.sort((a, b) => {
           if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
           const left =
@@ -313,7 +296,23 @@ export default [
           data: await Promise.all(
             visible
               .slice((q.page - 1) * q.pageSize, q.page * q.pageSize)
-              .map((a) => dto(a, ctx)),
+              .map(async (a) => {
+                const user = await c
+                  .resolve(userAdministrationServiceToken)
+                  .get(a.publisherUserId);
+                return S.ListItem.parse({
+                  ...a,
+                  publisher: {
+                    id: a.publisherUserId,
+                    name: user?.name ?? a.publisherUserId,
+                  },
+                  validFrom: new Date(a.validFrom).toISOString(),
+                  validUntil: new Date(a.validUntil).toISOString(),
+                  publishedAt: a.publishedAt
+                    ? new Date(a.publishedAt).toISOString()
+                    : null,
+                });
+              }),
           ),
           meta: { page: q.page, pageSize: q.pageSize, total: visible.length },
         });

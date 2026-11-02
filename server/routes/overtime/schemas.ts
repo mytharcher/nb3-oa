@@ -68,7 +68,7 @@ export const Detail = z.strictObject({
 });
 const User = z.strictObject({ id: z.string(), name: z.string() });
 export const List = z.array(
-  OvertimeRecord.extend({
+  OvertimeRecord.omit({ ruleSnapshot: true }).extend({
     applicant: User.nullable(),
     createdBy: User.nullable(),
     managerApprover: User.nullable(),

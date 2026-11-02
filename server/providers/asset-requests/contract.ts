@@ -91,7 +91,7 @@ export interface AssetRequestService {
     people: { id: string; name: string }[];
     nextOffset: number | null;
   }>;
-  approvals: Pick<ApprovalService, 'tasksOf' | 'runsFor' | 'actionsOf'>;
+  approvals: Pick<ApprovalService, 'tasksFor' | 'runsFor' | 'actionsOf'>;
   get(
     id: string,
     connection?: DatabaseConnection,

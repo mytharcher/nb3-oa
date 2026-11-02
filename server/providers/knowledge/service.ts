@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { demoNow } from '../demo-data/context.js';
 import { randomUUID, createHash } from 'node:crypto';
 import type {
@@ -195,7 +196,11 @@ export function createKnowledgeService(d: {
       const rows = await tx
         .repository<KnowledgeDocument>('knowledgeDocuments')
         .withPolicy(policy)
-        .findMany({ sort: (s) => s.field('updatedAt').desc() });
+        .findMany({
+          select: (s) =>
+            s.fields(...readableListFields(KNOWLEDGE_DOCUMENT_FIELDS, policy)),
+          sort: (s) => s.field('updatedAt').desc(),
+        });
       const result: KnowledgeDocument[] = [];
       for (const row of rows) {
         if (KNOWLEDGE_DOCUMENT_FIELDS.some((k) => !(k in row)))
@@ -465,7 +470,16 @@ export function createKnowledgeService(d: {
       const rows = await tx
         .repository<KnowledgeFolder>('knowledgeFolders')
         .withPolicy(policy)
-        .findMany({ sort: (s) => s.field('title').asc() });
+        .findMany({
+          select: (s) =>
+            s.fields(
+              ...readableListFields(
+                ['id', 'parentId', 'title', 'version'],
+                policy,
+              ),
+            ),
+          sort: (s) => s.field('title').asc(),
+        });
       if (
         rows.some((r) =>
           ['id', 'parentId', 'title', 'version'].some((k) => !(k in r)),

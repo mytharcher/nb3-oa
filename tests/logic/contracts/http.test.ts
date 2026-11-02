@@ -97,7 +97,11 @@ test('registered HTTP durable creation and secure text enforce owner scope and i
   const record = records[0].data.record;
   const list = await owner.fetch('/contractRequests?view=mine');
   expect(list.status).toBe(200);
-  expect((await list.json()).meta.timeZone).toBe(
+  const listBody = await list.json();
+  expect(listBody.data[0]).not.toHaveProperty('attachments');
+  expect(listBody.data[0]).not.toHaveProperty('ruleSnapshot');
+  expect(listBody.data[0]).not.toHaveProperty('paymentTerms');
+  expect(listBody.meta.timeZone).toBe(
     app.container.resolve(calendarServiceToken).timeZone(),
   );
   expect(records[1].data.record.id).toBe(record.id);

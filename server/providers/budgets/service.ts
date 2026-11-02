@@ -93,9 +93,18 @@ export function createBudgetService(
   audit: AuditService,
 ): BudgetService {
   async function entries(id: string, tx: DatabaseConnection): Promise<Entry[]> {
-    return (await tx
-      .repository('budgetLedger')
-      .findMany({ filter: { budgetId: id } })) as unknown as Entry[];
+    return (await tx.repository('budgetLedger').findMany({
+      filter: { budgetId: id },
+      select: (s) =>
+        s.fields(
+          'kind',
+          'reference',
+          'allocatedDelta',
+          'heldDelta',
+          'usedDelta',
+          'consumptionReference',
+        ),
+    })) as unknown as Entry[];
   }
   async function lock(
     account: BudgetAccount,
@@ -345,9 +354,11 @@ export function createBudgetService(
         ...(query.year ? { year: query.year } : {}),
         ...(query.subject ? { subject: query.subject } : {}),
       };
-      const rows = await connection
-        .repository<BudgetRow>('budgets')
-        .findMany(Object.keys(filter).length ? { filter } : {});
+      const rows = await connection.repository<BudgetRow>('budgets').findMany({
+        ...(Object.keys(filter).length ? { filter } : {}),
+        select: (s) =>
+          s.fields('id', 'departmentId', 'year', 'subject', 'version'),
+      });
       // Balances are ledger aggregates. Sort the complete filtered set before paging, never a capped page.
       const balances = await Promise.all(
         rows.map(async (row) =>
@@ -531,6 +542,20 @@ export function createBudgetService(
         Math.max(1, Math.ceil(total / query.pageSize)),
       );
       const items = await repo.findMany({
+        select: (s) =>
+          s.fields(
+            'id',
+            'budgetId',
+            'kind',
+            'reference',
+            'requestKey',
+            'allocatedDelta',
+            'heldDelta',
+            'usedDelta',
+            'actorId',
+            'reason',
+            'at',
+          ),
         filter,
         limit: query.pageSize,
         offset: (page - 1) * query.pageSize,

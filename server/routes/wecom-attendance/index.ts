@@ -44,7 +44,20 @@ const Run = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
 });
-const publicRun = (r: WecomAttendanceRun) => ({
+type RunSummary = Pick<
+  WecomAttendanceRun,
+  | 'id'
+  | 'startDate'
+  | 'endDate'
+  | 'state'
+  | 'errorCode'
+  | 'committedRecords'
+  | 'completedBatches'
+  | 'attempts'
+  | 'createdAt'
+  | 'updatedAt'
+>;
+const publicRun = (r: RunSummary) => ({
   id: r.id,
   startDate: r.startDate,
   endDate: r.endDate,
@@ -110,8 +123,24 @@ export default [
       async (ctx) => {
         const rows = await db
           .connection()
-          .repository<WecomAttendanceRun>('wecomAttendanceRuns')
-          .findMany({ sort: (s) => s.field('createdAt').desc(), limit: 30 });
+          .repository<RunSummary>('wecomAttendanceRuns')
+          .findMany({
+            select: (s) =>
+              s.fields(
+                'id',
+                'startDate',
+                'endDate',
+                'state',
+                'errorCode',
+                'committedRecords',
+                'completedBatches',
+                'attempts',
+                'createdAt',
+                'updatedAt',
+              ),
+            sort: (s) => s.field('createdAt').desc(),
+            limit: 30,
+          });
         return ctx.json({
           data: { ...service.status(), runs: rows.map(publicRun) },
         });

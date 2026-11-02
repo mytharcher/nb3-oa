@@ -42,3 +42,5 @@ export const Interval = z
         Date.parse(v.endAt) - Date.parse(v.startAt) <= 366 * 86400000),
     { message: 'Invalid interval' },
   );
+
+export const ScheduleListItem = Schedule.omit({ description: true });

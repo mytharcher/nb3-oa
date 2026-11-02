@@ -257,6 +257,23 @@ export function createExpenseAuthorizationService(d: {
           .repository<ExpenseAuthorization>('expenseAuthorizations')
           .findMany({
             filter: { applicantId },
+            select: (s) =>
+              s.fields(
+                'id',
+                'sourceKind',
+                'sourceId',
+                'applicantId',
+                'sourceReference',
+                'grantedCents',
+                'issuedAt',
+                'deadline',
+                'state',
+                'version',
+                'budgetMode',
+                'departmentId',
+                'year',
+                'subject',
+              ),
             sort: (s) => [s.field('issuedAt').desc(), s.field('id').asc()],
           })
       ).map(grant);

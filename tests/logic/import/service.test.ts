@@ -595,10 +595,24 @@ describe('import service', () => {
   });
 
   it('lists the history newest first with the actor and the retained file', async () => {
-    const { items, total } = await test.imports.listRuns({
-      page: 1,
-      pageSize: 50,
-    });
+    const client = await test.testApp.database.connection().client();
+    const statements: string[] = [];
+    const capture = (query: { sql: string }) => {
+      statements.push(query.sql);
+    };
+    client.on('query', capture);
+    let result;
+    try {
+      result = await test.imports.listRuns({ page: 1, pageSize: 50 });
+    } finally {
+      client.off('query', capture);
+    }
+    const { items, total } = result;
+    const sorted = statements.filter(
+      (sql) => /import_runs/i.test(sql) && /order by/i.test(sql),
+    );
+    expect(sorted).toHaveLength(1);
+    expect(sorted[0]).not.toMatch(/"errors"/);
     expect(total).toBeGreaterThan(5);
     expect(items[0]!.createdAt >= items.at(-1)!.createdAt).toBe(true);
     expect(items[0]!.actor?.id).toBe(actor);

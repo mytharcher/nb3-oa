@@ -1,3 +1,5 @@
+import { readableListFields } from '../list-fields.js';
+import { personalDetailTasksFor } from '../approval-runtime/task-views.js';
 import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -46,6 +48,24 @@ import {
   createCertificatePrintService,
 } from './printing.js';
 import { createCertificateRuntime } from './store.js';
+const certificateListFields = [
+  'id',
+  'applicantId',
+  'employeeId',
+  'departmentId',
+  'certificateType',
+  'purpose',
+  'copies',
+  'deliveryMethod',
+  'preparationId',
+  'issueId',
+  'status',
+  'lifecycleVersion',
+  'createdById',
+  'createdAt',
+  'statusChangedAt',
+  'submittedAt',
+] as const;
 export interface CertificateAccess extends CertificatePrintAccess {
   requests: RepositoryPolicy;
   template?: RepositoryPolicy;
@@ -659,6 +679,8 @@ export function createCertificateApplication(d: CertificateDependencies) {
               }
             : undefined;
         const items = await repo.findMany({
+          select: (s) =>
+            s.fields(...readableListFields(certificateListFields, policy)),
           filter,
           offset: (input.page - 1) * input.pageSize,
           limit: input.pageSize,
@@ -671,19 +693,23 @@ export function createCertificateApplication(d: CertificateDependencies) {
         });
         if (
           items.some((row) =>
-            CERTIFICATE_VIEW_FIELDS.some((field) => !(field in row)),
+            certificateListFields.some((field) => !(field in row)),
           )
         )
           fail('CERTIFICATE_ACCESS_DENIED');
         const rows = await Promise.all(
           items.map(async (item) => {
             const issue = item.issueId
-              ? await tx
-                  .repository<Issue>('certificateIssues')
-                  .findOne({ filter: { id: item.issueId, requestId: item.id } })
+              ? await tx.repository<Issue>('certificateIssues').findOne({
+                  select: (s) => s.fields('number'),
+                  filter: { id: item.issueId, requestId: item.id },
+                })
               : undefined;
             return {
-              ...(item as CertificateRequest),
+              ...(item as Pick<
+                CertificateRequest,
+                (typeof certificateListFields)[number]
+              >),
               number: issue?.number ?? null,
             };
           }),
@@ -705,6 +731,10 @@ export function createCertificateApplication(d: CertificateDependencies) {
                 .repository<CertificateRequest>('certificateRequests')
                 .withPolicy(policy)
                 .findMany({
+                  select: (s) =>
+                    s.fields(
+                      ...readableListFields(certificateListFields, policy),
+                    ),
                   sort: (s) => [
                     s.field('createdAt').desc(),
                     s.field('id').asc(),
@@ -715,9 +745,7 @@ export function createCertificateApplication(d: CertificateDependencies) {
                 queryDirectory ?? (await d.directory.snapshot(tx));
               if (!directory.isActive(actorId)) return result;
               for (const partial of rows) {
-                if (
-                  CERTIFICATE_VIEW_FIELDS.some((field) => !(field in partial))
-                )
+                if (certificateListFields.some((field) => !(field in partial)))
                   fail('CERTIFICATE_ACCESS_DENIED');
                 const row = partial as CertificateRequest;
                 if (
@@ -1063,8 +1091,11 @@ export function createCertificateApplication(d: CertificateDependencies) {
           engine.read(
             async () => ({
               record: await read(id, policy, tx),
-              tasks: (await engine.approvals.tasksOf(actorId)).filter(
-                (t) => t.recordId === id,
+              tasks: await personalDetailTasksFor(
+                engine.approvals,
+                CERTIFICATE_KIND,
+                id,
+                actorId,
               ),
               runs: await engine.approvals.runsFor(CERTIFICATE_KIND, id),
               actions: await engine.approvals.actionsOf(CERTIFICATE_KIND, id),

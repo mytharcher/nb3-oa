@@ -182,7 +182,9 @@ export const routes = defineApiRoutes<Application>((app) => {
       });
     return id;
   }
-  async function enrich(row: PurchaseOrder, connection?: DatabaseConnection) {
+  async function enrich<
+    T extends Pick<PurchaseOrder, 'applicantId' | 'acceptedById'>,
+  >(row: T, connection?: DatabaseConnection) {
     // Mutation responses must reuse their transaction instead of borrowing a
     // second pooled connection while the business write is still uncommitted.
     const lookup = connection ? users.withConnection(connection) : users;

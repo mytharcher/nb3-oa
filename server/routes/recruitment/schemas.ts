@@ -120,7 +120,12 @@ export const Identities = z.strictObject({
   grade: User.nullable(),
 });
 export const List = z.array(
-  Record.safeExtend({ applicant: User.nullable(), identities: Identities }),
+  Record.omit({
+    snapshot: true,
+    jobDescription: true,
+    reason: true,
+    replacementEmployeeIds: true,
+  }).safeExtend({ applicant: User.nullable(), identities: Identities }),
 );
 export const Detail = z.strictObject({
   record: Record,

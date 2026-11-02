@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import {
   allActivePeople,
   APPROVAL_COLLECTIONS,
@@ -1326,56 +1327,74 @@ export function createTravelService(d: TravelDependencies) {
       'permission',
     );
   }
-  function fullRows(rows: Partial<TravelRecord>[]): TravelRecord[] {
-    const fields = [
-      'id',
-      'applicantId',
-      'createdById',
-      'number',
-      'departmentId',
-      'destination',
-      'international',
-      'startAt',
-      'endAt',
-      'companionIds',
-      'attachments',
-      'transportCents',
-      'lodgingCents',
-      'allowanceCents',
-      'amountCents',
-      'needsLoan',
-      'needsBooking',
-      'approvalGrantedAt',
-      'originalHeadApproverId',
-      'bookingInformation',
-      'exceptionReason',
-      'cancelledAt',
-      'cancellationId',
-      'standardSnapshot',
-      'managerApproverId',
-      'headMerged',
-      'ruleSnapshot',
-      'headApproverId',
-      'executiveApproverId',
-      'gmApproverId',
-      'gmMerged',
-      'authorizationId',
-      'authorizationSourceId',
-      'approvalGeneration',
-      'reason',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+  // List reads deliberately exclude detail payloads before database sorting.
+  // Approval-center summary and search currently require the reason/purpose text.
+  const listFields = [
+    'reason',
+
+    'id',
+    'applicantId',
+    'createdById',
+    'number',
+    'departmentId',
+    'destination',
+    'international',
+    'startAt',
+    'endAt',
+    'transportCents',
+    'lodgingCents',
+    'allowanceCents',
+    'amountCents',
+    'needsLoan',
+    'needsBooking',
+    'approvalGrantedAt',
+    'originalHeadApproverId',
+    'cancelledAt',
+    'cancellationId',
+    'managerApproverId',
+    'headApproverId',
+    'executiveApproverId',
+    'gmApproverId',
+    'authorizationId',
+    'authorizationSourceId',
+    'approvalGeneration',
+    'status',
+    'lifecycleVersion',
+    'createdAt',
+  ] as const;
+  type ListRecord = Pick<TravelRecord, (typeof listFields)[number]>;
+  function listRows(rows: Partial<TravelRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new TravelError(
         'TRAVEL_FIELDS_RESTRICTED',
-        'This release requires all travel business fields for reading.',
+        'This release requires all travel list fields for reading.',
         'permission',
       );
-    return rows.map((row) => normalizeTravelRecord(row as TravelRecord));
+    return (rows as ListRecord[]).map((row) => {
+      const result = {
+        ...row,
+        transportCents: Number(row.transportCents),
+        lodgingCents: Number(row.lodgingCents),
+        allowanceCents: Number(row.allowanceCents),
+        amountCents: Number(row.amountCents),
+      };
+      if (
+        [
+          result.transportCents,
+          result.lodgingCents,
+          result.allowanceCents,
+          result.amountCents,
+        ].some((v) => !Number.isSafeInteger(v) || v < 0)
+      )
+        refuse(
+          'TRAVEL_INVALID_AMOUNT',
+          'Stored amounts must be safe integer cents.',
+        );
+      return result;
+    });
   }
-  async function enrich(records: TravelRecord[]) {
+  async function enrich(records: ListRecord[]) {
     const ids = [
       ...new Set(
         records
@@ -1856,8 +1875,14 @@ export function createTravelService(d: TravelDependencies) {
         const scoped = policy ? repository.withPolicy(policy) : repository;
         if (view === 'mine')
           return enrich(
-            fullRows(
+            listRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -1867,14 +1892,20 @@ export function createTravelService(d: TravelDependencies) {
               }),
             ),
           );
-        // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
+        // Assignment-only reads do not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
-        const records = fullRows(
+        const records = listRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: TravelRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&

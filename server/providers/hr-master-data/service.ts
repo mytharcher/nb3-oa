@@ -456,7 +456,10 @@ export function createHrMasterDataService(d: {
       syncError(code);
     }
   }
-  function summary(row: Run) {
+  function summary(
+    row: Omit<Run, 'payload' | 'payloadHash'> &
+      Partial<Pick<Run, 'payload' | 'payloadHash'>>,
+  ) {
     const { payload: _, payloadHash: __, ...safe } = row;
     return safe;
   }
@@ -490,8 +493,20 @@ export function createHrMasterDataService(d: {
       await source(root(), sourceId, access);
       return (
         await root()
-          .repository<Run>('hrSyncBatches')
+          .repository<Omit<Run, 'payload' | 'payloadHash'>>('hrSyncBatches')
           .findMany({
+            select: (s) =>
+              s.fields(
+                'id',
+                'source',
+                'eventId',
+                'state',
+                'reasonCode',
+                'itemCount',
+                'actorId',
+                'createdAt',
+                'updatedAt',
+              ),
             filter: { source: sourceId },
             sort: (s) => [s.field('createdAt').desc()],
             limit: 50,

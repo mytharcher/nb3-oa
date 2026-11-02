@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { demoNow } from '../demo-data/context.js';
 import { createLegacyAssetReturn } from './legacy-return.js';
 import { randomUUID } from 'node:crypto';
@@ -113,6 +114,26 @@ export function createAssetService(d: {
           ? undefined
           : { holderEmployeeId: query.holderEmployeeId };
       const rows = await repo.findMany({
+        select: (s) =>
+          s.fields(
+            ...readableListFields(
+              [
+                'id',
+                'code',
+                'category',
+                'name',
+                'serialNumber',
+                'originalValueCents',
+                'status',
+                'holderEmployeeId',
+                'borrowDueDate',
+                'version',
+                'createdAt',
+                'updatedAt',
+              ],
+              policy,
+            ),
+          ),
         filter,
         limit: query.pageSize,
         offset: (query.page - 1) * query.pageSize,

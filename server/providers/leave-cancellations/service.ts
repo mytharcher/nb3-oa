@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import {
   approvalState,
   approve,
@@ -739,42 +740,44 @@ export function createCancellationService(d: CancellationDependencies) {
       'permission',
     );
   }
-  function fullRows(rows: Partial<CancellationRecord>[]): CancellationRecord[] {
-    const fields = [
-      'id',
-      'originalLeaveId',
-      'cancelAll',
-      'baseline',
-      'applicantId',
-      'createdById',
-      'number',
-      'leaveType',
-      'startDate',
-      'endDate',
-      'startHalf',
-      'endHalf',
-      'days',
-      'reason',
-      'attachments',
-      'handoverUserId',
-      'enableDelegation',
-      'ruleSnapshot',
-      'hrRecipients',
-      'requiresHr',
-      'managerApproverId',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+  // List reads deliberately exclude detail payloads before database sorting.
+  // Approval-center summary and search currently require the reason/purpose text.
+  const listFields = [
+    'reason',
+
+    'id',
+    'originalLeaveId',
+    'cancelAll',
+    'applicantId',
+    'createdById',
+    'number',
+    'leaveType',
+    'startDate',
+    'endDate',
+    'startHalf',
+    'endHalf',
+    'days',
+    'handoverUserId',
+    'enableDelegation',
+    'hrRecipients',
+    'requiresHr',
+    'managerApproverId',
+    'status',
+    'lifecycleVersion',
+    'createdAt',
+  ] as const;
+  type ListRecord = Pick<CancellationRecord, (typeof listFields)[number]>;
+  function listRows(rows: Partial<CancellationRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new LeaveError(
         'LEAVE_FIELDS_RESTRICTED',
-        'This release requires all leave business fields for reading.',
+        'This release requires all leave list fields for reading.',
         'permission',
       );
-    return rows as CancellationRecord[];
+    return rows as ListRecord[];
   }
-  async function enrich(records: CancellationRecord[]) {
+  async function enrich(records: ListRecord[]) {
     const ids = [
       ...new Set(
         records
@@ -1113,8 +1116,14 @@ export function createCancellationService(d: CancellationDependencies) {
         const scoped = policy ? repository.withPolicy(policy) : repository;
         if (view === 'mine')
           return enrich(
-            fullRows(
+            listRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -1124,14 +1133,20 @@ export function createCancellationService(d: CancellationDependencies) {
               }),
             ),
           );
-        // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
+        // Assignment-only reads do not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
-        const records = fullRows(
+        const records = listRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: CancellationRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&

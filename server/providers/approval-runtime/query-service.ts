@@ -1,3 +1,5 @@
+import type { DatabaseManager } from '@nocobase/db';
+import type { UserTaskService } from '@nocobase/app-plugin-task-center/server';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { ApprovalService } from '@nocobase/app-plugin-approval/server';
 import {
@@ -6,12 +8,53 @@ import {
   taskCenterRuntimeServices,
 } from './task-center.js';
 
+/** Explicit OA public surface. New SDK methods need a deliberate application opt-in. */
+const publicMethods = [
+  'candidatesFor',
+  'perform',
+  'performBatch',
+  'preview',
+  'previewBatch',
+  'sweep',
+  'sweepReport',
+  'approve',
+  'reject',
+  'provideMaterial',
+  'read',
+  'approveAll',
+  'rejectAll',
+  'claim',
+  'release',
+  'assign',
+  'transfer',
+  'addSigner',
+  'askMaterial',
+  'returnTo',
+  'appoint',
+  'involvementOf',
+  'tasksFor',
+  'runsFor',
+  'eventsFor',
+  'actionsOf',
+  'timelineFor',
+  'runViewsFor',
+  'upcomingStagesFor',
+  'previewRoute',
+  'actionsFor',
+  'runActionsFor',
+] as const satisfies readonly (keyof ApprovalService)[];
+export type AppApprovalService = Pick<
+  ApprovalService,
+  (typeof publicMethods)[number]
+>;
+const allowedMethods = new Set<string>(publicMethods);
+
 type Input = ConstructorParameters<typeof ApprovalService>;
-const inputs = new WeakMap<ApprovalService, Input>();
+const inputs = new WeakMap<AppApprovalService, Input>();
 const serviceIdentity = Symbol('oa/approval-service-identity');
-function canonicalService(service: ApprovalService): ApprovalService {
+function canonicalService(service: AppApprovalService): AppApprovalService {
   return (
-    (Reflect.get(service, serviceIdentity) as ApprovalService | undefined) ??
+    (Reflect.get(service, serviceIdentity) as AppApprovalService | undefined) ??
     service
   );
 }
@@ -22,8 +65,58 @@ interface TaskTarget {
   subject: string;
   recordId: string;
 }
+/** Exhaust a stable createdAt cursor. Historical access keeps all statuses;
+ * current candidates can select pending, then verify authoritative business offers.
+ * Missing mappings must not silently hide work. */
+export async function personalTaskTargets(
+  db: DatabaseManager,
+  reader: UserTaskService,
+  actorId: string,
+  subject: string,
+  sourceType: string,
+  status?: 'pending',
+): Promise<readonly TaskTarget[] | undefined> {
+  const targets: TaskTarget[] = [];
+  let after: string | undefined;
+  do {
+    const result = await reader.list(actorId, {
+      subject,
+      sourceType,
+      status,
+      pagination: 'cursor',
+      orderBy: 'createdAt',
+      direction: 'asc',
+      includeTotal: false,
+      after,
+      pageSize: 100,
+    });
+    if (result.data.length) {
+      const rows = await db
+        .repository<TaskTarget>('oaTaskCenterTargets')
+        .findMany({
+          filter: (f) =>
+            f.and([
+              f.string('sourceType').eq(sourceType),
+              f.string('subject').eq(subject),
+              f.or(
+                result.data.map((entry) =>
+                  f.string('sourceKey').eq(entry.sourceKey),
+                ),
+              ),
+            ]),
+        });
+      const mapped = new Set(rows.map((row) => row.sourceKey));
+      if (result.data.some((entry) => !mapped.has(entry.sourceKey)))
+        return undefined;
+      targets.push(...rows);
+    }
+    after = result.meta.nextCursor ?? undefined;
+  } while (after);
+  return targets;
+}
+
 const reads = new AsyncLocalStorage<
-  Map<ApprovalService, Map<string, Promise<readonly TaskTarget[]>>>
+  Map<AppApprovalService, Map<string, Promise<readonly TaskTarget[]>>>
 >();
 
 /** Candidate caching is request-local. Every authorization still checks SDK facts. */
@@ -31,23 +124,31 @@ export function withApprovalQueryReads<T>(work: () => Promise<T>) {
   return reads.run(new Map(), work);
 }
 
-export function createAppApprovalService(...input: Input): ApprovalService {
+export function createAppApprovalService(...input: Input): AppApprovalService {
   input[2] = taskCenterRuntimeServices(input[0]) ?? input[2];
   const service = new ApprovalService(...input);
   Object.defineProperty(service, serviceIdentity, { value: service });
   inputs.set(service, input);
-  return service;
+  return new Proxy(service, {
+    get(target, key, receiver) {
+      if (typeof key === 'string' && !allowedMethods.has(key)) return undefined;
+      const value: unknown = Reflect.get(target, key, receiver);
+      return typeof value === 'function'
+        ? (value.bind(target) as unknown)
+        : value;
+    },
+  });
 }
 
 /** Public application bindings; no ApprovalQuery registration or observers. */
-export function approvalTaskBindings(service: ApprovalService) {
+export function approvalTaskBindings(service: AppApprovalService) {
   const input = inputs.get(canonicalService(service));
   if (!input)
     throw new Error('Approval owner did not use the application SDK factory.');
   return { runtime: input[0], approvals: input[1], services: input[2] };
 }
 
-export function approvalQuerySources(service: ApprovalService) {
+export function approvalQuerySources(service: AppApprovalService) {
   const binding = approvalTaskBindings(service);
   return binding.approvals.map((approval) => ({
     business: approval.name,
@@ -60,7 +161,7 @@ export function approvalQuerySources(service: ApprovalService) {
  * Closed entries remain candidates so former assignees and actual task actors retain
  * historical access. A cancelled delegate entry alone never grants access. */
 async function personalTargets(
-  owner: ApprovalService,
+  owner: AppApprovalService,
   actorId: string,
 ): Promise<readonly TaskTarget[]> {
   const service = canonicalService(owner);
@@ -81,33 +182,15 @@ async function personalTargets(
     const targets: TaskTarget[] = [];
     for (const approval of binding.approvals) {
       for (const sourceType of ['approval.task', 'approval.cc']) {
-        for (let page = 1; ; page++) {
-          const result = await integration.reader.list(actorId, {
-            subject: approval.name,
-            sourceType,
-            includeTotal: false,
-            page,
-            pageSize: 100,
-          });
-          if (result.data.length) {
-            const rows = await db
-              .repository<TaskTarget>('oaTaskCenterTargets')
-              .findMany({
-                filter: (f) =>
-                  f.and([
-                    f.string('sourceType').eq(sourceType),
-                    f.string('subject').eq(approval.name),
-                    f.or(
-                      result.data.map((entry) =>
-                        f.string('sourceKey').eq(entry.sourceKey),
-                      ),
-                    ),
-                  ]),
-              });
-            targets.push(...rows);
-          }
-          if (result.data.length < 100) break;
-        }
+        const rows = await personalTaskTargets(
+          db,
+          integration.reader,
+          actorId,
+          approval.name,
+          sourceType,
+        );
+        if (!rows) throw new Error('Approval task mappings are incomplete.');
+        targets.push(...rows);
       }
     }
     return targets;
@@ -119,7 +202,7 @@ async function personalTargets(
 
 /** Optional acceleration must never suppress an authoritative business action check. */
 export async function hasApprovalAssignment(
-  service: ApprovalService,
+  service: AppApprovalService,
   lifecycle: string,
   recordId: string,
   actorId: string,
@@ -131,7 +214,7 @@ export async function hasApprovalAssignment(
 }
 
 export async function hasApprovalCandidate(
-  service: ApprovalService,
+  service: AppApprovalService,
   lifecycle: string,
   recordId: string | undefined,
   actorId: string,
@@ -161,7 +244,7 @@ export async function hasApprovalCandidate(
 }
 
 export async function hasApprovalTaskActor(
-  service: ApprovalService,
+  service: AppApprovalService,
   lifecycle: string,
   recordId: string,
   actorId: string,
@@ -174,7 +257,7 @@ export async function hasApprovalTaskActor(
 /** Index entries locate candidates; precise current participation grants access.
  * Applicant and creator predicates remain in the owning business scope. */
 export async function approvalReadableRecords(
-  owner: ApprovalService,
+  owner: AppApprovalService,
   lifecycle: string,
   actorId: string,
   includeTaskActors: boolean,

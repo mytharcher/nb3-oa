@@ -13,10 +13,10 @@ import {
   DropdownMenuItem,
 } from '#components/ui/dropdown-menu';
 import { useResource } from '../approvals/use-resource.js';
-import type { PaymentRecord, PaymentDetail } from './types.js';
+import type { PaymentListRecord, PaymentDetail } from './types.js';
 
 /** Load the current edit offer only when this menu opens; viewing a draft alone never grants editing. */
-export function PaymentRowActions({ record }: { record: PaymentRecord }) {
+export function PaymentRowActions({ record }: { record: PaymentListRecord }) {
   const { t } = useTranslation(),
     location = useLocation(),
     { session } = useAuthentication();

@@ -75,7 +75,12 @@ export const Detail = z.strictObject({
   timeline: z.json(),
 });
 export const List = z.array(
-  TravelCancellationRecord.extend({
+  TravelCancellationRecord.omit({
+    unbookingInformation: true,
+    exceptionReason: true,
+    baseline: true,
+    ruleSnapshot: true,
+  }).extend({
     applicant: User.nullable(),
     createdBy: User.nullable(),
     managerApprover: User.nullable(),

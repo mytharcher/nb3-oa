@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import {
   approvalState,
   approve,
@@ -527,33 +528,31 @@ export function createGeneralRequestService(d: GeneralRequestDependencies) {
       'permission',
     );
   }
-  function fullRows(
-    rows: Partial<GeneralRequestRecord>[],
-  ): GeneralRequestRecord[] {
-    const fields = [
-      'id',
-      'applicantId',
-      'createdById',
-      'number',
-      'title',
-      'body',
-      'attachments',
-      'extraApproverIds',
-      'ruleSnapshot',
-      'managerApproverId',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+  // List reads deliberately exclude detail payloads before database sorting.
+  const listFields = [
+    'id',
+    'applicantId',
+    'createdById',
+    'number',
+    'title',
+    'extraApproverIds',
+    'managerApproverId',
+    'status',
+    'lifecycleVersion',
+    'createdAt',
+  ] as const;
+  type ListRecord = Pick<GeneralRequestRecord, (typeof listFields)[number]>;
+  function listRows(rows: Partial<GeneralRequestRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new GeneralRequestError(
         'GENERAL_FIELDS_RESTRICTED',
-        'This release requires all general business fields for reading.',
+        'This release requires all general list fields for reading.',
         'permission',
       );
-    return rows as GeneralRequestRecord[];
+    return rows as ListRecord[];
   }
-  async function enrich(records: GeneralRequestRecord[]) {
+  async function enrich(records: ListRecord[]) {
     const ids = [
       ...new Set(
         records
@@ -816,8 +815,14 @@ export function createGeneralRequestService(d: GeneralRequestDependencies) {
         const scoped = policy ? repository.withPolicy(policy) : repository;
         if (view === 'mine')
           return enrich(
-            fullRows(
+            listRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -827,14 +832,20 @@ export function createGeneralRequestService(d: GeneralRequestDependencies) {
               }),
             ),
           );
-        // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
+        // Assignment-only reads do not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
-        const records = fullRows(
+        const records = listRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: GeneralRequestRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&

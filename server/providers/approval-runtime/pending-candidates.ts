@@ -1,10 +1,11 @@
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
-import { OPEN } from '@nocobase/app-plugin-approval/server';
+import { userTaskServiceToken } from '@nocobase/app-plugin-task-center/server';
+import { personalTaskTargets } from './query-service.js';
 import { processOwners } from '../process-management/owners.js';
 import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
 
-/** Public SDK assignment pages locate a superset. Business readers still enforce
+/** Public personal task pages locate a superset. Business readers still enforce
  * eligibility, authorization, fields and actions before business-time paging. */
 export async function pendingCandidateRecordIds(
   app: Application,
@@ -29,6 +30,13 @@ export async function pendingCandidateRecordIds(
     )
       return undefined;
   }
+  const db = app.container.resolve(databaseManagerToken);
+  // Startup backfills are durable and application-owned. An incomplete backfill
+  // cannot prove that an empty personal index means no actionable business work.
+  const backfill = await db.repository('oaTaskCenterBackfills').findOne({
+    filter: { id: kind },
+  });
+  if (backfill?.done !== true) return undefined;
   const directory = await app.container
     .resolve(approvalDirectoryServiceToken)
     .snapshot();
@@ -40,20 +48,21 @@ export async function pendingCandidateRecordIds(
       new Date().toISOString(),
     )) ?? []),
   ]);
-  const sdk = await owner.sdk(app);
+  const reader = app.container.resolve(userTaskServiceToken);
   const ids = new Set<string>();
-  await sdk.read(async () => {
-    for (const principal of principals) {
-      for (let offset = 0; ; offset += 1000) {
-        const tasks = await sdk.approvals.tasksOf(principal, OPEN, {
-          limit: 1000,
-          offset,
-        });
-        for (const task of tasks)
-          if (task.lifecycle === kind) ids.add(task.recordId);
-        if (tasks.length < 1000) break;
-      }
-    }
-  });
+  for (const principal of principals) {
+    // Read principals as well as the delegate so dependency-sync timing cannot
+    // hide an assignment. Current directory and owner offers still decide access.
+    const targets = await personalTaskTargets(
+      db,
+      reader,
+      principal,
+      kind,
+      'approval.task',
+      'pending',
+    );
+    if (!targets) return undefined;
+    for (const target of targets) ids.add(target.recordId);
+  }
   return [...ids];
 }

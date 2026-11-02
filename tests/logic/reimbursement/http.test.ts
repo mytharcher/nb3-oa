@@ -450,6 +450,20 @@ describe('reimbursement actual HTTP secure evidence and bank boundaries', () => 
           ).status,
         ).toBe(403);
       }
+      const projectedList = await own.fetch('/reimbursementRequests');
+      expect(projectedList.status).toBe(200);
+      const projectedRow = (await projectedList.json()).data.find(
+        (row: { id: string }) => row.id === draft.id,
+      );
+      expect(projectedRow).toBeDefined();
+      for (const field of [
+        'lines',
+        'ruleSnapshot',
+        'standardSnapshot',
+        'financeLineFacts',
+        'financeCorrectionLines',
+      ])
+        expect(projectedRow).not.toHaveProperty(field);
       const service = testApp.application.container.resolve(
         reimbursementServiceToken,
       );

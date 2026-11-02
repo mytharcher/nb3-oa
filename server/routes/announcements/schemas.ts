@@ -56,6 +56,13 @@ export const Announcement = z.object({
   publishedAt: z.iso.datetime().nullable(),
   version: z.number(),
 });
+export const ListItem = Announcement.omit({
+  body: true,
+  audience: true,
+  attachments: true,
+  knowledgeLink: true,
+  hasNewVersion: true,
+});
 export const Receipt = z.object({
   id: Id,
   announcementId: Id,

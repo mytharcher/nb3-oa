@@ -1,3 +1,4 @@
+import { readableListFields } from '../../providers/list-fields.js';
 import type { Application } from '@nocobase/app-server/application';
 import {
   apiValidator,
@@ -64,7 +65,7 @@ const requestFields = [
   'lifecycleVersion',
   'statusChangedAt',
   'createdAt',
-];
+] as const;
 const vehicleFields = [
   'id',
   'plateNumber',
@@ -335,6 +336,13 @@ export function registerVehicleBrowserRoutes(
       if (sort === 'number' && total > 5000)
         throw new VehicleError('VEHICLE_SORT_LIMIT', 'Narrow the search.');
       let rows = await repo.findMany({
+        select: (s) =>
+          s.fields(
+            ...readableListFields(
+              requestFields.filter((field) => field in browserRow.shape),
+              p,
+            ),
+          ),
         filter,
         ...(sort === 'number'
           ? {}
@@ -344,7 +352,14 @@ export function registerVehicleBrowserRoutes(
           s.field('id').asc(),
         ],
       });
-      rows.forEach((row) => requireFields(row, requestFields));
+      rows.forEach((row) =>
+        requireFields(
+          row,
+          Object.keys(browserRow.shape).filter(
+            (field) => field !== 'applicant',
+          ),
+        ),
+      );
       if (sort === 'number') {
         rows.sort(
           (a, b) =>
@@ -362,9 +377,7 @@ export function registerVehicleBrowserRoutes(
           items: rows.map((row) =>
             browserRow.parse({
               ...Object.fromEntries(
-                Object.entries(S.Record.parse(row)).filter(
-                  ([key]) => key in browserRow.shape,
-                ),
+                Object.entries(row).filter(([key]) => key in browserRow.shape),
               ),
               applicant: people.find((u) => u.id === row.applicantId) ?? {
                 id: String(row.applicantId),

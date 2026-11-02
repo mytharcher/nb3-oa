@@ -97,6 +97,14 @@ test('main PostgreSQL personal schedule CRUD enforces current action, owner, inp
   const row = (await created.json()).data;
   expect(row.owner).toEqual({ id: owner.userId, name: 'Schedule owner' });
   expect(row.startAt).toBe('2030-01-01T01:00:00.000Z');
+  expect(row.description).toBe(body.description);
+  const listed = await session.fetch('/personalSchedules');
+  expect(listed.status).toBe(200);
+  const listedRow = (await listed.json()).data.find(
+    (item: { id: string }) => item.id === row.id,
+  );
+  expect(listedRow).toMatchObject({ id: row.id, title: body.title });
+  expect(listedRow).not.toHaveProperty('description');
   expect((await foreign.fetch(`/personalSchedules/${row.id}`)).status).toBe(
     404,
   );
@@ -146,6 +154,7 @@ test('main PostgreSQL personal schedule CRUD enforces current action, owner, inp
   );
   const audit = testApp.application.container.resolve(auditServiceToken);
   const records = await audit.list({
+    includeSnapshots: true,
     targetType: 'personalSchedules',
     targetId: row.id,
     page: 1,

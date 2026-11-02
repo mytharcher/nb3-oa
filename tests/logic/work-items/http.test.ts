@@ -59,6 +59,19 @@ test('main default employee personal task actions enforce creator/assignee and c
   const created = await cs.fetch('/workItems', write('POST', body));
   expect(created.status).toBe(200);
   const draft = (await created.json()).data;
+  const summaries = (await (await cs.fetch('/workItems?mode=created')).json())
+    .data;
+  const summary = summaries.find((row: { id: string }) => row.id === draft.id);
+  expect(summary).toBeDefined();
+  for (const field of [
+    'description',
+    'attachments',
+    'result',
+    'resultAttachments',
+    'reason',
+  ])
+    expect(summary).not.toHaveProperty(field);
+  expect(draft).toHaveProperty('description');
   expect(draft.creator).toEqual({
     id: creator.userId,
     name: 'Work HTTP creator',

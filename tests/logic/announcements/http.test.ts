@@ -115,6 +115,14 @@ test('main API refuses anonymous, ungranted and foreign actors; freezes receipt 
   const created = await ps.fetch('/announcements', write('POST', body));
   expect(created.status).toBe(200);
   const draft = (await created.json()).data;
+  const summaries = (
+    await (await ps.fetch('/announcements?mode=mine&q=Confirmation')).json()
+  ).data;
+  const summary = summaries.find((row: { id: string }) => row.id === draft.id);
+  expect(summary).toBeDefined();
+  for (const field of ['body', 'audience', 'attachments', 'knowledgeLink'])
+    expect(summary).not.toHaveProperty(field);
+  expect(draft.body).toBe('Confirmation requested');
   expect(draft.publisher).toEqual({
     id: publisher.userId,
     name: 'Announcement API publisher',

@@ -107,6 +107,14 @@ describe('purchase order source holds, receipt and source-linked payment conserv
   }) => {
     const { db, audit, budgets, service, record, order, account } =
       await fixture(app);
+    const listing = await service.list(
+      { page: 1, pageSize: 20, sort: 'createdAt', direction: 'desc' },
+      { read: true, create: false, update: false, delete: false },
+    );
+    expect(listing.data[0]).toMatchObject({ id: order.id, actualCents: 12000 });
+    expect(listing.data[0]).not.toHaveProperty('items');
+    expect(listing.data[0]).not.toHaveProperty('account');
+    expect((await service.get(order.id))?.items).toEqual(record.items);
     expect(await budgets.balance(account)).toMatchObject({
       heldCents: 12000,
       usedCents: 0,

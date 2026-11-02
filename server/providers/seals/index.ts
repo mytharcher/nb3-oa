@@ -249,7 +249,7 @@ export default class SealsProvider extends ServiceProvider<Application> {
             for (const row of await c
               .resolve(databaseManagerToken)
               .repository<{ id: string; applicantId: string }>('sealRequests')
-              .findMany()) {
+              .findMany({ select: (s) => s.fields('id', 'applicantId') })) {
               if (
                 row.applicantId === principal.id ||
                 (

@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { demoNow } from '../demo-data/context.js';
 import { actionMutation } from './action-mutation.js';
 import { requestBusinessRead } from '../request-performance/business-reads.js';
@@ -25,6 +26,8 @@ import type { OrgService } from '../org/contract.js';
 import type { EmployeeService } from '../employees/contract.js';
 import {
   WORK_ITEM_FIELDS,
+  WORK_ITEM_LIST_FIELDS,
+  type WorkItemListItem,
   type WorkItem,
   type WorkItemService,
   type WorkItemAction,
@@ -81,7 +84,8 @@ export function createWorkItemService(d: {
       d.org.hasDutyRole(actorId, role, tx),
     );
   }
-  const final = (w: WorkItem) => ['completed', 'cancelled'].includes(w.status);
+  const final = (w: WorkItemListItem) =>
+    ['completed', 'cancelled'].includes(w.status);
   // Share the authentication administration locks with departure before taking
   // the business row lock. Reassignment during acquisition fails closed.
   async function lockActors(
@@ -133,7 +137,7 @@ export function createWorkItemService(d: {
     });
   }
   async function candidate(
-    w: WorkItem,
+    w: WorkItemListItem,
     actorId: string,
     tx: DatabaseConnection,
   ) {
@@ -150,7 +154,7 @@ export function createWorkItemService(d: {
     );
   }
   async function qualification(
-    w: WorkItem,
+    w: WorkItemListItem,
     actorId: string,
     tx: DatabaseConnection,
   ) {
@@ -419,6 +423,55 @@ export function createWorkItemService(d: {
       return undefined;
     return w;
   }
+  async function list(
+    actorId: string,
+    tx: DatabaseConnection,
+    policy?: RepositoryPolicy,
+    search?: string,
+  ) {
+    if (policy?.read === false) fail('ACCESS_DENIED');
+    const repo = tx.repository<WorkItem>('workItems');
+    const rows = await (policy ? repo.withPolicy(policy) : repo).findMany({
+      select: (s) =>
+        s.fields(
+          ...(policy
+            ? readableListFields(WORK_ITEM_LIST_FIELDS, policy)
+            : WORK_ITEM_LIST_FIELDS),
+        ),
+      ...(search
+        ? {
+            filter: (f) =>
+              f.or([
+                f.string('title').includes(search, { mode: 'insensitive' }),
+                f.text('description').includes(search, { mode: 'insensitive' }),
+              ]),
+          }
+        : {}),
+      sort: (s) => s.field('dueAt').asc(),
+    });
+    const result: WorkItemListItem[] = [];
+    for (const row of rows) {
+      if (WORK_ITEM_LIST_FIELDS.some((key) => !(key in row)))
+        fail('ACCESS_DENIED');
+      const item = row as WorkItemListItem;
+      if (item.requiresConfirmation && !item.confirmationOwnerUserId)
+        fail('ACCESS_DENIED');
+      if (
+        item.status === 'draft' &&
+        item.creatorUserId !== actorId &&
+        !(await admin(actorId, tx))
+      )
+        continue;
+      if (
+        !(await qualification(item, actorId, tx)) &&
+        !(await admin(actorId, tx)) &&
+        !((await active(actorId, tx)) && (await hasDutyRole(actorId, 'hr', tx)))
+      )
+        continue;
+      result.push(item);
+    }
+    return result;
+  }
   async function check(
     tx: DatabaseConnection,
     p: RepositoryPolicy | undefined,
@@ -458,7 +511,7 @@ export function createWorkItemService(d: {
   }
   async function files(
     ids: string[],
-    w: WorkItem,
+    w: WorkItemListItem,
     actorId: string,
     purpose: string,
     tx: DatabaseConnection,
@@ -576,7 +629,7 @@ export function createWorkItemService(d: {
     return v;
   }
   async function actions(
-    w: WorkItem,
+    w: WorkItemListItem,
     actorId: string,
     tx: DatabaseConnection,
   ): Promise<WorkItemAction[]> {
@@ -621,6 +674,7 @@ export function createWorkItemService(d: {
     return [...new Set(result)];
   }
   return {
+    list,
     async canHandoverConfirmation(id, actorId, tx, policies) {
       try {
         if (
@@ -1095,9 +1149,12 @@ export function createWorkItemService(d: {
     },
     async listForCenter(actorId, tx, policies) {
       const pending = await this.pending(actorId, tx, policies.view);
+      const records = new Map(
+        (await list(actorId, tx, policies.view)).map((row) => [row.id, row]),
+      );
       const items = [];
       for (const summary of pending.items) {
-        const w = await get(summary.sourceId, actorId, tx, policies.view);
+        const w = records.get(summary.sourceId);
         if (!w) continue;
         let allowed = false;
         for (const action of summary.actions) {
@@ -1120,34 +1177,22 @@ export function createWorkItemService(d: {
           }
         }
         if (!allowed) continue;
-        const row = await tx
-          .repository('workItems')
-          .withPolicy(policies.view)
-          .findOne({ filter: { id: w.id } });
-        if (!row) continue;
         items.push({
           id: w.id,
           initiatorId: w.creatorUserId,
           title: w.title,
           status: w.status,
           dueAt: new Date(w.dueAt).toISOString(),
-          createdAt:
-            row.createdAt instanceof Date || typeof row.createdAt === 'string'
-              ? new Date(row.createdAt).toISOString()
-              : null,
+          // workItems has no creation instant column; keep the established nullable summary contract.
+          createdAt: null,
         });
       }
       return items;
     },
     async pending(actorId, tx, p) {
-      const repo = tx.repository<WorkItem>('workItems'),
-        rows = await (p ? repo.withPolicy(p) : repo).findMany({
-          sort: (s) => s.field('dueAt').asc(),
-        }),
+      const rows = await list(actorId, tx, p),
         items = [];
-      for (const row of rows) {
-        const w = await readableRow(row, actorId, tx);
-        if (!w) continue;
+      for (const w of rows) {
         const available = await actions(w, actorId, tx),
           relevant = available.filter((a) =>
             (w.status === 'blocked'

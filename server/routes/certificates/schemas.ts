@@ -165,6 +165,8 @@ export const Query = z.strictObject({
     .optional(),
 });
 export const List = z.object({
-  items: z.array(Record),
+  items: z.array(
+    Record.omit({ exceptionReason: true, administrativeReason: true }),
+  ),
   total: z.number().int().nonnegative(),
 });

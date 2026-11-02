@@ -43,13 +43,17 @@ import { useResource } from '../approvals/use-resource.js';
 import { ErrorState } from './states.js';
 import {
   STATUSES,
-  type ProbationRecord,
+  type ProbationRecord as ProbationRecordDetail,
   type ProbationOptions,
   calendarDateLabel,
 } from './types.js';
 
 /** The endpoint returns the complete authorized view. Filter/sort the full result
  * before slicing; no first-page cap is treated as the whole collection. */
+type ProbationRecord = Omit<
+  ProbationRecordDetail,
+  'evaluation' | 'ruleSnapshot' | 'headMerged'
+>;
 export default function ProbationsPage() {
   const { t, i18n } = useTranslation();
   const location = useLocation();

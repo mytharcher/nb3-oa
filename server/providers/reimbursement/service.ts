@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { asyncFilter } from '../approval-runtime/async-filter.js';
 import {
   allActivePeople,
@@ -221,6 +222,37 @@ const accountSchema = z.strictObject({
   bankAccount: z.string().trim().min(1).max(64),
   bankAccountName: z.string().trim().min(1).max(128),
 });
+export const listFields = [
+  'id',
+  'applicantId',
+  'createdById',
+  'number',
+  'reason',
+  'authorizationId',
+  'loanId',
+  'bindingCaptured',
+  'boundAuthorizationId',
+  'boundLoanId',
+  'debtHeldCents',
+  'debtHoldRecorded',
+  'offsetCents',
+  'totalCents',
+  'lastSubmittedTotalCents',
+  'departmentId',
+  'managerId',
+  'headId',
+  'accountantId',
+  'executiveId',
+  'gmId',
+  'exceptionContentHash',
+  'voucherNumber',
+  'paymentId',
+  'status',
+  'lifecycleVersion',
+  'createdAt',
+] as const;
+export type ListRecord = Pick<ReimbursementRecord, (typeof listFields)[number]>;
+
 export function createReimbursementService(d: ReimbursementDependencies) {
   const funding = createReimbursementFunding(d),
     settle = createReimbursementSettlement(d);
@@ -1517,48 +1549,8 @@ export function createReimbursementService(d: ReimbursementDependencies) {
     [approval.approval as unknown as Approval<never>],
     source,
   );
-  function fullRows(
-    rows: Partial<ReimbursementRecord>[],
-  ): ReimbursementRecord[] {
-    const fields = [
-      'id',
-      'applicantId',
-      'createdById',
-      'number',
-      'reason',
-      'authorizationId',
-      'loanId',
-      'bindingCaptured',
-      'boundAuthorizationId',
-      'boundLoanId',
-      'debtHeldCents',
-      'debtHoldRecorded',
-      'offsetCents',
-      'overrunReason',
-      'lines',
-      'totalCents',
-      'lastSubmittedTotalCents',
-      'departmentId',
-      'managerId',
-      'headId',
-      'accountantId',
-      'executiveId',
-      'gmId',
-      'ruleSnapshot',
-      'standardSnapshot',
-      'managerReviewBasis',
-      'headReviewBasis',
-      'financeLineFacts',
-      'financeCorrectionLines',
-      'exceptionContentHash',
-      'handlingFailureReason',
-      'voucherNumber',
-      'paymentId',
-      'forcedReason',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+  function fullRows(rows: Partial<ReimbursementRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new ReimbursementError(
         'REIMBURSEMENT_FIELDS_RESTRICTED',
@@ -1567,7 +1559,7 @@ export function createReimbursementService(d: ReimbursementDependencies) {
       );
     return rows.map((row) => normalizeRecord(row as ReimbursementRecord));
   }
-  async function enrich(records: ReimbursementRecord[]) {
+  async function enrich(records: ListRecord[]) {
     const ids = [
       ...new Set(
         records
@@ -2260,6 +2252,12 @@ export function createReimbursementService(d: ReimbursementDependencies) {
           return enrich(
             fullRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -2269,14 +2267,20 @@ export function createReimbursementService(d: ReimbursementDependencies) {
               }),
             ),
           );
-        // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
+        // Assignment-only reads do not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
         const records = fullRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: ReimbursementRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&
