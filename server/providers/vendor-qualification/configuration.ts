@@ -39,7 +39,10 @@ export function createCommitteeConfiguration(
     async versions(tx: DatabaseConnection): Promise<CommitteeVersion[]> {
       const rows = await tx
         .repository<StoredVersion>('vendorCommitteeVersions')
-        .findMany({ sort: (s) => [s.field('version').asc()] });
+        .findMany({
+          select: (s) => s.fields('version', 'min', 'settle', 'seats'),
+          sort: (s) => [s.field('version').asc()],
+        });
       return rows.length
         ? rows.map(validateCommittee)
         : [validateCommittee(DEFAULT_COMMITTEE)];
@@ -72,6 +75,15 @@ export function createCommitteeConfiguration(
       }
       return tx.repository<Assignment>('vendorCommitteeAssignments').findMany({
         filter: { committeeVersion: version },
+        select: (s) =>
+          s.fields(
+            'id',
+            'committeeVersion',
+            'seatKey',
+            'personId',
+            'version',
+            'updatedAt',
+          ),
         sort: (s) => [s.field('seatKey').asc()],
       });
     },

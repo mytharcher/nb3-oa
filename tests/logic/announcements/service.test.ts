@@ -386,3 +386,39 @@ test('concurrent publication commits one frozen batch and concurrent confirmatio
     }),
   ).toBe(receipts.length + 1);
 });
+
+test('list summaries exclude bodies and attachments while preserving content search and private drafts', async ({
+  testApp,
+}) => {
+  const f = await fixture(testApp);
+  const record = await f.db.transaction((tx) =>
+    f.service.save(
+      { ...f.input(), body: 'Unique body-only search phrase' },
+      tx,
+      ALL,
+    ),
+  );
+  const rows = await f.service.list(
+    f.publisher.userId,
+    f.db.connection(),
+    ALL,
+    'body-only',
+  );
+  expect(rows.map((row) => row.id)).toContain(record.id);
+  const summary = rows.find((row) => row.id === record.id)!;
+  for (const key of ['body', 'audience', 'attachments', 'knowledgeLink'])
+    expect(summary).not.toHaveProperty(key);
+  expect(
+    (await f.service.get(record.id, f.publisher.userId, f.db.connection(), ALL))
+      ?.body,
+  ).toBe('Unique body-only search phrase');
+  expect(
+    await f.service.list(f.reader.userId, f.db.connection(), ALL, 'body-only'),
+  ).toEqual([]);
+  await expect(
+    f.service.list(f.publisher.userId, f.db.connection(), {
+      ...ALL,
+      read: false,
+    }),
+  ).rejects.toThrow('ACCESS_DENIED');
+});

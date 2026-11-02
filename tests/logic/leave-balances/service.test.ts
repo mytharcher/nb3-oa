@@ -18,7 +18,43 @@ function command(
 ) {
   return { ...a, reference, requestKey: key, at: now };
 }
-describe('immutable leave balance ledger on SQLite', () => {
+describe('immutable leave balance ledger on PostgreSQL', () => {
+  test('balance lists omit ledger reasons while history retains them', async ({
+    app,
+  }) => {
+    const db = app.container.resolve(databaseManagerToken);
+    const service = app.container.resolve(leaveBalanceServiceToken);
+    const a = account();
+    const reason = 'Detailed grant explanation '.repeat(1000);
+    await db.transaction((tx) =>
+      service.grant({ ...command(a, 'projection'), units: 8, reason }, tx),
+    );
+    const client = await db.connection().client();
+    const statements: string[] = [];
+    const capture = (query: { sql: string }) => {
+      statements.push(query.sql);
+    };
+    client.on('query', capture);
+    try {
+      expect(await service.list(a.employeeId)).toEqual([
+        expect.objectContaining({
+          leaveType: a.leaveType,
+          availableUnits: 8,
+          heldUnits: 0,
+        }),
+      ]);
+    } finally {
+      client.off('query', capture);
+    }
+    const reads = statements.filter(
+      (sql) => /select/i.test(sql) && /leave_ledger/i.test(sql),
+    );
+    expect(reads.length).toBeGreaterThan(0);
+    for (const sql of reads) {
+      expect(sql).not.toMatch(/"reason"|select\s+\*/i);
+    }
+    expect((await service.ledger(a, 1, 10)).items[0].reason).toBe(reason);
+  });
   test('ledger sorts the complete account before paging and retains stable ties', async ({
     app,
   }) => {

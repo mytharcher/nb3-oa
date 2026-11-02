@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { measureApprovalPhase } from '../approval-runtime/timing.js';
 import {
   type Approval,
@@ -128,6 +129,31 @@ export const TRANSFER_FIELDS = [
   'statusChangedAt',
   'createdAt',
 ] as const;
+const transferListFields = [
+  'id',
+  'applicantId',
+  'employeeId',
+  'kinds',
+  'targetDepartmentId',
+  'targetPositionId',
+  'targetGradeId',
+  'targetManagerId',
+  'sourceAccountId',
+  'targetAccountId',
+  'effectiveDate',
+  'reason',
+  'privateSalaryRevisionId',
+  'cancelConfirmerId',
+  'executionFailureCode',
+  'status',
+  'lifecycleVersion',
+  'statusChangedAt',
+  'createdAt',
+] as const;
+type TransferListRecord = Pick<
+  TransferRecord,
+  Exclude<(typeof TRANSFER_FIELDS)[number], 'snapshot' | 'cancellationReason'>
+>;
 function refuse(reason: string): never {
   throw new TransferError(reason);
 }
@@ -1457,11 +1483,15 @@ export function createTransferService(d: TransferDependencies) {
         .repository<TransferRecord>('transferRequests')
         .withPolicy(policy)
         .findMany({
+          select: (s) =>
+            s.fields(...readableListFields(transferListFields, policy)),
           sort: (s) => [s.field('createdAt').desc(), s.field('id').asc()],
         });
-      if (rows.some((row) => TRANSFER_FIELDS.some((field) => !(field in row))))
+      if (
+        rows.some((row) => transferListFields.some((field) => !(field in row)))
+      )
         refuse('TRANSFER_FORBIDDEN');
-      return rows.map((row) => safe(row as TransferRecord));
+      return rows.map((row) => row as TransferListRecord);
     },
     async listForCenter(
       actorId: string,
@@ -1474,12 +1504,16 @@ export function createTransferService(d: TransferDependencies) {
         .repository<TransferRecord>('transferRequests')
         .withPolicy(policy)
         .findMany({
+          select: (s) =>
+            s.fields(...readableListFields(transferListFields, policy)),
           sort: (s) => [s.field('createdAt').desc(), s.field('id').asc()],
         });
-      if (rows.some((row) => TRANSFER_FIELDS.some((field) => !(field in row))))
+      if (
+        rows.some((row) => transferListFields.some((field) => !(field in row)))
+      )
         refuse('TRANSFER_FORBIDDEN');
       const items: TransferCenterItem[] = [];
-      for (const row of rows as TransferRecord[]) {
+      for (const row of rows as TransferListRecord[]) {
         if (
           view === 'pending' &&
           rows.length > 10 &&
@@ -1561,6 +1595,8 @@ export function createTransferService(d: TransferDependencies) {
         .withPolicy(policy);
       const filter = query.status ? { status: query.status } : undefined;
       const rows = await repository.findMany({
+        select: (s) =>
+          s.fields(...readableListFields(transferListFields, policy)),
         filter,
         sort: (s) => {
           const [field, direction] = (query.orderBy ?? 'createdAt:desc').split(
@@ -1575,9 +1611,11 @@ export function createTransferService(d: TransferDependencies) {
           ];
         },
       });
-      if (rows.some((row) => TRANSFER_FIELDS.some((field) => !(field in row))))
+      if (
+        rows.some((row) => transferListFields.some((field) => !(field in row)))
+      )
         refuse('TRANSFER_FORBIDDEN');
-      const records = rows as TransferRecord[];
+      const records = rows as TransferListRecord[];
       const search = query.q?.trim().toLocaleLowerCase();
       const filtered = search
         ? records.filter(
@@ -1590,11 +1628,9 @@ export function createTransferService(d: TransferDependencies) {
         filtered
           .slice((query.page - 1) * query.pageSize, query.page * query.pageSize)
           .map(async (row) => {
-            const ids = [
-              row.applicantId,
-              row.cancelConfirmerId,
-              row.snapshot?.userId,
-            ].filter((id): id is string => !!id);
+            const ids = [row.applicantId, row.cancelConfirmerId].filter(
+              (id): id is string => !!id,
+            );
             const users = await Promise.all(
               [...new Set(ids)].map(async (id) => ({
                 id,
@@ -1602,7 +1638,7 @@ export function createTransferService(d: TransferDependencies) {
               })),
             );
             return {
-              ...safe(row),
+              ...row,
               employee: {
                 id: row.employeeId,
                 name:

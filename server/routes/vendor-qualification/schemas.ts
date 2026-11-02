@@ -119,3 +119,10 @@ export const ListMeta = z.object({
   pageSize: z.number().int().positive(),
   timeZone: z.string(),
 });
+
+export const ListRecord = Record.omit({
+  cases: true,
+  attachments: true,
+  committeeSnapshot: true,
+  ruleSnapshot: true,
+});

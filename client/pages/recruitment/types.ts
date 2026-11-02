@@ -51,7 +51,10 @@ export interface Detail {
   runActions: RunActions[];
   timeline: ApprovalTimeline;
 }
-export interface ListRow extends RecruitmentRecord {
+export interface ListRow extends Omit<
+  RecruitmentRecord,
+  'snapshot' | 'jobDescription' | 'reason' | 'replacementEmployeeIds'
+> {
   identities: Identities;
   applicant: Person | null;
 }

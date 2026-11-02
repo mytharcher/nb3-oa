@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { randomUUID, createHash } from 'node:crypto';
 import type { DatabaseConnection } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
@@ -230,7 +231,15 @@ export function createSealLedger(d: {
       const rows = await tx
         .repository<SealInstance>('seals')
         .withPolicy(policy)
-        .findMany();
+        .findMany({
+          select: (s) =>
+            s.fields(
+              ...readableListFields(
+                ['id', 'code', 'name', 'sealType', 'active', 'version'],
+                policy,
+              ),
+            ),
+        });
       if (
         rows.some((r) =>
           ['id', 'code', 'name', 'sealType', 'active', 'version'].some(
@@ -245,7 +254,11 @@ export function createSealLedger(d: {
       const rows = await tx
         .repository<SealLedger>('sealLedger')
         .withPolicy(policy)
-        .findMany({ sort: (s) => s.field('registeredAt').desc() });
+        .findMany({
+          select: (s) =>
+            s.fields(...readableListFields(SEAL_LEDGER_FIELDS, policy)),
+          sort: (s) => s.field('registeredAt').desc(),
+        });
       if (rows.some((r) => SEAL_LEDGER_FIELDS.some((k) => !(k in r))))
         fail('ACCESS_DENIED');
       return rows as SealLedger[];

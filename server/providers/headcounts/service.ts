@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { measureApprovalPhase } from '../approval-runtime/timing.js';
 import { demoNow } from '../demo-data/context.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -1282,6 +1283,23 @@ export function createHeadcountService(d: {
       if (!derived) {
         const rows = await repo.findMany({
           ...filtered,
+          select: (s) =>
+            s.fields(
+              ...readableListFields(
+                [
+                  'id',
+                  'departmentId',
+                  'positionId',
+                  'year',
+                  'limit',
+                  'initialized',
+                  'version',
+                  'createdAt',
+                  'updatedAt',
+                ],
+                policy,
+              ),
+            ),
           limit: q.pageSize,
           offset: (q.page - 1) * q.pageSize,
           sort: (s) => [
@@ -1360,6 +1378,23 @@ export function createHeadcountService(d: {
       };
       for await (const a of repo.findMany({
         ...filtered,
+        select: (s) =>
+          s.fields(
+            ...readableListFields(
+              [
+                'id',
+                'departmentId',
+                'positionId',
+                'year',
+                'limit',
+                'initialized',
+                'version',
+                'createdAt',
+                'updatedAt',
+              ],
+              policy,
+            ),
+          ),
         sort: (s) => s.field('id').asc(),
       })) {
         if (
@@ -1394,6 +1429,23 @@ export function createHeadcountService(d: {
         filter = { accountId: id };
       const total = await repo.count({ filter }),
         items = await repo.findMany({
+          select: (s) =>
+            s.fields(
+              ...readableListFields(
+                [
+                  'id',
+                  'accountId',
+                  'departmentId',
+                  'action',
+                  'sourceReference',
+                  'actorId',
+                  'reason',
+                  'evidence',
+                  'at',
+                ],
+                policy,
+              ),
+            ),
           filter,
           offset: (query.page - 1) * query.pageSize,
           limit: query.pageSize,

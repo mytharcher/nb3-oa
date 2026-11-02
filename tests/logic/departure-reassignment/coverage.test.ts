@@ -25,12 +25,16 @@ it('includes every registered application module that constructs a public approv
       return entry.isDirectory()
         ? constructsApproval(child)
         : entry.name.endsWith('.ts') &&
-            /new ApprovalService\s*\(/.test(readFileSync(child, 'utf8'));
+            /=\s*(?:new ApprovalService|createAppApprovalService)\s*\(/.test(
+              readFileSync(child, 'utf8'),
+            );
     });
   }
   const missing = [...registered].filter(
     (module) =>
-      constructsApproval(join(providers, module)) && !covered.has(module),
+      module !== 'approval-runtime' &&
+      constructsApproval(join(providers, module)) &&
+      !covered.has(module),
   );
   expect(
     missing,

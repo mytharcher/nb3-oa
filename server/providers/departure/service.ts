@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { measureApprovalPhase } from '../approval-runtime/timing.js';
 import {
   lockUserForAdministration,
@@ -156,6 +157,40 @@ export const departurePublicFields = [
   'cancellationFromStatus',
   'cancellationReason',
 ] as const;
+const departureListFields = [
+  'id',
+  'employeeId',
+  'applicantId',
+  'createdById',
+  'departureType',
+  'reason',
+  'expectedLastWorkingDay',
+  'handoverUserId',
+  'sourceProbationId',
+  'sourceKey',
+  'status',
+  'lifecycleVersion',
+  'createdAt',
+  'number',
+  'lastWorkingDay',
+  'settlementDate',
+  'departmentId',
+  'managerApproverId',
+  'headApproverId',
+  'gmApproverId',
+  'gradeRank',
+  'hrInterviewCompleted',
+  'originalEmployeeStatus',
+  'cancellationRequestedById',
+  'cancellationFromStatus',
+] as const;
+type DepartureListRecord = Pick<
+  DepartureRecord,
+  Exclude<
+    (typeof departurePublicFields)[number],
+    'settlementNote' | 'ruleSnapshot' | 'headMerged' | 'cancellationReason'
+  >
+>;
 function assertSafeInput(value: unknown): void {
   if (Array.isArray(value)) {
     value.forEach(assertSafeInput);
@@ -605,18 +640,25 @@ export function createDepartureService(d: DepartureDependencies) {
     id: string,
     actorId: string,
     policy?: RepositoryPolicy,
+    listRow?: Partial<DepartureRecord>,
   ) {
     const repo = d.db.repository<DepartureRecord>('departureRequests');
-    const row = await (policy ? repo.withPolicy(policy) : repo).findOne({
-      filter: { id },
-    });
+    const row =
+      listRow ??
+      (await (policy ? repo.withPolicy(policy) : repo).findOne({
+        filter: { id },
+      }));
     if (!row)
       fail(
         'DEPARTURE_NOT_FOUND',
         'The departure request is unavailable.',
         policy ? 'permission' : 'notFound',
       );
-    if (departurePublicFields.some((field) => !(field in row)))
+    if (
+      (listRow ? departureListFields : departurePublicFields).some(
+        (field) => !(field in row),
+      )
+    )
       fail(
         'DEPARTURE_FIELDS_RESTRICTED',
         'Complete public departure fields are required.',
@@ -657,7 +699,7 @@ export function createDepartureService(d: DepartureDependencies) {
       );
     return row;
   }
-  async function decorate(record: DepartureRecord) {
+  async function decorate<T extends DepartureListRecord>(record: T) {
     const keys = [
       'applicantId',
       'createdById',
@@ -829,7 +871,10 @@ export function createDepartureService(d: DepartureDependencies) {
       blockers.push('DEPARTURE_RANK_RULE_INVALID');
     return blockers;
   }
-  async function workOffers(item: DepartureWorkRecord, actorId: string) {
+  async function workOffers(
+    item: Pick<DepartureWorkRecord, 'id'>,
+    actorId: string,
+  ) {
     const inputs = {
       claim: {},
       confirmChecklist: { confirmed: true },
@@ -1147,11 +1192,17 @@ export function createDepartureService(d: DepartureDependencies) {
       return readDirectory.run(outside.directory, async () => {
         const repo = d.db.repository<DepartureRecord>('departureRequests');
         const rows = await (policy ? repo.withPolicy(policy) : repo).findMany({
+          select: (s) =>
+            s.fields(
+              ...(policy
+                ? readableListFields(departureListFields, policy)
+                : departureListFields),
+            ),
           sort: (s) => s.field('createdAt').desc(),
         });
         const result = [];
         for (const row of rows) {
-          if (departurePublicFields.some((field) => !(field in row)))
+          if (departureListFields.some((field) => !(field in row)))
             fail(
               'DEPARTURE_FIELDS_RESTRICTED',
               'Complete public departure fields are required.',
@@ -1169,7 +1220,7 @@ export function createDepartureService(d: DepartureDependencies) {
           )
             continue;
           try {
-            await canRead(String(row.id), actorId, policy);
+            await canRead(String(row.id), actorId, policy, row);
             const runs =
               view !== 'done' && view !== 'copied'
                 ? []
@@ -1183,7 +1234,11 @@ export function createDepartureService(d: DepartureDependencies) {
               view === 'pending' || view === 'done'
                 ? await d.db
                     .repository<DepartureWorkRecord>('departureWorkItems')
-                    .findMany({ filter: { departureId: row.id } })
+                    .findMany({
+                      select: (s) =>
+                        s.fields('id', 'status', 'claimedById', 'forcedById'),
+                      filter: { departureId: row.id },
+                    })
                 : [];
             const match =
               view === 'all' ||
@@ -1224,7 +1279,7 @@ export function createDepartureService(d: DepartureDependencies) {
                       items.map((item) => workOffers(item, actorId)),
                     )
                   ).some((offers) => offers.some((offer) => offer.allowed))));
-            if (match) result.push(await decorate(row as DepartureRecord));
+            if (match) result.push(await decorate(row as DepartureListRecord));
           } catch (error) {
             if (
               !(error instanceof DepartureError) ||

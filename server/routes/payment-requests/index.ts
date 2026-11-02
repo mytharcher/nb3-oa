@@ -315,7 +315,17 @@ export const routes: readonly AppRouteContribution<Application>[] = [
       doc(
         'listPaymentRequests',
         'Payment applications and approval work',
-        z.array(RecordSchema),
+        z.array(
+          RecordSchema.omit({
+            noPriorApprovalReason: true,
+            attachments: true,
+            ruleSnapshot: true,
+            gmMerged: true,
+            voucherAttachments: true,
+            handlingFailureReason: true,
+            forcedReason: true,
+          }),
+        ),
       ),
       apiValidator('query', ListQuery),
       async (c) =>

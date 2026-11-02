@@ -1,12 +1,13 @@
 import { demoNow } from '../demo-data/context.js';
 import type { RepositoryRecord } from '@nocobase/db';
-import type { WorkItem, WorkItemAction } from './contract.js';
+import type { WorkItem, WorkItemListItem, WorkItemAction } from './contract.js';
 /** Read-only capability probe covering every field this owner writes for an action.
  * Payload-dependent target/value restrictions remain enforced by the real transactional command.
  * Never persist these values or treat a successful probe as authorization for a later write.
  */
 export function actionMutation(
-  item: WorkItem,
+  item: WorkItemListItem &
+    Partial<Pick<WorkItem, 'reason' | 'result' | 'resultAttachments'>>,
   action: WorkItemAction,
   actorId: string,
 ): RepositoryRecord {
@@ -54,7 +55,7 @@ export function actionMutation(
   if (action === 'release') values.assigneeUserId = null;
   if (action === 'complete' || action === 'forceComplete') {
     values.result = item.result ?? 'Capability check';
-    values.resultAttachments = [...item.resultAttachments];
+    values.resultAttachments = [...(item.resultAttachments ?? [])];
     values.completedAt =
       action === 'forceComplete' || !item.requiresConfirmation
         ? demoNow()

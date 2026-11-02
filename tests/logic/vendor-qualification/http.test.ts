@@ -200,6 +200,19 @@ test('HTTP private banks and real File Repository evidence enforce owner, bank p
       )
     ).status,
   ).toBe(200);
+  const projectedList = await owner.fetch('/vendorQualifications?view=mine');
+  expect(projectedList.status).toBe(200);
+  const projectedRow = (await projectedList.json()).data.find(
+    (row: { id: string }) => row.id === record.id,
+  );
+  expect(projectedRow).toBeDefined();
+  for (const field of [
+    'cases',
+    'attachments',
+    'committeeSnapshot',
+    'ruleSnapshot',
+  ])
+    expect(projectedRow).not.toHaveProperty(field);
   const publicDetail = await owner.fetch(`/vendorQualifications/${record.id}`);
   expect(publicDetail.status).toBe(200);
   const detailBody = (await publicDetail.json()) as {

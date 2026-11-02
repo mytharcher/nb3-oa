@@ -34,6 +34,8 @@ export interface AuditLogRecord extends Omit<AuditEntry, 'targetId'> {
 }
 
 export interface AuditListQuery {
+  /** Internal history consumers opt in; HTTP lists never load snapshots. */
+  includeSnapshots?: boolean;
   targetType?: string;
   targetId?: string;
   actorId?: string;
@@ -94,7 +96,15 @@ export function createAuditService(database: DatabaseManager): AuditService {
     },
 
     async list(
-      { page, pageSize, from, to, order = 'desc', ...criteria },
+      {
+        page,
+        pageSize,
+        from,
+        to,
+        includeSnapshots = false,
+        order = 'desc',
+        ...criteria
+      },
       connection,
     ) {
       const repository = (connection ?? database.connection()).repository(
@@ -117,6 +127,17 @@ export function createAuditService(database: DatabaseManager): AuditService {
       const [items, total] = await Promise.all([
         repository.findMany({
           ...filter,
+          select: (s) =>
+            s.fields(
+              'id',
+              'actorId',
+              'action',
+              'targetType',
+              'targetId',
+              'reason',
+              'at',
+              ...(includeSnapshots ? ['before', 'after'] : []),
+            ),
           sort: (sort) =>
             order === 'asc' ? sort.field('id').asc() : sort.field('id').desc(),
           limit: pageSize,

@@ -113,6 +113,7 @@ describe('approval rules', () => {
     const { items } = await audit.list({
       targetType: 'approvalRules',
       targetId: 'loan.head',
+      includeSnapshots: true,
       page: 1,
       pageSize: 10,
     });
@@ -398,5 +399,64 @@ describe('sequences', () => {
         sequences.next('RB', connection, at),
       ),
     ).toBe('RB-202704-0002');
+  });
+});
+
+describe('audit list projection', () => {
+  test('keeps snapshots out of the sorted list query and preserves detail reads', async ({
+    app,
+  }) => {
+    const audit = app.container.resolve(auditServiceToken);
+    const client = await app.container
+      .resolve(databaseManagerToken)
+      .connection()
+      .client();
+    const snapshot = { content: 'large audit snapshot '.repeat(1000) };
+    await audit.record({
+      actorId: null,
+      action: 'projection.check',
+      targetType: 'listProjection',
+      before: snapshot,
+      after: { ...snapshot, changed: true },
+      reason: 'Visible list reason',
+    });
+    const statements: string[] = [];
+    const capture = (query: { sql: string }) => {
+      statements.push(query.sql);
+    };
+    client.on('query', capture);
+    let result;
+    try {
+      result = await audit.list({
+        targetType: 'listProjection',
+        page: 1,
+        pageSize: 10,
+      });
+    } finally {
+      client.off('query', capture);
+    }
+    expect(result.total).toBe(1);
+    expect(result.items[0]).toMatchObject({
+      action: 'projection.check',
+      reason: 'Visible list reason',
+    });
+    expect(result.items[0]).not.toHaveProperty('before');
+    expect(result.items[0]).not.toHaveProperty('after');
+    const sorted = statements.filter(
+      (sql) => /audit_logs/i.test(sql) && /order by/i.test(sql),
+    );
+    expect(sorted).toHaveLength(1);
+    expect(sorted[0]).not.toMatch(/"before"|"after"/);
+    expect(await audit.get(result.items[0]!.id)).toMatchObject({
+      before: snapshot,
+      after: { ...snapshot, changed: true },
+    });
+    const internal = await audit.list({
+      targetType: 'listProjection',
+      includeSnapshots: true,
+      page: 1,
+      pageSize: 10,
+    });
+    expect(internal.items[0]!.before).toEqual(snapshot);
   });
 });

@@ -1,3 +1,4 @@
+import type { AppApprovalService } from '../approval-runtime/query-service.js';
 import { createHash } from 'node:crypto';
 import {
   approve,
@@ -6,7 +7,6 @@ import {
   unavailable,
   placeOfTask,
   type ActionContext,
-  type ApprovalService,
   type DecisionInput,
   type Effect,
 } from '@nocobase/app-plugin-approval/server';
@@ -76,7 +76,7 @@ export function contractApprove() {
   });
 }
 export function reusableOpinionAction(
-  approvals: () => ApprovalService,
+  approvals: () => AppApprovalService,
   audit: AuditService,
 ) {
   async function reusable(context: ActionContext) {

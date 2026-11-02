@@ -1,4 +1,4 @@
-import type { ApprovalService } from '@nocobase/app-plugin-approval/server';
+import type { AppApprovalService } from '../approval-runtime/query-service.js';
 import type { DatabaseManager, RepositoryPolicy } from '@nocobase/db';
 import { LeaveError } from './errors.js';
 
@@ -12,7 +12,7 @@ export interface EfficiencyQuery {
 /** Natural elapsed task age, including waiting. Never an SLA or working-hours metric. */
 export async function leaveApprovalEfficiency(
   db: DatabaseManager,
-  approvals: ApprovalService,
+  approvals: AppApprovalService,
   query: EfficiencyQuery,
   policy: RepositoryPolicy,
 ) {

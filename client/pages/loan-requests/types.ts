@@ -85,3 +85,16 @@ export const ACTIONS = [
   'unable',
   'retryCash',
 ] as const;
+
+export type LoanListRecord = Pick<
+  LoanRequestRecord,
+  | 'id'
+  | 'applicantId'
+  | 'applicant'
+  | 'number'
+  | 'reason'
+  | 'amountCents'
+  | 'dueDate'
+  | 'status'
+  | 'createdAt'
+>;

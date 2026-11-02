@@ -32,7 +32,15 @@ import {
 import { useUrlSearch } from '#hooks/use-url-search';
 import { useTransferResource } from './resource.js';
 import { TransferError } from './states.js';
-import { transferPolicy, statuses, type TransferRecord } from './types.js';
+import {
+  transferPolicy,
+  statuses,
+  type TransferRecord as TransferRecordDetail,
+} from './types.js';
+type TransferRecord = Omit<
+  TransferRecordDetail,
+  'snapshot' | 'cancellationReason'
+>;
 export default function TransferList() {
   const { t, i18n } = useTranslation(),
     location = useLocation(),

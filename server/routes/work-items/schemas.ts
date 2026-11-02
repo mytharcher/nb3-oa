@@ -73,6 +73,15 @@ export const WorkItem = z.object({
   canHandoverConfirmation: z.boolean(),
   dutyRole: z.object({ code: z.string(), title: DutyRoleTitle }).nullable(),
 });
+export const ListItem = WorkItem.omit({
+  description: true,
+  attachments: true,
+  resultAttachments: true,
+  result: true,
+  reason: true,
+  canEdit: true,
+  canHandoverConfirmation: true,
+});
 export const Pending = z.object({
   items: z.array(
     z.object({

@@ -78,7 +78,7 @@ export interface PaymentRequestSettlementService extends PurchasePaymentVerifier
   /** Public maintenance facade for departure task reassignment; mutation stays in this module's lifecycle. */
   readonly approvals: Pick<
     ApprovalService,
-    'tasksOf' | 'runsFor' | 'actionsOf'
+    'tasksFor' | 'runsFor' | 'actionsOf'
   >;
   action(
     recordId: string,
@@ -93,7 +93,7 @@ export interface PaymentRequestSettlementService extends PurchasePaymentVerifier
     view: string,
     policy?: RepositoryPolicy,
   ): Promise<
-    (PaymentRequestRecord & { applicant: { id: string; name: string } })[]
+    (PaymentListRecord & { applicant: { id: string; name: string } })[]
   >;
 
   /** Public authorized detail source. Consumers must enforce needed field policies before rendering a DTO. */
@@ -123,3 +123,47 @@ export const paymentRequestServiceToken =
   createServiceToken<PaymentRequestSettlementService>(
     'oa/payment-request-service',
   );
+
+export const paymentListFields = [
+  'id',
+  'applicantId',
+  'createdById',
+  'number',
+  'departmentId',
+  'reason',
+  'sourceMode',
+  'purchaseOrderId',
+  'contractId',
+  'contractVersion',
+  'vendorId',
+  'amountCents',
+  'invoiceNumber',
+  'paymentMethod',
+  'vendorSnapshot',
+  'sourceOrderId',
+  'sourceContractId',
+  'sourceContractVersion',
+  'sourceHeldCents',
+  'sourceApprovedCents',
+  'sourceCumulativeCents',
+  'fullApprovalRequired',
+  'headApproverId',
+  'executiveApproverId',
+  'gmApproverId',
+  'headApprovedAt',
+  'financeApprovedAt',
+  'executiveApprovedAt',
+  'gmApprovedAt',
+  'approvalGrantedAt',
+  'voucherNumber',
+  'paidAt',
+  'paymentId',
+  'exceptionContentHash',
+  'status',
+  'lifecycleVersion',
+  'createdAt',
+] as const;
+export type PaymentListRecord = Pick<
+  PaymentRequestRecord,
+  (typeof paymentListFields)[number]
+>;

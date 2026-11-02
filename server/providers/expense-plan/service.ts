@@ -1,4 +1,5 @@
 import { scopeAst } from '@nocobase/app-plugin-authorization/server';
+import { readableListFields } from '../list-fields.js';
 import {
   APPROVAL_COLLECTIONS,
   approvalState,
@@ -121,6 +122,30 @@ export interface ExpensePlanDependencies {
   notifications: ApprovalNotificationService;
   dispatcher?: EffectDispatcher;
 }
+export const listFields = [
+  'id',
+  'applicantId',
+  'createdById',
+  'number',
+  'departmentId',
+  'year',
+  'subject',
+  'matterType',
+  'eventDate',
+  'authorizationId',
+  'executiveApproverId',
+  'gmApproverId',
+  'amountCents',
+  'reason',
+  'heldCents',
+  'headApproverId',
+  'status',
+  'lifecycleVersion',
+  'createdAt',
+  'participants',
+] as const;
+export type ListRecord = Pick<ExpensePlanRecord, (typeof listFields)[number]>;
+
 export function refuse(reason: string, message: string): never {
   throw new ExpensePlanError(reason, message);
 }
@@ -867,32 +892,8 @@ export function createExpensePlanService(d: ExpensePlanDependencies) {
       'permission',
     );
   }
-  function fullRows(rows: Partial<ExpensePlanRecord>[]): ExpensePlanRecord[] {
-    const fields = [
-      'id',
-      'applicantId',
-      'createdById',
-      'number',
-      'departmentId',
-      'year',
-      'subject',
-      'matterType',
-      'participants',
-      'eventDate',
-      'authorizationId',
-      'executiveApproverId',
-      'gmApproverId',
-      'gmMerged',
-      'amountCents',
-      'reason',
-      'heldAccount',
-      'heldCents',
-      'ruleSnapshot',
-      'headApproverId',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+  function fullRows(rows: Partial<ExpensePlanRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new ExpensePlanError(
         'EXPENSE_PLAN_FIELDS_RESTRICTED',
@@ -901,7 +902,7 @@ export function createExpensePlanService(d: ExpensePlanDependencies) {
       );
     return rows.map((row) => normalizeExpenseRecord(row as ExpensePlanRecord));
   }
-  async function enrich(records: ExpensePlanRecord[]) {
+  async function enrich(records: ListRecord[]) {
     const ids = [
       ...new Set(
         records
@@ -1286,6 +1287,12 @@ export function createExpensePlanService(d: ExpensePlanDependencies) {
           return enrich(
             fullRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -1295,14 +1302,20 @@ export function createExpensePlanService(d: ExpensePlanDependencies) {
               }),
             ),
           );
-        // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
+        // Assignment-only reads do not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
         const records = fullRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: ExpensePlanRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&

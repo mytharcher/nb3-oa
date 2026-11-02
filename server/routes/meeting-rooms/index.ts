@@ -1,3 +1,4 @@
+import { readableListFields } from '../../providers/list-fields.js';
 import { readBookingRoomNames } from './list-room-names.js';
 import { Hono, type Context } from 'hono';
 import {
@@ -131,7 +132,11 @@ export default [
     const doc = (
       id: string,
       summary: string,
-      schema: typeof S.Room | typeof S.Booking | typeof S.Availability,
+      schema:
+        | typeof S.Room
+        | typeof S.Booking
+        | typeof S.BookingListItem
+        | typeof S.Availability,
       list = false,
     ) =>
       describeRoute({
@@ -168,7 +173,9 @@ export default [
       if (fields.some((field) => !(field in row))) fail('ACCESS_DENIED');
       return row;
     }
-    async function dto(row: MeetingBooking) {
+    async function dto(
+      row: Omit<MeetingBooking, 'reason'> & { reason?: string | null },
+    ) {
       const ids = [
         ...new Set(
           [
@@ -194,7 +201,7 @@ export default [
         id ? { id, name: names.get(id) ?? id } : null;
       const iso = (value: Date | string | null) =>
         value ? new Date(value).toISOString() : null;
-      return S.Booking.parse({
+      return (row.reason === undefined ? S.BookingListItem : S.Booking).parse({
         ...row,
         organizer: user(row.organizerUserId),
         attendees: row.attendeeUserIds.map((id) => user(id)),
@@ -532,6 +539,7 @@ export default [
           ]);
         const total = await repo.count({ filter });
         const matched = await repo.findMany({
+          select: (s) => s.fields(...readableListFields(ROOM_FIELDS, p)),
           filter,
           offset: (q.page - 1) * q.pageSize,
           limit: q.pageSize,
@@ -657,6 +665,7 @@ export default [
         const total = await repo.count({ filter });
         if (sort === 'name' && total > 5000) fail('SORT_LIMIT_EXCEEDED');
         const matched = await repo.findMany({
+          select: (s) => s.fields(...readableListFields(ROOM_FIELDS, p)),
           filter,
           ...(sort === 'name'
             ? {}
@@ -801,7 +810,12 @@ export default [
     );
     bookings.get(
       '/',
-      doc('listMeetingBookings', 'List authorized bookings', S.Booking, true),
+      doc(
+        'listMeetingBookings',
+        'List authorized bookings',
+        S.BookingListItem,
+        true,
+      ),
       apiValidator('query', S.ListQuery),
       async (ctx) => {
         const q = ctx.req.valid('query'),
@@ -851,6 +865,15 @@ export default [
         const total = await repo.count({ filter: effective });
         if (sort === 'title' && total > 5000) fail('SORT_LIMIT_EXCEEDED');
         const matched = await repo.findMany({
+          select: (s) =>
+            s.fields(
+              ...readableListFields(
+                BOOKING_FIELDS.filter(
+                  (field) => field !== 'reason' && field !== 'statusChangedAt',
+                ),
+                p,
+              ),
+            ),
           filter: effective,
           ...(sort === 'title'
             ? {}
@@ -867,7 +890,11 @@ export default [
           ],
         });
         if (
-          matched.some((row) => BOOKING_FIELDS.some((field) => !(field in row)))
+          matched.some((row) =>
+            BOOKING_FIELDS.filter(
+              (field) => field !== 'reason' && field !== 'statusChangedAt',
+            ).some((field) => !(field in row)),
+          )
         )
           fail('ACCESS_DENIED');
         const rows =
@@ -881,25 +908,20 @@ export default [
                 )
                 .slice((q.page - 1) * q.pageSize, q.page * q.pageSize)
             : matched;
-        const readableBookings = await visibleResult(
-          rows as MeetingBooking[],
-          p,
-          db.connection(),
-        );
+        // The scoped query and required list field check already enforce the same read boundary.
+        const readableBookings = rows as Omit<MeetingBooking, 'reason'>[];
         const roomPolicy = await optionalPolicy(ctx, 'oa.meetingRooms', 'view');
         const roomNames = await readBookingRoomNames(
           db.connection(),
           roomPolicy,
           readableBookings.map((booking) => booking.roomId),
         );
-        const enrichedBookings = await enrich(readableBookings);
+        const enrichedBookings = await Promise.all(readableBookings.map(dto));
         return ctx.json({
-          data: (enrichedBookings as Awaited<ReturnType<typeof dto>>[]).map(
-            (booking) => ({
-              ...booking,
-              roomName: roomNames.get(booking.roomId) ?? null,
-            }),
-          ),
+          data: enrichedBookings.map((booking) => ({
+            ...booking,
+            roomName: roomNames.get(booking.roomId) ?? null,
+          })),
           meta: {
             page: q.page,
             pageSize: q.pageSize,

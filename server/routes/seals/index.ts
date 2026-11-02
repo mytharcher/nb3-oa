@@ -195,7 +195,7 @@ export default [
       });
     router.get(
       '/sealRequests',
-      listDoc('listSealRequests', 'List visible seal requests', S.Request),
+      listDoc('listSealRequests', 'List visible seal requests', S.ListRequest),
       apiValidator('query', S.RequestQuery),
       async (c) => {
         const rows = await requests.list(
@@ -204,7 +204,15 @@ export default [
         );
         const query = c.req.valid('query');
         const text = query.search.toLocaleLowerCase();
-        const visible = (await Promise.all(rows.map(dto))).filter(
+        const visible = (
+          await Promise.all(
+            rows.map(async (row) => ({
+              ...row,
+              applicant: await person(row.applicantId),
+              createdBy: await person(row.createdById),
+            })),
+          )
+        ).filter(
           (row) =>
             (!query.status || row.status === query.status) &&
             (!text ||

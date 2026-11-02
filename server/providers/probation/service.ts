@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import {
   APPROVAL_COLLECTIONS,
   approvalState,
@@ -163,7 +164,35 @@ const publicFields = [
   'status',
   'lifecycleVersion',
   'createdAt',
-];
+] as const;
+const probationListFields = [
+  'id',
+  'employeeId',
+  'applicantId',
+  'createdById',
+  'number',
+  'probationEndDate',
+  'selfEvaluation',
+  'conclusion',
+  'deferredTo',
+  'gradeId',
+  'compensationProposalId',
+  'hrActorId',
+  'departmentId',
+  'managerApproverId',
+  'headApproverId',
+  'gmApproverId',
+  'status',
+  'lifecycleVersion',
+  'createdAt',
+] as const;
+type ProbationListRecord = Pick<
+  ProbationRecord,
+  Exclude<
+    (typeof publicFields)[number],
+    'evaluation' | 'ruleSnapshot' | 'headMerged'
+  >
+>;
 function fullRecord(row: Partial<ProbationRecord>): ProbationRecord {
   if (publicFields.some((field) => !(field in row)))
     throw new ProbationError(
@@ -1017,7 +1046,7 @@ export function createProbationService(d: ProbationDependencies) {
       'permission',
     );
   }
-  async function enrich(records: ProbationRecord[]) {
+  async function enrich<T extends ProbationListRecord>(records: T[]) {
     const keys = [
       'applicantId',
       'createdById',
@@ -1400,10 +1429,26 @@ export function createProbationService(d: ProbationDependencies) {
       const partialRows = await (
         policy ? repo.withPolicy(policy) : repo
       ).findMany({
+        select: (s) =>
+          s.fields(
+            ...(policy
+              ? readableListFields(probationListFields, policy)
+              : probationListFields),
+          ),
         sort: (s) => [s.field('createdAt').desc()],
       });
-      const rows = partialRows.map(fullRecord);
-      const selected: ProbationRecord[] = [];
+      if (
+        partialRows.some((row) =>
+          probationListFields.some((field) => !(field in row)),
+        )
+      )
+        throw new ProbationError(
+          'PROBATION_FIELDS_RESTRICTED',
+          'Required list fields are restricted.',
+          'permission',
+        );
+      const rows = partialRows as ProbationListRecord[];
+      const selected: ProbationListRecord[] = [];
       for (const record of rows) {
         if (
           view === 'pending' &&

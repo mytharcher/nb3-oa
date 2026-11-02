@@ -221,6 +221,7 @@ test('durable dispatch serializes retries, preserves uncertainty, recovers lease
   expect(await store.read('payment', 'rollback')).toBeUndefined();
   expect(neverSend.submit).not.toHaveBeenCalled();
   const logs = await audit.list({
+    includeSnapshots: true,
     targetType: 'financeIntegrationDispatches',
     actorId: person.userId,
     page: 1,

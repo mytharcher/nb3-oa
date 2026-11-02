@@ -89,3 +89,16 @@ export const STATUSES = [
   'withdrawn',
   'terminated',
 ] as const;
+
+export type ReimbursementListRecord = Pick<
+  ReimbursementRecord,
+  | 'id'
+  | 'applicantId'
+  | 'applicant'
+  | 'createdById'
+  | 'number'
+  | 'reason'
+  | 'totalCents'
+  | 'status'
+  | 'createdAt'
+>;

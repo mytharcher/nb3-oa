@@ -232,7 +232,35 @@ test('real SDK approval, keeper claim and actual use register an immutable recei
   expect(
     (await service.detail(record.id, owner.userId, ALL)).record.status,
   ).toBe('stamping');
+  const candidateDetail = await service.detail(record.id, keeper.userId, ALL);
+  expect(candidateDetail.tasks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        assigneeId: keeper.userId,
+        status: 'candidate',
+      }),
+    ]),
+  );
+  expect((await service.detail(record.id, head.userId, ALL)).tasks).toEqual([]);
+  expect((await service.detail(record.id, owner.userId, ALL)).tasks).toEqual(
+    [],
+  );
   await perform(keeper.userId, 'claim', 'keeper-claim');
+  const claimedDetail = await service.detail(record.id, keeper.userId, ALL);
+  expect(claimedDetail.tasks).toEqual([
+    expect.objectContaining({
+      assigneeId: keeper.userId,
+      status: 'claimed',
+      recordId: record.id,
+      lifecycle: SEAL_KIND,
+    }),
+  ]);
+  expect(claimedDetail.runs.length).toBeGreaterThan(0);
+  expect(claimedDetail.actions.length).toBeGreaterThan(0);
+  await expect(
+    service.detail(record.id, keeper.userId, { read: false }),
+  ).rejects.toThrow();
+
   const sealedAt = new Date(Date.now() - 5000).toISOString(),
     output = {
       sealId: seal.id,
@@ -1045,10 +1073,8 @@ test('real SDK approval, keeper claim and actual use register an immutable recei
       requestKey: 'seal-departure-reassignment',
     };
   const beforeReassign = (
-    await service.approvals.tasksOf(keeper.userId)
-  ).filter(
-    (t) => t.recordId === terminated.request.id && OPEN.includes(t.status),
-  );
+    await service.approvals.tasksFor(SEAL_KIND, terminated.request.id)
+  ).filter((t) => t.assigneeId === keeper.userId && OPEN.includes(t.status));
   expect(beforeReassign.length).toBeGreaterThan(0);
   const reserveOriginal = audit.record.bind(audit),
     reserveFailure = vi

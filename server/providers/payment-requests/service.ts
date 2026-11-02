@@ -1,3 +1,5 @@
+import { readableListFields } from '../list-fields.js';
+import { paymentListFields, type PaymentListRecord } from './contract.js';
 import { asyncFilter } from '../approval-runtime/async-filter.js';
 import {
   allActivePeople,
@@ -246,7 +248,7 @@ export function createPaymentRequestService(d: PaymentRequestDependencies) {
     id,
     name: (await d.users.get(id))?.name ?? id,
   });
-  const namedRecord = async (record: PaymentRequestRecord) => ({
+  const namedRecord = async (record: PaymentListRecord) => ({
     ...record,
     applicant: await person(record.applicantId),
     creator: await person(record.createdById),
@@ -1706,35 +1708,36 @@ export function createPaymentRequestService(d: PaymentRequestDependencies) {
       const rows = await (
         readPolicy ? repo.withPolicy(readPolicy) : repo
       ).findMany({
+        select: (s) =>
+          s.fields(
+            ...(readPolicy
+              ? readableListFields(paymentListFields, readPolicy)
+              : paymentListFields),
+          ),
         sort: (s) => [s.field('createdAt').desc(), s.field('id').asc()],
       });
-      const required = [
-        'id',
-        'applicantId',
-        'createdById',
-        ...businessFields,
-        'sourceHeldCents',
-        'sourceApprovedCents',
-        'sourceCumulativeCents',
-        'status',
-        'lifecycleVersion',
-      ];
+      const required = paymentListFields;
       if (rows.some((row) => required.some((field) => !(field in row))))
         fail(
           'PAYMENT_REQUEST_FIELDS_RESTRICTED',
           'The payment business fields are outside this grant.',
           'permission',
         );
-      const records = rows.map((row) =>
-        adapter.normalize(row as PaymentRequestRecord),
+      const records = rows.map(
+        (row) =>
+          adapter.normalize(row as PaymentRequestRecord) as PaymentListRecord,
       );
       if (view === 'mine')
         return Promise.all(
           records
-            .filter((record) => owner({ record, actor: { id: actorId } }))
+            .filter(
+              (record) =>
+                record.applicantId === actorId ||
+                record.createdById === actorId,
+            )
             .map(namedRecord),
         );
-      const selected: PaymentRequestRecord[] = [];
+      const selected: PaymentListRecord[] = [];
       for (const record of records) {
         if (
           view === 'pending' &&

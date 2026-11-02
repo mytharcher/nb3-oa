@@ -7,7 +7,7 @@ export function DepartureRowActions({
   record,
   disabled,
 }: {
-  record: DepartureRecord;
+  record: Pick<DepartureRecord, 'id'>;
   disabled: boolean;
 }) {
   const { t } = useTranslation(),

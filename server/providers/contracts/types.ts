@@ -66,3 +66,32 @@ export const freezeFields = [
   'attachments',
   'ruleSnapshot',
 ] as const;
+
+export const contractListFields = [
+  'id',
+  'creatorId',
+  'applicantId',
+  'departmentId',
+  'number',
+  'operation',
+  'contractId',
+  'baseVersion',
+  'contractType',
+  'counterparty',
+  'amountCents',
+  'startsOn',
+  'endsOn',
+  'standardTemplate',
+  'textVersionId',
+  'reason',
+  'nonStandard',
+  'status',
+  'lifecycleVersion',
+  'statusChangedAt',
+  'createdAt',
+  'submittedAt',
+] as const;
+export type ContractListRecord = Pick<
+  ContractRequest,
+  (typeof contractListFields)[number]
+>;

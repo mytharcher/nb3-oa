@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import type {
@@ -6,9 +7,13 @@ import type {
   RepositoryRecord,
 } from '@nocobase/db';
 import type { AuditService } from '../audit/index.js';
-import { PERSONAL_SCHEDULE_FIELDS } from './contract.js';
+import {
+  PERSONAL_SCHEDULE_FIELDS,
+  PERSONAL_SCHEDULE_LIST_FIELDS,
+} from './contract.js';
 import type {
   PersonalSchedule,
+  PersonalScheduleListItem,
   PersonalScheduleService,
   ScheduleInput,
 } from './contract.js';
@@ -157,6 +162,8 @@ export function createPersonalScheduleService(
         .repository<PersonalSchedule>('personalSchedules')
         .withPolicy(p)
         .findMany({
+          select: (s) =>
+            s.fields(...readableListFields(PERSONAL_SCHEDULE_LIST_FIELDS, p)),
           filter: (f) =>
             f.and([
               f.string('ownerUserId').eq(actor),
@@ -173,11 +180,13 @@ export function createPersonalScheduleService(
       if (
         rows.length > 1000 ||
         rows.some((row) =>
-          PERSONAL_SCHEDULE_FIELDS.some((field) => row[field] === undefined),
+          PERSONAL_SCHEDULE_LIST_FIELDS.some(
+            (field) => row[field] === undefined,
+          ),
         )
       )
         fail('ACCESS_DENIED');
-      return rows as PersonalSchedule[];
+      return rows as PersonalScheduleListItem[];
     },
     async create(input, actor, connection, p) {
       if (!actor || !p) fail('ACCESS_DENIED');

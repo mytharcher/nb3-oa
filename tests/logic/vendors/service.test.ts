@@ -32,6 +32,19 @@ describe('vendor foundation immutable snapshots and audited maintenance', () => 
       status: 'manual',
       version: 1,
     });
+    const summary = await service.list(
+      { page: 1, pageSize: 20, sort: 'name', direction: 'asc' },
+      {
+        read: { scope: true, fields: ['id', 'name', 'code', 'category'] },
+        create: false,
+        update: false,
+        delete: false,
+      },
+    );
+    expect(summary.data).toEqual([
+      { id: row.id, name: row.name, code: row.code, category: row.category },
+    ]);
+    expect(summary.data[0]).not.toHaveProperty('bankAccount');
     const snapshot = await db.transaction((tx) =>
       service.snapshotForPurchase(row.id, tx),
     );

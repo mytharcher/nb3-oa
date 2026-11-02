@@ -182,10 +182,21 @@ export default class OnboardingProvider extends ServiceProvider<Application> {
             if (principal.type !== 'user') return false;
             const parents = await db
                 .repository<Onboarding>('onboardings')
-                .findMany(),
+                .findMany({
+                  select: (s) => s.fields('id', 'creatorId', 'userId'),
+                }),
               tasks = await db
                 .repository<OnboardingTask>('onboardingTasks')
-                .findMany();
+                .findMany({
+                  select: (s) =>
+                    s.fields(
+                      'id',
+                      'onboardingId',
+                      'targetUserId',
+                      'assigneeId',
+                      'dutyRoleCode',
+                    ),
+                });
             const ids = new Set(
               parents
                 .filter(

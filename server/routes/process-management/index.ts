@@ -1,3 +1,4 @@
+import { readableListFields } from '../../providers/list-fields.js';
 import { branchConditions } from '../../providers/process-management/branch-conditions.js';
 import { calendarServiceToken } from '../../providers/platform/index.js';
 import type { Application } from '@nocobase/app-server/application';
@@ -597,10 +598,26 @@ export default [
           const policy = await policyFor(c.get('authz'), owner, 'historyRead');
           if (!policy) continue;
           readable = true;
+          const fields = [
+            'id',
+            'applicantId',
+            'status',
+            'lifecycleVersion',
+            'createdAt',
+            ...([
+              'recruitmentRequests',
+              'transferRequests',
+              'certificateRequests',
+            ].includes(owner.collection)
+              ? []
+              : ['number']),
+          ];
           const records = await db
             .repository(owner.collection)
             .withPolicy(policy)
-            .findMany();
+            .findMany({
+              select: (s) => s.fields(...readableListFields(fields, policy)),
+            });
           for (const row of records) {
             if (typeof row.status === 'string' && row.status !== 'draft')
               statuses.add(row.status);

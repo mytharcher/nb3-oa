@@ -13,12 +13,18 @@ import type { ApprovalDirectoryService } from '../approval-directory/contract.js
 /** Business action entry preserves that owner's fresh directory, audit hooks and SDK transaction. */
 export interface ReassignmentOwner {
   lifecycle: string;
-  approvals: Pick<ApprovalService, 'tasksOf' | 'runsFor' | 'actionsOf'>;
+  approvals: Pick<ApprovalService, 'tasksFor' | 'runsFor' | 'actionsOf'>;
   action(
     recordId: string,
     input: Omit<PerformInput, 'actor'>,
     actorId: string,
   ): Promise<unknown>;
+}
+export interface ReassignmentCandidate {
+  lifecycle: string;
+  recordId: string;
+  /** Projection identities must resolve to real facts, including cancelled history. */
+  taskIds: readonly string[];
 }
 export class DepartureReassignmentError extends Error {
   constructor(
@@ -38,6 +44,10 @@ export function createDepartureReassignment(dependencies: {
   directory: Pick<ApprovalDirectoryService, 'snapshot'>;
   journal: ReassignmentJournal;
   owners(): readonly ReassignmentOwner[];
+  discover(
+    from: string,
+    owners: readonly ReassignmentOwner[],
+  ): Promise<readonly ReassignmentCandidate[]>;
   /** Ordinary work responsibilities remain in their owner's lifecycle, outside approval SDK tasks. */
   handoverWorkItems?: (
     input: Parameters<DepartureApprovalReassignment['reassign']>[0],
@@ -57,45 +67,61 @@ export function createDepartureReassignment(dependencies: {
       string,
       { task: TaskRow; owner?: ReassignmentOwner; current: boolean }
     >();
-    for (const source of owners) {
-      // tasksOf is scoped to this SDK's registered sources, not all tasks in the shared database.
-      // Capture all pages before any migration so replacements cannot shift later offsets.
-      for (let offset = 0; ; offset += 100) {
-        const page = await source.approvals.tasksOf(from, OPEN, {
-          limit: 100,
-          offset,
-        });
-        for (const task of page) {
-          if (
-            task.assigneeId !== from ||
-            !OPEN.includes(task.status) ||
-            task.role === 'info' ||
-            task.kind === 'copy'
-          )
-            continue;
-          if (tasks.has(task.id)) continue;
-          const owner = byLifecycle.get(task.lifecycle);
-          if (!owner) {
-            tasks.set(task.id, { task, current: false });
-            continue;
-          }
-          const runs = await owner.approvals.runsFor(
-            task.lifecycle,
-            task.recordId,
-          );
-          const run = runs.find((r) => r.id === task.runId);
-          // A definitively closed run carries no live decision; missing/mismatched open run data fails closed.
-          if (run && !isOpenRun(run)) continue;
-          const current =
-            !!run &&
-            run.lifecycle === task.lifecycle &&
-            run.recordId === task.recordId &&
-            run.source === task.source &&
-            run.status === task.stage &&
-            run.lifecycleVersion === task.enteredVersion;
-          tasks.set(task.id, { task, owner, current });
-        }
-        if (page.length < 100) break;
+    // Discover every page before performing any action. Read each record once per scan.
+    const candidates = await dependencies.discover(from, owners);
+    const records = new Map<string, ReassignmentCandidate>();
+    for (const candidate of candidates) {
+      const key = JSON.stringify([candidate.lifecycle, candidate.recordId]);
+      const previous = records.get(key);
+      records.set(key, {
+        ...candidate,
+        taskIds: [
+          ...new Set([...(previous?.taskIds ?? []), ...candidate.taskIds]),
+        ],
+      });
+    }
+    for (const candidate of records.values()) {
+      const owner = byLifecycle.get(candidate.lifecycle);
+      if (!owner)
+        throw new DepartureReassignmentError(
+          'REASSIGNMENT_OWNER_MISSING',
+          'A task candidate has no registered business owner.',
+        );
+      const facts = await owner.approvals.tasksFor(
+        candidate.lifecycle,
+        candidate.recordId,
+      );
+      if (candidate.taskIds.some((id) => !facts.some((task) => task.id === id)))
+        throw new DepartureReassignmentError(
+          'REASSIGNMENT_FACT_MISSING',
+          'A projected task has no authoritative record fact.',
+        );
+      const relevant = facts.filter(
+        (task) =>
+          task.assigneeId === from &&
+          OPEN.includes(task.status) &&
+          task.role !== 'info' &&
+          task.kind !== 'copy',
+      );
+      if (!relevant.length) continue;
+      const runs = await owner.approvals.runsFor(
+        candidate.lifecycle,
+        candidate.recordId,
+      );
+      for (const task of relevant) {
+        if (tasks.has(task.id)) continue;
+        const run = runs.find((r) => r.id === task.runId);
+        if (run && !isOpenRun(run)) continue;
+        const current =
+          !!run &&
+          task.lifecycle === candidate.lifecycle &&
+          task.recordId === candidate.recordId &&
+          run.lifecycle === task.lifecycle &&
+          run.recordId === task.recordId &&
+          run.source === task.source &&
+          run.status === task.stage &&
+          run.lifecycleVersion === task.enteredVersion;
+        tasks.set(task.id, { task, owner, current });
       }
     }
     return [...tasks.values()];
@@ -155,6 +181,11 @@ export function createDepartureReassignment(dependencies: {
           'REASSIGNMENT_ADMIN_REQUIRED',
           'The administrator bound to this durable handover is no longer eligible.',
         );
+      const attempted: {
+        task: TaskRow;
+        owner: ReassignmentOwner;
+        accepted: boolean;
+      }[] = [];
       for (const { task, owner, current } of before) {
         if (!owner || !current) continue;
         let accepted = false;
@@ -174,9 +205,24 @@ export function createDepartureReassignment(dependencies: {
         } catch {
           // Each successful task is already committed. Failed qualifications stay assigned and block departure.
         }
-        const receipt = (
-          await owner.approvals.actionsOf(task.lifecycle, task.recordId)
-        ).find(
+        attempted.push({ task, owner, accepted });
+      }
+      // Batch public receipt reads by record after the independent task commits.
+      const histories = new Map<
+        string,
+        Awaited<ReturnType<ApprovalService['actionsOf']>>
+      >();
+      for (const { task, owner, accepted } of attempted) {
+        const key = JSON.stringify([task.lifecycle, task.recordId]);
+        let history = histories.get(key);
+        if (!history) {
+          history = await owner.approvals.actionsOf(
+            task.lifecycle,
+            task.recordId,
+          );
+          histories.set(key, history);
+        }
+        const receipt = history.find(
           (action) =>
             action.requestId === taskRequestId(input.requestKey, task.id),
         );

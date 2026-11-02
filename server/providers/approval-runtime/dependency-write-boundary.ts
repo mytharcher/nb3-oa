@@ -1,4 +1,4 @@
-import type { ApprovalService } from '@nocobase/app-plugin-approval/server';
+import type { AppApprovalService } from './query-service.js';
 import type { DatabaseConnection } from '@nocobase/db';
 import type { LifecycleRuntime } from '@nocobase/lifecycle';
 import type { ApprovalStatisticsChanges } from './statistics-contract.js';
@@ -15,7 +15,7 @@ import {
  * attempt and retries once with all gates acquired before business locks. */
 export function installDelegationWriteBoundary(
   runtime: LifecycleRuntime,
-  approvals: ApprovalService,
+  approvals: AppApprovalService,
   changes: ApprovalStatisticsChanges,
   business: string,
 ): () => void {

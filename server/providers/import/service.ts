@@ -376,6 +376,22 @@ export function createImportService(
       const [rows, total] = await Promise.all([
         repository.findMany({
           ...filter,
+          select: (s) =>
+            s.fields(
+              'id',
+              'kind',
+              'status',
+              'fileId',
+              'filename',
+              'actorId',
+              'rowCount',
+              'createdCount',
+              'updatedCount',
+              'unchangedCount',
+              'errorCount',
+              'createdAt',
+              'finishedAt',
+            ),
           sort: (sort) =>
             order === 'asc'
               ? [sort.field('createdAt').asc(), sort.field('id').asc()]

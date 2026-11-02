@@ -1,5 +1,5 @@
+import type { AppApprovalService } from '../approval-runtime/query-service.js';
 import { LEAVE_DETAIL_FIELDS } from './fields.js';
-import type { ApprovalService } from '@nocobase/app-plugin-approval/server';
 import type { DatabaseManager, RepositoryPolicy } from '@nocobase/db';
 import { LeaveError } from './errors.js';
 
@@ -13,7 +13,7 @@ export interface ReturnRateQuery {
 /** Return incidence per submitted run, including historical resubmissions. */
 export async function leaveApprovalReturnRate(
   db: DatabaseManager,
-  approvals: ApprovalService,
+  approvals: AppApprovalService,
   query: ReturnRateQuery,
   policy: RepositoryPolicy,
 ) {

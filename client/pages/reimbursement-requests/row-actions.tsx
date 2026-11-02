@@ -13,13 +13,13 @@ import {
   DropdownMenuItem,
 } from '#components/ui/dropdown-menu';
 import { useResource } from '../approvals/use-resource.js';
-import type { ReimbursementRecord, ReimbursementDetail } from './types.js';
+import type { ReimbursementListRecord, ReimbursementDetail } from './types.js';
 
 /** Load the current edit offer only when this menu opens; viewing a draft alone never grants editing. */
 export function ReimbursementRowActions({
   record,
 }: {
-  record: ReimbursementRecord;
+  record: ReimbursementListRecord;
 }) {
   const { t } = useTranslation(),
     location = useLocation(),
