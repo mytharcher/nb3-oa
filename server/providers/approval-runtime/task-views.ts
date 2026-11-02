@@ -17,7 +17,7 @@ export async function runTaskViewsFor(
   }));
 }
 
-/** Match tasksOf(person)'s default visibility without scanning other records.
+/** Preserve personal detail visibility without scanning other records.
  * OPEN also contains waiting/blocked/suspended; detail responses never included those.
  */
 export async function personalDetailTasksFor(

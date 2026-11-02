@@ -206,7 +206,7 @@ export interface ContractApprovalService {
     runs: Awaited<ReturnType<ApprovalService['runViewsFor']>>;
     timeline: Awaited<ReturnType<ApprovalService['timelineFor']>>;
   }>;
-  approvals: Pick<ApprovalService, 'tasksOf' | 'runsFor' | 'actionsOf'>;
+  approvals: Pick<ApprovalService, 'tasksFor' | 'runsFor' | 'actionsOf'>;
   action(
     id: string,
     actorId: string,

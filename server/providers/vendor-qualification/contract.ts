@@ -62,7 +62,7 @@ export interface VendorQualificationService {
       createdBy: { id: string; name: string } | null;
     })[]
   >;
-  approvals: Pick<ApprovalService, 'tasksOf' | 'runsFor' | 'actionsOf'>;
+  approvals: Pick<ApprovalService, 'tasksFor' | 'runsFor' | 'actionsOf'>;
   action(
     id: string,
     actorId: string,
@@ -72,9 +72,6 @@ export interface VendorQualificationService {
     >,
     policy?: import('@nocobase/db').RepositoryPolicy,
   ): Promise<unknown>;
-  maintenanceReassign(
-    input: Parameters<ApprovalService['reassign']>[0],
-  ): ReturnType<ApprovalService['reassign']>;
   approvedQualificationOf(
     vendorId: string,
     connection: DatabaseConnection,

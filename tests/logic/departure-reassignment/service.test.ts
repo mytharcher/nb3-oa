@@ -52,19 +52,8 @@ function directory() {
 function owner(lifecycle: string, tasks: TaskRow[]) {
   const receipts: ActionRow[] = [];
   const approvals = {
-    tasksOf: vi.fn(
-      async (
-        _person: string,
-        _status: unknown,
-        page: { limit: number; offset: number },
-      ) =>
-        tasks
-          .filter(
-            (t) =>
-              t.assigneeId === 'leaver' &&
-              !['transferred', 'voided', 'completed'].includes(t.status),
-          )
-          .slice(page.offset, page.offset + page.limit),
+    tasksFor: vi.fn(async (_life: string, recordId: string) =>
+      tasks.filter((t) => t.recordId === recordId),
     ),
     runsFor: vi.fn(async (_life: string, recordId: string) =>
       tasks
@@ -105,13 +94,34 @@ function owner(lifecycle: string, tasks: TaskRow[]) {
       tasks[tasks.indexOf(target)] = { ...target, status: 'transferred' };
     },
   );
-  return { lifecycle, approvals, action, receipts };
+  return {
+    lifecycle,
+    approvals,
+    action,
+    receipts,
+    recordIds: [...new Set(tasks.map((t) => t.recordId))],
+  };
 }
 function adapter(owners: ReassignmentOwner[], dir = directory()) {
   const journal = { reserve: vi.fn(async () => ({ actorId: 'admin' })) };
   return {
     service: createDepartureReassignment({
       owners: () => owners,
+      discover: async () =>
+        (
+          await Promise.all(
+            owners.map(async (source) => {
+              // Fixture business IDs are stable, independent of task reassignment.
+              return (source as ReturnType<typeof owner>).recordIds.map(
+                (recordId) => ({
+                  lifecycle: source.lifecycle,
+                  recordId,
+                  taskIds: [],
+                }),
+              );
+            }),
+          )
+        ).flat(),
       directory: dir,
       journal,
     }),
@@ -126,11 +136,8 @@ it.each([200, 205])(
     const { service } = adapter([source]);
     expect(await service.reassign(input)).toEqual({ remaining: 0 });
     expect(source.action).toHaveBeenCalledTimes(count);
-    expect(
-      source.approvals.tasksOf.mock.calls
-        .slice(0, 3)
-        .map((call) => call[2].offset),
-    ).toEqual([0, 100, 200]);
+    expect(source.approvals.tasksFor).toHaveBeenCalledTimes(count * 2);
+    expect(source.approvals.runsFor).toHaveBeenCalledTimes(count);
     expect(new Set(source.receipts.map((r) => r.requestId)).size).toBe(count);
     expect(source.receipts[0]).toMatchObject({
       actorId: 'admin',
@@ -141,8 +148,8 @@ it.each([200, 205])(
 );
 it('routes across real lifecycle owners, deduplicates duplicate targets, and retains proxy principals', async () => {
   const leave = owner('oa.leave', [task('a')]);
-  const read = leave.approvals.tasksOf.getMockImplementation()!;
-  leave.approvals.tasksOf.mockImplementation(async (...args) =>
+  const read = leave.approvals.tasksFor.getMockImplementation()!;
+  leave.approvals.tasksFor.mockImplementation(async (...args) =>
     (await read(...args)).flatMap((t) => [t, t]),
   );
   const loan = owner('oa.loan', [task('b', 'oa.loan')]);
@@ -181,18 +188,21 @@ it('counts unsupported lifecycles and missing active runs instead of reporting z
   });
   expect(source.action).not.toHaveBeenCalled();
 });
-it('keeps qualification failures pending and never requests an override', async () => {
-  const source = owner('oa.leave', [task('restricted')]);
-  source.action.mockRejectedValue(new Error('Recipient not qualified'));
-  expect(await adapter([source]).service.reassign(input)).toEqual({
-    remaining: 1,
-  });
-  expect(source.action).toHaveBeenCalledWith(
-    'record-restricted',
-    expect.objectContaining({ input: { to: 'receiver', override: false } }),
-    'admin',
-  );
-});
+it.each(['Recipient not qualified', 'Record permission denied'])(
+  'keeps rejected responsibilities pending (%s) without override',
+  async (reason) => {
+    const source = owner('oa.leave', [task('restricted')]);
+    source.action.mockRejectedValue(new Error(reason));
+    expect(await adapter([source]).service.reassign(input)).toEqual({
+      remaining: 1,
+    });
+    expect(source.action).toHaveBeenCalledWith(
+      'record-restricted',
+      expect.objectContaining({ input: { to: 'receiver', override: false } }),
+      'admin',
+    );
+  },
+);
 it('rejects an inactive successor without touching the durable command or SDK', async () => {
   const source = owner('oa.leave', [task('a')]);
   const { service, journal } = adapter([source]);
@@ -221,4 +231,157 @@ it('does not report success when the public action accepts but no durable public
   await expect(adapter([source]).service.reassign(input)).rejects.toMatchObject(
     { code: 'REASSIGNMENT_RECEIPT_MISSING' },
   );
+});
+
+it('filters closed tasks, copy/info and delegate projections by original assignee, but retains all six OPEN states', async () => {
+  const source = owner('oa.leave', [
+    ...(
+      [
+        'pending',
+        'waiting',
+        'blocked',
+        'candidate',
+        'claimed',
+        'suspended',
+      ] as const
+    ).map((status) => task(status, 'oa.leave', { status, recordId: 'shared' })),
+    ...(['completed', 'transferred', 'voided'] as const).map((status) =>
+      task(status, 'oa.leave', { status }),
+    ),
+    task('copy', 'oa.leave', { kind: 'copy' }),
+    task('info', 'oa.leave', { role: 'info' }),
+    task('proxy', 'oa.leave', { assigneeId: 'principal' }),
+  ]);
+  expect(await adapter([source]).service.reassign(input)).toEqual({
+    remaining: 0,
+  });
+  expect(source.action).toHaveBeenCalledTimes(6);
+  expect(source.approvals.runsFor).toHaveBeenCalledOnce();
+  expect(source.approvals.actionsOf).toHaveBeenCalledOnce();
+  expect(
+    source.approvals.tasksFor.mock.calls.filter(([, id]) => id === 'shared'),
+  ).toHaveLength(2);
+});
+it.each(['source', 'recordId', 'lifecycle', 'status', 'lifecycleVersion'])(
+  'keeps a task blocking when its current run %s mismatches',
+  async (field) => {
+    const source = owner('oa.leave', [task('mismatch')]);
+    const read = source.approvals.runsFor.getMockImplementation()!;
+    source.approvals.runsFor.mockImplementation(async (...args) =>
+      (await read(...args)).map((run) => ({ ...run, [field]: 'mismatched' })),
+    );
+    expect(await adapter([source]).service.reassign(input)).toEqual({
+      remaining: 1,
+    });
+    expect(source.action).not.toHaveBeenCalled();
+  },
+);
+it('ignores a definitively closed run', async () => {
+  const source = owner('oa.leave', [task('closed')]);
+  const read = source.approvals.runsFor.getMockImplementation()!;
+  source.approvals.runsFor.mockImplementation(async (...args) =>
+    (await read(...args)).map((run) => ({ ...run, status: 'concluded' })),
+  );
+  expect(await adapter([source]).service.reassign(input)).toEqual({
+    remaining: 0,
+  });
+  expect(source.action).not.toHaveBeenCalled();
+});
+it('propagates fact read failures', async () => {
+  const source = owner('oa.leave', [task('unreadable')]);
+  source.approvals.tasksFor.mockRejectedValue(new Error('read unavailable'));
+  await expect(adapter([source]).service.reassign(input)).rejects.toThrow(
+    'read unavailable',
+  );
+  expect(source.action).not.toHaveBeenCalled();
+});
+it('checks receipt contents even when the action failed', async () => {
+  const source = owner('oa.leave', [task('receipt')]);
+  source.action.mockRejectedValue(new Error('retry'));
+  source.approvals.actionsOf.mockResolvedValue([
+    {
+      requestId: taskRequestId(input.requestKey, 'receipt'),
+      name: 'reassign',
+      taskId: 'receipt',
+      actorId: 'admin',
+      input: { to: 'someone-else', override: false },
+      comment: input.reason,
+    } as ActionRow,
+  ]);
+  await expect(adapter([source]).service.reassign(input)).rejects.toMatchObject(
+    { code: 'REASSIGNMENT_RECEIPT_MISMATCH' },
+  );
+});
+it('fails closed for unknown owners and missing projected facts before actions', async () => {
+  const source = owner('oa.leave', [task('a')]);
+  for (const candidate of [
+    { lifecycle: 'oa.unknown', recordId: 'record-a', taskIds: [] },
+    { lifecycle: 'oa.leave', recordId: 'record-a', taskIds: ['absent'] },
+  ]) {
+    const service = createDepartureReassignment({
+      owners: () => [source],
+      directory: directory(),
+      journal: { reserve: vi.fn(async () => ({ actorId: 'admin' })) },
+      discover: async () => [candidate],
+    });
+    await expect(service.reassign(input)).rejects.toMatchObject({
+      code: candidate.taskIds.length
+        ? 'REASSIGNMENT_FACT_MISSING'
+        : 'REASSIGNMENT_OWNER_MISSING',
+    });
+    expect(source.action).not.toHaveBeenCalled();
+  }
+});
+it('discovers new responsibilities again after partial commits', async () => {
+  const tasks = [task('first')];
+  const source = owner('oa.leave', tasks);
+  const original = source.action.getMockImplementation()!;
+  source.action.mockImplementation(async (...args) => {
+    await original(...args);
+    tasks.push(task('concurrent'));
+    source.recordIds.push('record-concurrent');
+  });
+  expect(await adapter([source]).service.reassign(input)).toEqual({
+    remaining: 1,
+  });
+  expect(source.action).toHaveBeenCalledOnce();
+});
+
+it('reads duplicate record candidates once and deduplicates tasks before actions', async () => {
+  const source = owner('oa.leave', [
+    task('a'),
+    task('b', 'oa.leave', { recordId: 'record-a' }),
+  ]);
+  const candidate = {
+    lifecycle: 'oa.leave',
+    recordId: 'record-a',
+    taskIds: ['a', 'b'],
+  };
+  const service = createDepartureReassignment({
+    owners: () => [source],
+    directory: directory(),
+    journal: { reserve: vi.fn(async () => ({ actorId: 'admin' })) },
+    discover: async () => [
+      candidate,
+      candidate,
+      { ...candidate, taskIds: ['b'] },
+    ],
+  });
+  expect(await service.reassign(input)).toEqual({ remaining: 0 });
+  expect(source.approvals.tasksFor).toHaveBeenCalledTimes(2);
+  expect(source.approvals.runsFor).toHaveBeenCalledOnce();
+  expect(source.approvals.actionsOf).toHaveBeenCalledOnce();
+  expect(source.action).toHaveBeenCalledTimes(2);
+});
+
+it('fails the handover if authoritative remaining cannot be read after a successful commit', async () => {
+  const source = owner('oa.leave', [task('a')]);
+  source.approvals.tasksFor
+    .mockResolvedValueOnce([task('a')])
+    .mockRejectedValueOnce(new Error('remaining unavailable'));
+  await expect(adapter([source]).service.reassign(input)).rejects.toThrow(
+    'remaining unavailable',
+  );
+  expect(source.action).toHaveBeenCalledOnce();
+  expect(source.receipts).toHaveLength(1);
 });

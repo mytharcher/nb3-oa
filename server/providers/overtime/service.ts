@@ -938,7 +938,7 @@ export function createOvertimeService(d: OvertimeDependencies) {
               }),
             ),
           );
-        // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
+        // Assignment-only reads do not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
         const records = listRows(
           await scoped.findMany({

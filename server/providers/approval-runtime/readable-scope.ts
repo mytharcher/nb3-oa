@@ -1,13 +1,11 @@
+import type { AppApprovalService } from './query-service.js';
 import { withCandidateDirectory } from './candidate-directory.js';
 import type { OaApprovalDirectory } from '../approval-directory/contract.js';
 import {
   isBusinessRead,
   requestBusinessRead,
 } from '../request-performance/business-reads.js';
-import type {
-  ApprovalDirectory,
-  ApprovalService,
-} from '@nocobase/app-plugin-approval/server';
+import type { ApprovalDirectory } from '@nocobase/app-plugin-approval/server';
 import {
   anyScope,
   condition,
@@ -44,7 +42,7 @@ export function memberScope(
 }
 
 export interface ReadableScopeOptions {
-  approvals: ApprovalService;
+  approvals: AppApprovalService;
   lifecycle: string;
   directory: ApprovalDirectory;
   roles: readonly string[];

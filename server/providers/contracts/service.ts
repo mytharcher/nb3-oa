@@ -538,8 +538,8 @@ export function createContractService(d: Dependencies) {
   const service = {
     initialize: async () => kit,
     approvals: {
-      tasksOf: (...args: Parameters<ApprovalService['tasksOf']>) =>
-        kit.read(() => kit.approvals.tasksOf(...args)),
+      tasksFor: (...args: Parameters<ApprovalService['tasksFor']>) =>
+        kit.read(() => kit.approvals.tasksFor(...args)),
       runsFor: (...args: Parameters<ApprovalService['runsFor']>) =>
         kit.read(() => kit.approvals.runsFor(...args)),
       actionsOf: (...args: Parameters<ApprovalService['actionsOf']>) =>

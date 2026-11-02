@@ -1073,10 +1073,8 @@ test('real SDK approval, keeper claim and actual use register an immutable recei
       requestKey: 'seal-departure-reassignment',
     };
   const beforeReassign = (
-    await service.approvals.tasksOf(keeper.userId)
-  ).filter(
-    (t) => t.recordId === terminated.request.id && OPEN.includes(t.status),
-  );
+    await service.approvals.tasksFor(SEAL_KIND, terminated.request.id)
+  ).filter((t) => t.assigneeId === keeper.userId && OPEN.includes(t.status));
   expect(beforeReassign.length).toBeGreaterThan(0);
   const reserveOriginal = audit.record.bind(audit),
     reserveFailure = vi

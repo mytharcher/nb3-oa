@@ -110,7 +110,6 @@ test('exhausts pending candidates before business-time paging, preserves delegat
     filter: { id: LEAVE_LIFECYCLE },
     values: { done: true },
   });
-  const queryRead = vi.spyOn(leave.approvals, 'tasksOf');
   const loanRead = vi.spyOn(container.resolve(loanRequestServiceToken), 'list');
   const client = await testApp.database.connection().client();
   let headcountWrites = 0;
@@ -146,7 +145,6 @@ test('exhausts pending candidates before business-time paging, preserves delegat
     ).json();
     expect(searched.meta.total).toBe(1);
     expect(searched.data[0].id).toBe(ids[0]);
-    expect(queryRead).not.toHaveBeenCalled();
     expect(loanRead).not.toHaveBeenCalled();
 
     const directory = container.resolve(approvalDirectoryServiceToken);
@@ -204,7 +202,6 @@ test('exhausts pending candidates before business-time paging, preserves delegat
     expect(expired.meta.total).toBe(0);
   } finally {
     client.removeListener('query', observe);
-    queryRead.mockRestore();
     loanRead.mockRestore();
   }
 });

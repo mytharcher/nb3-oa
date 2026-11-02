@@ -700,8 +700,13 @@ test('registered departure owner migrates real recruitment tasks and audits atom
     policy,
   );
   expect(submitted.status).toBe('head');
-  const before = await service.approvals.tasksOf(from.userId, ['pending']);
-  const task = before.find((task) => task.recordId === submitted.id)!;
+  const before = await service.approvals.tasksFor(
+    'oa.recruitment',
+    submitted.id,
+  );
+  const task = before.find(
+    (task) => task.assigneeId === from.userId && task.status === 'pending',
+  )!;
   expect(task).toBeDefined();
   const command = {
     from: from.userId,
@@ -726,21 +731,30 @@ test('registered departure owner migrates real recruitment tasks and audits atom
     spy.mockRestore();
   }
   expect(
-    (await service.approvals.tasksOf(from.userId, ['pending'])).some(
-      (task) => task.recordId === submitted.id,
+    (await service.approvals.tasksFor('oa.recruitment', submitted.id)).some(
+      (task) =>
+        task.recordId === submitted.id &&
+        task.assigneeId === from.userId &&
+        task.status === 'pending',
     ),
   ).toBe(true);
   expect(
     await f.c.resolve(departureApprovalReassignmentToken).reassign(command),
   ).toEqual({ remaining: 0 });
   expect(
-    (await service.approvals.tasksOf(from.userId, ['pending'])).some(
-      (task) => task.recordId === submitted.id,
+    (await service.approvals.tasksFor('oa.recruitment', submitted.id)).some(
+      (task) =>
+        task.recordId === submitted.id &&
+        task.assigneeId === from.userId &&
+        task.status === 'pending',
     ),
   ).toBe(false);
   expect(
-    (await service.approvals.tasksOf(to.userId, ['pending'])).some(
-      (task) => task.recordId === submitted.id,
+    (await service.approvals.tasksFor('oa.recruitment', submitted.id)).some(
+      (task) =>
+        task.recordId === submitted.id &&
+        task.assigneeId === to.userId &&
+        task.status === 'pending',
     ),
   ).toBe(true);
   expect(

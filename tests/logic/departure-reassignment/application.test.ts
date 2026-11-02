@@ -1,3 +1,8 @@
+import { createReassignmentDiscovery } from '../../../server/providers/departure-reassignment/discovery.js';
+import {
+  createUserTaskService,
+  userTaskServiceToken,
+} from '@nocobase/app-plugin-task-center/server';
 // @vitest-environment node
 import { authorizationToken } from '@nocobase/app-plugin-authorization/server';
 import {
@@ -57,6 +62,10 @@ function owner(action: GeneralRequestService['action'] = general.action) {
 function adapter(action?: GeneralRequestService['action']) {
   const c = app.testApp.application.container;
   return createDepartureReassignment({
+    discover: createReassignmentDiscovery(
+      c.resolve(databaseManagerToken),
+      c.resolve(userTaskServiceToken),
+    ),
     directory: c.resolve(approvalDirectoryServiceToken),
     journal: createReassignmentJournal(
       c.resolve(databaseManagerToken),
@@ -130,6 +139,10 @@ describe('departure public task migration on the real application database', () 
       audit: c.resolve(auditServiceToken),
       users: c.resolve(userAdministrationServiceToken),
       employees: c.resolve(employeeServiceToken),
+      discover: createReassignmentDiscovery(
+        c.resolve(databaseManagerToken),
+        c.resolve(userTaskServiceToken),
+      ),
       directory: c.resolve(approvalDirectoryServiceToken),
       calendar: c.resolve(calendarServiceToken),
       rules: c.resolve(ruleServiceToken),
@@ -146,16 +159,17 @@ describe('departure public task migration on the real application database', () 
     expect(
       owners.every(
         (owner) =>
-          typeof owner.approvals.tasksOf === 'function' &&
+          typeof owner.approvals.tasksFor === 'function' &&
+          Reflect.get(owner.approvals, 'tasksOf') === undefined &&
           typeof owner.action === 'function',
       ),
     ).toBe(true);
   });
   it('moves actual pending SDK tasks with a recorded administrator, durable key and exact public receipt', async () => {
     const id = await submit();
-    const before = (await general.approvals.tasksOf(ids.from)).find(
-      (t) => t.recordId === id,
-    )!;
+    const before = (
+      await general.approvals.tasksFor(GENERAL_LIFECYCLE, id)
+    ).find((t) => t.assigneeId === ids.from && t.status === 'pending')!;
     const input = command();
     expect(await adapter().reassign(input)).toEqual({ remaining: 0 });
     const actions = await general.approvals.actionsOf(GENERAL_LIFECYCLE, id);
@@ -220,8 +234,8 @@ describe('departure public task migration on the real application database', () 
       code: 'REASSIGNMENT_RECIPIENT_INACTIVE',
     });
     expect(
-      (await general.approvals.tasksOf(ids.from)).some(
-        (t) => t.recordId === id,
+      (await general.approvals.tasksFor(GENERAL_LIFECYCLE, id)).some(
+        (t) => t.assigneeId === ids.from && t.status === 'pending',
       ),
     ).toBe(true);
     await db.repository('employees').updateOne({
@@ -251,5 +265,141 @@ describe('departure public task migration on the real application database', () 
       .repository('departureReassignmentCommands')
       .findOne({ filter: { requestKey: input.requestKey } });
     expect(actions[0].input.to).toBe(reserved!.toId);
+  });
+  it.each([200, 205])(
+    'exhausts %i equal-time projections and business records with bounded page queries',
+    async (count) => {
+      const db =
+        app.testApp.application.container.resolve(databaseManagerToken);
+      expect(db.connection().dialect).toBe('postgres');
+      const draft = await general.create(
+        {
+          title: 'Discovery pages',
+          body: 'Fixture',
+          attachments: [],
+          extraApproverIds: [],
+        },
+        ids.applicant,
+      );
+      const recordId = String(draft.record.id);
+      const template = await db
+        .repository('generalRequests')
+        .findOne({ filter: { id: recordId } });
+      const reader = createUserTaskService(db);
+      const writer = reader.registerSource('approval.task');
+      const principal = `discovery-${count}`;
+      const fixtureIds = Array.from(
+        { length: count },
+        (_, index) => `discovery-${count}-${String(index).padStart(4, '0')}`,
+      );
+      await db.transaction(async (connection) => {
+        await connection.repository('generalRequests').createMany({
+          values: fixtureIds.map((id) => ({
+            ...template!,
+            id,
+            number: null,
+          })),
+        });
+        await connection.repository('oaTaskCenterTargets').createMany({
+          values: fixtureIds.map((id) => ({
+            sourceType: 'approval.task',
+            sourceKey: id,
+            subject: GENERAL_LIFECYCLE,
+            recordId,
+          })),
+        });
+        for (const sourceKey of fixtureIds)
+          await writer.put(
+            {
+              userId: principal,
+              sourceKey,
+              subject: GENERAL_LIFECYCLE,
+              title: 'Fixture',
+              status: sourceKey.endsWith('0000') ? 'cancelled' : 'pending',
+              createdAt: new Date('2026-11-02T00:00:00Z'),
+            },
+            connection,
+          );
+      });
+      const list = vi.spyOn(reader, 'list');
+      const client = await db.connection().client();
+      const queries: string[] = [];
+      const observe = (query: { sql: string }) => {
+        if (/^select/i.test(query.sql)) queries.push(query.sql);
+      };
+      client.on('query', observe);
+      let candidates;
+      try {
+        candidates = await createReassignmentDiscovery(db, reader)(principal, [
+          owner(),
+        ]);
+      } finally {
+        client.removeListener('query', observe);
+      }
+      const mapped = candidates!.find((entry) => entry.recordId === recordId)!;
+      expect(new Set(mapped.taskIds)).toEqual(new Set(fixtureIds));
+      expect(
+        fixtureIds.every((id) =>
+          candidates!.some((entry) => entry.recordId === id),
+        ),
+      ).toBe(true);
+      expect(list).toHaveBeenCalledTimes(Math.ceil(count / 100));
+      expect(
+        queries.filter((sql) => sql.includes('oa_task_center_targets')),
+      ).toHaveLength(Math.ceil(count / 100));
+      expect(
+        queries.filter((sql) => sql.includes('general_requests')),
+      ).toHaveLength(2);
+      await db.repository('generalRequests').deleteMany({
+        filter: (f) => f.or(fixtureIds.map((id) => f.string('id').eq(id))),
+      });
+    },
+  );
+  it('falls back to business records before backfill completes or when the projection is absent, and blocks broken mappings and reads', async () => {
+    const id = await submit();
+    const c = app.testApp.application.container;
+    const db = c.resolve(databaseManagerToken);
+    await db.repository('oaTaskCenterBackfills').updateMany({
+      filter: { id: GENERAL_LIFECYCLE },
+      values: { done: false },
+    });
+    const empty = { list: vi.fn(async () => ({ data: [], meta: {} })) };
+    const discover = createReassignmentDiscovery(
+      db,
+      empty as unknown as ReturnType<typeof createUserTaskService>,
+    );
+    const base = {
+      directory: c.resolve(approvalDirectoryServiceToken),
+      journal: createReassignmentJournal(db, c.resolve(auditServiceToken)),
+      owners: () => [owner()],
+      discover,
+    };
+    expect(
+      (await discover(ids.from, [owner()])).some(
+        (entry) => entry.recordId === id,
+      ),
+    ).toBe(true);
+    expect(await createDepartureReassignment(base).reassign(command())).toEqual(
+      { remaining: 0 },
+    );
+    const broken = {
+      list: vi.fn(async () => ({
+        data: [{ sourceKey: 'missing-mapping', subject: GENERAL_LIFECYCLE }],
+        meta: {},
+      })),
+    };
+    await expect(
+      createDepartureReassignment({
+        ...base,
+        discover: createReassignmentDiscovery(
+          db,
+          broken as unknown as ReturnType<typeof createUserTaskService>,
+        ),
+      }).reassign(command()),
+    ).rejects.toMatchObject({ code: 'REASSIGNMENT_MAPPING_INCOMPLETE' });
+    empty.list.mockRejectedValue(new Error('index unavailable'));
+    await expect(
+      createDepartureReassignment(base).reassign(command()),
+    ).rejects.toThrow('index unavailable');
   });
 });
