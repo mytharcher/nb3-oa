@@ -1,3 +1,4 @@
+import itRepairLocale from '../../client/locales/modules/it-repairs.en-US.js';
 import reportExportsLocale from './modules/report-exports.id-ID.js';
 import reportsLocale from '../../client/locales/modules/reports.id-ID.js';
 import invoiceRecognitionLocale from '../../client/locales/modules/invoice-recognition.id-ID.js';
@@ -38,6 +39,7 @@ import annualLeave from './modules/annual-leave.id-ID.js';
 // plugin's namespace; add keys here as the application starts producing its own, and use `overrides` to reword a
 // plugin's.
 const idID: AppServerResource = {
+  ...itRepairLocale,
   ...reportExportsLocale,
   demoData,
   ...accessLocale,

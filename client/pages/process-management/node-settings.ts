@@ -11,6 +11,21 @@ const spend = {
 export const nodeRuleBindings: Readonly<
   Record<string, Readonly<Record<string, readonly string[]>>>
 > = {
+  'oa.itRepair': {
+    draft: [
+      'itRepair.P1.response',
+      'itRepair.P1.resolution',
+      'itRepair.P2.response',
+      'itRepair.P2.resolution',
+      'itRepair.P3.response',
+      'itRepair.P3.resolution',
+      'itRepair.P4.response',
+      'itRepair.P4.resolution',
+      'itRepair.securityTransfer',
+      'itRepair.acceptanceDays',
+      'itRepair.followUpDays',
+    ],
+  },
   'oa.leave': {
     manager: ['leave.head', 'leave.hr'],
     head: ['leave.hr'],

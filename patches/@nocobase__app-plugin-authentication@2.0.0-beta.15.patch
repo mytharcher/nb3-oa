@@ -1,0 +1,34 @@
+diff --git a/dist/server/user-administration.d.ts b/dist/server/user-administration.d.ts
+index 91916c63893bfe43da23ba09450be1676435b566..d0424643ac41741d3f4bd2ee2b672cee5c839885 100644
+--- a/dist/server/user-administration.d.ts
++++ b/dist/server/user-administration.d.ts
+@@ -84,5 +84,5 @@ export interface CreateUserAdministrationServiceOptions {
+ }
+ export declare function createUserAdministrationService(options: CreateUserAdministrationServiceOptions): UserAdministrationService;
+ /** Serialize account deletion with creation of resources owned by that account. Use inside a transaction. */
+-export declare function lockUserForAdministration(connection: DatabaseConnection, userId: string): Promise<void>;
++export declare function lockUserForAdministration(connection: DatabaseConnection, userId: string, mode?: 'exclusive' | 'shared'): Promise<void>;
+ //# sourceMappingURL=user-administration.d.ts.map
+\ No newline at end of file
+diff --git a/dist/server/user-administration.js b/dist/server/user-administration.js
+index aa6f31d00b807566de4392c46451050cea6d941a..8a0693cd305965d6cd5aea7ad8113c883f326f37 100644
+--- a/dist/server/user-administration.js
++++ b/dist/server/user-administration.js
+@@ -391,7 +391,7 @@ function validatePassword(password, config) {
+     }
+ }
+ /** Serialize account deletion with creation of resources owned by that account. Use inside a transaction. */
+-export async function lockUserForAdministration(connection, userId) {
++export async function lockUserForAdministration(connection, userId, mode = 'exclusive') {
+     if (connection.dialect === 'sqlite') {
+         await connection.query
+             .updateTable('user')
+@@ -404,6 +404,7 @@ export async function lockUserForAdministration(connection, userId) {
+     if (!physical)
+         throw new Error('User schema is unavailable');
+     const knex = await connection.client();
+-    await knex(physical.tableName).where({ id: userId }).select('id').forUpdate();
++    const query = knex(physical.tableName).where({ id: userId }).select('id');
++    await (mode === 'shared' && connection.dialect === 'postgres' ? query.forShare() : query.forUpdate());
+ }
+ //# sourceMappingURL=user-administration.js.map

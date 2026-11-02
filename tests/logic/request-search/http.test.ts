@@ -23,9 +23,9 @@ test('all business sources register bounded scoped search; authorized uninvolved
 }) => {
   const c = testApp.application.container;
   const registry = c.resolve(requestSearchRegistryToken);
-  expect(registry.sources()).toHaveLength(26);
+  expect(registry.sources()).toHaveLength(27);
   expect(new Set(registry.sources().map((source) => source.kind)).size).toBe(
-    26,
+    27,
   );
   for (const source of registry.sources()) {
     expect(
@@ -215,7 +215,7 @@ test('all business sources register bounded scoped search; authorized uninvolved
   } finally {
     client.off('query', count);
   }
-  // 26 sources retain SDK gate/transaction and indexed relation checks. This
+  // 27 sources retain SDK gate/transaction and indexed relation checks. This
   // budget guards the measured 687-query baseline against repeated directory loads.
   expect(statements).toBeLessThan(750);
   // A broad related-number match skips that expansion and reports it; the

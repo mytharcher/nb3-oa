@@ -275,7 +275,16 @@ export function useRequestAvailability(optionsReady: boolean): {
     certificatePermission.can &&
     !certificatePermission.isPending &&
     !certificatePermission.error;
+  const repairPermission = useCan({
+    resource: { type: 'composite', id: 'oa.itRepairs' },
+    action: 'create',
+  });
+  const repairCreate =
+    repairPermission.can &&
+    !repairPermission.isPending &&
+    !repairPermission.error;
   const canSubmit =
+    repairCreate ||
     vehicleCreate ||
     recruitmentCreate ||
     sealCreate ||
@@ -307,6 +316,7 @@ export function useRequestAvailability(optionsReady: boolean): {
   return {
     canSubmit,
     available: {
+      itRepair: repairCreate,
       vehicle: vehicleCreate,
       recruitment: recruitmentCreate,
       seal: sealCreate,

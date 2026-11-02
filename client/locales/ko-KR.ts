@@ -1,3 +1,4 @@
+import itRepairLocale from './modules/it-repairs.en-US.js';
 import plugins from './plugins/ko-KR.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.ko-KR.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.ko-KR.js';
@@ -82,6 +83,7 @@ import approvalsEnUS from './modules/approvals.ko-KR.js';
 import system from './system/ko-KR.js';
 
 const koKR: AppResource = {
+  ...itRepairLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,

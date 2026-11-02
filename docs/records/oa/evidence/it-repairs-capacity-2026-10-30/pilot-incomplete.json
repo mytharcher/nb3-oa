@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-30T00:58:05.804Z",
+  "base": "f938c3a44733",
+  "node": "v24.15.0",
+  "host": {
+    "platform": "linux",
+    "release": "6.2.16-3-pve",
+    "cpus": 16,
+    "model": "AMD Ryzen 7 5700G with Radeon Graphics",
+    "totalMemory": 34359738368,
+    "freeMemory": 21633236992,
+    "load": [0.65, 1.22, 1.52]
+  },
+  "method": {
+    "readConcurrency": 50,
+    "readRounds": 4,
+    "reportRounds": 2,
+    "reader": "native HTTP on loopback; cookie-authenticated; complete response consumed",
+    "clock": "real monotonic performance.now",
+    "warmup": "5 sequential per list workload; 2 full reports",
+    "thresholds": {
+      "readP95Ms": 2000,
+      "ordinaryWriteP95Ms": 3000
+    },
+    "background": "repair periodic scan 24h; initial empty scan complete; all other owner jobs unchanged"
+  },
+  "seed": {
+    "rows": 100000,
+    "ms": 20369.833263999997,
+    "groups": 10,
+    "requesters": 2,
+    "distribution": "10% each triage/supplement/pool/assigned/processing/waiting/acceptance/cancelled;20%closed; priority modulo4; dates90days;10%long descriptions; leader sees5groups/50000records; requester sees50000records"
+  },
+  "postgres": {
+    "version": "PostgreSQL 15.10 (Debian 15.10-0+deb12u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit",
+    "shared_buffers": "256MB",
+    "max_connections": "120"
+  },
+  "workloads": {
+    "list": {
+      "count": 200,
+      "min": 746.4818139999988,
+      "mean": 1818.1670790549997,
+      "p50": 1791.8582190000016,
+      "p95": 2248.660677,
+      "max": 2387.4750420000055,
+      "concurrency": 50,
+      "wallMs": 7807.647509000002,
+      "thresholdMs": 2000,
+      "pass": false
+    },
+    "filtered": {
+      "count": 200,
+      "min": 1138.099473999995,
+      "mean": 1386.2658574949994,
+      "p50": 1378.053402999998,
+      "p95": 1624.656197999997,
+      "max": 1704.5732930000013,
+      "concurrency": 50,
+      "wallMs": 5803.131537000001,
+      "thresholdMs": 2000,
+      "pass": true
+    },
+    "deepPage": {
+      "count": 200,
+      "min": 1785.4216300000116,
+      "mean": 2746.6147761149996,
+      "p50": 2730.800046000004,
+      "p95": 3196.9546300000075,
+      "max": 3561.5918029999957,
+      "concurrency": 50,
+      "wallMs": 11958.19634000001,
+      "thresholdMs": 2000,
+      "pass": false
+    },
+    "reports38": {
+      "count": 100,
+      "min": 1580.9649680000002,
+      "mean": 5891.616142789999,
+      "p50": 7130.12159000001,
+      "p95": 7781.17441800001,
+      "max": 8586.606811999998,
+      "concurrency": 50,
+      "wallMs": 14644.43169099999,
+      "thresholdMs": 2000,
+      "pass": false
+    }
+  },
+  "collectionLimitations": "pilot had correlated group/status; execution-plan collector then failed; remaining paths not run"
+}

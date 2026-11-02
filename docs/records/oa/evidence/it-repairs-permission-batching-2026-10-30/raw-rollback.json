@@ -1,0 +1,5 @@
+{
+  "status": "rejected",
+  "reason": "executed reporting migration missing in raw5415 sources; diagnostic log retained",
+  "businessDataRetained": true
+}

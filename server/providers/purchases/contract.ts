@@ -102,6 +102,10 @@ export interface PurchasePaymentVerifier {
   }>;
 }
 export interface PurchaseOrderService {
+  referenceProgress(
+    purchaseId: string,
+    connection: DatabaseConnection,
+  ): Promise<{ id: string; status: string; version: number }[]>;
   /** Acquire every old/new source in stable order before locking the payment record. */
   lockPaymentSources(
     orderIds: readonly string[],

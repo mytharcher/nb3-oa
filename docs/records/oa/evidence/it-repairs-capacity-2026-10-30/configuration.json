@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-30T01:19:25.991Z",
+  "fixture": "101 same-group pool records with native pending task indices;100 configured before commit, one different-actor write",
+  "configurationMs": 5223.299750000002,
+  "blockedWriteMs": 5112.428466000001,
+  "configurationStatus": 200,
+  "writeStatus": 200,
+  "refreshed": 100,
+  "lockWaits": [
+    {
+      "wait_event_type": "Lock",
+      "wait_event": "transactionid"
+    }
+  ],
+  "gate": "released as soon as PG reports a real Lock wait; no arbitrary hold duration",
+  "p95": false
+}

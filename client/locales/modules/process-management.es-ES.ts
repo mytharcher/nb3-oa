@@ -474,6 +474,7 @@ export default {
     covered: 'Campos cubiertos',
     management: 'Intervención del administrador',
     kinds: {
+      itRepair: 'IT repair',
       leave: 'Ausencia',
       overtime: 'Horas extra',
       leaveCancellation: 'Cancelación de ausencia',

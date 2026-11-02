@@ -175,11 +175,14 @@ export async function startIsolatedBrowserApp({
             }),
         );
         const page = await context.newPage();
-        await page.addInitScript((locale) => {
-          // Set the initial locale once; preserve later user changes across reloads.
-          if (!localStorage.getItem('nocobase.locale'))
-            localStorage.setItem('nocobase.locale', locale);
-        }, options.locale ?? 'en-US');
+        await page.addInitScript(
+          ({ locale, basePath }) => {
+            // Set the initial locale once; preserve later user changes across reloads.
+            const key = `nocobase.locale:${basePath.replace(/\/$/, '')}/`;
+            if (!localStorage.getItem(key)) localStorage.setItem(key, locale);
+          },
+          { locale: options.locale ?? 'en-US', basePath },
+        );
         return page;
       },
       close: cleanup,

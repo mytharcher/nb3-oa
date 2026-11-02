@@ -1,3 +1,4 @@
+import RepairProvider from './it-repairs/index.js';
 import InvoiceRecognitionProvider from './invoice-recognition/index.js';
 import ElectronicSignaturesProvider from './electronic-signatures/index.js';
 import WecomAttendanceProvider from './wecom-attendance/index.js';
@@ -143,6 +144,7 @@ const serviceProviders: readonly ApplicationServiceProviderConstructor[] = [
   ProcessManagementProvider,
   ApprovalQueryProvider,
   TaskCenterProvider,
+  RepairProvider,
   DemoDataProvider,
 ];
 

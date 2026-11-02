@@ -88,6 +88,21 @@ function rule(
 }
 
 export const RULE_DEFINITIONS: readonly RuleDefinition[] = [
+  rule('itRepair.securityTransfer', 'sla', 'integer', 0, { min: 0, max: 1 }),
+  rule('itRepair.acceptanceDays', 'sla', 'integer', 2, { min: 1, max: 30 }),
+  rule('itRepair.followUpDays', 'sla', 'integer', 2, { min: 1, max: 30 }),
+  rule('itRepair.morning', 'calendar', 'workHours', {
+    start: '09:00',
+    end: '12:00',
+  }),
+  rule('itRepair.afternoon', 'calendar', 'workHours', {
+    start: '13:00',
+    end: '18:00',
+  }),
+  ...(['P1', 'P2', 'P3', 'P4'] as const).flatMap((p, i) => [
+    rule(`itRepair.${p}.response`, 'sla', 'workingHours', [1, 2, 4, 8][i]),
+    rule(`itRepair.${p}.resolution`, 'sla', 'workingHours', [4, 8, 16, 40][i]),
+  ]),
   // The unified spend ladder (02 §4) and the other money thresholds.
   rule('spend.vp', 'spend', 'money', 50_000),
   rule('spend.gm', 'spend', 'money', 200_000),

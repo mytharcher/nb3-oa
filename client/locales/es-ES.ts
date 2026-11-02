@@ -1,3 +1,4 @@
+import itRepairLocale from './modules/it-repairs.en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.es-ES.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.es-ES.js';
 import wecomAttendanceLocale from './modules/wecom-attendance.es-ES.js';
@@ -81,6 +82,7 @@ import approvalsEnUS from './modules/approvals.es-ES.js';
 import system from './system/es-ES.js';
 
 const esES: AppResource = {
+  ...itRepairLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 
 export const taskSources = [
+  { sourceType: 'oa.itRepair', label: 'itRepairs.title', icon: ListTodo },
   {
     sourceType: 'approval.task',
     label: 'taskCenter.sources.approvalTask',

@@ -482,6 +482,7 @@ export default {
     covered: 'Охватываемые поля',
     management: 'Вмешательство администратора',
     kinds: {
+      itRepair: 'IT repair',
       leave: 'Отпуск',
       overtime: 'Сверхурочная работа',
       leaveCancellation: 'Отмена отпуска',

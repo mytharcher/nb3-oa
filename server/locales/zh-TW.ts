@@ -1,3 +1,4 @@
+import itRepairLocale from '../../client/locales/modules/it-repairs.en-US.js';
 import reportExportsLocale from './modules/report-exports.zh-TW.js';
 import reportsLocale from '../../client/locales/modules/reports.zh-TW.js';
 import invoiceRecognitionLocale from '../../client/locales/modules/invoice-recognition.zh-TW.js';
@@ -35,6 +36,7 @@ import approvals from './modules/approvals.zh-TW.js';
 import annualLeave from './modules/annual-leave.zh-TW.js';
 
 const zhTW: AppServerResource = {
+  ...itRepairLocale,
   ...reportExportsLocale,
   demoData,
   ...accessLocale,

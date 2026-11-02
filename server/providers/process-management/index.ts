@@ -66,7 +66,8 @@ export default class ProcessManagementProvider extends ServiceProvider<Applicati
         prefix: 'oa.processManagement',
         targets: processOwners.map((owner) => ({
           collection: owner.collection,
-          ownerField: 'applicantId',
+          ownerField:
+            owner.kind === 'oa.itRepair' ? 'requesterId' : 'applicantId',
         })),
       },
     );

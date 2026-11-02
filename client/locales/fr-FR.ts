@@ -1,3 +1,4 @@
+import itRepairLocale from './modules/it-repairs.en-US.js';
 import type { AppResource } from './en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.fr-FR.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.fr-FR.js';
@@ -81,6 +82,7 @@ import approvalsEnUS from './modules/approvals.fr-FR.js';
 import system from './system/fr-FR.js';
 
 const frFR: AppResource = {
+  ...itRepairLocale,
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,

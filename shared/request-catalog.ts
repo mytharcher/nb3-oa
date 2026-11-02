@@ -1,5 +1,6 @@
 /** Stable application entry identifiers; no route names or permissions are stored in preferences. */
 export const employeeRequestKeys = [
+  'itRepair',
   'leave',
   'overtime',
   'outing',

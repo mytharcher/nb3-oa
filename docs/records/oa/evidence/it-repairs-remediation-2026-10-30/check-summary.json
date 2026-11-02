@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-30 Asia/Singapore",
+  "logicalChecks": {
+    "files": 17,
+    "cases": 30,
+    "result": "passed after targeted fixes",
+    "firstAttempt": {
+      "failedFiles": 3,
+      "failedCases": 3,
+      "passedCases": 27
+    },
+    "correctedCases": [
+      "10-record batch assertions in service and phase3-edges",
+      "triage membership recovery reuses original submitted receipt identity"
+    ],
+    "lastTargeted": {
+      "files": 3,
+      "cases": 5,
+      "result": "pass"
+    },
+    "phase3EdgesTargeted": {
+      "files": 1,
+      "cases": 4,
+      "result": "pass"
+    }
+  },
+  "browser": {
+    "files": 3,
+    "cases": 3,
+    "result": "pass",
+    "readOnlyAfterHidingWrites": "1 case pass",
+    "themesAndPendingHint": "pass: one real-role browser case, en-US/zh-CN, light/dark 375px; native pending settings hint"
+  },
+  "operations": {
+    "compiledCutover": "pass: stop active nodes; owner200, former IT403, writes503, tick rejected; active resumes",
+    "snapshot": "pass: separate database and private file restore, cross-person403",
+    "compensatedMigration": "pass up/down/up exact schema and frozen data",
+    "rawOriginalDown": "historical failure retained",
+    "raw5415Artifact": "intentionally refused migration-source validation"
+  },
+  "capacityGates": {
+    "C1": "fail: list2111.22/report2117.97 >2000ms",
+    "C2ordinary": "pass2821.67 <3000ms",
+    "C2configuration50": "fail4049.62 >3000ms; all50 writes200; controlled PG group fence; diagnostic own connection"
+  },
+  "fixtureFailuresRetained": [
+    "first50-way config monitor queued in blocked application pool; no admitted measurement",
+    "compiled test token imports initially used source dependency identity; corrected public artifact resolution",
+    "prior full-suite reporting30s timeout under concurrent build; timeout unchanged",
+    "pending-settings screenshot first used the repair detail path; corrected to existing group configuration route"
+  ],
+  "production": "not merged or deployed",
+  "static": {
+    "serverTypes": "pass",
+    "fixtureTypes": "pass",
+    "scopedEslint": "pass after Uint8Array cast correction",
+    "build": "pnpm build --tar passed; compiled server used for cutover",
+    "limits": "last copy-only readonly action hiding verified in browser; CI builds final complete client"
+  }
+}

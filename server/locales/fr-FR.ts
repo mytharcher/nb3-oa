@@ -1,3 +1,4 @@
+import itRepairLocale from '../../client/locales/modules/it-repairs.en-US.js';
 import reportExportsLocale from './modules/report-exports.fr-FR.js';
 import type { AppServerResource } from './en-US.js';
 import reportsLocale from '../../client/locales/modules/reports.fr-FR.js';
@@ -38,6 +39,7 @@ import annualLeave from './modules/annual-leave.fr-FR.js';
 // plugin's namespace; add keys here as the application starts producing its own, and use `overrides` to reword a
 // plugin's.
 const frFR: AppServerResource = {
+  ...itRepairLocale,
   ...reportExportsLocale,
   demoData,
   ...accessLocale,

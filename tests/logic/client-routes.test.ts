@@ -508,7 +508,12 @@ describe('app client routes', () => {
         'oa-leave-balances',
         'oa-approval-delegations',
       ],
-      'oa-office': ['announcements', 'work-items', 'oa-knowledge'],
+      'oa-office': [
+        'announcements',
+        'work-items',
+        'it-repairs',
+        'oa-knowledge',
+      ],
       'oa-organization': ['oa-employees', 'oa-headcounts', 'import-data'],
       'oa-hr': [
         'oa-recruitment-requests',
@@ -618,6 +623,7 @@ describe('app client routes', () => {
       'oa-system-people',
       'oa-system-connections',
       'oa-system-operations',
+      'it-repair-groups',
     ]);
     expect(
       system?.children
