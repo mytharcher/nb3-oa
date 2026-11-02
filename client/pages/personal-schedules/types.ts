@@ -42,7 +42,10 @@ export function dayInterval(day: string) {
     endAt: addDays(start, 1).toISOString(),
   };
 }
-export function scheduleTime(row: Schedule, locale: string) {
+export function scheduleTime(
+  row: Pick<Schedule, 'startAt' | 'endAt'>,
+  locale: string,
+) {
   const fmt = new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',

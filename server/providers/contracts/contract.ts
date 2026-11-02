@@ -127,6 +127,11 @@ export interface ContractLedgerService {
     ids: readonly string[],
     connection: DatabaseConnection,
   ): Promise<void>;
+  /** Scalar ledger identity and balances, without contract text or facts. Caller enforces read scope. */
+  summary(
+    id: string,
+    connection: DatabaseConnection,
+  ): Promise<Omit<ContractSource, 'facts'> | null>;
   source(
     id: string,
     connection: DatabaseConnection,
@@ -212,7 +217,7 @@ export interface ContractApprovalService {
     actorId: string,
     view: 'all' | 'pending' | 'done' | 'copied',
     policy: RepositoryPolicy,
-  ): Promise<ContractRequest[]>;
+  ): Promise<import('./types.js').ContractListRecord[]>;
 }
 export const contractServiceToken = createServiceToken<ContractApprovalService>(
   'oa/contract-service',

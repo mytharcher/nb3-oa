@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import {
   approvalState,
   approve,
@@ -723,35 +724,37 @@ export function createSupplyService(d: SupplyDependencies) {
       'permission',
     );
   }
-  function fullRows(rows: Partial<SupplyRecord>[]): SupplyRecord[] {
-    const fields = [
-      'id',
-      'applicantId',
-      'createdById',
-      'number',
-      'items',
-      'purpose',
-      'itemSnapshot',
-      'approvedFingerprint',
-      'approvedAt',
-      'issuedById',
-      'forcedClosed',
-      'ruleSnapshot',
-      'hrRecipients',
-      'managerApproverId',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+  // List reads deliberately exclude detail payloads before database sorting.
+  // Approval-center summary and search currently require the reason/purpose text.
+  const listFields = [
+    'purpose',
+
+    'id',
+    'applicantId',
+    'createdById',
+    'number',
+    'approvedFingerprint',
+    'approvedAt',
+    'issuedById',
+    'forcedClosed',
+    'hrRecipients',
+    'managerApproverId',
+    'status',
+    'lifecycleVersion',
+    'createdAt',
+  ] as const;
+  type ListRecord = Pick<SupplyRecord, (typeof listFields)[number]>;
+  function listRows(rows: Partial<SupplyRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new SupplyError(
         'SUPPLY_FIELDS_RESTRICTED',
-        'This release requires all supply business fields for reading.',
+        'This release requires all supply list fields for reading.',
         'permission',
       );
-    return rows as SupplyRecord[];
+    return rows as ListRecord[];
   }
-  async function enrich(records: SupplyRecord[]) {
+  async function enrich(records: ListRecord[]) {
     const ids = [
       ...new Set(
         records
@@ -1025,8 +1028,14 @@ export function createSupplyService(d: SupplyDependencies) {
         const scoped = policy ? repository.withPolicy(policy) : repository;
         if (view === 'mine')
           return enrich(
-            fullRows(
+            listRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -1038,12 +1047,18 @@ export function createSupplyService(d: SupplyDependencies) {
           );
         // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
-        const records = fullRows(
+        const records = listRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: SupplyRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&
@@ -1123,6 +1138,9 @@ export function createSupplyService(d: SupplyDependencies) {
           createdAt: string;
           number: string | null;
           itemCode: string;
+          line: number;
+          itemLabel: Record<string, string>;
+          outcome: string;
           requestedQuantity: number;
           actualQuantity: number | null;
         }>('supplyIssueLedger')
@@ -1140,6 +1158,33 @@ export function createSupplyService(d: SupplyDependencies) {
       const sortBy = query.sortBy ?? 'createdAt';
       const [rows, total] = await Promise.all([
         repository.findMany({
+          // The entry drawer explicitly requests one id; ordinary lists omit print payloads and notes.
+          ...(query.entryId
+            ? {}
+            : {
+                select: (s) =>
+                  s.fields(
+                    ...readableListFields(
+                      [
+                        'id',
+                        'applicationId',
+                        'line',
+                        'number',
+                        'itemLabel',
+                        'recipientName',
+                        'issuerName',
+                        'itemCode',
+                        'requestedQuantity',
+                        'actualQuantity',
+                        'recipientId',
+                        'issuerId',
+                        'outcome',
+                        'createdAt',
+                      ],
+                      policy,
+                    ),
+                  ),
+              }),
           filter,
           sort: (s) => [
             query.direction === 'asc'

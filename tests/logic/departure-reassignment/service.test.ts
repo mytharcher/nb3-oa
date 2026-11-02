@@ -118,24 +118,27 @@ function adapter(owners: ReassignmentOwner[], dir = directory()) {
     journal,
   };
 }
-it('captures every source-scoped page before migrating, without offsets skipping replacements', async () => {
-  const tasks = Array.from({ length: 205 }, (_, i) => task(String(i)));
-  const source = owner('oa.leave', tasks);
-  const { service } = adapter([source]);
-  expect(await service.reassign(input)).toEqual({ remaining: 0 });
-  expect(source.action).toHaveBeenCalledTimes(205);
-  expect(
-    source.approvals.tasksOf.mock.calls
-      .slice(0, 3)
-      .map((call) => call[2].offset),
-  ).toEqual([0, 100, 200]);
-  expect(new Set(source.receipts.map((r) => r.requestId)).size).toBe(205);
-  expect(source.receipts[0]).toMatchObject({
-    actorId: 'admin',
-    input: { to: 'receiver', override: false },
-    requestId: taskRequestId(input.requestKey, '0'),
-  });
-});
+it.each([200, 205])(
+  'captures all %i tasks before migrating, without offsets skipping replacements',
+  async (count) => {
+    const tasks = Array.from({ length: count }, (_, i) => task(String(i)));
+    const source = owner('oa.leave', tasks);
+    const { service } = adapter([source]);
+    expect(await service.reassign(input)).toEqual({ remaining: 0 });
+    expect(source.action).toHaveBeenCalledTimes(count);
+    expect(
+      source.approvals.tasksOf.mock.calls
+        .slice(0, 3)
+        .map((call) => call[2].offset),
+    ).toEqual([0, 100, 200]);
+    expect(new Set(source.receipts.map((r) => r.requestId)).size).toBe(count);
+    expect(source.receipts[0]).toMatchObject({
+      actorId: 'admin',
+      input: { to: 'receiver', override: false },
+      requestId: taskRequestId(input.requestKey, '0'),
+    });
+  },
+);
 it('routes across real lifecycle owners, deduplicates duplicate targets, and retains proxy principals', async () => {
   const leave = owner('oa.leave', [task('a')]);
   const read = leave.approvals.tasksOf.getMockImplementation()!;

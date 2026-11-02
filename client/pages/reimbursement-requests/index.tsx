@@ -44,7 +44,7 @@ import { useResource } from '../approvals/use-resource.js';
 import { ErrorState } from './states.js';
 import type { FormOptions } from './types-form.js';
 import { moneyLabel } from './money.js';
-import { STATUSES, type ReimbursementRecord } from './types.js';
+import { STATUSES, type ReimbursementListRecord } from './types.js';
 
 /** The endpoint returns the complete authorized view. Filter/sort the full result
  * before slicing; no first-page cap is treated as the whole collection. */
@@ -75,9 +75,12 @@ export default function ReimbursementsPage() {
     : 20;
   const pageValue = Number(searchParams.get('page'));
   const page = Number.isSafeInteger(pageValue) && pageValue > 0 ? pageValue : 1;
-  const resource = useResource<ReimbursementRecord[]>('reimbursementRequests', {
-    view,
-  });
+  const resource = useResource<ReimbursementListRecord[]>(
+    'reimbursementRequests',
+    {
+      view,
+    },
+  );
   const zoneResource = useResource<FormOptions>(
     'reimbursementRequests/options',
   );
@@ -156,7 +159,7 @@ export default function ReimbursementsPage() {
       {t('reimbursementRequests.new')}
     </Button>
   ) : null;
-  const columns = useMemo<ColumnDef<ReimbursementRecord>[]>(
+  const columns = useMemo<ColumnDef<ReimbursementListRecord>[]>(
     () => [
       {
         accessorKey: 'number',
@@ -427,7 +430,9 @@ export default function ReimbursementsPage() {
 
 /** A query normalization may commit between pointer-down and click. Keep the
  * cell component identity stable so the targeted anchor survives that update. */
-function RecordNumberCell({ row }: CellContext<ReimbursementRecord, unknown>) {
+function RecordNumberCell({
+  row,
+}: CellContext<ReimbursementListRecord, unknown>) {
   const { t } = useTranslation();
   const location = useLocation();
   return (

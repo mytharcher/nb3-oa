@@ -141,6 +141,7 @@ export function createSealLedgerReader(d: {
         .repository<SealLedger>('sealLedger')
         .withPolicy(access.ledger)
         .findMany({
+          select: (s) => s.fields('id'),
           sort: (s) => [s.field('registeredAt').desc(), s.field('id').desc()],
         });
       const visible = [];

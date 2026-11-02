@@ -97,11 +97,15 @@ export default [
       if (!p) throw new PersonalScheduleError('ACCESS_DENIED');
       return p;
     }
-    async function dto(row: PersonalSchedule) {
+    async function dto(
+      row: Omit<PersonalSchedule, 'description'> & { description?: string },
+    ) {
       const owner = await c
         .resolve(userAdministrationServiceToken)
         .get(row.ownerUserId);
-      return S.Schedule.parse({
+      return (
+        row.description === undefined ? S.ScheduleListItem : S.Schedule
+      ).parse({
         ...row,
         owner: { id: row.ownerUserId, name: owner?.name ?? '' },
         startAt: new Date(row.startAt).toISOString(),
@@ -114,7 +118,9 @@ export default [
         operationId,
         summary: operationId,
         responses: {
-          200: list ? listResponse(S.Schedule) : dataResponse(S.Schedule),
+          200: list
+            ? listResponse(S.ScheduleListItem)
+            : dataResponse(S.Schedule),
           ...apiErrorResponses,
           400: apiErrorResponse(400),
           404: apiErrorResponse(404),

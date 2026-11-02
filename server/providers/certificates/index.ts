@@ -281,7 +281,7 @@ export default class CertificatesProvider extends ServiceProvider<Application> {
             for (const row of await this.app.container
               .resolve(databaseManagerToken)
               .repository<{ id: string }>('certificateRequests')
-              .findMany()) {
+              .findMany({ select: (s) => s.fields('id') })) {
               if (
                 (
                   await requests.query(() =>

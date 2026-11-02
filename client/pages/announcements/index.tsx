@@ -29,10 +29,14 @@ import {
   resource,
   statuses,
   dateLabel,
-  type Announcement,
+  type Announcement as AnnouncementDetail,
   type Envelope,
   type Options,
 } from './types.js';
+type Announcement = Omit<
+  AnnouncementDetail,
+  'body' | 'audience' | 'attachments' | 'knowledgeLink' | 'hasNewVersion'
+>;
 export default function Announcements() {
   return (
     <Identity>

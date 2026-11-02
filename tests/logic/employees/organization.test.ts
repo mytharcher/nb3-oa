@@ -59,6 +59,14 @@ describe('employees with the organisation', () => {
       'In Child',
       'In Root',
     ]);
+    const partial = await service.listEmployees(
+      { page: 1, pageSize: 100, orderBy: { field: 'name', desc: false } },
+      { ...ALL, read: { scope: true, fields: ['id', 'name'] } },
+    );
+    expect(partial.items.some((row) => row.name === 'In Child')).toBe(true);
+    expect(
+      partial.items.every((row) => !('email' in row) && !('userId' in row)),
+    ).toBe(true);
     const view = all.items.find((e) => e.name === 'In Child')!;
     expect(view.primaryDepartment).toEqual({
       id: child.id,

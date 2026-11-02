@@ -24,7 +24,7 @@ export function ProbationRowActions({
   record,
   disabled = false,
 }: {
-  record: ProbationRecord;
+  record: Pick<ProbationRecord, 'id' | 'number'>;
   disabled?: boolean;
 }) {
   const { t } = useTranslation(),

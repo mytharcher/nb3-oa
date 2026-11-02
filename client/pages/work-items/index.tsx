@@ -25,11 +25,21 @@ import {
   resource,
   modes,
   statuses,
-  type Item,
+  type Item as ItemDetail,
   type Context,
   type Envelope,
   type Source,
 } from './types.js';
+type Item = Omit<
+  ItemDetail,
+  | 'description'
+  | 'attachments'
+  | 'resultAttachments'
+  | 'result'
+  | 'reason'
+  | 'canEdit'
+  | 'canHandoverConfirmation'
+>;
 export default function WorkItemsPage() {
   const { t, i18n } = useTranslation(),
     location = useLocation(),

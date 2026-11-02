@@ -98,7 +98,10 @@ export const Record = Proposal.omit({ targetSalary: true }).safeExtend({
   createdAt: z.string(),
 });
 export const List = z.array(
-  Record.safeExtend({ employee: User, users: z.array(User) }),
+  Record.omit({ snapshot: true, cancellationReason: true }).safeExtend({
+    employee: User,
+    users: z.array(User),
+  }),
 );
 export const Detail = z.strictObject({
   record: Record,

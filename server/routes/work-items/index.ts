@@ -1,3 +1,4 @@
+import type { WorkItemListItem } from '../../providers/work-items/contract.js';
 import { Hono, type Context } from 'hono';
 import {
   authenticationToken,
@@ -94,7 +95,7 @@ export default [
       return p;
     }
     async function authorizedActions(
-      w: WorkItem,
+      w: WorkItemListItem,
       ctx: Context<Env>,
       qualified: readonly (typeof WORK_ITEM_ACTIONS)[number][],
     ) {
@@ -211,10 +212,51 @@ export default [
           : null,
       });
     }
+    async function listDto(w: WorkItemListItem, ctx: Context<Env>) {
+      const ids = [
+        ...new Set(
+          [
+            w.creatorUserId,
+            w.confirmationOwnerUserId,
+            w.targetUserId,
+            w.assigneeUserId,
+          ].filter((id): id is string => !!id),
+        ),
+      ];
+      const users = await c
+        .resolve(userAdministrationServiceToken)
+        .list({ userIds: ids, pageSize: 100, kind: 'all' });
+      const names = new Map(users.items.map((u) => [u.id, u.name]));
+      const user = (id: string | null) =>
+        id ? { id, name: names.get(id) ?? id } : null;
+      const role = w.dutyRoleCode
+        ? await c.resolve(organizationServiceToken).getDutyRole(w.dutyRoleCode)
+        : null;
+      return S.ListItem.parse({
+        ...w,
+        creator: user(w.creatorUserId),
+        confirmationOwner: user(w.confirmationOwnerUserId),
+        target: user(w.targetUserId),
+        assignee: user(w.assigneeUserId),
+        dutyRole: role ? { code: role.code, title: role.title } : null,
+        actions: await authorizedActions(
+          w,
+          ctx,
+          await service.actions(w, actor(ctx), db.connection()),
+        ),
+        overdue:
+          !['completed', 'cancelled'].includes(w.status) &&
+          new Date(w.dueAt) < new Date(),
+        dueAt: new Date(w.dueAt).toISOString(),
+        completedAt: w.completedAt
+          ? new Date(w.completedAt).toISOString()
+          : null,
+      });
+    }
     const doc = (
       id: string,
       summary: string,
-      schema: typeof S.WorkItem | typeof S.Pending,
+      schema: typeof S.WorkItem | typeof S.ListItem | typeof S.Pending,
       list = false,
     ) =>
       describeRoute({
@@ -267,14 +309,18 @@ export default [
           db.connection(),
           await policy(ctx, 'view'),
         );
+        const records = new Map(
+          (
+            await service.list(
+              actor(ctx),
+              db.connection(),
+              await policy(ctx, 'view'),
+            )
+          ).map((row) => [row.id, row]),
+        );
         const items = [];
         for (const item of result.items) {
-          const w = await service.get(
-            item.sourceId,
-            actor(ctx),
-            db.connection(),
-            await policy(ctx, 'view'),
-          );
+          const w = records.get(item.sourceId);
           const actions = w
             ? await authorizedActions(w, ctx, item.actions)
             : [];
@@ -289,7 +335,7 @@ export default [
       doc(
         'listWorkItems',
         'List currently readable ordinary tasks',
-        S.WorkItem,
+        S.ListItem,
         true,
       ),
       gate('view'),
@@ -297,22 +343,10 @@ export default [
       async (ctx) => {
         const q = ctx.req.valid('query'),
           p = await policy(ctx, 'view'),
-          rows = await db
-            .repository<WorkItem>('workItems')
-            .withPolicy(p)
-            .findMany({ sort: (s) => s.field('dueAt').asc() }),
+          rows = await service.list(actor(ctx), db.connection(), p, q.q),
           visible = [];
-        for (const row of rows) {
-          const w = await service.get(row.id!, actor(ctx), db.connection(), p);
-          if (!w) continue;
+        for (const w of rows) {
           if (q.status && w.status !== q.status) continue;
-          if (
-            q.q &&
-            !`${w.title} ${w.description}`
-              .toLocaleLowerCase()
-              .includes(q.q.toLocaleLowerCase())
-          )
-            continue;
           if (q.mode === 'created' && w.creatorUserId !== actor(ctx)) continue;
           if (
             q.mode === 'assigned' &&
@@ -320,7 +354,7 @@ export default [
             w.targetUserId !== actor(ctx)
           )
             continue;
-          const data = await dto(w, ctx);
+          const data = await listDto(w, ctx);
           if (q.overdue !== 'all' && data.overdue !== (q.overdue === 'true'))
             continue;
           if (

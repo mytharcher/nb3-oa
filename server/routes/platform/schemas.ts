@@ -277,6 +277,18 @@ export const AuditLogSchema: z.ZodType<AuditLogView> = z
     at: z.string(),
   })
   .meta({ ref: 'PlatformAuditLog' });
+export const AuditLogListSchema = z
+  .object({
+    id: z.string(),
+    actorId: z.string().nullable(),
+    actorName: z.string().nullable(),
+    action: z.string(),
+    targetType: z.string(),
+    targetId: z.string().nullable(),
+    reason: z.string().nullable(),
+    at: z.string(),
+  })
+  .meta({ ref: 'PlatformAuditLogListItem' });
 export const AuditLogsQuery = z.object({
   targetType: z.string().optional(),
   targetId: z.string().optional(),

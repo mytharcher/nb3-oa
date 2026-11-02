@@ -166,3 +166,5 @@ export const AvailabilityRoom = Room.extend({
     z.object({ startAt: z.iso.datetime(), endAt: z.iso.datetime() }),
   ),
 });
+
+export const BookingListItem = Booking.omit({ reason: true });

@@ -1,3 +1,4 @@
+import { readableListFields } from '../../providers/list-fields.js';
 import {
   authenticationToken,
   type AuthEnv,
@@ -195,6 +196,31 @@ export const routes: readonly AppRouteContribution<Application>[] = [
         return context.json({
           data: {
             items: await repo.findMany({
+              select: (s) =>
+                s.fields(
+                  ...readableListFields(
+                    [
+                      'id',
+                      'applicantId',
+                      'createdById',
+                      'purpose',
+                      'destination',
+                      'startAt',
+                      'endAt',
+                      'passengers',
+                      'needsDriver',
+                      'number',
+                      'approvedFingerprint',
+                      'approvedAt',
+                      'managerApproverId',
+                      'status',
+                      'statusChangedAt',
+                      'lifecycleVersion',
+                      'createdAt',
+                    ],
+                    p,
+                  ),
+                ),
               offset: (q.page - 1) * q.pageSize,
               limit: q.pageSize,
             }),

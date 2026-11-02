@@ -66,7 +66,7 @@ export interface LoanRequestService {
     view: string,
     policy?: RepositoryPolicy,
   ): Promise<
-    (LoanRequestRecord & {
+    (import('./service.js').ListRecord & {
       applicant: { id: string; name: string } | null;
       paymentAccount: null;
     })[]

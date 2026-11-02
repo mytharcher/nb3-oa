@@ -236,6 +236,7 @@ export default [
             : { version: -1 };
         const total = await repository.count({ filter });
         const rows = await repository.findMany({
+          select: (s) => s.fields('id', 'version', 'createdById', 'createdAt'),
           filter,
           sort: (sort) => [
             q.direction === 'asc'

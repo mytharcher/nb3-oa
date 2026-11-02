@@ -1,3 +1,5 @@
+import { readableListFields } from '../list-fields.js';
+import { contractListFields, type ContractListRecord } from './types.js';
 import {
   isOpenRun,
   type ActionTarget,
@@ -1042,7 +1044,10 @@ export function createContractService(d: Dependencies) {
       const sources = await d.db
         .repository('contracts')
         .withPolicy(ledgerPolicy)
-        .findMany();
+        .findMany({
+          select: (s) =>
+            s.fields('id', 'number', 'version', 'amountCents', 'status'),
+        });
       if (
         sources.some((source) =>
           ['id', 'number', 'version', 'amountCents', 'status'].some(
@@ -1175,6 +1180,13 @@ export function createContractService(d: Dependencies) {
         .repository('contracts')
         .withPolicy(ledgerPolicy)
         .findMany({
+          select: (s) =>
+            s.fields(
+              ...readableListFields(
+                ['id', 'requestId', 'status', 'number'],
+                ledgerPolicy,
+              ),
+            ),
           sort: (s) => [s.field('updatedAt').desc(), s.field('id').desc()],
         });
       const asOf = d.calendar.localDate(demoNow());
@@ -1212,7 +1224,24 @@ export function createContractService(d: Dependencies) {
         const request = await d.db
           .repository('contractRequests')
           .withPolicy(viewPolicy)
-          .findOne({ filter: { id: source.requestId } });
+          .findOne({
+            filter: { id: source.requestId },
+            select: (s) =>
+              s.fields(
+                ...readableListFields(
+                  [
+                    'id',
+                    'startsOn',
+                    'endsOn',
+                    'amountCents',
+                    'departmentId',
+                    'number',
+                    'status',
+                  ],
+                  viewPolicy,
+                ),
+              ),
+          });
         if (!request) continue;
         if (
           [
@@ -1229,16 +1258,62 @@ export function createContractService(d: Dependencies) {
             'FIELDS_RESTRICTED',
             'Contract dates and amount are outside the ordinary view policy.',
           );
-        const { contract } = await service.ledgerDetail(
-          source.id,
-          ledgerPolicy,
-          versionPolicy,
+        const permitted = await d.db
+          .repository('contracts')
+          .withPolicy(ledgerPolicy)
+          .findOne({
+            filter: { id: source.id },
+            select: (s) =>
+              s.fields(
+                ...readableListFields(
+                  [
+                    'id',
+                    'version',
+                    'status',
+                    'amountCents',
+                    'number',
+                    'requestId',
+                    'applicantId',
+                    'departmentId',
+                  ],
+                  ledgerPolicy,
+                ),
+              ),
+          });
+        if (
+          !permitted ||
+          [
+            'id',
+            'version',
+            'status',
+            'amountCents',
+            'number',
+            'requestId',
+            'applicantId',
+            'departmentId',
+          ].some((key) => !(key in permitted))
+        )
+          fail('FIELDS_RESTRICTED', 'Contract report fields are required.');
+        const contract = await d.db.transaction((tx) =>
+          d.ledger.summary(source.id as string, tx),
         );
+        if (!contract || contract.status === 'underApproval')
+          fail(
+            'INACTIVE_SOURCE',
+            'The contract is not an effective approved source.',
+          );
         const immutable = await d.db
           .repository('contractVersions')
           .withPolicy(versionPolicy)
           .findOne({
             filter: { contractId: contract.id, version: contract.version },
+            select: (s) =>
+              s.fields(
+                ...readableListFields(
+                  ['id', 'facts', 'amountCents', 'status'],
+                  versionPolicy,
+                ),
+              ),
           });
         if (!immutable)
           fail(
@@ -1319,12 +1394,25 @@ export function createContractService(d: Dependencies) {
         direction?: 'asc' | 'desc';
       },
       policy: RepositoryPolicy,
-      versionPolicy: RepositoryPolicy,
+      _versionPolicy: RepositoryPolicy,
     ) {
+      const listFields = [
+        'id',
+        'number',
+        'requestId',
+        'applicantId',
+        'departmentId',
+        'version',
+        'status',
+        'amountCents',
+        'updatedAt',
+      ] as const;
+      const selected = readableListFields(listFields, policy);
       const rows = await d.db
         .repository('contracts')
         .withPolicy(policy)
         .findMany({
+          select: (s) => s.fields(...selected),
           sort: (s) =>
             query.direction === 'asc'
               ? [s.field(query.sort ?? 'updatedAt').asc(), s.field('id').asc()]
@@ -1347,20 +1435,35 @@ export function createContractService(d: Dependencies) {
             .includes(query.search.trim().toLocaleLowerCase())
         )
           continue;
-        data.push(
-          (
-            await service.ledgerDetail(
-              typeof row.id === 'string'
-                ? row.id
-                : fail(
-                    'STORED_ID_INVALID',
-                    'Stored ledger identity is invalid.',
-                  ),
-              policy,
-              versionPolicy,
-            )
-          ).contract,
+        const required = [
+          'id',
+          'number',
+          'requestId',
+          'applicantId',
+          'departmentId',
+          'version',
+          'status',
+          'amountCents',
+        ];
+        if (required.some((field) => !(field in row)))
+          fail(
+            'FIELDS_RESTRICTED',
+            'Contract ledger list fields are required.',
+          );
+        const summary = await d.db.transaction((tx) =>
+          d.ledger.summary(
+            typeof row.id === 'string'
+              ? row.id
+              : fail('STORED_ID_INVALID', 'Stored ledger identity is invalid.'),
+            tx,
+          ),
         );
+        if (!summary || summary.status === 'underApproval')
+          fail(
+            'INACTIVE_SOURCE',
+            'The contract is not an effective approved source.',
+          );
+        data.push({ ...summary, updatedAt: row.updatedAt });
       }
       const page = Math.min(
         query.page,
@@ -1385,13 +1488,20 @@ export function createContractService(d: Dependencies) {
         .repository<ContractRequest>('contractRequests')
         .withPolicy(policy)
         .findMany({
+          select: (s) =>
+            s.fields(...readableListFields(contractListFields, policy)),
           sort: (s) => [s.field('createdAt').desc(), s.field('id').desc()],
         });
-      const result: ContractRequest[] = [];
+      const result: ContractListRecord[] = [];
       for (const row of rows) {
         if (typeof row.id !== 'string')
           fail('STORED_ID_INVALID', 'Stored ledger identity is invalid.');
-        const record = policyRecord(row);
+        if (contractListFields.some((key) => !(key in row)))
+          fail('FIELDS_RESTRICTED', 'Contract list fields are required.');
+        const record = {
+          ...row,
+          amountCents: Number(row.amountCents),
+        } as ContractListRecord;
         if (view === 'all') {
           result.push(record);
           continue;

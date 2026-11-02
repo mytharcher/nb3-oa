@@ -1,3 +1,5 @@
+import type { DatabaseManager } from '@nocobase/db';
+import type { UserTaskService } from '@nocobase/app-plugin-task-center/server';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { ApprovalService } from '@nocobase/app-plugin-approval/server';
 import {
@@ -22,6 +24,56 @@ interface TaskTarget {
   subject: string;
   recordId: string;
 }
+/** Exhaust a stable createdAt cursor. Historical access keeps all statuses;
+ * current candidates can select pending, then verify authoritative business offers.
+ * Missing mappings must not silently hide work. */
+export async function personalTaskTargets(
+  db: DatabaseManager,
+  reader: UserTaskService,
+  actorId: string,
+  subject: string,
+  sourceType: string,
+  status?: 'pending',
+): Promise<readonly TaskTarget[] | undefined> {
+  const targets: TaskTarget[] = [];
+  let after: string | undefined;
+  do {
+    const result = await reader.list(actorId, {
+      subject,
+      sourceType,
+      status,
+      pagination: 'cursor',
+      orderBy: 'createdAt',
+      direction: 'asc',
+      includeTotal: false,
+      after,
+      pageSize: 100,
+    });
+    if (result.data.length) {
+      const rows = await db
+        .repository<TaskTarget>('oaTaskCenterTargets')
+        .findMany({
+          filter: (f) =>
+            f.and([
+              f.string('sourceType').eq(sourceType),
+              f.string('subject').eq(subject),
+              f.or(
+                result.data.map((entry) =>
+                  f.string('sourceKey').eq(entry.sourceKey),
+                ),
+              ),
+            ]),
+        });
+      const mapped = new Set(rows.map((row) => row.sourceKey));
+      if (result.data.some((entry) => !mapped.has(entry.sourceKey)))
+        return undefined;
+      targets.push(...rows);
+    }
+    after = result.meta.nextCursor ?? undefined;
+  } while (after);
+  return targets;
+}
+
 const reads = new AsyncLocalStorage<
   Map<ApprovalService, Map<string, Promise<readonly TaskTarget[]>>>
 >();
@@ -81,33 +133,15 @@ async function personalTargets(
     const targets: TaskTarget[] = [];
     for (const approval of binding.approvals) {
       for (const sourceType of ['approval.task', 'approval.cc']) {
-        for (let page = 1; ; page++) {
-          const result = await integration.reader.list(actorId, {
-            subject: approval.name,
-            sourceType,
-            includeTotal: false,
-            page,
-            pageSize: 100,
-          });
-          if (result.data.length) {
-            const rows = await db
-              .repository<TaskTarget>('oaTaskCenterTargets')
-              .findMany({
-                filter: (f) =>
-                  f.and([
-                    f.string('sourceType').eq(sourceType),
-                    f.string('subject').eq(approval.name),
-                    f.or(
-                      result.data.map((entry) =>
-                        f.string('sourceKey').eq(entry.sourceKey),
-                      ),
-                    ),
-                  ]),
-              });
-            targets.push(...rows);
-          }
-          if (result.data.length < 100) break;
-        }
+        const rows = await personalTaskTargets(
+          db,
+          integration.reader,
+          actorId,
+          approval.name,
+          sourceType,
+        );
+        if (!rows) throw new Error('Approval task mappings are incomplete.');
+        targets.push(...rows);
       }
     }
     return targets;

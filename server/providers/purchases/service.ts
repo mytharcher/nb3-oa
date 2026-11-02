@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import {
   allActivePeople,
   APPROVAL_COLLECTIONS,
@@ -143,6 +144,36 @@ export interface PurchaseDependencies {
   notifications: ApprovalNotificationService;
   dispatcher?: EffectDispatcher;
 }
+export const listFields = [
+  'id',
+  'applicantId',
+  'createdById',
+  'number',
+  'subject',
+  'estimatedCents',
+  'expectedDate',
+  'suggestedVendorId',
+  'purpose',
+  'actualCents',
+  'selectedVendorId',
+  'departmentId',
+  'year',
+  'heldCents',
+  'headApproverId',
+  'executiveApproverId',
+  'gmApproverId',
+  'orderId',
+  'approvedFingerprint',
+  'financeEntered',
+  'priceConfirmationRequired',
+  'handlingForced',
+  'handlingActorId',
+  'status',
+  'lifecycleVersion',
+  'createdAt',
+] as const;
+export type ListRecord = Pick<PurchaseRecord, (typeof listFields)[number]>;
+
 export function refuse(reason: string, message: string): never {
   throw new PurchaseError(reason, message);
 }
@@ -1300,41 +1331,8 @@ export function createPurchaseService(d: PurchaseDependencies) {
       'permission',
     );
   }
-  function fullRows(rows: Partial<PurchaseRecord>[]): PurchaseRecord[] {
-    const fields = [
-      'id',
-      'applicantId',
-      'createdById',
-      'number',
-      'items',
-      'subject',
-      'estimatedCents',
-      'expectedDate',
-      'suggestedVendorId',
-      'purpose',
-      'actualCents',
-      'selectedVendorId',
-      'quotes',
-      'departmentId',
-      'year',
-      'heldAccount',
-      'heldCents',
-      'ruleSnapshot',
-      'headApproverId',
-      'executiveApproverId',
-      'gmApproverId',
-      'gmMerged',
-      'orderId',
-      'handlingFailureReason',
-      'approvedFingerprint',
-      'financeEntered',
-      'priceConfirmationRequired',
-      'handlingForced',
-      'handlingActorId',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+  function fullRows(rows: Partial<PurchaseRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new PurchaseError(
         'PURCHASE_FIELDS_RESTRICTED',
@@ -1343,7 +1341,7 @@ export function createPurchaseService(d: PurchaseDependencies) {
       );
     return rows.map((row) => normalizePurchaseRecord(row as PurchaseRecord));
   }
-  async function enrich(records: PurchaseRecord[]) {
+  async function enrich(records: ListRecord[]) {
     const ids = [
       ...new Set(
         records
@@ -1668,6 +1666,12 @@ export function createPurchaseService(d: PurchaseDependencies) {
           return enrich(
             fullRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -1681,10 +1685,16 @@ export function createPurchaseService(d: PurchaseDependencies) {
         // offered operations and persisted actor identities over each request before exposing it in the center.
         const records = fullRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: PurchaseRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&

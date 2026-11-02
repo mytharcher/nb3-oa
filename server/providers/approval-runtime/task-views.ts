@@ -16,3 +16,19 @@ export async function runTaskViewsFor(
     tasks: tasks.filter((task) => task.runId === run.id),
   }));
 }
+
+/** Match tasksOf(person)'s default visibility without scanning other records.
+ * OPEN also contains waiting/blocked/suspended; detail responses never included those.
+ */
+export async function personalDetailTasksFor(
+  approvals: Pick<ApprovalService, 'tasksFor'>,
+  lifecycle: string,
+  recordId: string,
+  actorId: string,
+) {
+  return (await approvals.tasksFor(lifecycle, recordId)).filter(
+    (task) =>
+      task.assigneeId === actorId &&
+      ['pending', 'claimed', 'candidate'].includes(task.status),
+  );
+}

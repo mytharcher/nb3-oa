@@ -121,7 +121,7 @@ export const DriverRecord = Driver.omit({ reason: true, version: true }).extend(
   },
 );
 export const List = z.strictObject({
-  items: z.array(Record.partial()),
+  items: z.array(Record.omit({ ruleSnapshot: true }).partial()),
   total: z.number().int(),
 });
 export const GarageList = z.strictObject({

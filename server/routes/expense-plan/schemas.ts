@@ -92,7 +92,28 @@ export const Detail = z.strictObject({
   timeline: z.json(),
 });
 export const List = z.array(
-  ExpensePlanRecord.extend({
+  ExpensePlanRecord.pick({
+    id: true,
+    applicantId: true,
+    createdById: true,
+    number: true,
+    departmentId: true,
+    year: true,
+    subject: true,
+    matterType: true,
+    eventDate: true,
+    authorizationId: true,
+    executiveApproverId: true,
+    gmApproverId: true,
+    amountCents: true,
+    reason: true,
+    heldCents: true,
+    headApproverId: true,
+    status: true,
+    lifecycleVersion: true,
+    createdAt: true,
+    participants: true,
+  }).extend({
     applicant: User.nullable(),
     createdBy: User.nullable(),
     headApprover: User.nullable(),

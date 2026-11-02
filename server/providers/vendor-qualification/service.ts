@@ -1,3 +1,8 @@
+import { readableListFields } from '../list-fields.js';
+import {
+  qualificationListFields,
+  type QualificationListRecord,
+} from './contract.js';
 import {
   isOpenRun,
   type ActionTarget,
@@ -459,16 +464,32 @@ export function createVendorQualificationService(d: QualificationDependencies) {
       .repository<VendorQualificationRecord>('vendorQualifications')
       .withPolicy(policy)
       .findMany({
+        select: (s) =>
+          s.fields(...readableListFields(qualificationListFields, policy)),
         sort: (sort) =>
           query.direction === 'asc'
             ? [sort.field(query.sort).asc(), sort.field('id').asc()]
             : [sort.field(query.sort).desc(), sort.field('id').desc()],
       });
     const kit = await sdk(),
-      result: VendorQualificationRecord[] = [];
+      result: QualificationListRecord[] = [];
     for (const row of rows) {
       if (!row.id) continue;
-      const record = await canRead(row.id, actorId, policy);
+      if (qualificationListFields.some((key) => !(key in row)))
+        refuse(
+          'FIELDS_RESTRICTED',
+          'Qualification list fields are required.',
+          'permission',
+        );
+      const record = {
+        ...row,
+        quoteCents: Number(row.quoteCents),
+      } as QualificationListRecord;
+      if (!Number.isSafeInteger(record.quoteCents) || record.quoteCents < 0)
+        refuse(
+          'STORED_AMOUNT_INVALID',
+          'Stored quotation must be safe integer cents.',
+        );
       if (query.status && record.status !== query.status) continue;
       if (
         query.search &&
@@ -516,7 +537,9 @@ export function createVendorQualificationService(d: QualificationDependencies) {
 
     return result;
   }
-  async function decorate(records: readonly VendorQualificationRecord[]) {
+  async function decorate<
+    T extends Pick<VendorQualificationRecord, 'applicantId' | 'createdById'>,
+  >(records: readonly T[]) {
     const ids = [
       ...new Set(records.flatMap((r) => [r.applicantId, r.createdById])),
     ];

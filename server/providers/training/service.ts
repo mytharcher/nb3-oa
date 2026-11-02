@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import {
   allActivePeople,
   APPROVAL_COLLECTIONS,
@@ -907,43 +908,53 @@ export function createTrainingService(d: TrainingDependencies) {
       'permission',
     );
   }
-  function fullRows(rows: Partial<TrainingRecord>[]): TrainingRecord[] {
-    const fields = [
-      'id',
-      'applicantId',
-      'createdById',
-      'number',
-      'departmentId',
-      'authorizationId',
-      'executiveApproverId',
-      'gmApproverId',
-      'gmMerged',
-      'name',
-      'institution',
-      'startAt',
-      'endAt',
-      'usesWorkingTime',
-      'attendanceRecorded',
-      'managerApproverId',
-      'headMerged',
-      'hrRecipients',
-      'amountCents',
-      'reason',
-      'ruleSnapshot',
-      'headApproverId',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+  // List reads deliberately exclude detail payloads before database sorting.
+  // Approval-center summary and search currently require the reason/purpose text.
+  const listFields = [
+    'reason',
+
+    'id',
+    'applicantId',
+    'createdById',
+    'number',
+    'departmentId',
+    'authorizationId',
+    'executiveApproverId',
+    'gmApproverId',
+    'name',
+    'institution',
+    'startAt',
+    'endAt',
+    'usesWorkingTime',
+    'attendanceRecorded',
+    'managerApproverId',
+    'hrRecipients',
+    'amountCents',
+    'headApproverId',
+    'status',
+    'lifecycleVersion',
+    'createdAt',
+  ] as const;
+  type ListRecord = Pick<TrainingRecord, (typeof listFields)[number]>;
+  function listRows(rows: Partial<TrainingRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new TrainingError(
         'TRAINING_FIELDS_RESTRICTED',
-        'This release requires all training business fields for reading.',
+        'This release requires all training list fields for reading.',
         'permission',
       );
-    return rows.map((row) => normalizeTrainingRecord(row as TrainingRecord));
+    return (rows as ListRecord[]).map((row) => {
+      const result = { ...row, amountCents: Number(row.amountCents) };
+      if ([result.amountCents].some((v) => !Number.isSafeInteger(v) || v < 0))
+        refuse(
+          'TRAINING_INVALID_AMOUNT',
+          'Stored amounts must be safe integer cents.',
+        );
+      return result;
+    });
   }
-  async function enrich(records: TrainingRecord[]) {
+  async function enrich(records: ListRecord[]) {
     const ids = [
       ...new Set(
         records
@@ -1228,8 +1239,14 @@ export function createTrainingService(d: TrainingDependencies) {
         const scoped = policy ? repository.withPolicy(policy) : repository;
         if (view === 'mine')
           return enrich(
-            fullRows(
+            listRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -1241,12 +1258,18 @@ export function createTrainingService(d: TrainingDependencies) {
           );
         // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
-        const records = fullRows(
+        const records = listRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: TrainingRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&

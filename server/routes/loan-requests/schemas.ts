@@ -107,7 +107,25 @@ export const Detail = z.strictObject({
   timeline: z.json(),
 });
 export const List = z.array(
-  LoanRequestRecord.extend({
+  LoanRequestRecord.pick({
+    id: true,
+    applicantId: true,
+    createdById: true,
+    number: true,
+    departmentId: true,
+    amountCents: true,
+    reason: true,
+    dueDate: true,
+    travelId: true,
+    heldCents: true,
+    headApproverId: true,
+    managerApproverId: true,
+    executiveApproverId: true,
+    gmApproverId: true,
+    status: true,
+    lifecycleVersion: true,
+    createdAt: true,
+  }).extend({
     applicant: User.nullable(),
     createdBy: User.nullable(),
     headApprover: User.nullable(),

@@ -49,19 +49,39 @@ export function createContractLedgerService(
   _db: DatabaseManager,
   audit: AuditService,
 ): ContractLedgerService {
-  async function source(
+  async function summary(
     id: string,
     tx: DatabaseConnection,
-  ): Promise<ContractSource | null> {
-    const row = await tx
-      .repository<Row>('contracts')
-      .findOne({ filter: { id } });
+  ): Promise<Omit<ContractSource, 'facts'> | null> {
+    const row = await tx.repository<Row>('contracts').findOne({
+      filter: { id },
+      select: (s) =>
+        s.fields(
+          'id',
+          'number',
+          'requestId',
+          'applicantId',
+          'departmentId',
+          'status',
+          'version',
+          'amountCents',
+        ),
+    });
     if (!row) return null;
+    return balance(row, tx);
+  }
+  async function balance(
+    row: Omit<Row, 'facts'>,
+    tx: DatabaseConnection,
+  ): Promise<Omit<ContractSource, 'facts'>> {
     const entries = await tx
       .repository<{ contractId: string; heldDelta: number; paidDelta: number }>(
         'contractMoneyLedger',
       )
-      .findMany({ filter: { contractId: id } });
+      .findMany({
+        filter: { contractId: row.id },
+        select: (s) => s.fields('heldDelta', 'paidDelta'),
+      });
     let held = 0n,
       paid = 0n;
     for (const entry of entries) {
@@ -90,8 +110,16 @@ export function createContractLedgerService(
       heldCents: Number(held),
       paidCents: Number(paid),
       availableCents: Number(available < 0n ? 0n : available),
-      facts: row.facts,
     };
+  }
+  async function source(
+    id: string,
+    tx: DatabaseConnection,
+  ): Promise<ContractSource | null> {
+    const row = await tx
+      .repository<Row>('contracts')
+      .findOne({ filter: { id } });
+    return row ? { ...(await balance(row, tx)), facts: row.facts } : null;
   }
   async function lockSources(ids: readonly string[], tx: DatabaseConnection) {
     for (const id of [...new Set(ids)].sort()) {
@@ -336,6 +364,7 @@ export function createContractLedgerService(
     return old;
   }
   return {
+    summary,
     source,
     lockSources,
     async listForPayment(_actorId, policy, tx) {

@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import {
   approvalState,
   approve,
@@ -619,37 +620,37 @@ export function createAttendanceChangeService(d: AttendanceChangeDependencies) {
       'permission',
     );
   }
-  function fullRows(
-    rows: Partial<AttendanceChangeRecord>[],
-  ): AttendanceChangeRecord[] {
-    const fields = [
-      'id',
-      'applicantId',
-      'createdById',
-      'number',
-      'date',
-      'originalAttendanceId',
-      'originalVersion',
-      'correctionAt',
-      'proof',
-      'attachments',
-      'reason',
-      'ruleSnapshot',
-      'hrRecipients',
-      'managerApproverId',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+  // List reads deliberately exclude detail payloads before database sorting.
+  // Approval-center summary and search currently require the reason/purpose text.
+  const listFields = [
+    'reason',
+
+    'id',
+    'applicantId',
+    'createdById',
+    'number',
+    'date',
+    'originalAttendanceId',
+    'originalVersion',
+    'correctionAt',
+    'hrRecipients',
+    'managerApproverId',
+    'status',
+    'lifecycleVersion',
+    'createdAt',
+  ] as const;
+  type ListRecord = Pick<AttendanceChangeRecord, (typeof listFields)[number]>;
+  function listRows(rows: Partial<AttendanceChangeRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new AttendanceChangeError(
         'ATTENDANCE_CHANGE_FIELDS_RESTRICTED',
-        'This release requires all attendance correction business fields for reading.',
+        'This release requires all attendance correction list fields for reading.',
         'permission',
       );
-    return rows as AttendanceChangeRecord[];
+    return rows as ListRecord[];
   }
-  async function enrich(records: AttendanceChangeRecord[]) {
+  async function enrich(records: ListRecord[]) {
     const ids = [
       ...new Set(
         records
@@ -720,6 +721,7 @@ export function createAttendanceChangeService(d: AttendanceChangeDependencies) {
       const pending = await d.db
         .repository<AttendanceChangeRecord>('attendanceChangeRequests')
         .findMany({
+          select: (s) => s.fields('id', 'originalAttendanceId'),
           filter: (f) =>
             f.and([
               f.string('applicantId').eq(applicantId),
@@ -978,8 +980,14 @@ export function createAttendanceChangeService(d: AttendanceChangeDependencies) {
         const scoped = policy ? repository.withPolicy(policy) : repository;
         if (view === 'mine')
           return enrich(
-            fullRows(
+            listRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -991,12 +999,18 @@ export function createAttendanceChangeService(d: AttendanceChangeDependencies) {
           );
         // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
-        const records = fullRows(
+        const records = listRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: AttendanceChangeRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&

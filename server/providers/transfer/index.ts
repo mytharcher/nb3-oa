@@ -131,7 +131,7 @@ export default class TransferProvider extends ServiceProvider<Application> {
             const rows = await c
               .resolve(databaseManagerToken)
               .repository<TransferRecord>('transferRequests')
-              .findMany();
+              .findMany({ select: (s) => s.fields('id', 'snapshot') });
             const ids = rows
               .filter((row) => row.snapshot?.executiveId === principal.id)
               .map((row) => row.id);

@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import {
   type Approval,
   type PerformInput,
@@ -507,6 +508,36 @@ export function createAssetRequestService(d: AssetRequestDependencies) {
             .repository<AssetRequestRecord>('assetRequests')
             .withPolicy(policy)
             .findMany({
+              // Purpose remains searchable and supplies the approval-center summary.
+              select: (s) =>
+                s.fields(
+                  ...readableListFields(
+                    [
+                      'purpose',
+                      'id',
+                      'applicantId',
+                      'createdById',
+                      'employeeId',
+                      'departmentId',
+                      'headApproverId',
+                      'issuedById',
+                      'number',
+                      'operation',
+                      'category',
+                      'quantity',
+                      'borrowDueDate',
+                      'originalValueCents',
+                      'needsGm',
+                      'approvedFingerprint',
+                      'status',
+                      'statusChangedAt',
+                      'lifecycleVersion',
+                      'createdAt',
+                      'updatedAt',
+                    ],
+                    policy,
+                  ),
+                ),
               cursor: cursor ? { id: cursor } : undefined,
               direction: cursor ? 'forward' : undefined,
               limit: 100,

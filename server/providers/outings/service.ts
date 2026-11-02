@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import {
   approvalState,
   approve,
@@ -544,32 +545,36 @@ export function createOutingService(d: OutingDependencies) {
       'permission',
     );
   }
-  function fullRows(rows: Partial<OutingRecord>[]): OutingRecord[] {
-    const fields = [
-      'id',
-      'applicantId',
-      'createdById',
-      'number',
-      'startAt',
-      'endAt',
-      'location',
-      'reason',
-      'ruleSnapshot',
-      'hrRecipients',
-      'managerApproverId',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+  // List reads deliberately exclude detail payloads before database sorting.
+  // Approval-center summary and search currently require the reason/purpose text.
+  const listFields = [
+    'reason',
+
+    'id',
+    'applicantId',
+    'createdById',
+    'number',
+    'startAt',
+    'endAt',
+    'location',
+    'hrRecipients',
+    'managerApproverId',
+    'status',
+    'lifecycleVersion',
+    'createdAt',
+  ] as const;
+  type ListRecord = Pick<OutingRecord, (typeof listFields)[number]>;
+  function listRows(rows: Partial<OutingRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new OutingError(
         'OUTING_FIELDS_RESTRICTED',
-        'This release requires all outing business fields for reading.',
+        'This release requires all outing list fields for reading.',
         'permission',
       );
-    return rows as OutingRecord[];
+    return rows as ListRecord[];
   }
-  async function enrich(records: OutingRecord[]) {
+  async function enrich(records: ListRecord[]) {
     const ids = [
       ...new Set(
         records
@@ -877,8 +882,14 @@ export function createOutingService(d: OutingDependencies) {
         const scoped = policy ? repository.withPolicy(policy) : repository;
         if (view === 'mine')
           return enrich(
-            fullRows(
+            listRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -890,12 +901,18 @@ export function createOutingService(d: OutingDependencies) {
           );
         // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
-        const records = fullRows(
+        const records = listRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: OutingRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&

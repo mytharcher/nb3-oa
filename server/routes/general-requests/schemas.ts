@@ -76,7 +76,11 @@ export const Detail = z.strictObject({
   timeline: z.json(),
 });
 export const List = z.array(
-  GeneralRequestRecord.extend({
+  GeneralRequestRecord.omit({
+    body: true,
+    attachments: true,
+    ruleSnapshot: true,
+  }).extend({
     applicant: User.nullable(),
     createdBy: User.nullable(),
     managerApprover: User.nullable(),

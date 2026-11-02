@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import {
   allActivePeople,
   approvalState,
@@ -643,35 +644,34 @@ export function createTravelCancellationService(
       'permission',
     );
   }
-  function fullRows(
-    rows: Partial<TravelCancellationRecord>[],
-  ): TravelCancellationRecord[] {
-    const fields = [
-      'id',
-      'applicantId',
-      'createdById',
-      'number',
-      'sourceId',
-      'needsUnbooking',
-      'unbookingInformation',
-      'exceptionReason',
-      'reason',
-      'baseline',
-      'ruleSnapshot',
-      'managerApproverId',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+  // List reads deliberately exclude detail payloads before database sorting.
+  // Approval-center summary and search currently require the reason/purpose text.
+  const listFields = [
+    'reason',
+
+    'id',
+    'applicantId',
+    'createdById',
+    'number',
+    'sourceId',
+    'needsUnbooking',
+    'managerApproverId',
+    'status',
+    'lifecycleVersion',
+    'createdAt',
+  ] as const;
+  type ListRecord = Pick<TravelCancellationRecord, (typeof listFields)[number]>;
+  function listRows(rows: Partial<TravelCancellationRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new TravelCancellationError(
         'TRAVEL_CANCELLATION_FIELDS_RESTRICTED',
-        'This release requires all travelCancellation business fields for reading.',
+        'This release requires all travelCancellation list fields for reading.',
         'permission',
       );
-    return rows as TravelCancellationRecord[];
+    return rows as ListRecord[];
   }
-  async function enrich(records: TravelCancellationRecord[]) {
+  async function enrich(records: ListRecord[]) {
     const ids = [
       ...new Set(
         records
@@ -947,8 +947,14 @@ export function createTravelCancellationService(
         const scoped = policy ? repository.withPolicy(policy) : repository;
         if (view === 'mine')
           return enrich(
-            fullRows(
+            listRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -960,12 +966,18 @@ export function createTravelCancellationService(
           );
         // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
-        const records = fullRows(
+        const records = listRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: TravelCancellationRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&

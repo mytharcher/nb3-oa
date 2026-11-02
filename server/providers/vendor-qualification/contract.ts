@@ -57,7 +57,7 @@ export interface VendorQualificationService {
     view: 'all' | 'pending' | 'done' | 'copied',
     policy: import('@nocobase/db').RepositoryPolicy,
   ): Promise<
-    (VendorQualificationRecord & {
+    (QualificationListRecord & {
       applicant: { id: string; name: string } | null;
       createdBy: { id: string; name: string } | null;
     })[]
@@ -86,3 +86,31 @@ export interface VendorQualificationService {
 }
 export const vendorQualificationServiceToken =
   createServiceToken<VendorQualificationService>('oa/vendor-qualification');
+
+export const qualificationListFields = [
+  'id',
+  'applicantId',
+  'createdById',
+  'departmentId',
+  'number',
+  'status',
+  'lifecycleVersion',
+  'sourceVendorVersion',
+  'committeeVersion',
+  'createdAt',
+  'updatedAt',
+  'operation',
+  'vendorId',
+  'name',
+  'category',
+  'reason',
+  'quoteCents',
+  'contactName',
+  'contactPhone',
+  'contactEmail',
+  'qualificationExpiry',
+] as const;
+export type QualificationListRecord = Pick<
+  VendorQualificationRecord,
+  (typeof qualificationListFields)[number]
+>;

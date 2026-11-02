@@ -91,6 +91,11 @@ export const Record = z.object({
   lifecycleVersion: z.number().int(),
   createdAt: z.string(),
 });
+export const ListRecord = Record.omit({
+  evaluation: true,
+  ruleSnapshot: true,
+  headMerged: true,
+});
 export const Detail = z.object({
   users: z.array(User),
   record: Record,

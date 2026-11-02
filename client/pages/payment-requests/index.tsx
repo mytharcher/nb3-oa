@@ -45,7 +45,7 @@ import { ErrorState } from './states.js';
 import { moneyLabel } from './money.js';
 import {
   STATUSES,
-  type PaymentRecord,
+  type PaymentListRecord,
   type PaymentOptions,
   vendorName,
 } from './types.js';
@@ -80,7 +80,7 @@ export default function PaymentsPage() {
   const pageValue = Number(searchParams.get('page'));
   const page = Number.isSafeInteger(pageValue) && pageValue > 0 ? pageValue : 1;
   const zoneResource = useResource<PaymentOptions>('paymentRequests/options');
-  const resource = useResource<PaymentRecord[]>('paymentRequests', {
+  const resource = useResource<PaymentListRecord[]>('paymentRequests', {
     view,
   });
   const submit = useCan({
@@ -167,7 +167,7 @@ export default function PaymentsPage() {
       {t('paymentRequests.new')}
     </Button>
   ) : null;
-  const columns = useMemo<ColumnDef<PaymentRecord>[]>(
+  const columns = useMemo<ColumnDef<PaymentListRecord>[]>(
     () => [
       {
         accessorKey: 'number',
@@ -450,7 +450,7 @@ export default function PaymentsPage() {
 
 /** A query normalization may commit between pointer-down and click. Keep the
  * cell component identity stable so the targeted anchor survives that update. */
-function RecordNumberCell({ row }: CellContext<PaymentRecord, unknown>) {
+function RecordNumberCell({ row }: CellContext<PaymentListRecord, unknown>) {
   const { t } = useTranslation();
   const location = useLocation();
   return (

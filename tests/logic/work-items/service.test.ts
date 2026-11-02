@@ -435,3 +435,69 @@ test('rejects past and current draft deadlines with a dueAt field violation', as
   }
   expect((await f.save()).status).toBe('draft');
 });
+
+test('list projections keep content search and detail bodies without loading evidence into summaries', async ({
+  testApp,
+}) => {
+  const f = await fixture(testApp);
+  const item = await f.save({
+    ...f.input(),
+    description: 'Unique body-only search phrase',
+  });
+  const rows = await f.service.list(
+    f.creator.userId,
+    f.db.connection(),
+    ALL,
+    'body-only',
+  );
+  expect(rows.map((row) => row.id)).toContain(item.id);
+  const summary = rows.find((row) => row.id === item.id)!;
+  for (const key of [
+    'description',
+    'attachments',
+    'resultAttachments',
+    'result',
+    'reason',
+  ])
+    expect(summary).not.toHaveProperty(key);
+  const detail = await f.service.get(
+    item.id,
+    f.creator.userId,
+    f.db.connection(),
+    ALL,
+  );
+  expect(detail?.description).toBe('Unique body-only search phrase');
+  expect(detail?.attachments).toEqual([]);
+  await expect(
+    f.service.list(f.creator.userId, f.db.connection(), {
+      ...ALL,
+      read: false,
+    }),
+  ).rejects.toThrow('ACCESS_DENIED');
+  expect(
+    await f.service.list(
+      f.creator.userId,
+      f.db.connection(),
+      ALL,
+      'absent phrase',
+    ),
+  ).toEqual([]);
+  const assigned = await f.act(item.id, item.version, 'dispatch');
+  const centered = await f.service.listForCenter(
+    f.one.userId,
+    f.db.connection(),
+    {
+      view: ALL,
+      actions: { complete: ALL },
+    },
+  );
+  expect(centered.find((row) => row.id === assigned.id)?.createdAt).toBeNull();
+  await expect(
+    f.service.listForCenter(f.one.userId, f.db.connection(), {
+      view: { ...ALL, read: { scope: true } },
+      actions: { complete: ALL },
+    }),
+  ).rejects.toMatchObject({
+    code: expect.stringMatching(/ACCESS_DENIED|FIELD_READ_FORBIDDEN/),
+  });
+});

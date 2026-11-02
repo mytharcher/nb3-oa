@@ -1,3 +1,5 @@
+import { readableListFields } from '../list-fields.js';
+import { orderListFields } from './contract.js';
 import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
@@ -106,25 +108,20 @@ export function createPurchaseOrderService(d: {
     },
     get,
     async list(query, policy, tx = d.db.connection()) {
+      const selected = readableListFields(orderListFields, policy);
       const rows = (
         await tx
           .repository<PurchaseOrder>('purchaseOrders')
           .withPolicy(policy)
           .findMany({
+            select: (s) => s.fields(...selected),
             sort: (s) =>
               query.direction === 'asc'
                 ? [s.field(query.sort).asc(), s.field('id').asc()]
                 : [s.field(query.sort).desc(), s.field('id').desc()],
           })
       ).map((r) => {
-        if (
-          !r.id ||
-          r.actualCents === undefined ||
-          !r.vendor ||
-          !r.items ||
-          !r.account ||
-          !r.applicantId
-        )
+        if (!r.id || r.actualCents === undefined || !r.vendor || !r.applicantId)
           fail(
             'FIELDS_RESTRICTED',
             'The grant must expose the complete order.',

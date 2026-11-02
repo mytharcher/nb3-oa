@@ -26,6 +26,22 @@ export interface Announcement {
   publishedAt: Date | null;
   version: number;
 }
+export type AnnouncementListItem = Omit<
+  Announcement,
+  'body' | 'audience' | 'attachments' | 'knowledgeLink'
+>;
+export const ANNOUNCEMENT_LIST_FIELDS = [
+  'id',
+  'publisherUserId',
+  'title',
+  'status',
+  'requiresConfirmation',
+  'pinned',
+  'validFrom',
+  'validUntil',
+  'publishedAt',
+  'version',
+] as const;
 export interface Receipt {
   id: string;
   announcementId: string;
@@ -131,6 +147,12 @@ export interface AnnouncementService {
     tx: DatabaseConnection,
     policy?: RepositoryPolicy,
   ): Promise<Receipt>;
+  list(
+    actorId: string,
+    tx: DatabaseConnection,
+    policy: RepositoryPolicy,
+    search?: string,
+  ): Promise<AnnouncementListItem[]>;
   get(
     id: string,
     actorId: string,

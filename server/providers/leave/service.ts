@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import applicationLocales from '../../locales/index.js';
 import {
   approvalState,
@@ -58,7 +59,6 @@ import {
   type ReturnRateQuery,
 } from './approval-return-rate.js';
 import { LeaveError } from './errors.js';
-import { LEAVE_DETAIL_FIELDS } from './fields.js';
 
 import type { UserAdministrationService } from '@nocobase/app-plugin-authentication';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -904,17 +904,42 @@ export function createLeaveService(d: LeaveDependencies) {
       'permission',
     );
   }
-  function fullRows(rows: Partial<LeaveRecord>[]): LeaveRecord[] {
-    const fields = LEAVE_DETAIL_FIELDS;
+  // List reads deliberately exclude detail payloads before database sorting.
+  // Approval-center summary and search currently require the reason/purpose text.
+  const listFields = [
+    'reason',
+
+    'id',
+    'applicantId',
+    'createdById',
+    'number',
+    'leaveType',
+    'startDate',
+    'endDate',
+    'startHalf',
+    'endHalf',
+    'days',
+    'handoverUserId',
+    'enableDelegation',
+    'hrRecipients',
+    'requiresHr',
+    'managerApproverId',
+    'status',
+    'lifecycleVersion',
+    'createdAt',
+  ] as const;
+  type ListRecord = Pick<LeaveRecord, (typeof listFields)[number]>;
+  function listRows(rows: Partial<LeaveRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new LeaveError(
         'LEAVE_FIELDS_RESTRICTED',
-        'This release requires all leave business fields for reading.',
+        'This release requires all leave list fields for reading.',
         'permission',
       );
-    return rows as LeaveRecord[];
+    return rows as ListRecord[];
   }
-  async function enrich(records: LeaveRecord[]) {
+  async function enrich(records: ListRecord[]) {
     const ids = [
       ...new Set(
         records
@@ -1374,8 +1399,14 @@ export function createLeaveService(d: LeaveDependencies) {
         const scoped = policy ? repository.withPolicy(policy) : repository;
         if (view === 'mine')
           return enrich(
-            fullRows(
+            listRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -1387,12 +1418,18 @@ export function createLeaveService(d: LeaveDependencies) {
           );
         // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
-        const records = fullRows(
+        const records = listRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: LeaveRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&

@@ -922,7 +922,7 @@ export function createOrganizationService(
         async () => {
           const rows = await root(connection)
             .query.selectFrom('positions')
-            .selectAll()
+            .select(['id', 'code', 'title', 'active', 'sortOrder'])
             .execute();
           return rows
             .map(toPosition)
@@ -939,7 +939,7 @@ export function createOrganizationService(
     async listGrades(connection) {
       const rows = await root(connection)
         .query.selectFrom('grades')
-        .selectAll()
+        .select(['id', 'code', 'title', 'rank', 'active'])
         .execute();
       return rows
         .map(toGrade)
@@ -1656,7 +1656,7 @@ export function createOrganizationService(
     async listDutyRoles(connection) {
       const rows = await root(connection)
         .query.selectFrom('dutyRoles')
-        .selectAll()
+        .select(['code', 'title', 'description', 'active', 'sortOrder'])
         .execute();
       return rows.map(toDutyRole).sort(compareDutyRoles);
     },
