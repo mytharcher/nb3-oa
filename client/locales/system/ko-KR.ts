@@ -7,6 +7,12 @@ import inboxEnUS from '#extensions/nocobase-inbox/locales/ko-KR';
  * upgrade replaces this file, so put the application's own copy in `../en-US.ts` rather than here.
  */
 const systemEnUS = {
+  'auth.preparingSession': 'Preparing your session…',
+  'auth.connectionFailed': 'Unable to connect',
+  'auth.connectionFailedDescription':
+    'The realtime connection could not be prepared. Retry to enter the application, or sign out.',
+  'auth.retry': 'Retry',
+
   // The UI Library block of the `/device` page; the keys below may reword it.
   ...deviceApprovalEnUS,
   // The UI Library block of the `/inbox` page; the keys below may reword it.
@@ -86,6 +92,8 @@ const systemEnUS = {
   'status.routeFailedDescription':
     '페이지를 불러오지 못했습니다. 다시 시도하세요.',
   shell: {
+    brandPartnership: 'AI + <brand>NocoBase</brand>',
+    buildReliableSystems: '신뢰할 수 있는 업무 시스템 구축',
     buildFreely: 'AI가 자유롭게 만듭니다.',
     reliability: '<brand>NocoBase</brand>가 신뢰성을 지킵니다.',
   },
@@ -337,6 +345,15 @@ const systemEnUS = {
   datePicker: {
     placeholder: '날짜 선택',
     rangePlaceholder: '날짜 범위 선택',
+  },
+  formFeedback: {
+    field: 'This value was rejected. Check it and try again.',
+    invalid: 'Check the highlighted fields and try again.',
+    failed: 'Unable to save. Your input has been kept. Try again.',
+    network:
+      'Unable to connect. Check your connection and try again. Your input has been kept.',
+    denied:
+      'You cannot submit this form with your current access. Your input has been kept.',
   },
 };
 

@@ -1,3 +1,5 @@
+import { ApprovalAiReviewPanel } from '#components/approval-ai/index';
+import { ApprovalDetailSection } from '#components/approval-detail-section';
 import { statusTone } from './status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -289,21 +291,20 @@ export default function AssetRequestDetail() {
                 }).format(new Date(v))
               }
             >
-              <section className='flex flex-col gap-4'>
-                <h2 className='text-base font-medium'>
-                  {t('approvals.progress')}
-                </h2>
+              <ApprovalAiReviewPanel
+                lifecycle='oa.assetRequest'
+                recordId={requestId!}
+                refreshKey={d}
+              />
+              <ApprovalDetailSection title={t('approvals.progress')}>
                 <ApprovalProgress
                   steps={progressOf(d, text, i18n.language)}
                   copies={copiesOf(d)}
                 />
-              </section>
-              <section className='flex flex-col gap-4'>
-                <h2 className='text-base font-medium'>
-                  {t('approvals.timeline')}
-                </h2>
+              </ApprovalDetailSection>
+              <ApprovalDetailSection title={t('approvals.timeline')}>
                 <ApprovalTimeline lines={timelineOf(d, text)} />
-              </section>
+              </ApprovalDetailSection>
             </ApprovalUiProvider>
             <Outlet
               context={{

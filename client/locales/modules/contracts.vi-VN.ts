@@ -77,6 +77,12 @@ export default {
     saved: 'Đã lưu "{{name}}"',
     submitted: 'Đã gửi "{{name}}"',
     completed: 'Đã hoàn tất thao tác cho "{{name}}"',
+    actionCompleted: '{{action}} thành công',
+    commentSaved: 'Đã gửi bình luận',
+    commentSavedDescription:
+      'Bình luận của bạn đã được lưu vào lịch sử phê duyệt.',
+    actionRefreshFailed:
+      'Thao tác đã được lưu. Hãy tải lại chi tiết để xem lịch sử phê duyệt mới nhất.',
     draftName: 'Bản nháp hợp đồng',
     confirmation: '{{action}} hợp đồng "{{name}}"?',
     dangerConsequence:

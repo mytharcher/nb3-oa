@@ -247,11 +247,12 @@ body:has(
 }
 /* Normalize text actions to the primitive's default size across pages and
    portaled dialogs/drawers. Explicit square icon controls, calendar cells and
-   navigation cards and inbox content retain their dedicated geometry. Keep this policy outside
+   navigation cards, inbox content and conversation items retain their dedicated geometry. Keep this policy outside
    generated shadcn primitives so CLI updates cannot undo it. */
 .group\/button:not([class*=' size-']):not([class^='size-']):not(
     [data-slot='request-action-card'],
     [data-slot='inbox-item-content'],
+    [data-slot='approval-conversation-item'],
     [data-slot='calendar'] *
   ) {
   height: calc(var(--spacing) * 8);
@@ -282,6 +283,7 @@ body:has(
   .group\/button:not([class*=' size-']):not([class^='size-']):not(
       [data-slot='request-action-card'],
       [data-slot='inbox-item-content'],
+      [data-slot='approval-conversation-item'],
       [data-slot='calendar'] *
     ) {
     min-height: 2.75rem;

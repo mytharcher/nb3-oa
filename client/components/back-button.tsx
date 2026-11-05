@@ -3,14 +3,15 @@ import { DrawerFormContext } from './drawer-form-context.js';
 import { useTranslation } from '@nocobase/i18n/client';
 import { ArrowLeftIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
-import { Link, type To, useLocation } from 'react-router';
+import { Link, type To, useResolvedPath } from 'react-router';
+import { useRouteSearches } from '../routing/route-context.js';
 
 import { cn } from 'cn';
 
 export interface BackButtonProps {
   /**
-   * Where it leads. Defaults to the parent route with the current query string, as closing a route overlay does, so
-   * the list a child page covers keeps its search and filters.
+   * Where it leads. Defaults to the parent route with its last visited query, so a child's parameters
+   * do not replace the list's search and filters.
    */
   readonly to?: To;
   /** The label, "Back" by default. */
@@ -33,7 +34,8 @@ export function BackButton({
   to,
 }: BackButtonProps = {}): ReactElement | null {
   const { t } = useTranslation();
-  const location = useLocation();
+  const parent = useResolvedPath('..');
+  const searches = useRouteSearches();
   const drawerForm = useContext(DrawerFormContext);
   if (drawerForm) return null;
 
@@ -44,7 +46,13 @@ export function BackButton({
         'inline-flex w-fit items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground',
         className,
       )}
-      to={to ?? { pathname: '..', search: location.search }}
+      to={
+        to ?? {
+          pathname: '..',
+          search:
+            searches.get(parent.pathname.replace(/\/+$/u, '') || '/') ?? '',
+        }
+      }
     >
       <ArrowLeftIcon className='size-4' />
       {children ?? t('navigation.back', { defaultValue: 'Back' })}

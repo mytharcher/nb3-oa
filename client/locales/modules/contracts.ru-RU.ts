@@ -78,6 +78,11 @@ export default {
     saved: '«{{name}}» сохранён',
     submitted: '«{{name}}» подано',
     completed: 'Действие для «{{name}}» выполнено',
+    actionCompleted: '{{action}}: успешно',
+    commentSaved: 'Комментарий отправлен',
+    commentSavedDescription: 'Ваш комментарий сохранён в истории согласования.',
+    actionRefreshFailed:
+      'Действие сохранено. Обновите сведения, чтобы увидеть актуальную историю согласования.',
     draftName: 'Черновик договора',
     confirmation: '{{action}} договор «{{name}}»?',
     dangerConsequence:

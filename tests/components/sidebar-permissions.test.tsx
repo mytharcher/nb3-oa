@@ -9,6 +9,7 @@ import {
 } from '../../client/routing/route-navigation';
 import { NavigationMenu } from '../../client/layouts/components/navigation-menu';
 import { AppSidebarProvider } from '../../client/layouts/components/app-sidebar';
+import { TestSidebarPreferenceProvider } from '../fixtures/sidebar-preference-provider.js';
 
 const auth = vi.hoisted(() => ({ revision: 0, client: { can: vi.fn() } }));
 vi.mock('@nocobase/app-plugin-authorization/client', () => ({
@@ -63,16 +64,18 @@ describe.each(['expanded', 'collapsed', 'mobile'])(
     it('hides pending and denied entries, removes empty groups, and refreshes open menus', async () => {
       if (mode === 'mobile') vi.stubGlobal('innerWidth', 390);
       if (mode === 'collapsed')
-        localStorage.setItem('nocobase:sidebar:collapsed', 'true');
+        localStorage.setItem('nocobase:sidebar:collapsed:app:/main', 'true');
       const resolve: ((allowed: boolean) => void)[] = [];
       auth.client.can.mockImplementation(
         () => new Promise<boolean>((done) => resolve.push(done)),
       );
       const tree = () => (
         <MemoryRouter>
-          <AppSidebarProvider>
-            <Menu />
-          </AppSidebarProvider>
+          <TestSidebarPreferenceProvider>
+            <AppSidebarProvider>
+              <Menu />
+            </AppSidebarProvider>
+          </TestSidebarPreferenceProvider>
         </MemoryRouter>
       );
       const { rerender } = render(tree());

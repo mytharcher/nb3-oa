@@ -52,7 +52,7 @@ const app: AppConfigFactory<OaAppConfig> = defineAppConfig({
   },
   defaults: (runtime) => {
     const { routing } = runtime;
-    const publicBasePath = normalizeBasePath(routing.publicBasePath || '/main');
+    const publicBasePath = normalizeBasePath(routing.publicBasePath);
     return {
       name: routing.name || resolveAppNameFromBasePath(publicBasePath, 'main'),
       publicBasePath,

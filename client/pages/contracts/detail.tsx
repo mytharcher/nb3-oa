@@ -1,8 +1,9 @@
+import { ApprovalAiReviewPanel } from '#components/approval-ai/index';
 import { ElectronicSignatureSection } from '#components/electronic-signature-section';
 import { statusTone } from './status-tone.js';
 import { PrintEntry } from '../template-print/entry.js';
 import { useMissing } from './use-missing.js';
-import { useMemo, useReducer } from 'react';
+import { useCallback, useMemo, useReducer, useRef } from 'react';
 import {
   Link,
   Outlet,
@@ -26,6 +27,15 @@ import { SecureFiles } from './files.js';
 import { ContractHistory } from './approval-mapping.js';
 import type { ContractDetail, SourceContext } from './types.js';
 export default function RequestDetail() {
+  const historyRef = useRef<HTMLElement>(null);
+  const focusHistory = useCallback(() => {
+    const latest = historyRef.current?.querySelector('ol')?.lastElementChild;
+    const target = latest instanceof HTMLElement ? latest : historyRef.current;
+    if (!target) return true;
+    target.tabIndex = -1;
+    target.scrollIntoView({ block: 'start' });
+    return target;
+  }, []);
   const { requestId = '' } = useParams(),
     { session } = useAuthentication(),
     { t, i18n } = useTranslation(),
@@ -222,7 +232,10 @@ export default function RequestDetail() {
                     <dt className='text-muted-foreground'>
                       {t(`contracts.${key}`)}
                     </dt>
-                    <dd className='min-w-0 whitespace-pre-wrap break-words'>
+                    <dd
+                      id={'contract-field-' + key}
+                      className='min-w-0 scroll-mt-4 whitespace-pre-wrap break-words'
+                    >
                       {key === 'operation'
                         ? t(`contracts.operations.${data.record.operation}`)
                         : key === 'counterparty'
@@ -251,13 +264,19 @@ export default function RequestDetail() {
                 ))}
               </dl>
             </section>
-            <section className='flex flex-col gap-4'>
+            <section
+              id='contract-text-evidence'
+              className='flex scroll-mt-4 flex-col gap-4'
+            >
               <h2 className='text-base font-medium'>
                 {t('contracts.textVersionId')}
               </h2>
               <SecureFiles requestId={requestId} text refreshKey={refreshKey} />
             </section>
-            <section className='flex flex-col gap-4'>
+            <section
+              id='contract-attachment-evidence'
+              className='flex scroll-mt-4 flex-col gap-4'
+            >
               <h2 className='text-base font-medium'>
                 {t('contracts.attachments')}
               </h2>
@@ -272,13 +291,35 @@ export default function RequestDetail() {
               id={requestId}
               onComplete={context?.reload}
             />
-            <ContractHistory detail={data} />
+            <ApprovalAiReviewPanel
+              lifecycle='oa.contract'
+              recordId={requestId}
+              refreshKey={data}
+              evidenceLabel={(e) =>
+                e.kind === 'field' ? t('contracts.' + e.ref) : undefined
+              }
+              evidenceHref={(e) =>
+                e.kind === 'field'
+                  ? e.ref === 'textVersionId'
+                    ? '#contract-text-evidence'
+                    : e.ref === 'attachments'
+                      ? '#contract-attachment-evidence'
+                      : '#contract-field-' + encodeURIComponent(e.ref)
+                  : e.kind === 'text'
+                    ? '#contract-text-evidence'
+                    : e.kind === 'attachment'
+                      ? '#contract-attachment-evidence'
+                      : undefined
+              }
+            />
+            <ContractHistory detail={data} timelineRef={historyRef} />
           </>
         )}
         {context && (
           <Outlet
             context={{
               ...context,
+              focusHistory,
               printSource: 'contracts',
               printRecordId: data?.record.id,
               printRecordName: name,

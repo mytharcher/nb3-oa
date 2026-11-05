@@ -78,6 +78,11 @@ export default {
     saved: '「{{name}}」を保存しました',
     submitted: '「{{name}}」を提出しました',
     completed: '「{{name}}」の操作が完了しました',
+    actionCompleted: '{{action}}が完了しました',
+    commentSaved: 'コメントを送信しました',
+    commentSavedDescription: 'コメントは承認履歴に保存されました。',
+    actionRefreshFailed:
+      '操作は保存されました。詳細を更新して最新の承認履歴を確認してください。',
     draftName: '契約の下書き',
     confirmation: '契約「{{name}}」を{{action}}しますか？',
     dangerConsequence: '現在の申請審査を終了し、保留中の作業を閉じます。',

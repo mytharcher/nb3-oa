@@ -1,3 +1,4 @@
+import { TestSidebarPreferenceProvider } from '../fixtures/sidebar-preference-provider.js';
 import {
   ClientApplicationContext,
   type ClientApplication,
@@ -64,7 +65,9 @@ async function setup(children: ReactNode) {
   render(
     <I18nProvider runtime={runtime}>
       <ClientApplicationContext.Provider value={app}>
-        <MemoryRouter initialEntries={['/']}>{children}</MemoryRouter>
+        <TestSidebarPreferenceProvider>
+          <MemoryRouter initialEntries={['/']}>{children}</MemoryRouter>
+        </TestSidebarPreferenceProvider>
       </ClientApplicationContext.Provider>
     </I18nProvider>,
   );
@@ -78,13 +81,14 @@ describe('shell translations', () => {
     expect(
       screen.getByRole('navigation', { name: 'Breadcrumb' }),
     ).toHaveTextContent('Overview');
-    expect(screen.getByText('AI builds freely.')).toBeVisible();
-    await act(() => runtime.changeLanguage('zh-CN'));
-    expect(screen.getByRole('navigation', { name: '面包屑' })).toBeVisible();
-    expect(screen.getByText('AI 自由构建。')).toBeVisible();
     expect(
       screen.getByRole('link', { name: 'NocoBase' }).parentElement,
-    ).toHaveTextContent('NocoBase 保障可靠。');
+    ).toHaveTextContent('AI + NocoBase');
+    await act(() => runtime.changeLanguage('zh-CN'));
+    expect(screen.getByRole('navigation', { name: '面包屑' })).toBeVisible();
+    expect(
+      screen.getByRole('link', { name: 'NocoBase' }).parentElement,
+    ).toHaveTextContent('AI + NocoBase');
     expect(
       screen.getByRole('button', { name: '展开或收起导航' }),
     ).toHaveAttribute('title', '展开或收起导航');
