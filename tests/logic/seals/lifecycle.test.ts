@@ -1045,7 +1045,7 @@ test('real SDK approval, keeper claim and actual use register an immutable recei
       requestKey: 'seal-departure-reassignment',
     };
   const beforeReassign = (
-    await service.approvals.tasksOf(keeper.userId)
+    await service.approvals.tasksFor('oa.sealRequest', terminated.request.id)
   ).filter(
     (t) => t.recordId === terminated.request.id && OPEN.includes(t.status),
   );

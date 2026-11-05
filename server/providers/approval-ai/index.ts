@@ -1,55 +1,52 @@
-import { auditServiceToken } from '../audit/index.js';
-import { registerApprovalAssistant } from './agent.js';
 import { ServiceProvider } from '@nocobase/service-provider';
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken } from '@nocobase/db';
-import {
-  authorizationToken,
-  defineDatabasePermission,
-} from '@nocobase/app-plugin-authorization/server';
 import { defineCompositeResource } from '@nocobase/authorization/core';
-import { agentsToken } from '@nocobase/app-plugin-agents/server/tokens';
-import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
+import {
+  defineDatabasePermission,
+  authorizationToken,
+} from '@nocobase/app-plugin-authorization/server';
+import { realtimeServiceToken } from '@nocobase/app-server/realtime';
 import { loggingToken } from '@nocobase/app-server/logging';
-import { Job, type JobExecutor, type ScheduleExecutor } from '@nocobase/jobs';
-import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
+import {
+  approvalSuggestionsToken,
+  approvalSuggestionMaterialsToken,
+  subscribeApprovalSuggestionChanges,
+} from '@nocobase/app-plugin-approval/server/assistant';
+import { processOwners } from '../process-management/owners.js';
 import { knowledgeServiceToken } from '../knowledge/contract.js';
-import { approvalAiRegistryToken } from './contract.js';
+import { createOaSuggestionMaterials } from './materials.js';
 import { approvalAiServiceToken, createApprovalAiService } from './service.js';
+
+/** Business authorization/material adapters only. Approval owns its Queue consumer and recovery. */
 export default class ApprovalAiProvider extends ServiceProvider<Application> {
   readonly name = 'oa/approval-ai';
-  private jobs?: JobExecutor;
-  private schedule?: ScheduleExecutor;
+  private stop?: () => void;
   override register() {
     const c = this.app.container;
     c.singleton(approvalAiServiceToken, () =>
       createApprovalAiService({
         db: c.resolve(databaseManagerToken),
-        audit: c.resolve(auditServiceToken),
         authz: c.resolve(authorizationToken),
-        directory: c.resolve(approvalDirectoryServiceToken),
-        knowledge: c.resolve(knowledgeServiceToken),
-        gateway: c.resolve(agentsToken).models.gateway,
-        dispatch: async (id) => {
-          if (!this.jobs || !this.job) throw new Error('AI jobs not ready');
-          await this.jobs.addJob(new this.job({ id }));
-        },
-        debug: (details, message) =>
-          c
-            .resolve(loggingToken)
-            .getLogger('approval-ai')
-            .debug(details, message),
-        warn: (message) =>
-          c.resolve(loggingToken).getLogger('approval-ai').warn(message),
+        owners: processOwners,
+        sdk: (owner) => owner.sdk(this.app),
+        suggestions: c.resolve(approvalSuggestionsToken),
       }),
     );
-    c.singleton(approvalAiRegistryToken, () =>
-      c.resolve(approvalAiServiceToken),
+    c.singleton(approvalSuggestionMaterialsToken, () =>
+      createOaSuggestionMaterials({
+        db: c.resolve(databaseManagerToken),
+        authz: c.resolve(authorizationToken),
+        knowledge: c.resolve(knowledgeServiceToken),
+        owners: processOwners,
+      }),
     );
   }
-  private job?: ReturnType<typeof createReviewJob>;
   override async boot() {
-    const authz = this.app.container.resolve(authorizationToken);
+    const c = this.app.container;
+    // Preserve the immutable permission seeds and the existing read-only settings navigation.
+    // There is no legacy settings mutation endpoint or worker behind this grant.
+    const authz = c.resolve(authorizationToken);
     authz.database.collections.add({
       name: 'oaApprovalAiSettings',
       title: { key: 'approvalAi.configure', ns: 'nb3-oa' },
@@ -72,39 +69,41 @@ export default class ApprovalAiProvider extends ServiceProvider<Application> {
       { type: 'composite', id: 'oa.approvalAi' },
       { section: 'oa.approvals' },
     );
-    registerApprovalAssistant(this.app);
-  }
-  override async start() {
-    const c = this.app.container,
-      service = c.resolve(approvalAiServiceToken),
-      executors = c.resolve(jobExecutorServiceToken);
-    await service.initialize();
-    this.jobs = executors.getJobExecutor('oa-approval-ai');
-    this.job = createReviewJob(service);
-    this.jobs.registerJob(this.job);
-    await this.jobs.setup();
-    this.schedule = executors.getScheduleExecutor('oa-approval-ai');
-    await this.schedule.addJob({
-      name: 'approval-ai-sweep',
-      options: { every: 120_000 },
-      payload: {},
-      execute: async () => {
-        await service.sweep();
+    const service = c.resolve(approvalAiServiceToken);
+    const topic = c
+      .resolve(realtimeServiceToken)
+      .defineTopicFamily<{ taskId: string }, Record<string, never>>(
+        'oa:approval-suggestions:{taskId}',
+        {
+          audience: 'public',
+          authenticated: true,
+          delivery: 'latest',
+          authorize: async ({ params, principal }) =>
+            !!principal &&
+            service.canSubscribe(params.taskId, principal.userId),
+        },
+      );
+    const unsubscribe = subscribeApprovalSuggestionChanges(
+      c.resolve(databaseManagerToken),
+      async ({ taskId }) => {
+        try {
+          await topic.publish({ taskId }, {});
+        } catch {
+          c.resolve(loggingToken)
+            .getLogger('approval-ai')
+            .warn(
+              {},
+              'Suggestion invalidation delivery failed; clients reconcile on reconnect.',
+            );
+        }
       },
-    });
-    await this.schedule.setup();
-    await service.sweep();
+    );
+    this.stop = () => {
+      unsubscribe();
+      topic.close();
+    };
   }
   override async shutdown() {
-    await this.schedule?.shutdown();
-    await this.jobs?.shutdown();
+    this.stop?.();
   }
-}
-function createReviewJob(service: { process(id: string): Promise<void> }) {
-  return class ReviewJob extends Job<{ id: string }> {
-    static readonly jobName = 'oa.approval-ai.review';
-    async execute() {
-      await service.process(this.payload.id);
-    }
-  };
 }

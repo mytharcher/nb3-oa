@@ -51,7 +51,7 @@ export interface LoanRequestService {
   /** Public maintenance facade for departure task reassignment; mutation stays in this module's lifecycle. */
   readonly approvals: Pick<
     ApprovalService,
-    'tasksOf' | 'runsFor' | 'actionsOf'
+    'tasksFor' | 'runsFor' | 'actionsOf'
   >;
   action(
     recordId: string,

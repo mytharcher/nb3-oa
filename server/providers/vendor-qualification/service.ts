@@ -534,9 +534,9 @@ export function createVendorQualificationService(d: QualificationDependencies) {
   return {
     initialize: sdk,
     approvals: {
-      async tasksOf(...input: Parameters<ApprovalService['tasksOf']>) {
+      async tasksFor(...input: Parameters<ApprovalService['tasksFor']>) {
         const kit = await sdk();
-        return kit.read(() => kit.approvals.tasksOf(...input));
+        return kit.read(() => kit.approvals.tasksFor(...input));
       },
       async runsFor(...input: Parameters<ApprovalService['runsFor']>) {
         const kit = await sdk();
@@ -1231,12 +1231,6 @@ export function createVendorQualificationService(d: QualificationDependencies) {
         );
         return { version: input.bankVersion + 1 };
       });
-    },
-    async maintenanceReassign(
-      input: Parameters<ApprovalService['reassign']>[0],
-    ) {
-      const kit = await sdk();
-      return kit.read(() => kit.approvals.reassign(input));
     },
     async sweep() {
       const kit = await sdk(),

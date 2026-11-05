@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { userTaskServiceToken } from '@nocobase/app-plugin-task-center/server';
 import { randomUUID } from 'node:crypto';
 import { expect, vi } from 'vitest';
 import { authorizationToken } from '@nocobase/app-plugin-authorization/server';
@@ -91,7 +92,7 @@ test('exhausts pending candidates before business-time paging, preserves delegat
         }),
       ),
   );
-  const queryRead = vi.spyOn(leave.approvals, 'tasksOf');
+  const queryRead = vi.spyOn(container.resolve(userTaskServiceToken), 'list');
   const loanRead = vi.spyOn(container.resolve(loanRequestServiceToken), 'list');
   const client = await testApp.database.connection().client();
   let headcountWrites = 0;

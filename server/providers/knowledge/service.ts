@@ -59,6 +59,11 @@ export function createKnowledgeService(d: {
   employees: EmployeeService;
   files: ServerFileRepositoryManager;
   drive: NocoBaseDriveManager;
+  /** Current protected root assignment; never inferred from a name or duty role. */
+  isUnrestricted?: (
+    actorId: string,
+    tx: DatabaseConnection,
+  ) => Promise<boolean>;
   notices?: {
     enqueue(
       documentId: string,
@@ -178,6 +183,7 @@ export function createKnowledgeService(d: {
   }
   const service: KnowledgeService = {
     async visible(actorId, row, tx) {
+      if (await d.isUnrestricted?.(actorId, tx)) return true;
       const employee = await d.employees.getByUserId(actorId, tx);
       if (!row.active || !employee?.active || employee.status === 'left')
         return false;

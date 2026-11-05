@@ -4,6 +4,12 @@ import inboxZhTW from '#extensions/nocobase-inbox/locales/zh-TW';
 
 /** The Chinese copy of what the template ships; see `./en-US.ts`. */
 const systemZhTW: SystemResource = {
+  'auth.preparingSession': 'Preparing your session…',
+  'auth.connectionFailed': 'Unable to connect',
+  'auth.connectionFailedDescription':
+    'The realtime connection could not be prepared. Retry to enter the application, or sign out.',
+  'auth.retry': 'Retry',
+
   // The UI Library block of the `/device` page; the keys below may reword it.
   ...deviceApprovalZhTW,
   // The UI Library block of the `/inbox` page; the keys below may reword it.
@@ -78,6 +84,8 @@ const systemZhTW: SystemResource = {
     '你沒有訪問此頁面的權限，可返回工作台繼續處理其他事項。',
   'status.routeFailedDescription': '頁面暫時無法載入，請重試。',
   shell: {
+    brandPartnership: 'AI + <brand>NocoBase</brand>',
+    buildReliableSystems: '建立可靠的業務系統',
     buildFreely: 'AI 自由構建。',
     reliability: '<brand>NocoBase</brand> 保障可靠。',
   },
@@ -319,6 +327,15 @@ const systemZhTW: SystemResource = {
   datePicker: {
     placeholder: '選擇日期',
     rangePlaceholder: '選擇日期範圍',
+  },
+  formFeedback: {
+    field: 'This value was rejected. Check it and try again.',
+    invalid: 'Check the highlighted fields and try again.',
+    failed: 'Unable to save. Your input has been kept. Try again.',
+    network:
+      'Unable to connect. Check your connection and try again. Your input has been kept.',
+    denied:
+      'You cannot submit this form with your current access. Your input has been kept.',
   },
 };
 

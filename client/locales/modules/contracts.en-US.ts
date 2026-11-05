@@ -77,6 +77,11 @@ export default {
     saved: 'Saved "{{name}}"',
     submitted: 'Submitted "{{name}}"',
     completed: 'Action completed for "{{name}}"',
+    actionCompleted: '{{action}} succeeded',
+    commentSaved: 'Comment submitted',
+    commentSavedDescription: 'Your comment is saved in the approval history.',
+    actionRefreshFailed:
+      'Your action was saved. Refresh the details to see the latest approval history.',
     draftName: 'Contract draft',
     confirmation: '{{action}} contract "{{name}}"?',
     dangerConsequence:

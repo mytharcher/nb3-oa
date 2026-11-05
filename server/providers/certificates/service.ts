@@ -1063,8 +1063,10 @@ export function createCertificateApplication(d: CertificateDependencies) {
           engine.read(
             async () => ({
               record: await read(id, policy, tx),
-              tasks: (await engine.approvals.tasksOf(actorId)).filter(
-                (t) => t.recordId === id,
+              tasks: (
+                await engine.approvals.tasksFor(CERTIFICATE_KIND, id)
+              ).filter(
+                (t) => t.assigneeId === actorId && OPEN.includes(t.status),
               ),
               runs: await engine.approvals.runsFor(CERTIFICATE_KIND, id),
               actions: await engine.approvals.actionsOf(CERTIFICATE_KIND, id),

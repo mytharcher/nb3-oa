@@ -1,3 +1,6 @@
+import fileUi from '../extensions/nocobase-file-component-ui/locales/fr-FR.js';
+import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/fr-FR.js';
+import agentChatLocale from '../extensions/nocobase-agent-chat/locales/en-US.js';
 // Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
 import approvalAiLocale from './modules/approval-ai.en-US.js';
 import type { AppResource } from './en-US.js';
@@ -83,7 +86,11 @@ import approvalsEnUS from './modules/approvals.fr-FR.js';
 import system from './system/fr-FR.js';
 
 const frFR: AppResource = {
-  ...approvalAiLocale,
+  ...agentChatLocale,
+  approvalAi: {
+    ...approvalAiLocale.approvalAi,
+    ...approvalReviewLocale.approvalAi,
+  },
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,
@@ -121,6 +128,7 @@ const frFR: AppResource = {
   ...vendorQualificationLocale,
   assets: assetLocale,
   ...system,
+  ...fileUi,
   'shell.buildFreely': 'Votre espace de travail connecté.',
   'shell.reliability': 'Équipes, travail et approbations réunis.',
   // Application-owned OA copy overrides the template authentication branding.

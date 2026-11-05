@@ -52,19 +52,8 @@ function directory() {
 function owner(lifecycle: string, tasks: TaskRow[]) {
   const receipts: ActionRow[] = [];
   const approvals = {
-    tasksOf: vi.fn(
-      async (
-        _person: string,
-        _status: unknown,
-        page: { limit: number; offset: number },
-      ) =>
-        tasks
-          .filter(
-            (t) =>
-              t.assigneeId === 'leaver' &&
-              !['transferred', 'voided', 'completed'].includes(t.status),
-          )
-          .slice(page.offset, page.offset + page.limit),
+    tasksFor: vi.fn(async (_lifecycle: string, recordId: string) =>
+      tasks.filter((task) => task.recordId === recordId),
     ),
     runsFor: vi.fn(async (_life: string, recordId: string) =>
       tasks
@@ -105,7 +94,15 @@ function owner(lifecycle: string, tasks: TaskRow[]) {
       tasks[tasks.indexOf(target)] = { ...target, status: 'transferred' };
     },
   );
-  return { lifecycle, approvals, action, receipts };
+  return {
+    lifecycle,
+    approvals,
+    action,
+    receipts,
+    async *recordIds() {
+      for (const id of new Set(tasks.map((task) => task.recordId))) yield id;
+    },
+  };
 }
 function adapter(owners: ReassignmentOwner[], dir = directory()) {
   const journal = { reserve: vi.fn(async () => ({ actorId: 'admin' })) };
@@ -125,10 +122,8 @@ it('captures every source-scoped page before migrating, without offsets skipping
   expect(await service.reassign(input)).toEqual({ remaining: 0 });
   expect(source.action).toHaveBeenCalledTimes(205);
   expect(
-    source.approvals.tasksOf.mock.calls
-      .slice(0, 3)
-      .map((call) => call[2].offset),
-  ).toEqual([0, 100, 200]);
+    source.approvals.tasksFor.mock.calls.slice(0, 3).map((call) => call[1]),
+  ).toEqual(['record-0', 'record-1', 'record-2']);
   expect(new Set(source.receipts.map((r) => r.requestId)).size).toBe(205);
   expect(source.receipts[0]).toMatchObject({
     actorId: 'admin',
@@ -138,8 +133,8 @@ it('captures every source-scoped page before migrating, without offsets skipping
 });
 it('routes across real lifecycle owners, deduplicates duplicate targets, and retains proxy principals', async () => {
   const leave = owner('oa.leave', [task('a')]);
-  const read = leave.approvals.tasksOf.getMockImplementation()!;
-  leave.approvals.tasksOf.mockImplementation(async (...args) =>
+  const read = leave.approvals.tasksFor.getMockImplementation()!;
+  leave.approvals.tasksFor.mockImplementation(async (...args) =>
     (await read(...args)).flatMap((t) => [t, t]),
   );
   const loan = owner('oa.loan', [task('b', 'oa.loan')]);

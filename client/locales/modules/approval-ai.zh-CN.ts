@@ -1,9 +1,64 @@
 export default {
   approvalAi: {
+    generationFailed: '建议生成失败，可重试，审批仍可继续办理。',
+    nativeSettingsDescription:
+      '所有审批流程均可使用 AI 建议，建议不会阻止人工审批。',
+    nativeModelHint:
+      '请在模型服务中设置默认模型。建议使用当前审批人保存的语言偏好。',
+    nativeCoverageHint:
+      '自动建议读取提交时冻结的字段，手动生成还可使用有权读取的知识文档。模型配置完成后不会自动补生成既有任务的建议。',
+    prerequisites: {
+      model_unconfigured:
+        '管理员尚未设置默认模型，配置完成后可刷新并生成建议。',
+      services_unavailable: 'AI 建议服务暂不可用，可刷新重试，审批仍可继续。',
+    },
+
+    generateSuggestion: '生成 AI 建议',
+    notGeneratedHint:
+      '尚未生成 AI 建议。符合条件的当前审批人可主动生成，审批可照常办理。',
+
+    versionCount: '{{current}} / {{count}}',
+    version: '第 {{count}} 次',
+    latestVersion: '（最新）',
+    latestRunActions: '操作针对当前生成任务。',
+    cancelGeneration: '取消生成',
+    cancelling: '正在取消…',
+
+    conversationHistory: '历史会话',
+    conversationScope: '仅显示您在本单据本环节的追问。',
+    noConversations: '暂无追问记录',
+    earlierConversation: '旧版建议，仅可查看。请开始新会话讨论最新建议。',
+    moreConversations: '加载更多',
+
+    expandReport: '展开详情',
+    collapseReport: '收起详情',
+    findings: '检查项',
+    generatedAt: '生成于',
+    noFindings: '暂无检查项结果',
+    noMaterials: '未记录审查材料，请结合原始材料人工核对。',
+    coverageCounts: '已读 {{read}} · 不支持 {{unsupported}} · 缺失 {{missing}}',
+    reviewPrivacy:
+      'AI 生成，仅供参考，不影响审批办理。材料按您的权限读取，这份建议仅您可见。',
+    historyReadOnly: '已结束任务的建议，仅供查阅。',
+    materialKinds: {
+      field: '申请字段',
+      text: '正文',
+      attachment: '附件',
+      knowledge: '审查依据',
+      record: '业务记录',
+      aggregate: '汇总数据',
+    },
+    stateHints: {
+      cancelled: '本次生成已取消，可重新生成。',
+      none: '尚无建议，可手动生成。审批可照常办理。',
+      queued: '正在等待处理，可以先办理审批，无需等待建议。',
+      running: '正在生成建议，每 5 秒自动刷新。您可以先办理审批。',
+      failed: '建议未能生成，可在允许时重试。审批可照常办理。',
+      skipped: '本次未生成建议，请查看原因。审批可照常办理。',
+    },
     loading: '加载中',
     definitionMissing: '配置不存在或不可访问。',
     settingsSaved: '配置已保存',
-    feedbackSaved: '反馈已保存',
     disable: '停用',
 
     contextContract: '当前会话合同：{{name}}',
@@ -19,6 +74,8 @@ export default {
     assistant: '审批助手',
     assistantDescription:
       '围绕这份审批建议追问，解释已记录的结论、引用和未覆盖内容。意见草稿需您审核并自行提交。',
+    assistantModelMissing:
+      '尚未配置可用模型，请联系管理员在系统管理的“模型服务”中配置。',
     askReview: '追问建议',
     currentRecord: '当前单据',
     reviewContext: '{{title}} · 单据 {{record}}',
@@ -53,7 +110,7 @@ export default {
       attachmentsBlocked: '请先检查附件',
       attachmentsWaiting: '正在等待附件',
     },
-    title: 'AI 审批辅助',
+    title: 'AI 审批助手',
     configure: 'AI 审查配置',
     definition: '审查定义',
     enabled: '启用',
@@ -69,11 +126,9 @@ export default {
     saving: '保存中…',
     generate: '生成建议',
     regenerate: '重新生成',
+    submittingGeneration: '正在提交生成请求…',
+    generationRequested: '已开始生成。',
     retry: '重试',
-    feedback: '反馈',
-    feedbackDescription: '请反馈这份建议是否有帮助。反馈不会改变审批结果。',
-    rating: '评价',
-    note: '补充说明（选填，最多 1000 字）',
     advisory: '仅供参考，审批决定由您作出。',
     stage: '环节',
     assignee: '经办人',
@@ -107,6 +162,7 @@ export default {
       term: '期限与续签',
     },
     statuses: {
+      cancelled: '已取消',
       none: '尚未生成',
       queued: '已排队',
       running: '生成中',
@@ -125,12 +181,9 @@ export default {
       not_supported: '暂不支持',
       missing: '缺失或不可访问',
     },
-    ratings: {
-      useful: '有用',
-      false_positive: '误报',
-      missed: '漏报',
-    },
     errors: {
+      CONVERSATION_PENDING:
+        '会话创建结果尚未确认，请刷新核对后再开始其他会话。',
       NOT_FOUND: '建议不存在或当前不可访问。',
       CONFLICT: '任务或配置已变化，请刷新后再试。',
       INVALID_SETTINGS: '请检查模型、依据文档和配置。',

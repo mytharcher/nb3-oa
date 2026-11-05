@@ -12,6 +12,7 @@ import { runTaskViewsFor } from '../approval-runtime/task-views.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { hasApprovalCandidate } from '../approval-runtime/query-service.js';
 import { randomUUID } from 'node:crypto';
+import { OPEN } from '@nocobase/app-plugin-approval/server';
 import {
   defineEffect,
   type EffectDispatcher,
@@ -425,12 +426,10 @@ export function createSealApplication(d: SealDependencies) {
     async signatureSource(id, actorId, access, tx, send) {
       let record = await read(id, tx, access.view ?? access.requests);
       await lockSources(record, tx);
-      await tx
-        .repository('sealRequests')
-        .updateMany({
-          filter: { id },
-          values: { lifecycleVersion: { increment: 0 } },
-        });
+      await tx.repository('sealRequests').updateMany({
+        filter: { id },
+        values: { lifecycleVersion: { increment: 0 } },
+      });
       record = await read(id, tx, access.view ?? access.requests);
       if (record.executionMode !== 'electronic')
         throw new Error('SIGNATURE_NOT_ELIGIBLE');
@@ -908,7 +907,10 @@ export function createSealApplication(d: SealDependencies) {
           engine.read(
             async () => ({
               record,
-              tasks: await engine.approvals.tasksOf(_actorId),
+              tasks: (await engine.approvals.tasksFor(SEAL_KIND, id)).filter(
+                (task) =>
+                  task.assigneeId === _actorId && OPEN.includes(task.status),
+              ),
               runs: await engine.approvals.runsFor(SEAL_KIND, id),
               actions: await engine.approvals.actionsOf(SEAL_KIND, id),
             }),

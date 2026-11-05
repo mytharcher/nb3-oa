@@ -1,3 +1,6 @@
+import fileUi from '../extensions/nocobase-file-component-ui/locales/en-US.js';
+import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/en-US.js';
+import agentChatLocale from '../extensions/nocobase-agent-chat/locales/en-US.js';
 import approvalAiLocale from './modules/approval-ai.en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.en-US.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.en-US.js';
@@ -82,7 +85,11 @@ import approvalsEnUS from './modules/approvals.en-US.js';
 import system from './system/en-US.js';
 
 const enUS = {
-  ...approvalAiLocale,
+  ...agentChatLocale,
+  approvalAi: {
+    ...approvalAiLocale.approvalAi,
+    ...approvalReviewLocale.approvalAi,
+  },
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,
@@ -120,6 +127,7 @@ const enUS = {
   ...vendorQualificationLocale,
   assets: assetLocale,
   ...system,
+  ...fileUi,
   'shell.buildFreely': 'Your connected workplace.',
   'shell.reliability': 'People, work and approvals in one place.',
   // Application-owned OA copy overrides the template authentication branding.

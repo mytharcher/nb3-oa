@@ -81,6 +81,12 @@ export default {
     saved: '« {{name}} » enregistré',
     submitted: '« {{name}} » soumis',
     completed: 'Action terminée pour « {{name}} »',
+    actionCompleted: '{{action}} : opération réussie',
+    commentSaved: 'Commentaire envoyé',
+    commentSavedDescription:
+      'Votre commentaire a été enregistré dans l’historique des approbations.',
+    actionRefreshFailed:
+      'Votre action a été enregistrée. Actualisez les détails pour voir le dernier historique des approbations.',
     draftName: 'Brouillon de contrat',
     confirmation: '{{action}} le contrat « {{name}} » ?',
     dangerConsequence:

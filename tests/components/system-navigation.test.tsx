@@ -13,6 +13,7 @@ import { AppLayout } from '../../client/layouts/app-layout.js';
 import SystemEntry from '../../client/pages/system/index.js';
 import enUS from '../../client/locales/en-US.js';
 import zhCN from '../../client/locales/zh-CN.js';
+import { TestSidebarPreferenceProvider } from '../fixtures/sidebar-preference-provider.js';
 
 const auth = vi.hoisted(() => ({ can: vi.fn(), revision: 0 }));
 // Navigation tests isolate chat hosting; the full browser fixture exercises the actual assistant provider.
@@ -92,17 +93,19 @@ const routes = [home, entry, system];
 function tree(path = '/', locale = runtime) {
   return (
     <TestI18nProvider runtime={locale}>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route element={<AppLayout routes={routes} />}>
-            <Route path='/' element={<h1>Workbench</h1>} />
-            <Route path='/system' element={<SystemEntry />} />
-            <Route path='/users' element={<h1>Accounts</h1>} />
-            <Route path='/users/:id' element={<h1>User detail</h1>} />
-            <Route path='/audit' element={<h1>Audit</h1>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>
+      <TestSidebarPreferenceProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route element={<AppLayout routes={routes} />}>
+              <Route path='/' element={<h1>Workbench</h1>} />
+              <Route path='/system' element={<SystemEntry />} />
+              <Route path='/users' element={<h1>Accounts</h1>} />
+              <Route path='/users/:id' element={<h1>User detail</h1>} />
+              <Route path='/audit' element={<h1>Audit</h1>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </TestSidebarPreferenceProvider>
     </TestI18nProvider>
   );
 }
@@ -219,7 +222,7 @@ it('removes the system entry when the last permission is revoked', async () => {
 });
 
 it('uses top-level icon buttons for system sections in collapsed mode', async () => {
-  localStorage.setItem('nocobase:sidebar:collapsed', 'true');
+  localStorage.setItem('nocobase:sidebar:collapsed:app:/main', 'true');
   render(tree('/users'));
   const nav = screen.getByRole('navigation', {
     name: 'System administration navigation',

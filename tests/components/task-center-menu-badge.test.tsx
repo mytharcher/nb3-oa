@@ -1,3 +1,4 @@
+import { TestSidebarPreferenceProvider } from '../fixtures/sidebar-preference-provider.js';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { MemoryRouter, useNavigate } from 'react-router';
@@ -82,20 +83,22 @@ function mount({ header = false } = {}) {
     <QueryClientProvider client={client}>
       <TestI18nProvider runtime={runtime}>
         <MemoryRouter>
-          <AppSidebarProvider>
-            {header ? (
-              <HeaderActions />
-            ) : (
-              <>
-                <NavigationMenu
-                  items={items}
-                  label='Menu'
-                  selectedKey={undefined}
-                />
-                <Navigate />
-              </>
-            )}
-          </AppSidebarProvider>
+          <TestSidebarPreferenceProvider>
+            <AppSidebarProvider>
+              {header ? (
+                <HeaderActions />
+              ) : (
+                <>
+                  <NavigationMenu
+                    items={items}
+                    label='Menu'
+                    selectedKey={undefined}
+                  />
+                  <Navigate />
+                </>
+              )}
+            </AppSidebarProvider>
+          </TestSidebarPreferenceProvider>
         </MemoryRouter>
       </TestI18nProvider>
     </QueryClientProvider>
@@ -214,7 +217,7 @@ it('clears the previous identity and permission-revision count while new statist
   });
 });
 it('uses the existing icon-rail dot and restores the full number on expansion', async () => {
-  localStorage.setItem('nocobase:sidebar:collapsed', 'true');
+  localStorage.setItem('nocobase:sidebar:collapsed:app:/main', 'true');
   mount();
   const badge = await screen.findByRole('status', {
     name: 'Task center, 6 pending',
@@ -222,8 +225,10 @@ it('uses the existing icon-rail dot and restores the full number on expansion', 
   expect(badge).toHaveClass('size-2');
   expect(badge).toBeEmptyDOMElement();
   act(() => {
-    localStorage.setItem('nocobase:sidebar:collapsed', 'false');
-    window.dispatchEvent(new Event('nocobase:sidebar-preference-change'));
+    localStorage.setItem('nocobase:sidebar:collapsed:app:/main', 'false');
+    window.dispatchEvent(
+      new Event('nocobase:sidebar-preference-change:app:/main'),
+    );
   });
   expect(badge).toHaveTextContent('6');
 });

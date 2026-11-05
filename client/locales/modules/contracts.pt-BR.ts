@@ -80,6 +80,12 @@ export default {
     saved: '"{{name}}" salvo',
     submitted: '"{{name}}" enviado',
     completed: 'Ação concluída para "{{name}}"',
+    actionCompleted: '{{action}}: operação concluída',
+    commentSaved: 'Comentário enviado',
+    commentSavedDescription:
+      'Seu comentário foi salvo no histórico de aprovação.',
+    actionRefreshFailed:
+      'Sua ação foi salva. Atualize os detalhes para ver o histórico de aprovação mais recente.',
     draftName: 'Rascunho de contrato',
     confirmation: '{{action}} o contrato "{{name}}"?',
     dangerConsequence:

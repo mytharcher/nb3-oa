@@ -1,3 +1,11 @@
+/**
+ * Files on a record or a message, presented: safe images as thumbnails and everything else as a chip with its name,
+ * size and a download (`AttachmentList`); the files waiting to go with a message (`PendingAttachments`); and a section
+ * of a record's files that takes uploads by picking, pasting or dropping (`AttachmentPanel`). Purely presentational:
+ * the consumer gives the files and hears about previews, uploads and removals. Without `onPreview`, images open in
+ * the item's own dialog and other files download. Every word comes from `labels`, English by default; `{name}`-style
+ * placeholders are filled in here.
+ */
 import {
   ChevronLeftIcon,
   ChevronRightIcon,

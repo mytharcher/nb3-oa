@@ -1,3 +1,6 @@
+import fileUi from '../extensions/nocobase-file-component-ui/locales/id-ID.js';
+import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/id-ID.js';
+import agentChatLocale from '../extensions/nocobase-agent-chat/locales/en-US.js';
 // Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
 import approvalAiLocale from './modules/approval-ai.en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.id-ID.js';
@@ -83,7 +86,11 @@ import approvalsEnUS from './modules/approvals.id-ID.js';
 import system from './system/id-ID.js';
 
 const idID: AppResource = {
-  ...approvalAiLocale,
+  ...agentChatLocale,
+  approvalAi: {
+    ...approvalAiLocale.approvalAi,
+    ...approvalReviewLocale.approvalAi,
+  },
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,
@@ -121,6 +128,7 @@ const idID: AppResource = {
   ...vendorQualificationLocale,
   assets: assetLocale,
   ...system,
+  ...fileUi,
   'shell.buildFreely': 'Tempat kerja Anda yang terhubung.',
   'shell.reliability': 'Orang, pekerjaan, dan persetujuan dalam satu tempat.',
   // Application-owned OA copy overrides the template authentication branding.

@@ -13,7 +13,9 @@ import type { ApprovalDirectoryService } from '../approval-directory/contract.js
 /** Business action entry preserves that owner's fresh directory, audit hooks and SDK transaction. */
 export interface ReassignmentOwner {
   lifecycle: string;
-  approvals: Pick<ApprovalService, 'tasksOf' | 'runsFor' | 'actionsOf'>;
+  approvals: Pick<ApprovalService, 'tasksFor' | 'runsFor' | 'actionsOf'>;
+  /** Exhaust the owning business records; task projections alone cannot certify handover. */
+  recordIds(): AsyncIterable<string>;
   action(
     recordId: string,
     input: Omit<PerformInput, 'actor'>,
@@ -58,13 +60,13 @@ export function createDepartureReassignment(dependencies: {
       { task: TaskRow; owner?: ReassignmentOwner; current: boolean }
     >();
     for (const source of owners) {
-      // tasksOf is scoped to this SDK's registered sources, not all tasks in the shared database.
-      // Capture all pages before any migration so replacements cannot shift later offsets.
-      for (let offset = 0; ; offset += 100) {
-        const page = await source.approvals.tasksOf(from, OPEN, {
-          limit: 100,
-          offset,
-        });
+      // Discover from authoritative business records, including tasks absent from the personal index.
+      // Capture the complete set before mutations; each owner rechecks the task when acting.
+      for await (const recordId of source.recordIds()) {
+        const page = await source.approvals.tasksFor(
+          source.lifecycle,
+          recordId,
+        );
         for (const task of page) {
           if (
             task.assigneeId !== from ||
@@ -95,7 +97,6 @@ export function createDepartureReassignment(dependencies: {
             run.lifecycleVersion === task.enteredVersion;
           tasks.set(task.id, { task, owner, current });
         }
-        if (page.length < 100) break;
       }
     }
     return [...tasks.values()];

@@ -1,4 +1,3 @@
-import { useApprovalAssistant } from '#components/approval-ai/assistant-context';
 import { finalRefusal, uncertainError } from './errors.js';
 import { useCloseGuard } from './use-close-guard.js';
 import { useEffect, useRef, useState } from 'react';
@@ -42,6 +41,7 @@ import type { ContractDetail, DetailContext } from './types.js';
 const RECORD = ['submit', 'withdraw', 'terminate', 'historicalEntry'];
 const PEOPLE = ['transfer', 'addSigner', 'appoint', 'reassign'];
 export default function ActionDialog() {
+  const savedRef = useRef(false);
   const { session } = useAuthentication(),
     location = useLocation();
   const { actionName = '' } = useParams(),
@@ -58,6 +58,11 @@ export default function ActionDialog() {
         name: parent.detail.record.number ?? t('contracts.draftName'),
       })}
       beforeClose={guard.beforeClose}
+      finalFocus={
+        actionName === 'comment'
+          ? () => (savedRef.current ? (parent.focusHistory?.() ?? true) : true)
+          : undefined
+      }
       footer={<Footer busy={busy} ready={ready} action={actionName} />}
     >
       <ActionForm
@@ -65,7 +70,10 @@ export default function ActionDialog() {
         onBusy={setBusy}
         onReady={setReady}
         onDirty={guard.changed}
-        onSaved={guard.saved}
+        onSaved={() => {
+          savedRef.current = true;
+          guard.saved();
+        }}
       />
       <Discard guard={guard} />
     </RequestActionOverlay>
@@ -130,7 +138,6 @@ function ActionForm({
     [restored] = useState(() => loadCommand(journalKey, actorId)),
     commandRef = useRef<Command | null>(restored),
     lockRef = useRef(false);
-  const assistant = useApprovalAssistant();
   const [unknown, setUnknown] = useState(!!restored),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<unknown>(),
@@ -281,7 +288,7 @@ function ActionForm({
                 : {
                     target: offer!.target,
                     action: actionName,
-                    contentHash: offer!.contentHash,
+                    contentHash: offer!.contentHash ?? undefined,
                     input,
                     requestId: createRequestId(),
                     ...(comment.trim() ? { comment: comment.trim() } : {}),
@@ -298,16 +305,29 @@ function ActionForm({
       clearCommand(journalKey);
       commandRef.current = null;
       setUnknown(false);
-      const { data: latest } = await api.request<{ data: ContractDetail }>({
-        path: `contractRequests/${requestId}`,
-      });
-      parent.apply(latest);
-      parent.reload();
       onSaved();
+      let refreshFailed = false;
+      try {
+        const { data: latest } = await api.request<{ data: ContractDetail }>({
+          path: `contractRequests/${requestId}`,
+        });
+        parent.apply(latest);
+      } catch {
+        refreshFailed = true;
+      }
+      parent.reload();
       toaster.show({
-        title: t('contracts.completed', {
-          name: latest.record.number ?? t('contracts.draftName'),
-        }),
+        title:
+          actionName === 'comment'
+            ? t('contracts.commentSaved')
+            : t('contracts.actionCompleted', {
+                action: t(`contracts.actions.${actionName}`),
+              }),
+        description: refreshFailed
+          ? t('contracts.actionRefreshFailed')
+          : actionName === 'comment'
+            ? t('contracts.commentSavedDescription')
+            : undefined,
       });
       await close();
     } catch (cause) {
@@ -453,25 +473,6 @@ function ActionForm({
                   {t('contracts.comment')}
                   {needsReason ? ' *' : ''}
                 </FieldLabel>
-                {!!assistant?.drafts[requestId] &&
-                  assistant.drafts[requestId].length > 5000 && (
-                    <p className='text-sm text-muted-foreground'>
-                      {t('approvalAi.draftTruncated')}
-                    </p>
-                  )}
-                {assistant?.drafts[requestId] && (
-                  <Button
-                    type='button'
-                    variant='outline'
-                    disabled={busy}
-                    onClick={() => {
-                      setComment(assistant.drafts[requestId].slice(0, 5000));
-                      onDirty();
-                    }}
-                  >
-                    {t('approvalAi.insertDraft')}
-                  </Button>
-                )}
                 <Textarea
                   id='contract-action-comment'
                   value={comment}

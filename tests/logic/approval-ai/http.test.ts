@@ -1,10 +1,6 @@
 // @vitest-environment node
 import { expect } from 'vitest';
 import {
-  signIn,
-  DEFAULT_ADMIN_CREDENTIALS,
-} from '@nocobase/app-plugin-authentication/testing';
-import {
   generateApiDocument,
   findApiDocumentSchemaProblems,
 } from '@nocobase/app-server/router';
@@ -15,38 +11,76 @@ import {
   write,
 } from '../platform/helpers.js';
 const test = createPlatformAppTest();
-test('registered routes authenticate independently and restrict configuration to process managers', async ({
+test('native suggestion endpoints authenticate, reject forged identity and declare their transport', async ({
   app,
   testApp,
   request,
 }) => {
-  expect((await request('/approvalAi/definitions')).status).toBe(401);
-  const user = await createUser(testApp, 'AI outsider');
-  expect((await user.fetch('/approvalAi/definitions')).status).toBe(403);
-  expect((await user.fetch('/approvalAi/models')).status).toBe(403);
+  expect(
+    (await request('/approvalAi/reviews?lifecycle=oa.leave&recordId=missing'))
+      .status,
+  ).toBe(401);
+  for (const operation of ['generate', 'cancel']) {
+    expect(
+      (
+        await request(
+          '/approvalAi/reviews/missing/' + operation,
+          write('POST', {}),
+        )
+      ).status,
+    ).toBe(401);
+  }
+  const user = await createUser(testApp, 'Synthetic suggestion outsider');
   expect(
     (
       await user.fetch(
-        '/approvalAi/reviews?lifecycle=oa.contract&recordId=missing',
+        '/approvalAi/reviews?lifecycle=oa.leave&recordId=missing',
       )
     ).status,
-  ).toBe(200);
-  const missing = await user.fetch(
-    '/approvalAi/reviews/missing/generate',
-    write('POST', { requestKey: 'missing' }),
-  );
-  expect(missing.status).toBe(404);
-  const admin = await signIn(testApp, DEFAULT_ADMIN_CREDENTIALS);
-  const response = await admin.fetch('/approvalAi/definitions');
-  expect(response.status).toBe(200);
-  const data = (await response.json()).data;
-  expect(data).toHaveLength(1);
-  expect(data[0].settings.enabled).toBe(false);
-  const chinese = await admin.fetch('/approvalAi/definitions?locale=zh-CN');
-  expect((await chinese.json()).data[0].title).toBe('合同法务财务审查');
+  ).toBe(404);
+  expect(
+    (
+      await user.fetch(
+        '/approvalAi/reviews/missing/generate',
+        write('POST', {
+          lifecycle: 'oa.leave',
+          recordId: 'missing',
+          requestKey: 'operation',
+        }),
+      )
+    ).status,
+  ).toBe(404);
+  expect(
+    (
+      await user.fetch(
+        '/approvalAi/reviews/missing/cancel',
+        write('POST', {
+          lifecycle: 'oa.leave',
+          recordId: 'missing',
+          generationId: 'generation',
+        }),
+      )
+    ).status,
+  ).toBe(404);
+  expect(
+    (
+      await user.fetch(
+        '/approvalAi/reviews/missing/generate',
+        write('POST', {
+          lifecycle: 'oa.leave',
+          recordId: 'missing',
+          requestKey: 'operation',
+          userId: 'administrator',
+        }),
+      )
+    ).status,
+  ).toBe(400);
+  // Retired OA worker/settings/conversation routes cannot mutate legacy state.
+  for (const path of ['definitions', 'models', 'reviewConversations'])
+    expect((await user.fetch('/approvalAi/' + path)).status).toBe(404);
   const router = await approvalAiRoutes[0].createRouter(app);
   const document = await generateApiDocument(router, {
-    info: { title: 'Approval AI', version: '1' },
+    info: { title: 'Approval AI', version: '2' },
   });
   expect(findApiDocumentSchemaProblems(document)).toEqual([]);
   expect(

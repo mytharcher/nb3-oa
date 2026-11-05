@@ -1,3 +1,5 @@
+import { ApprovalAiReviewPanel } from '#components/approval-ai/index';
+import { ApprovalDetailSection } from '#components/approval-detail-section';
 import { ApprovalProgress } from '#components/approval-progress';
 import {
   ApprovalUiProvider,
@@ -263,21 +265,20 @@ export default function RecruitmentDetail() {
               }).format(new Date(value))
             }
           >
-            <section className='flex flex-col gap-4'>
-              <h2 className='text-base font-medium'>
-                {t('recruitment.progress')}
-              </h2>
+            <ApprovalAiReviewPanel
+              lifecycle='oa.recruitment'
+              recordId={detail.record.id}
+              refreshKey={detail}
+            />
+            <ApprovalDetailSection title={t('recruitment.progress')}>
               <ApprovalProgress
                 steps={progressOf(detail, text, i18n.language)}
                 copies={copiesOf(detail)}
               />
-            </section>
-            <section className='flex flex-col gap-4'>
-              <h2 className='text-base font-medium'>
-                {t('recruitment.timeline')}
-              </h2>
+            </ApprovalDetailSection>
+            <ApprovalDetailSection title={t('recruitment.timeline')}>
               <ApprovalTimeline lines={timelineOf(detail, text)} />
-            </section>
+            </ApprovalDetailSection>
           </ApprovalUiProvider>
         </div>
       ) : null}

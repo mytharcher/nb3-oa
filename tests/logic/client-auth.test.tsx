@@ -26,6 +26,13 @@ vi.mock('@nocobase/app-plugin-authentication/client/actions', () => ({
 
 vi.mock('@nocobase/app-plugin-authentication/client', () => ({
   useSignUpAvailable: () => signUpAvailable.value,
+  usePasswordResetCapability: () => ({
+    data: { passwordResetAvailable: true },
+  }),
+}));
+
+vi.mock('../../client/hooks/use-enterprise-identity.ts', () => ({
+  useEnterpriseIdentity: () => ({ enabled: false, error: false }),
 }));
 
 const runtime = await createTestI18nRuntime({
@@ -50,7 +57,9 @@ describe('application authentication pages', () => {
     passwordLoginAction.submit.mockClear();
     renderAt('/', <LoginPage />);
 
-    expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: enUS['auth.welcome'] }),
+    ).toBeVisible();
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Username or email'), {
       target: { value: 'alice' },
@@ -79,13 +88,13 @@ describe('application authentication pages', () => {
   it('puts the brand panel beside the form on wide screens', () => {
     renderAt('/', <LoginPage />);
     const panel = screen.getByRole('complementary', {
-      name: 'About this application',
+      name: enUS['auth.about'],
     });
     expect(panel).toHaveClass('hidden', 'xl:block');
-    expect(panel).toHaveTextContent('AI-native application platform');
-    expect(panel).toHaveTextContent('AI-native frontend');
-    expect(panel).toHaveTextContent('NocoBase foundation');
-    expect(panel).toHaveTextContent('Freedom above. Confidence below.');
+    expect(panel).toHaveTextContent(enUS['auth.platform']);
+    expect(panel).toHaveTextContent(enUS['auth.frontend']);
+    expect(panel).toHaveTextContent(enUS['auth.foundation']);
+    expect(panel).toHaveTextContent(enUS['auth.marketingFooter']);
   });
 
   it('shows the action error', () => {

@@ -1,10 +1,9 @@
-import { useApprovalAssistant } from '#components/approval-ai/assistant-context';
 import { ApprovalAiReviewPanel } from '#components/approval-ai/index';
 import { ElectronicSignatureSection } from '#components/electronic-signature-section';
 import { statusTone } from './status-tone.js';
 import { PrintEntry } from '../template-print/entry.js';
 import { useMissing } from './use-missing.js';
-import { useEffect, useMemo, useReducer } from 'react';
+import { useCallback, useMemo, useReducer, useRef } from 'react';
 import {
   Link,
   Outlet,
@@ -28,18 +27,21 @@ import { SecureFiles } from './files.js';
 import { ContractHistory } from './approval-mapping.js';
 import type { ContractDetail, SourceContext } from './types.js';
 export default function RequestDetail() {
+  const historyRef = useRef<HTMLElement>(null);
+  const focusHistory = useCallback(() => {
+    const latest = historyRef.current?.querySelector('ol')?.lastElementChild;
+    const target = latest instanceof HTMLElement ? latest : historyRef.current;
+    if (!target) return true;
+    target.tabIndex = -1;
+    target.scrollIntoView({ block: 'start' });
+    return target;
+  }, []);
   const { requestId = '' } = useParams(),
     { session } = useAuthentication(),
     { t, i18n } = useTranslation(),
     location = useLocation(),
     parent = useOutletContext<SourceContext>(),
     [refreshKey, refreshFiles] = useReducer((n: number) => n + 1, 0);
-  const assistant = useApprovalAssistant();
-  const setAssistantRecord = assistant?.setRecordId;
-  useEffect(() => {
-    setAssistantRecord?.(requestId);
-    return () => setAssistantRecord?.(null);
-  }, [requestId, setAssistantRecord]);
   const grant = useCan({
       resource: { type: 'composite', id: 'oa.contract' },
       action: 'view',
@@ -61,11 +63,6 @@ export default function RequestDetail() {
   const data =
       grant.can && !grant.isPending && !grant.error ? resource.data : undefined,
     name = data?.record.number ?? t('contracts.draftName');
-  const setAssistantLabel = assistant?.setRecordLabel;
-  useEffect(() => {
-    setAssistantLabel?.(name);
-    return () => setAssistantLabel?.(null);
-  }, [name, setAssistantLabel]);
   const trail = useTrail(name);
   useMissing(resource.error, trail.source, trail.search, parent?.reload);
   const writable = !!data && !resource.loading && !resource.error;
@@ -315,13 +312,14 @@ export default function RequestDetail() {
                       : undefined
               }
             />
-            <ContractHistory detail={data} />
+            <ContractHistory detail={data} timelineRef={historyRef} />
           </>
         )}
         {context && (
           <Outlet
             context={{
               ...context,
+              focusHistory,
               printSource: 'contracts',
               printRecordId: data?.record.id,
               printRecordName: name,

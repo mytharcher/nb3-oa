@@ -52,7 +52,6 @@ import {
   type ContractCreate,
 } from './validation.js';
 interface Dependencies {
-  approvalAi?: import('../approval-ai/contract.js').ApprovalAiRegistry;
   db: DatabaseManager;
   audit: AuditService;
   org: OrgService;
@@ -373,7 +372,6 @@ export function createContractService(d: Dependencies) {
           transitionId: key,
         }),
       taskNotice: async (task, reason) => {
-        if (reason === 'assigned') await d.approvalAi?.taskAssigned(task);
         return d.directory.snapshot().then((directory) =>
           d.notifications.task({
             task,
@@ -539,8 +537,8 @@ export function createContractService(d: Dependencies) {
   const service = {
     initialize: async () => kit,
     approvals: {
-      tasksOf: (...args: Parameters<ApprovalService['tasksOf']>) =>
-        kit.read(() => kit.approvals.tasksOf(...args)),
+      tasksFor: (...args: Parameters<ApprovalService['tasksFor']>) =>
+        kit.read(() => kit.approvals.tasksFor(...args)),
       runsFor: (...args: Parameters<ApprovalService['runsFor']>) =>
         kit.read(() => kit.approvals.runsFor(...args)),
       actionsOf: (...args: Parameters<ApprovalService['actionsOf']>) =>

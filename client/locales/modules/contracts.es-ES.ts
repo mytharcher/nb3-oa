@@ -81,6 +81,12 @@ export default {
     saved: 'Se ha guardado «{{name}}»',
     submitted: 'Se ha enviado «{{name}}»',
     completed: 'Acción completada para «{{name}}»',
+    actionCompleted: '{{action}}: operación realizada',
+    commentSaved: 'Comentario enviado',
+    commentSavedDescription:
+      'Su comentario se ha guardado en el historial de aprobación.',
+    actionRefreshFailed:
+      'La operación se ha guardado. Actualice los detalles para ver el historial de aprobación más reciente.',
     draftName: 'Borrador de contrato',
     confirmation: '¿{{action}} contrato «{{name}}»?',
     dangerConsequence:

@@ -249,7 +249,7 @@ export interface SealRequestService {
   ): Promise<string[]>;
   approvals: Pick<
     ApprovalService,
-    'tasksOf' | 'runsFor' | 'actionsOf' | 'runViewsFor' | 'actionsFor'
+    'tasksFor' | 'runsFor' | 'actionsOf' | 'runViewsFor' | 'actionsFor'
   >;
   create(
     actorId: string,
@@ -279,7 +279,7 @@ export interface SealRequestService {
     policy: RepositoryPolicy,
   ): Promise<{
     record: SealRequest;
-    tasks: Awaited<ReturnType<ApprovalService['tasksOf']>>;
+    tasks: Awaited<ReturnType<ApprovalService['tasksFor']>>;
     runs: Awaited<ReturnType<ApprovalService['runsFor']>>;
     actions: Awaited<ReturnType<ApprovalService['actionsOf']>>;
   }>;

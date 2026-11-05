@@ -66,15 +66,23 @@ export interface ReviewView {
   title: string;
   stage: string;
   taskOpen: boolean;
-  status: 'none' | 'queued' | 'running' | 'succeeded' | 'failed' | 'skipped';
+  status:
+    | 'none'
+    | 'queued'
+    | 'running'
+    | 'succeeded'
+    | 'failed'
+    | 'skipped'
+    | 'cancelled';
   errorCode: string | null;
   canGenerate: boolean;
+  canCancel?: boolean;
+  versions?: ReviewVersion[];
   generatedAt: string | null;
   model: { modelService: string; model: string } | null;
   findings: (Finding & { title: string })[] | null;
   coverage: Omit<Material, 'text'>[];
   basis: string | null;
-  feedback: { rating: string; note: string | null } | null;
 }
 export interface DefinitionView {
   id: string;
@@ -84,3 +92,22 @@ export interface DefinitionView {
   basis: { key: string; title: string; required: boolean }[];
   settings: ReviewSettings;
 }
+
+export type ReviewVersion = Pick<
+  ReviewView,
+  'generatedAt' | 'model' | 'findings' | 'coverage' | 'basis'
+> & { id: string };
+
+/** Native plugin report/status; the host adds only the authorized task identity. */
+export type ApprovalSuggestionView = Omit<
+  import('@nocobase/app-plugin-approval/server/assistant').ApprovalSuggestionState,
+  'advice'
+> & {
+  taskId: string;
+  title: string;
+  stage: string;
+  advice: {
+    report: import('@nocobase/app-plugin-approval/server/assistant').SuggestionReport;
+    diagnostics?: import('@nocobase/app-plugin-approval/server/assistant').SuggestionDiagnostics;
+  } | null;
+};

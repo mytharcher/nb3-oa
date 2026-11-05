@@ -15,13 +15,21 @@ export function ApprovalAiError({
     return <SessionExpiredAlert />;
   const final =
     error instanceof ApiClientError && [403, 404].includes(error.status);
+  const pending =
+    error instanceof ApiClientError && error.reason === 'CONVERSATION_PENDING';
   const conflict = error instanceof ApiClientError && error.status === 409;
   return (
     <Alert variant='destructive'>
       <AlertDescription>
         {t(
           'approvalAi.' +
-            (final ? 'unavailable' : conflict ? 'conflict' : 'requestFailed'),
+            (pending
+              ? 'errors.CONVERSATION_PENDING'
+              : final
+                ? 'unavailable'
+                : conflict
+                  ? 'conflict'
+                  : 'requestFailed'),
         )}
       </AlertDescription>
       {retry && !final && (

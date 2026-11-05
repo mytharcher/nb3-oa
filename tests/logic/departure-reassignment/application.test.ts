@@ -36,6 +36,12 @@ function owner(action: GeneralRequestService['action'] = general.action) {
   return {
     lifecycle: GENERAL_LIFECYCLE,
     approvals: general.approvals,
+    async *recordIds() {
+      for await (const row of app.testApp.database
+        .repository<{ id: string }>('generalRequests')
+        .findMany({ select: (s) => s.fields('id') }))
+        yield row.id;
+    },
     action: async (
       id: string,
       input: Parameters<GeneralRequestService['action']>[1],
@@ -146,16 +152,16 @@ describe('departure public task migration on the real application database', () 
     expect(
       owners.every(
         (owner) =>
-          typeof owner.approvals.tasksOf === 'function' &&
+          typeof owner.approvals.tasksFor === 'function' &&
           typeof owner.action === 'function',
       ),
     ).toBe(true);
   });
   it('moves actual pending SDK tasks with a recorded administrator, durable key and exact public receipt', async () => {
     const id = await submit();
-    const before = (await general.approvals.tasksOf(ids.from)).find(
-      (t) => t.recordId === id,
-    )!;
+    const before = (
+      await general.approvals.tasksFor(GENERAL_LIFECYCLE, id)
+    ).find((t) => t.recordId === id)!;
     const input = command();
     expect(await adapter().reassign(input)).toEqual({ remaining: 0 });
     const actions = await general.approvals.actionsOf(GENERAL_LIFECYCLE, id);
@@ -220,7 +226,7 @@ describe('departure public task migration on the real application database', () 
       code: 'REASSIGNMENT_RECIPIENT_INACTIVE',
     });
     expect(
-      (await general.approvals.tasksOf(ids.from)).some(
+      (await general.approvals.tasksFor(GENERAL_LIFECYCLE, id)).some(
         (t) => t.recordId === id,
       ),
     ).toBe(true);

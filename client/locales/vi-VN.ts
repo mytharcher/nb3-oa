@@ -1,3 +1,6 @@
+import fileUi from '../extensions/nocobase-file-component-ui/locales/vi-VN.js';
+import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/vi-VN.js';
+import agentChatLocale from '../extensions/nocobase-agent-chat/locales/en-US.js';
 // Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
 import approvalAiLocale from './modules/approval-ai.en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.vi-VN.js';
@@ -83,7 +86,11 @@ import approvalsEnUS from './modules/approvals.vi-VN.js';
 import system from './system/vi-VN.js';
 
 const viVN: AppResource = {
-  ...approvalAiLocale,
+  ...agentChatLocale,
+  approvalAi: {
+    ...approvalAiLocale.approvalAi,
+    ...approvalReviewLocale.approvalAi,
+  },
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,
@@ -121,6 +128,7 @@ const viVN: AppResource = {
   ...vendorQualificationLocale,
   assets: assetLocale,
   ...system,
+  ...fileUi,
   'shell.buildFreely': 'Không gian làm việc kết nối của bạn.',
   'shell.reliability': 'Con người, công việc và phê duyệt trong cùng một nơi.',
   // Application-owned OA copy overrides the template authentication branding.

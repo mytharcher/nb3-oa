@@ -10,7 +10,8 @@ import {
   authorizationToken,
   type AppAuthorization,
 } from '@nocobase/app-plugin-authorization/server';
-import type { RepositoryPolicy } from '@nocobase/db';
+import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
+import { processOwners } from '../process-management/owners.js';
 import { DepartureReassignmentError } from './service.js';
 import type { Application } from '@nocobase/app-server/application';
 import type { ReassignmentOwner } from './service.js';
@@ -73,7 +74,7 @@ export function resolveReassignmentOwners(
   const seals = app.container.resolve(sealRequestServiceToken);
   const certificates = app.container.resolve(certificateRequestServiceToken);
   const transfer = app.container.resolve(transferServiceToken);
-  return [
+  const owners: Omit<ReassignmentOwner, 'recordIds'>[] = [
     {
       lifecycle: 'oa.leave',
       ...owner(
@@ -398,6 +399,31 @@ export function resolveReassignmentOwners(
       },
     },
   ];
+  return owners.map((entry) => {
+    const source = processOwners.find(
+      (source) => source.kind === entry.lifecycle,
+    );
+    if (!source)
+      throw new DepartureReassignmentError(
+        'REASSIGNMENT_REGISTRY_INVALID',
+        'Missing business discovery source.',
+      );
+    return {
+      ...entry,
+      async *recordIds() {
+        // Internal maintenance discovery is exhaustive, independent of personal projections.
+        // Each explicit business action still authorizes the fixed administrator.
+        for await (const row of app.container
+          .resolve(databaseManagerToken)
+          .repository<{ id: string }>(source.collection)
+          .findMany({
+            select: (s) => s.fields('id'),
+            sort: (s) => [s.field('id').asc()],
+          }))
+          yield row.id;
+      },
+    };
+  });
 }
 export async function authorizedViewPolicy(
   authz: AppAuthorization,
@@ -430,7 +456,7 @@ export async function authorizedViewPolicy(
 }
 function owner(
   app: Application,
-  service: Omit<ReassignmentOwner, 'lifecycle' | 'action'> & {
+  service: Omit<ReassignmentOwner, 'lifecycle' | 'action' | 'recordIds'> & {
     action(
       recordId: string,
       input: Parameters<ReassignmentOwner['action']>[1],
@@ -440,7 +466,7 @@ function owner(
   },
   resource: string,
   collection: string,
-): Omit<ReassignmentOwner, 'lifecycle'> {
+): Omit<ReassignmentOwner, 'lifecycle' | 'recordIds'> {
   return {
     approvals: service.approvals,
     action: async (id, input, actor) =>

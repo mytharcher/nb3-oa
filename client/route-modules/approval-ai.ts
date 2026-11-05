@@ -18,12 +18,5 @@ export default defineAppRoutes([
     },
     navigation: { title: 'approvalAi.configure', icon: Sparkles, order: 35 },
     componentLoader: () => import('../pages/approval-ai/index.js'),
-    children: [
-      {
-        name: 'oa-approval-ai-edit',
-        path: ':definitionId/edit',
-        componentLoader: () => import('../pages/approval-ai/form.js'),
-      },
-    ],
   },
 ]);

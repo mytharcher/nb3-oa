@@ -1,463 +1,365 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router';
-import { useApiClient, useToaster } from '@nocobase/app-client';
+import {
+  useApiClient,
+  useRealtimeRefresh,
+  useToaster,
+} from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { useScheduleResource } from '../../pages/personal-schedules/resource.js';
-import type { ReviewView, Finding } from '../../../shared/approval-ai.js';
+import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
+import { useAuthorizationRevision } from '@nocobase/app-plugin-authorization/client';
+import { Link } from 'react-router';
+import type { ApprovalSuggestionView } from '../../../shared/approval-ai.js';
 import { createRequestKey } from '#lib/request-key';
-import { Button } from '#components/ui/button';
-import { Badge } from '#components/ui/badge';
+import { Skeleton } from '#components/ui/skeleton';
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from '#components/ui/card';
-import { Alert, AlertDescription } from '#components/ui/alert';
-import { Dialog, DialogTitle, DialogDescription } from '#components/ui/dialog';
-import {
-  FormDrawerContent,
-  FormDrawerHeader,
-  FormDrawerBody,
-  FormDrawerFooter,
-} from '#components/form-drawer';
-import { FieldGroup, Field, FieldLabel } from '#components/ui/field';
-import { Textarea } from '#components/ui/textarea';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-} from '#components/ui/select';
-import { ApprovalAssistantButton } from './assistant.js';
+  ApprovalReviewCard,
+  type ReviewEvidence,
+  type ReviewStatus,
+} from '#extensions/nocobase-approval-review/index';
 import { ApprovalAiError } from './error.js';
-export function ApprovalAiReviewPanel(props: {
+
+interface PanelProps {
   lifecycle: string;
   recordId: string;
   refreshKey?: unknown;
-  evidenceHref?: (e: Finding['evidence'][number]) => string | undefined;
-  evidenceLabel?: (e: Finding['evidence'][number]) => string | undefined;
-}) {
+  evidenceHref?: (evidence: ReviewEvidence) => string | undefined;
+  evidenceLabel?: (evidence: ReviewEvidence) => string | undefined;
+}
+
+/** One authorized adapter for every business source; the Registry block owns presentation. */
+export function ApprovalAiReviewPanel(props: PanelProps) {
+  const { session } = useAuthentication();
+  const revision = useAuthorizationRevision();
+  const { i18n } = useTranslation();
   return (
-    <ReviewPanel key={props.lifecycle + ':' + props.recordId} {...props} />
+    <ReviewPanel
+      key={JSON.stringify([
+        props.lifecycle,
+        props.recordId,
+        session?.user.id,
+        revision,
+        i18n.language,
+      ])}
+      {...props}
+    />
   );
 }
+
 function ReviewPanel({
   lifecycle,
   recordId,
   refreshKey,
-  evidenceHref,
-  evidenceLabel,
-}: {
-  lifecycle: string;
-  recordId: string;
-  refreshKey?: unknown;
-  evidenceHref?: (e: Finding['evidence'][number]) => string | undefined;
-  evidenceLabel?: (e: Finding['evidence'][number]) => string | undefined;
-}) {
-  const { t, i18n } = useTranslation();
-  const resource = useScheduleResource<{ data: ReviewView[] }>(
-    'approvalAi/reviews',
-    { lifecycle, recordId, locale: i18n.language },
-  );
-  const [paused, setPaused] = useState(false);
-  const startedRef = useRef<number | null>(null);
+  ...evidence
+}: PanelProps) {
+  const api = useApiClient();
+  const { t } = useTranslation();
+  const [items, setItems] = useState<ApprovalSuggestionView[]>();
+  const [taskIds, setTaskIds] = useState<string[]>([]);
+  const [error, setError] = useState<unknown>();
+  const [refreshing, setRefreshing] = useState(false);
+  const readSequenceRef = useRef(0);
+  const mountedRef = useRef(false);
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      const sequence = ++readSequenceRef.current;
+      setRefreshing(true);
+      try {
+        const result = await api.request<{ data: ApprovalSuggestionView[] }>({
+          path: 'approvalAi/reviews',
+          query: { lifecycle, recordId },
+          signal,
+        });
+        if (
+          mountedRef.current &&
+          !signal?.aborted &&
+          sequence === readSequenceRef.current
+        ) {
+          setItems(result.data);
+          setTaskIds(result.data.map((item) => item.taskId));
+          setError(undefined);
+        }
+      } catch (cause) {
+        if (
+          mountedRef.current &&
+          !signal?.aborted &&
+          sequence === readSequenceRef.current
+        ) {
+          // Any failed revalidation removes all controlled report/version content.
+          setItems((old) =>
+            old?.map((item) => ({
+              ...item,
+              advice: null,
+              versions: [],
+              attempts: [],
+              canGenerate: false,
+              canRegenerate: false,
+              canCancel: false,
+              state: 'ready' as const,
+            })),
+          );
 
-  const reload = resource.reload;
-  const refresh = useCallback(() => {
-    startedRef.current = null;
-    setPaused(false);
-    reload();
-  }, [reload]);
-  const busy =
-    resource.data?.data?.some((r) =>
-      ['queued', 'running'].includes(r.status),
-    ) ?? false;
-  const previousRefreshRef = useRef(refreshKey);
+          setError(cause);
+        }
+        throw cause;
+      } finally {
+        if (mountedRef.current && sequence === readSequenceRef.current)
+          setRefreshing(false);
+      }
+    },
+    [api, lifecycle, recordId],
+  );
   useEffect(() => {
-    if (previousRefreshRef.current !== refreshKey) {
-      previousRefreshRef.current = refreshKey;
-      reload();
-    }
-  }, [refreshKey, reload]);
-  useEffect(() => {
-    if (!busy || resource.error || paused) {
-      if (!busy) startedRef.current = null;
+    mountedRef.current = true;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      void load(controller.signal).catch(() => {});
+    }, 0);
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [load, refreshKey]);
+  const refresh = useCallback(() => load(), [load]);
+  const accept = async (item: ApprovalSuggestionView, epoch: number) => {
+    if (!mountedRef.current) return;
+    // A newer status read is an authorization boundary. An older mutation
+    // acknowledgement must never restore a report cleared by revalidation.
+    if (readSequenceRef.current !== epoch) {
+      await load();
       return;
     }
-    startedRef.current ??= Date.now();
-    const timer = setInterval(() => {
-      if (Date.now() - startedRef.current! >= 300_000) setPaused(true);
-      else reload();
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [busy, paused, resource.error, reload]);
-  if (resource.error)
-    return <ApprovalAiError error={resource.error} retry={reload} />;
-  if (!resource.data?.data?.length) return null;
+    // A mutation acknowledgement supersedes any older status read still in flight.
+    readSequenceRef.current += 1;
+    setRefreshing(false);
+    setItems((old) =>
+      old?.map((value) => (value.taskId === item.taskId ? item : value)),
+    );
+  };
+  const visible = items?.filter(
+    (item) => !['not_found', 'not_actionable'].includes(item.state),
+  );
   return (
-    <section
-      className='flex min-w-0 flex-col gap-4'
-      aria-label={t('approvalAi.title')}
-    >
-      <div className='flex flex-wrap items-center justify-between gap-2'>
-        <h2 className='text-base font-medium'>{t('approvalAi.title')}</h2>
-        <Button
-          variant='outline'
-          size='sm'
-          disabled={resource.loading}
-          onClick={() => {
-            startedRef.current = null;
-            setPaused(false);
-            reload();
+    <>
+      {taskIds.map((taskId) => (
+        <SuggestionRefresh key={taskId} taskId={taskId} refresh={load} />
+      ))}
+      {error ? (
+        <ApprovalAiError
+          error={error}
+          retry={() => {
+            void refresh().catch(() => {});
           }}
+        />
+      ) : null}
+      {!items && !error ? (
+        <div
+          role='status'
+          aria-label={t('approvalAi.loading')}
+          className='flex flex-col gap-3 rounded-xl border p-4'
         >
-          {t('approvalAi.refresh')}
-        </Button>
-      </div>
-      {paused && (
-        <p role='status' className='text-sm text-muted-foreground'>
-          {t('approvalAi.pollPaused')}
-        </p>
-      )}
-      {resource.data.data.map((review) =>
-        review.taskOpen ? (
-          <Review
-            key={review.taskId}
-            lifecycle={lifecycle}
-            recordId={recordId}
-            review={review}
-            reload={refresh}
-            evidenceHref={evidenceHref}
-            evidenceLabel={evidenceLabel}
-          />
-        ) : (
-          <details key={review.taskId} className='min-w-0'>
-            <summary className='cursor-pointer text-sm'>
-              {t('approvalAi.history')} · {review.title}
-            </summary>
+          <Skeleton className='h-5 w-1/3' />
+          <Skeleton className='h-12 w-full' />
+        </div>
+      ) : visible?.length ? (
+        <section
+          aria-label={t('approvalAi.title')}
+          className='flex min-w-0 flex-col gap-4'
+        >
+          {visible.map((item) => (
             <Review
+              key={item.taskId}
+              item={item}
               lifecycle={lifecycle}
               recordId={recordId}
-              review={review}
-              reload={refresh}
-              evidenceHref={evidenceHref}
-              evidenceLabel={evidenceLabel}
+              refreshing={refreshing}
+              readFailed={!!error}
+              refresh={refresh}
+              accept={accept}
+              mutationEpoch={() => readSequenceRef.current}
+              {...evidence}
             />
-          </details>
-        ),
-      )}
-    </section>
+          ))}
+        </section>
+      ) : null}
+    </>
   );
 }
+
+function SuggestionRefresh({
+  taskId,
+  refresh,
+}: {
+  taskId: string;
+  refresh: (signal?: AbortSignal) => Promise<void>;
+}) {
+  useRealtimeRefresh(`oa:approval-suggestions:${taskId}`, refresh);
+  return null;
+}
+
+function statusOf(item: ApprovalSuggestionView): ReviewStatus {
+  if (item.state === 'generating')
+    return item.attempts?.at(-1)?.phase === 'queued' ? 'queued' : 'running';
+  if (item.state === 'generated') return 'succeeded';
+  if (item.state === 'failed' || item.state === 'cancelled') return item.state;
+  return 'none';
+}
+
 function Review({
+  item,
   lifecycle,
   recordId,
-  review,
-  reload,
+  refreshing,
+  readFailed,
+  refresh,
+  accept,
+  mutationEpoch,
   evidenceHref,
   evidenceLabel,
-}: {
-  lifecycle: string;
-  recordId: string;
-  review: ReviewView;
-  reload: () => void;
-  evidenceHref?: (e: Finding['evidence'][number]) => string | undefined;
-  evidenceLabel?: (e: Finding['evidence'][number]) => string | undefined;
+}: Omit<PanelProps, 'refreshKey'> & {
+  item: ApprovalSuggestionView;
+  refreshing: boolean;
+  readFailed: boolean;
+  refresh: () => Promise<void>;
+  accept: (item: ApprovalSuggestionView, epoch: number) => Promise<void>;
+  mutationEpoch: () => number;
 }) {
-  const { t, i18n } = useTranslation(),
-    api = useApiClient(),
-    toaster = useToaster();
-  const [pending, setPending] = useState(false),
-    [error, setError] = useState<unknown>(),
-    [feedback, setFeedback] = useState(false),
-    [rating, setRating] = useState(review.feedback?.rating ?? 'useful'),
-    [note, setNote] = useState(review.feedback?.note ?? '');
-  const requestKeyRef = useRef<string | null>(null);
-  async function generate() {
-    if (pending) return;
-    setPending(true);
-    setError(undefined);
-    requestKeyRef.current ??= createRequestKey();
+  const api = useApiClient();
+  const toaster = useToaster();
+  const { t } = useTranslation();
+  const [selected, setSelected] = useState<string>();
+  const [action, setAction] = useState<'generate' | 'cancel' | null>(null);
+  const [actionError, setActionError] = useState<unknown>();
+  const operationRef = useRef<{
+    requestKey: string;
+    previousId: string | null;
+  } | null>(null);
+  const lockedRef = useRef(false);
+  const currentId = item.currentGenerationId ?? null;
+  useEffect(() => {
+    if (operationRef.current && currentId !== operationRef.current.previousId)
+      operationRef.current = null;
+  }, [currentId]);
+  const versions = item.versions ?? [];
+  const version =
+    versions.find((value) => value.id === selected) ?? versions.at(-1);
+  const report = version?.report ?? item.advice?.report;
+  const prerequisite =
+    item.state === 'model_unconfigured' ||
+    item.state === 'services_unavailable';
+  const disabledReason = prerequisite
+    ? t('approvalAi.prerequisites.' + item.state)
+    : undefined;
+  async function mutate(kind: 'generate' | 'cancel') {
+    if (lockedRef.current || refreshing || readFailed) return;
+    lockedRef.current = true;
+    setAction(kind);
+    setActionError(undefined);
+    const epoch = mutationEpoch();
     try {
-      await api.request({
+      const generation =
+        kind === 'generate'
+          ? (operationRef.current ??= {
+              requestKey: createRequestKey(),
+              previousId: currentId,
+            })
+          : null;
+      const result = await api.request<{ data: ApprovalSuggestionView }>({
         method: 'POST',
-        path:
-          'approvalAi/reviews/' +
-          encodeURIComponent(review.taskId) +
-          '/generate',
-        json: { requestKey: requestKeyRef.current },
+        path: `approvalAi/reviews/${encodeURIComponent(item.taskId)}/${kind}`,
+        json: {
+          lifecycle,
+          recordId,
+          ...(generation ?? { generationId: currentId }),
+        },
       });
-      requestKeyRef.current = null;
-      reload();
-    } catch (e) {
-      setError(e);
-      reload();
+      await accept(result.data, epoch);
+      if (kind === 'generate') {
+        operationRef.current = null;
+        setSelected(undefined);
+        toaster.show({
+          type: 'success',
+          title: t('approvalAi.generationRequested'),
+        });
+      }
+    } catch (cause) {
+      // Preserve the complete operationRef identity after an uncertain enqueue response.
+      setActionError(cause);
+      await refresh().catch(() => {});
     } finally {
-      setPending(false);
-    }
-  }
-  async function submitFeedback(event: React.FormEvent) {
-    event.preventDefault();
-    if (pending) return;
-    setPending(true);
-    setError(undefined);
-    try {
-      await api.request({
-        method: 'PUT',
-        path:
-          'approvalAi/reviews/' +
-          encodeURIComponent(review.taskId) +
-          '/feedback',
-        json: { rating, note },
-      });
-      setFeedback(false);
-      toaster.show({ type: 'success', title: t('approvalAi.feedbackSaved') });
-      reload();
-    } catch (e) {
-      setError(e);
-    } finally {
-      setPending(false);
+      lockedRef.current = false;
+      setAction(null);
     }
   }
   return (
-    <Card className='min-w-0'>
-      <CardHeader>
-        <CardTitle className='flex flex-wrap items-center justify-between gap-2'>
-          <span className='min-w-0 wrap-anywhere'>{review.title}</span>
-          <Badge variant='outline'>
-            {t('approvalAi.statuses.' + review.status)}
-          </Badge>
-        </CardTitle>
-        <CardDescription>
-          {t('approvalAi.advisory')} · {t('approvalAi.stage')}{' '}
-          {t('contracts.statuses.' + review.stage)} ·{' '}
-          {t('approvalAi.' + review.via)}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className='flex min-w-0 flex-col gap-4 wrap-anywhere'>
-        {!!error && !feedback && (
-          <ApprovalAiError error={error} retry={reload} />
-        )}
-        {review.errorCode && (
-          <Alert>
-            <AlertDescription>
-              {t('approvalAi.errors.' + review.errorCode)}
-            </AlertDescription>
-          </Alert>
-        )}
-        {review.findings?.map((finding) => (
-          <details
-            key={finding.checkId}
-            open={finding.verdict !== 'conforms'}
-            className='min-w-0'
+    <ApprovalReviewCard
+      review={{
+        status: report ? 'succeeded' : 'none',
+        taskOpen: !['not_found', 'not_actionable'].includes(item.state),
+        nextStep: report?.nextStep ?? null,
+        findings: report?.findings ?? null,
+        coverage: (report?.coverage ?? []).map((material) => ({
+          ...material,
+          status: material.truncated
+            ? ('partial_read' as const)
+            : material.status,
+          label:
+            material.truncated && material.range
+              ? `${material.label} (${material.range.start}–${material.range.end}/${material.range.total})`
+              : material.label,
+        })),
+        basis: report?.basis ?? null,
+        model: report?.model ?? null,
+        generatedAt: report?.generatedAt ?? null,
+      }}
+      status={statusOf(item)}
+      pending={action === 'generate'}
+      cancelling={action === 'cancel'}
+      refreshing={refreshing}
+      readOnly={readFailed}
+      canGenerate={item.canGenerate || !!item.canRegenerate}
+      canCancel={!!item.canCancel && !!currentId}
+      disabledReason={disabledReason}
+      versions={versions.map((value) => ({
+        id: value.id,
+        generatedAt: value.report.generatedAt,
+        model: value.report.model,
+      }))}
+      attempts={item.attempts}
+      selectedVersionId={version?.id}
+      onSelectVersion={setSelected}
+      historical={!!version && version.id !== currentId}
+      onGenerate={() => mutate('generate')}
+      onCancel={() => mutate('cancel')}
+      onRefresh={refresh}
+      error={
+        actionError ? (
+          <ApprovalAiError
+            error={actionError}
+            retry={() => {
+              void refresh().catch(() => {});
+            }}
+          />
+        ) : undefined
+      }
+      failure={
+        item.state === 'failed' ? t('approvalAi.generationFailed') : undefined
+      }
+      notice={t('approvalAi.reviewPrivacy')}
+      evidenceLabel={evidenceLabel}
+      renderEvidence={(entry, label) => {
+        const href = evidenceHref?.(entry);
+        return href ? (
+          <Link
+            className='text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring'
+            to={href}
           >
-            <summary className='cursor-pointer'>
-              <span>{finding.title}</span>{' '}
-              <Badge
-                variant={
-                  finding.verdict === 'nonconforming'
-                    ? 'destructive'
-                    : 'outline'
-                }
-              >
-                {t('approvalAi.verdicts.' + finding.verdict)}
-              </Badge>
-            </summary>
-            <p className='mt-2 whitespace-pre-wrap text-sm'>
-              {finding.summary}
-            </p>
-            {finding.evidence.map((e) => (
-              <div
-                key={JSON.stringify(e)}
-                className='mt-2 text-sm text-muted-foreground'
-              >
-                {e.kind === 'knowledge' || evidenceHref?.(e) ? (
-                  <Link
-                    className='underline'
-                    to={
-                      e.kind === 'knowledge'
-                        ? '/knowledge/' + encodeURIComponent(e.ref)
-                        : evidenceHref!(e)!
-                    }
-                  >
-                    {evidenceLabel?.(e) ??
-                      review.coverage.find((m) => m.ref === e.ref)?.label ??
-                      e.ref}
-                  </Link>
-                ) : (
-                  <span>
-                    {t('approvalAi.evidence')}:{' '}
-                    {evidenceLabel?.(e) ??
-                      review.coverage.find((m) => m.ref === e.ref)?.label ??
-                      e.ref}
-                  </span>
-                )}
-                {e.location && <span> · {e.location}</span>}
-                {e.quote && (
-                  <blockquote className='mt-1 border-l-2 pl-3 whitespace-pre-wrap'>
-                    {e.quote}
-                  </blockquote>
-                )}
-              </div>
-            ))}
-          </details>
-        ))}
-        {review.basis && <p className='text-sm'>{review.basis}</p>}
-        {!!review.coverage.length && (
-          <details>
-            <summary className='cursor-pointer text-sm'>
-              {t('approvalAi.coverage')}
-            </summary>
-            <ul className='mt-2 flex flex-col gap-2 text-sm'>
-              {review.coverage.map((m) => (
-                <li key={m.kind + ':' + m.ref + ':' + (m.slot ?? '')}>
-                  {m.label}
-                  {m.version !== undefined ? ' · v' + m.version : ''} ·{' '}
-                  {t('approvalAi.materialStatuses.' + m.status)}
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-        {review.generatedAt && (
-          <p className='text-xs text-muted-foreground'>
-            {new Intl.DateTimeFormat(i18n.language, {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-            }).format(new Date(review.generatedAt))}{' '}
-            · {review.model?.modelService} / {review.model?.model}
-          </p>
-        )}
-        <div className='flex flex-wrap gap-2'>
-          {review.status === 'succeeded' &&
-            review.generatedAt &&
-            review.findings && (
-              <ApprovalAssistantButton
-                target={{
-                  lifecycle,
-                  recordId,
-                  taskId: review.taskId,
-                  generatedAt: review.generatedAt,
-                  title: review.title,
-                  model: review.model,
-                }}
-              />
-            )}
-          {review.canGenerate && (
-            <Button
-              variant='outline'
-              disabled={pending}
-              onClick={() => void generate()}
-            >
-              {t(
-                'approvalAi.' +
-                  (pending
-                    ? 'saving'
-                    : review.status === 'succeeded'
-                      ? 'regenerate'
-                      : review.status === 'none'
-                        ? 'generate'
-                        : 'retry'),
-              )}
-            </Button>
-          )}
-          {review.taskOpen && review.status === 'succeeded' && (
-            <Button
-              variant='outline'
-              disabled={pending}
-              onClick={() => setFeedback(true)}
-            >
-              {t('approvalAi.feedback')}
-              {review.feedback
-                ? ' · ' + t('approvalAi.ratings.' + review.feedback.rating)
-                : ''}
-            </Button>
-          )}
-        </div>
-        <Dialog
-          open={feedback}
-          onOpenChange={(open) => {
-            if (!pending) setFeedback(open);
-          }}
-        >
-          <FormDrawerContent showCloseButton={!pending}>
-            <form onSubmit={(event) => void submitFeedback(event)}>
-              <FormDrawerHeader>
-                <DialogTitle>{t('approvalAi.feedback')}</DialogTitle>
-                <DialogDescription>
-                  {t('approvalAi.feedbackDescription')}
-                </DialogDescription>
-              </FormDrawerHeader>
-              <FormDrawerBody>
-                {!!error && <ApprovalAiError error={error} />}
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel htmlFor={'rating-' + review.taskId}>
-                      {t('approvalAi.rating')}
-                    </FieldLabel>
-                    <Select
-                      value={rating}
-                      disabled={pending}
-                      onValueChange={(v) => setRating(v ?? 'useful')}
-                    >
-                      <SelectTrigger
-                        id={'rating-' + review.taskId}
-                        className='w-full'
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className='w-auto max-w-(--available-width) min-w-(--anchor-width)'>
-                        <SelectGroup>
-                          {['useful', 'false_positive', 'missed'].map(
-                            (value) => (
-                              <SelectItem
-                                className='whitespace-normal wrap-anywhere'
-                                key={value}
-                                value={value}
-                              >
-                                {t('approvalAi.ratings.' + value)}
-                              </SelectItem>
-                            ),
-                          )}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor={'note-' + review.taskId}>
-                      {t('approvalAi.note')}
-                    </FieldLabel>
-                    <Textarea
-                      id={'note-' + review.taskId}
-                      value={note}
-                      maxLength={1000}
-                      disabled={pending}
-                      onChange={(event) => setNote(event.target.value)}
-                    />
-                  </Field>
-                </FieldGroup>
-              </FormDrawerBody>
-              <FormDrawerFooter>
-                <Button
-                  type='button'
-                  variant='outline'
-                  disabled={pending}
-                  onClick={() => setFeedback(false)}
-                >
-                  {t('approvalAi.cancel')}
-                </Button>
-                <Button type='submit' disabled={pending}>
-                  {t('approvalAi.' + (pending ? 'saving' : 'save'))}
-                </Button>
-              </FormDrawerFooter>
-            </form>
-          </FormDrawerContent>
-        </Dialog>
-      </CardContent>
-    </Card>
+            {label}
+          </Link>
+        ) : (
+          label
+        );
+      }}
+    />
   );
 }
