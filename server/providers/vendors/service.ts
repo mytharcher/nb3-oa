@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { demoNow } from '../demo-data/context.js';
 import { randomUUID } from 'node:crypto';
 import type {
@@ -118,10 +119,32 @@ export function createVendorService(d: {
       });
     },
     async list(query, policy, connection = d.db.connection()) {
+      const listFields = [
+        'id',
+        'code',
+        'name',
+        'category',
+        'contactName',
+        'contactPhone',
+        'contactEmail',
+        'bankName',
+        'bankAccount',
+        'bankAccountName',
+        'status',
+        'qualificationExpiry',
+        'qualificationId',
+        'active',
+        'version',
+        'createdById',
+        'createdAt',
+        'updatedAt',
+      ] as const;
+      const selected = readableListFields(listFields, policy);
       const rows = await connection
         .repository<Vendor>('vendors')
         .withPolicy(policy)
         .findMany({
+          select: (s) => s.fields(...selected),
           ...(query.active === undefined
             ? {}
             : { filter: { active: query.active } }),

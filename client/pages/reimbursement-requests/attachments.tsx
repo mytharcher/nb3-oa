@@ -1,9 +1,9 @@
+import { FileUploadInput } from '#components/file-upload-input';
 import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { useApiClient } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '#components/ui/button';
-import { Input } from '#components/ui/input';
 import { Checkbox } from '#components/ui/checkbox';
 import { Field, FieldLabel, FieldDescription } from '#components/ui/field';
 import { Alert, AlertDescription } from '#components/ui/alert';
@@ -198,17 +198,12 @@ export function ReimbursementAttachmentEditor({
       <FieldDescription>
         {t('reimbursementRequests.form.uploadHint')}
       </FieldDescription>
-      <Input
+      <FileUploadInput
         ref={inputRef}
         id={id}
-        type='file'
         accept='.pdf,.jpg,.jpeg,.png,.webp'
         disabled={disabled || busy}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = '';
-          if (file) void upload(file);
-        }}
+        onFileChange={(file) => void upload(file)}
       />
       <Button
         type='button'

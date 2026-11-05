@@ -122,7 +122,7 @@ export interface PurchaseOrderService {
     policy: RepositoryPolicy,
     connection?: DatabaseConnection,
   ): Promise<{
-    data: PurchaseOrder[];
+    data: PurchaseOrderListRecord[];
     meta: { page: number; pageSize: number; total: number };
   }>;
   issue(
@@ -187,3 +187,22 @@ export interface PurchaseOrderService {
 }
 export const purchaseOrderServiceToken =
   createServiceToken<PurchaseOrderService>('oa/purchase-orders');
+
+export const orderListFields = [
+  'id',
+  'purchaseId',
+  'number',
+  'applicantId',
+  'departmentId',
+  'actualCents',
+  'vendor',
+  'status',
+  'version',
+  'createdAt',
+  'acceptedAt',
+  'acceptedById',
+] as const;
+export type PurchaseOrderListRecord = Pick<
+  PurchaseOrder,
+  (typeof orderListFields)[number]
+>;

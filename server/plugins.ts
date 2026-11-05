@@ -21,6 +21,7 @@ import taskCenter from '@nocobase/app-plugin-task-center/server';
 import concurrency from '@nocobase/app-plugin-concurrency/server';
 import foundation from '@nocobase/app-plugin-foundation/server';
 import mail from '@nocobase/app-plugin-mail/server';
+import demoMode from '@nocobase/app-plugin-demo-mode/server';
 
 const serverPlugins: AppServerPlugins = defineServerPlugins([
   concurrency,
@@ -42,6 +43,7 @@ const serverPlugins: AppServerPlugins = defineServerPlugins([
   agents,
   mail,
   foundation,
+  demoMode,
 ]);
 
 export default serverPlugins;

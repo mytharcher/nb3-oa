@@ -21,7 +21,6 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import {
   BOOKING_READ_FIELDS,
-  meetingRoomServiceToken,
   type MeetingBooking,
 } from '../../providers/meeting-rooms/contract.js';
 import { MeetingRoomError } from '../../providers/meeting-rooms/index.js';
@@ -46,8 +45,7 @@ export default [
   defineApiRoutes<Application>((app) => {
     const c = app.container,
       db = c.resolve(databaseManagerToken),
-      calendar = c.resolve(calendarServiceToken),
-      bookings = c.resolve(meetingRoomServiceToken);
+      calendar = c.resolve(calendarServiceToken);
     const r = new Hono<AuthEnv & AuthorizationEnv>();
     r.use(
       '/workbench/meetings',
@@ -127,12 +125,33 @@ export default [
               domain: 'workbench',
               message: 'An active employee is required.',
             });
-          // Filter before pagination. Public getBooking verifies the complete current field policy;
-          // room availability and its busy intervals never authorize a meeting title.
+          // Preserve the complete read-policy gate above, but load only summary facts.
+          // Room availability and busy intervals never authorize a meeting title.
           const rows = await tx
-            .repository<MeetingBooking>('meetingBookings')
+            .repository<
+              Pick<
+                MeetingBooking,
+                | 'id'
+                | 'title'
+                | 'startAt'
+                | 'endAt'
+                | 'status'
+                | 'organizerUserId'
+                | 'attendeeUserIds'
+              >
+            >('meetingBookings')
             .withPolicy(policy)
             .findMany({
+              select: (s) =>
+                s.fields(
+                  'id',
+                  'title',
+                  'startAt',
+                  'endAt',
+                  'status',
+                  'organizerUserId',
+                  'attendeeUserIds',
+                ),
               filter: (f) =>
                 f.and([
                   f.date('startAt').before(end),
@@ -144,18 +163,22 @@ export default [
                 ]),
               sort: (s) => [s.field('startAt').asc(), s.field('id').asc()],
             });
-          const visible = [];
-          for (const row of rows) {
-            const booking = row.id
-              ? await bookings.getBooking(row.id, tx, policy)
-              : undefined;
+          const visible = rows.filter((row) => {
             if (
-              booking &&
-              (booking.organizerUserId === actorId ||
-                booking.attendeeUserIds.includes(actorId))
+              !row.id ||
+              !row.title ||
+              !row.startAt ||
+              !row.endAt ||
+              !row.status ||
+              !row.organizerUserId ||
+              !row.attendeeUserIds
             )
-              visible.push(booking);
-          }
+              throw new MeetingRoomError('ACCESS_DENIED');
+            return (
+              row.organizerUserId === actorId ||
+              row.attendeeUserIds.includes(actorId)
+            );
+          });
           return {
             date,
             timeZone: calendar.timeZone(),
@@ -163,8 +186,8 @@ export default [
             items: visible.slice(0, 5).map((row) => ({
               id: row.id,
               title: row.title,
-              startAt: new Date(row.startAt).toISOString(),
-              endAt: new Date(row.endAt).toISOString(),
+              startAt: new Date(row.startAt!).toISOString(),
+              endAt: new Date(row.endAt!).toISOString(),
               status: row.status,
             })),
           };

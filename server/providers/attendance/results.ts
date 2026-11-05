@@ -29,6 +29,7 @@ export async function listAttendanceResults(
     .repository<AttendanceEvaluation>('attendanceEvaluations')
     .withPolicy(policies.current)
     .findMany({
+      select: (s) => s.fields('id', 'userId', 'date', 'currentRevisionId'),
       filter: (f) =>
         f.and([
           f.date('date').notBefore(`${input.month}-01`),
@@ -55,6 +56,9 @@ export async function listAttendanceResults(
     .repository<AttendanceEvaluationRevision>('attendanceEvaluationRevisions')
     .withPolicy(policies.revision)
     .findMany({
+      // Snapshot supplies the authoritative approved-overtime total; other audit payloads stay in detail.
+      select: (s) =>
+        s.fields('id', 'result', 'createdAt', 'revision', 'snapshot'),
       filter: (f) =>
         f.or(currents.map((row) => f.string('id').eq(row.currentRevisionId!))),
     });
@@ -90,6 +94,16 @@ export async function listAttendanceResults(
     const missing = await connection
       .repository<import('./contract.js').AttendanceRecord>('attendanceRecords')
       .findMany({
+        select: (s) =>
+          s.fields(
+            'id',
+            'userId',
+            'date',
+            'source',
+            'sourceData',
+            'punchKind',
+            'version',
+          ),
         filter: (f) =>
           f.and([
             f.string('status').eq('missing'),

@@ -49,6 +49,10 @@ const copy = {
   invalidFields: '확인할 필드: {{fields}}.',
   fieldSeparator: ', ',
   businessErrors: {
+    LEAVE_EMPLOYEE_INACTIVE:
+      '신청자에게 활성 재직 직원 기록이 필요합니다. HR에 직원 기록과 연결된 계정을 확인해 달라고 요청하세요.',
+    LEAVE_HANDOVER_INACTIVE:
+      '선택한 인수인계 담당자를 사용할 수 없습니다. 다른 사람을 선택하거나 승인 위임이 비활성화된 경우 선택을 해제하세요.',
     LEAVE_MAX_DAYS: '이 휴가 유형의 최대 일수를 초과합니다. 기간을 줄이세요.',
     LEAVE_NO_WORKDAYS: '선택한 기간에 근무 반일이 없습니다. 날짜를 조정하세요.',
     LEAVE_TYPE_UNAVAILABLE:

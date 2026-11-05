@@ -50,6 +50,10 @@ const copy = {
   invalidFields: 'Check these fields: {{fields}}.',
   fieldSeparator: ', ',
   businessErrors: {
+    LEAVE_EMPLOYEE_INACTIVE:
+      'The applicant needs an active employee record. Ask HR to check the employee record and its linked account.',
+    LEAVE_HANDOVER_INACTIVE:
+      'The selected handover person is unavailable. Choose another person, or clear the field if approval delegation is disabled.',
     LEAVE_MAX_DAYS:
       "The requested leave exceeds this leave type's maximum. Shorten the period.",
     LEAVE_NO_WORKDAYS:

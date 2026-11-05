@@ -1,5 +1,6 @@
-// @vitest-environment node
 import { userTaskServiceToken } from '@nocobase/app-plugin-task-center/server';
+import { pendingCandidateRecordIds } from '../../../server/providers/approval-runtime/pending-candidates.js';
+// @vitest-environment node
 import { randomUUID } from 'node:crypto';
 import { expect, vi } from 'vitest';
 import { authorizationToken } from '@nocobase/app-plugin-authorization/server';
@@ -92,7 +93,23 @@ test('exhausts pending candidates before business-time paging, preserves delegat
         }),
       ),
   );
-  const queryRead = vi.spyOn(container.resolve(userTaskServiceToken), 'list');
+  const backfills = testApp.database.repository('oaTaskCenterBackfills');
+  await backfills.updateMany({
+    filter: { id: LEAVE_LIFECYCLE },
+    values: { done: false },
+  });
+  expect(
+    await pendingCandidateRecordIds(
+      testApp.application,
+      LEAVE_LIFECYCLE,
+      reviewer.userId,
+      { read: true },
+    ),
+  ).toBeUndefined();
+  await backfills.updateMany({
+    filter: { id: LEAVE_LIFECYCLE },
+    values: { done: true },
+  });
   const loanRead = vi.spyOn(container.resolve(loanRequestServiceToken), 'list');
   const client = await testApp.database.connection().client();
   let headcountWrites = 0;
@@ -128,7 +145,6 @@ test('exhausts pending candidates before business-time paging, preserves delegat
     ).json();
     expect(searched.meta.total).toBe(1);
     expect(searched.data[0].id).toBe(ids[0]);
-    expect(queryRead).toHaveBeenCalled();
     expect(loanRead).not.toHaveBeenCalled();
 
     const directory = container.resolve(approvalDirectoryServiceToken);
@@ -152,6 +168,29 @@ test('exhausts pending candidates before business-time paging, preserves delegat
     expect(delegated.data.map((row: { id: string }) => row.id)).toEqual(
       ids.slice(0, 6),
     );
+    // A current delegate can still act before its own personal projection appears.
+    const reader = container.resolve(userTaskServiceToken);
+    const list = reader.list.bind(reader);
+    const delayedDelegate = vi
+      .spyOn(reader, 'list')
+      .mockImplementation((userId, query) =>
+        userId === delegate.userId
+          ? Promise.resolve({
+              data: [],
+              meta: { page: 1, pageSize: 100, nextCursor: null },
+            })
+          : list(userId, query),
+      );
+    try {
+      const delayed = await (
+        await delegateSession.fetch(
+          '/approvalCenter?view=pending&kind=oa.leave&pageSize=6',
+        )
+      ).json();
+      expect(delayed.meta.total).toBe(7);
+    } finally {
+      delayedDelegate.mockRestore();
+    }
     await directory.disableManualDelegation(delegation.id, {
       actorId: reviewer.userId,
     });
@@ -163,7 +202,6 @@ test('exhausts pending candidates before business-time paging, preserves delegat
     expect(expired.meta.total).toBe(0);
   } finally {
     client.removeListener('query', observe);
-    queryRead.mockRestore();
     loanRead.mockRestore();
   }
 });

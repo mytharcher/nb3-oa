@@ -1,9 +1,9 @@
+import { FileUploadInput } from '#components/file-upload-input';
 import { BusinessAttachmentList } from '#components/business-attachment-list';
 import { useEffect, useState } from 'react';
 import { useApiClient } from '@nocobase/app-client';
 import { useAuthentication } from '@nocobase/app-plugin-authentication/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { Input } from '#components/ui/input';
 import { Button } from '#components/ui/button';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import { ErrorState } from './states.js';
@@ -159,16 +159,11 @@ export function Photos({
           <p className='text-sm text-muted-foreground'>
             {t('assetRequests.photoLimit')}
           </p>
-          <Input
+          <FileUploadInput
             id='asset-photos'
-            type='file'
             accept='image/jpeg,image/png,image/webp'
             disabled={disabled || busy || !!unknownFile}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void upload(file);
-              e.target.value = '';
-            }}
+            onFileChange={(file) => void upload(file)}
           />
         </>
       ) : null}

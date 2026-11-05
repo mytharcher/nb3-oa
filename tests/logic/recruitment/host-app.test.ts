@@ -704,7 +704,9 @@ test('registered departure owner migrates real recruitment tasks and audits atom
     'oa.recruitment',
     submitted.id,
   );
-  const task = before.find((task) => task.recordId === submitted.id)!;
+  const task = before.find(
+    (task) => task.assigneeId === from.userId && task.status === 'pending',
+  )!;
   expect(task).toBeDefined();
   const command = {
     from: from.userId,
@@ -730,7 +732,10 @@ test('registered departure owner migrates real recruitment tasks and audits atom
   }
   expect(
     (await service.approvals.tasksFor('oa.recruitment', submitted.id)).some(
-      (task) => task.recordId === submitted.id && task.status === 'pending',
+      (task) =>
+        task.recordId === submitted.id &&
+        task.assigneeId === from.userId &&
+        task.status === 'pending',
     ),
   ).toBe(true);
   expect(
@@ -746,7 +751,10 @@ test('registered departure owner migrates real recruitment tasks and audits atom
   ).toBe(false);
   expect(
     (await service.approvals.tasksFor('oa.recruitment', submitted.id)).some(
-      (task) => task.recordId === submitted.id && task.status === 'pending',
+      (task) =>
+        task.recordId === submitted.id &&
+        task.assigneeId === to.userId &&
+        task.status === 'pending',
     ),
   ).toBe(true);
   expect(

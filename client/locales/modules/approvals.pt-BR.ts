@@ -53,6 +53,10 @@ const copy = {
   invalidFields: 'Verifique estes campos: {{fields}}.',
   fieldSeparator: ', ',
   businessErrors: {
+    LEAVE_EMPLOYEE_INACTIVE:
+      'O solicitante precisa de um cadastro de funcionário ativo. Peça ao RH para verificar o cadastro e a conta vinculada.',
+    LEAVE_HANDOVER_INACTIVE:
+      'A pessoa selecionada para a passagem de trabalho está indisponível. Escolha outra pessoa ou limpe o campo se a delegação de aprovações estiver desativada.',
     LEAVE_MAX_DAYS:
       'A licença solicitada excede o máximo deste tipo. Reduza o período.',
     LEAVE_NO_WORKDAYS:

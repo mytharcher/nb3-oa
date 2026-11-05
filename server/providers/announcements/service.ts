@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { demoNow } from '../demo-data/context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type {
@@ -19,6 +20,8 @@ import type { OrgService } from '../org/contract.js';
 import type { Employee } from '../employees/contract.js';
 import {
   ANNOUNCEMENT_FIELDS,
+  ANNOUNCEMENT_LIST_FIELDS,
+  type AnnouncementListItem,
   RECEIPT_FIELDS,
   type Announcement,
   type Receipt,
@@ -60,7 +63,9 @@ export function createAnnouncementService(d: {
   ) => Promise<NonNullable<Announcement['knowledgeLink']>>;
 }): AnnouncementService & { runtime: LifecycleRuntime } {
   const now = () => d.now?.() ?? demoNow();
-  const active = (a: Announcement) =>
+  const active = (
+    a: Pick<Announcement, 'status' | 'validFrom' | 'validUntil'>,
+  ) =>
     a.status === 'published' &&
     new Date(a.validFrom) <= now() &&
     now() < new Date(a.validUntil);
@@ -332,6 +337,46 @@ export function createAnnouncementService(d: {
   return {
     runtime,
     get: checked,
+    async list(actorId, tx, policy, search) {
+      if (policy.read === false) fail('ACCESS_DENIED');
+      const employee = await tx.repository<Employee>('employees').findOne({
+        filter: { userId: actorId },
+        select: (s) => s.fields('active', 'status'),
+      });
+      if (!employee?.active || employee.status === 'left') return [];
+      const rows = await tx
+        .repository<Announcement>('announcements')
+        .withPolicy(policy)
+        .findMany({
+          select: (s) =>
+            s.fields(...readableListFields(ANNOUNCEMENT_LIST_FIELDS, policy)),
+          ...(search
+            ? {
+                filter: (f) =>
+                  f.or([
+                    f.string('title').includes(search, { mode: 'insensitive' }),
+                    f.text('body').includes(search, { mode: 'insensitive' }),
+                  ]),
+              }
+            : {}),
+          sort: (s) => s.field('publishedAt').desc(),
+        });
+      const result: AnnouncementListItem[] = [];
+      for (const row of rows) {
+        if (ANNOUNCEMENT_LIST_FIELDS.some((key) => !(key in row)))
+          fail('ACCESS_DENIED');
+        const record = row as AnnouncementListItem;
+        if (
+          record.publisherUserId === actorId ||
+          (active(record) &&
+            (await tx.repository('announcementReceipts').exists({
+              filter: { announcementId: record.id, userId: actorId },
+            })))
+        )
+          result.push(record);
+      }
+      return result;
+    },
     async linkedVersionAudience(documentId, tx) {
       const rows = await tx.repository<Announcement>('announcements').findMany({
         filter: { status: 'published' },
@@ -670,21 +715,30 @@ export function createAnnouncementService(d: {
       const repo = tx.repository<Receipt>('announcementReceipts');
       const rows = await (
         receiptPolicy ? repo.withPolicy(receiptPolicy) : repo
-      ).findMany({ filter: { announcementId: id } });
+      ).findMany({
+        select: (s) =>
+          s.fields(
+            ...(receiptPolicy
+              ? readableListFields(RECEIPT_FIELDS, receiptPolicy)
+              : RECEIPT_FIELDS),
+          ),
+        filter: { announcementId: id },
+      });
       if (rows.some((r) => RECEIPT_FIELDS.some((k) => !(k in r))))
         fail('ACCESS_DENIED');
       return rows as Receipt[];
     },
     async listForCenter(actorId, tx, policies) {
       const pending = await this.pending(actorId, tx, policies.view);
+      const records = new Map(
+        (await this.list(actorId, tx, policies.confirm)).map((row) => [
+          row.id,
+          row,
+        ]),
+      );
       const items = [];
       for (const summary of pending.items) {
-        const a = await checked(
-          summary.announcementId,
-          actorId,
-          tx,
-          policies.confirm,
-        );
+        const a = records.get(summary.announcementId);
         if (!a || !active(a) || !a.requiresConfirmation) continue;
         items.push({
           id: a.id,
@@ -700,10 +754,28 @@ export function createAnnouncementService(d: {
     async pending(actorId, tx, policy) {
       const receipts = await tx
         .repository<Receipt>('announcementReceipts')
-        .findMany({ filter: { userId: actorId, status: 'pending' } });
+        .findMany({
+          select: (s) => s.fields('id', 'announcementId'),
+          filter: { userId: actorId, status: 'pending' },
+        });
+      const records = new Map(
+        (receipts.length
+          ? await this.list(
+              actorId,
+              tx,
+              policy ?? {
+                read: true,
+                create: false,
+                update: false,
+                delete: false,
+              },
+            )
+          : []
+        ).map((row) => [row.id, row]),
+      );
       const items = [];
       for (const r of receipts) {
-        const a = await checked(r.announcementId, actorId, tx, policy);
+        const a = records.get(r.announcementId);
         if (a && active(a) && a.requiresConfirmation)
           items.push({
             id: r.id,

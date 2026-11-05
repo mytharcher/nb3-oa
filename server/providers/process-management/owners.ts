@@ -1,3 +1,4 @@
+import type { AppApprovalService } from '../approval-runtime/query-service.js';
 import type { Application } from '@nocobase/app-server/application';
 import { ApprovalService } from '@nocobase/app-plugin-approval/server';
 import { LifecycleRuntime } from '@nocobase/lifecycle';
@@ -36,7 +37,7 @@ import { departureServiceToken } from '../departure/index.js';
 import { certificateRequestServiceToken } from '../certificates/index.js';
 export interface ProcessSdk {
   runtime: LifecycleRuntime;
-  approvals: ApprovalService;
+  approvals: AppApprovalService;
   read<T>(work: () => Promise<T>, connection?: DatabaseConnection): Promise<T>;
   definition?: Approval<never>;
 }

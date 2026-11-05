@@ -187,6 +187,8 @@ const ruRU: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'Выбрать файл',
+    singleFile: 'Выбирайте по одному файлу за раз.',
     images: 'Изображения',
     files: 'Файлы',
     preview: 'Просмотр {name}',
@@ -217,6 +219,18 @@ const ruRU: AppResource = {
   ...platformEnUS,
   ...approvalsEnUS,
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: 'Системный администратор',
+        noRole: 'Роль не указана',
+        rolesLoading: 'Загрузка ролей…',
+        rolesUnavailable: 'Роли недоступны',
+      },
+      menu: {
+        description:
+          'Изменения сохраняются. Переключайте аккаунты, чтобы проверить права каждой роли.',
+      },
+    },
     ...plugins,
     '@nocobase/app-plugin-users': {
       ...plugins['@nocobase/app-plugin-users'],
@@ -344,6 +358,7 @@ const ruRU: AppResource = {
       systemAccess: 'Роли и права',
       systemConnections: 'Уведомления и интеграции',
       systemOperations: 'Операции',
+      foundation: 'Основа приложения',
       office: 'Ежедневная работа',
       finance: 'Финансы и расходы',
       procurement: 'Закупки и договоры',

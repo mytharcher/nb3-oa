@@ -18,8 +18,8 @@ export interface LeaveRecord {
   createdById: string;
   number: string | null;
   leaveType: string;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
   startHalf: 'am' | 'pm';
   endHalf: 'am' | 'pm';
   days: number | string;

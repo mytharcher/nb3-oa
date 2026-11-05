@@ -10,6 +10,10 @@ export const PERSONAL_SCHEDULE_FIELDS = [
   'version',
   'sourceBookingId',
 ] as const;
+export const PERSONAL_SCHEDULE_LIST_FIELDS = PERSONAL_SCHEDULE_FIELDS.filter(
+  (field) => field !== 'description',
+);
+export type PersonalScheduleListItem = Omit<PersonalSchedule, 'description'>;
 export interface PersonalSchedule {
   id: string;
   ownerUserId: string;
@@ -45,7 +49,7 @@ export interface PersonalScheduleService {
     connection: DatabaseConnection,
     policy: RepositoryPolicy,
     interval?: { startAt: string; endAt: string },
-  ): Promise<PersonalSchedule[]>;
+  ): Promise<PersonalScheduleListItem[]>;
   get(
     id: string,
     actorId: string,

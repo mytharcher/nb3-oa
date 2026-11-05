@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { measureApprovalPhase } from '../approval-runtime/timing.js';
 import {
   isOpenRun,
@@ -151,6 +152,27 @@ export interface RecruitmentCommand {
   requestKey: string;
   reason: string;
 }
+const recruitmentListFields = [
+  'id',
+  'applicantId',
+  'departmentId',
+  'privateSalaryRevisionId',
+  'lifecycleVersion',
+  'status',
+  'positionId',
+  'gradeId',
+  'quantity',
+  'kind',
+  'accountId',
+  'year',
+  'expectedStartDate',
+  'createdAt',
+  'statusChangedAt',
+] as const;
+type RecruitmentListItem = Pick<
+  RecruitmentRecord,
+  (typeof recruitmentListFields)[number]
+>;
 function fail(reason: string): never {
   throw new RecruitmentSubmissionError(reason);
 }
@@ -561,7 +583,9 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
       await refresh();
       const rows = await d.db
         .repository<RecruitmentRecord>('recruitmentRequests')
-        .findMany();
+        .findMany({
+          select: (s) => s.fields('id', 'applicantId', 'snapshot'),
+        });
       return rows
         .filter(
           (row) =>
@@ -1381,6 +1405,8 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
         ]);
       const [rows, total] = await Promise.all([
         repository.findMany({
+          select: (s) =>
+            s.fields(...readableListFields(recruitmentListFields, policy)),
           filter,
           sort: (s) => [
             query.desc
@@ -1395,7 +1421,9 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
       ]);
       const items = await Promise.all(
         rows.map(async (row) => {
-          const record = await read(String(row.id), policy);
+          if (recruitmentListFields.some((field) => !(field in row)))
+            fail('RECRUITMENT_FORBIDDEN');
+          const record = row as RecruitmentListItem;
           const user = await d.users.get(record.applicantId);
           return {
             ...record,
@@ -1410,10 +1438,16 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
       const rows = await d.db
         .repository<RecruitmentRecord>('recruitmentRequests')
         .withPolicy(policy)
-        .findMany({ sort: (s) => [s.field('createdAt').desc()] });
+        .findMany({
+          select: (s) =>
+            s.fields(...readableListFields(recruitmentListFields, policy)),
+          sort: (s) => [s.field('createdAt').desc()],
+        });
       return Promise.all(
         rows.map(async (row) => {
-          const record = await read(String(row.id), policy);
+          if (recruitmentListFields.some((field) => !(field in row)))
+            fail('RECRUITMENT_FORBIDDEN');
+          const record = row as RecruitmentListItem;
           const user = record.applicantId
             ? await d.users.get(record.applicantId)
             : undefined;
@@ -1435,7 +1469,23 @@ export function createRecruitmentService(d: RecruitmentDependencies) {
         const rows = await d.db
           .repository<RecruitmentRecord>('recruitmentRequests')
           .withPolicy(policy)
-          .findMany({ sort: (s) => [s.field('createdAt').desc()] });
+          .findMany({
+            select: (s) =>
+              s.fields(
+                ...readableListFields(
+                  [
+                    'id',
+                    'applicantId',
+                    'status',
+                    'createdAt',
+                    'expectedStartDate',
+                    'reason',
+                  ],
+                  policy,
+                ),
+              ),
+            sort: (s) => [s.field('createdAt').desc()],
+          });
         const selected: Partial<RecruitmentRecord>[] = [];
         for (const record of rows) {
           if (

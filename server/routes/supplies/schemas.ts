@@ -82,7 +82,11 @@ export const Detail = z.strictObject({
 });
 const User = z.strictObject({ id: z.string(), name: z.string() });
 export const List = z.array(
-  SupplyRecord.extend({
+  SupplyRecord.omit({
+    items: true,
+    itemSnapshot: true,
+    ruleSnapshot: true,
+  }).extend({
     applicant: User.nullable(),
     createdBy: User.nullable(),
     managerApprover: User.nullable(),

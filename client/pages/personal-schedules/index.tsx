@@ -43,7 +43,7 @@ export default function PersonalSchedules() {
       /^\d{4}-\d{2}-\d{2}$/.test(requested) && isValid(parseISO(requested))
         ? requested
         : localDay();
-  const r = useScheduleResource<{ data: Schedule[] }>(
+  const r = useScheduleResource<{ data: Omit<Schedule, 'description'>[] }>(
     'personalSchedules',
     dayInterval(day),
   );

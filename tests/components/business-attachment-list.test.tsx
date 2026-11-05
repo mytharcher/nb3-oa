@@ -157,3 +157,57 @@ it('uses Chinese labels and preserves the returned deployment path', async () =>
     screen.getByRole('button', { name: '下载 notes.txt' }),
   ).toHaveAttribute('href', '/custom/guarded/notes.txt');
 });
+
+it('removes the exact grouped image or file without opening a preview or submitting', async () => {
+  const remove = vi.fn();
+  const submit = vi.fn();
+  render(
+    <TestI18nProvider runtime={runtime}>
+      <form onSubmit={submit}>
+        <BusinessAttachmentList files={files} onRemove={remove} />
+      </form>
+    </TestI18nProvider>,
+  );
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Remove photo.png' }),
+  );
+  expect(remove).toHaveBeenLastCalledWith('image');
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Remove notes.txt' }),
+  );
+  expect(remove).toHaveBeenLastCalledWith('text');
+  expect(submit).not.toHaveBeenCalled();
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
+it('keeps read-only attachments free of removal actions', () => {
+  render(content());
+  expect(screen.queryByRole('button', { name: /^Remove / })).toBeNull();
+});
+
+it('places download beside the title and keeps navigation and close on the right', async () => {
+  render(content());
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Preview photo.png' }));
+  const dialog = await screen.findByRole('dialog', { name: 'photo.png' });
+  const actions = dialog.querySelector('[data-slot="file-preview-actions"]')!;
+  for (const name of ['Previous file', 'Next file', 'Close']) {
+    expect(actions).toContainElement(
+      within(dialog).getByRole('button', { name }),
+    );
+  }
+  const download = within(dialog).getByRole('button', {
+    name: 'Download: photo.png',
+  });
+  expect(
+    dialog.querySelector('[data-slot="file-preview-title"]'),
+  ).toContainElement(download);
+  expect(actions).not.toContainElement(download);
+  expect(within(dialog).getAllByRole('button', { name: 'Close' })).toHaveLength(
+    1,
+  );
+  await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(
+    screen.getByRole('button', { name: 'Preview photo.png' }),
+  ).toHaveFocus();
+});

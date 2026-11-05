@@ -55,6 +55,10 @@ const copy = {
   invalidFields: 'Vérifiez ces champs : {{fields}}.',
   fieldSeparator: ', ',
   businessErrors: {
+    LEAVE_EMPLOYEE_INACTIVE:
+      'Le demandeur doit disposer d’un dossier salarié actif. Demandez aux RH de vérifier le dossier et le compte associé.',
+    LEAVE_HANDOVER_INACTIVE:
+      'La personne choisie pour la passation est indisponible. Choisissez une autre personne ou videz le champ si la délégation des approbations est désactivée.',
     LEAVE_MAX_DAYS:
       'La durée demandée dépasse le maximum de ce type de congé. Réduisez la période.',
     LEAVE_NO_WORKDAYS:

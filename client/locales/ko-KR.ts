@@ -187,6 +187,8 @@ const koKR: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: '파일 선택',
+    singleFile: '한 번에 파일 하나를 선택하세요.',
     images: '이미지',
     files: '파일',
     preview: '{name} 미리 보기',
@@ -217,6 +219,18 @@ const koKR: AppResource = {
   ...platformEnUS,
   ...approvalsEnUS,
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: '시스템 관리자',
+        noRole: '역할 미지정',
+        rolesLoading: '역할 불러오는 중…',
+        rolesUnavailable: '역할을 불러올 수 없습니다',
+      },
+      menu: {
+        description:
+          '변경 사항은 저장됩니다. 계정을 전환하여 각 역할의 권한을 확인하세요.',
+      },
+    },
     ...plugins,
     '@nocobase/app-plugin-users': {
       ...plugins['@nocobase/app-plugin-users'],
@@ -344,6 +358,7 @@ const koKR: AppResource = {
       systemAccess: '역할 및 권한',
       systemConnections: '알림 및 연동',
       systemOperations: '운영',
+      foundation: '앱 기반',
       office: '일상 업무',
       finance: '재무 및 경비',
       procurement: '구매 및 계약',

@@ -1,3 +1,4 @@
+import { FileUploadInput } from '#components/file-upload-input';
 import { useRouteFormCloseGuard } from '#hooks/use-route-form-close-guard';
 import { FormActions } from '#components/form-actions';
 import { createRequestKey } from '#lib/request-key';
@@ -526,10 +527,10 @@ function Fields({
                   *
                 </span>
               </FieldLabel>
-              <Input
+              <FileUploadInput
+                selectedFile={file}
                 id='knowledge-file'
                 ref={fileInputRef}
-                type='file'
                 accept={ACCEPT}
                 disabled={busy}
                 aria-invalid={
@@ -537,8 +538,8 @@ function Fields({
                   fieldViolationsOf(command.error).includes('fileId')
                 }
                 aria-describedby='knowledge-file-hint knowledge-file-error'
-                onChange={(e) => {
-                  setFile(e.target.files?.[0] ?? null);
+                onFileChange={(selectedFile) => {
+                  setFile(selectedFile);
                   setUploaded(null);
                   uploadKeyRef.current = null;
                   setValidation('');

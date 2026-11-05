@@ -216,12 +216,38 @@ describe('leave attachment editor', () => {
     expect(callbacks.ensureDraft).toHaveBeenCalledOnce();
     expect(screen.getByLabelText('Attachments')).toBeDisabled();
   });
-  it('removes only the selection and never deletes storage', async () => {
-    const callbacks = editor(['f1']);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Remove attachment 1' }),
-    );
-    expect(callbacks.onChange).toHaveBeenCalledWith([]);
-    expect(api.request).not.toHaveBeenCalled();
+  it('removes the clicked attachment in place without deleting storage', async () => {
+    api.request.mockResolvedValue({
+      data: [
+        {
+          id: 'f1',
+          filename: 'First.pdf',
+          ext: 'pdf',
+          contentUrl: '/uploads/leave/f1.pdf',
+        },
+        {
+          id: 'f2',
+          filename: 'Second.png',
+          ext: 'png',
+          contentUrl: '/uploads/leave/f2.png',
+        },
+      ],
+    });
+    const callbacks = editor(['f1', 'f2'], 'l1');
+    const remove = await screen.findByRole('button', {
+      name: 'Remove First.pdf',
+    });
+    expect(remove.closest('li')).toHaveTextContent('First.pdf');
+    expect(
+      screen.queryByRole('button', { name: 'Remove attachment 1' }),
+    ).toBeNull();
+    fireEvent.click(remove);
+    expect(callbacks.onChange).toHaveBeenCalledWith(['f2']);
+    expect(
+      api.request.mock.calls.every(
+        ([request]) => request.path === 'leaveAttachments/findMany',
+      ),
+    ).toBe(true);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

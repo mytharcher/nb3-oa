@@ -1,11 +1,12 @@
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken, type RepositoryPolicy } from '@nocobase/db';
 import { userTaskServiceToken } from '@nocobase/app-plugin-task-center/server';
+import { personalTaskTargets } from './query-service.js';
 import { processOwners } from '../process-management/owners.js';
 import { approvalDirectoryServiceToken } from '../approval-directory/contract.js';
 
-/** Personal index entries only locate candidates. Business list/detail readers
- * still enforce record scopes, fields, current ownership and offered actions. */
+/** Public personal task pages locate a superset. Business readers still enforce
+ * eligibility, authorization, fields and actions before business-time paging. */
 export async function pendingCandidateRecordIds(
   app: Application,
   kind: string,
@@ -15,18 +16,27 @@ export async function pendingCandidateRecordIds(
   if (kind === 'oa.certificateRequest') return undefined;
   const owner = processOwners.find((entry) => entry.kind === kind);
   if (!owner) return undefined;
-  const db = app.container.resolve(databaseManagerToken);
   if (policy.read !== true) {
     if (policy.read === false || !Array.isArray(policy.read.fields))
       return undefined;
     const fields = policy.read.fields;
-    const collection = await db.collections().get(owner.collection);
+    const collection = await app.container
+      .resolve(databaseManagerToken)
+      .collections()
+      .get(owner.collection);
     if (
       !collection?.fields ||
       collection.fields.some((field) => !fields.includes(field.name))
     )
       return undefined;
   }
+  const db = app.container.resolve(databaseManagerToken);
+  // Startup backfills are durable and application-owned. An incomplete backfill
+  // cannot prove that an empty personal index means no actionable business work.
+  const backfill = await db.repository('oaTaskCenterBackfills').findOne({
+    filter: { id: kind },
+  });
+  if (backfill?.done !== true) return undefined;
   const directory = await app.container
     .resolve(approvalDirectoryServiceToken)
     .snapshot();
@@ -38,43 +48,21 @@ export async function pendingCandidateRecordIds(
       new Date().toISOString(),
     )) ?? []),
   ]);
-  const index = app.container.resolve(userTaskServiceToken);
+  const reader = app.container.resolve(userTaskServiceToken);
   const ids = new Set<string>();
   for (const principal of principals) {
-    let after: string | undefined;
-    do {
-      const page = await index.list(principal, {
-        sourceType: 'approval.task',
-        subject: kind,
-        status: 'pending',
-        pagination: 'cursor',
-        pageSize: 100,
-        after,
-      });
-      if (page.data.length) {
-        const keys = page.data.map((task) => task.sourceKey);
-        // This is the application's projection, never a plugin-internal task table.
-        const targets = await db
-          .repository<{ sourceKey: string; recordId: string }>(
-            'oaTaskCenterTargets',
-          )
-          .findMany({
-            filter: (f) =>
-              f.and([
-                f.string('sourceType').eq('approval.task'),
-                f.or(keys.map((key) => f.string('sourceKey').eq(key))),
-              ]),
-            select: (s) => s.fields('sourceKey', 'recordId'),
-          });
-        if (
-          new Set(targets.map((target) => target.sourceKey)).size !==
-          new Set(keys).size
-        )
-          return undefined; // An incomplete projection falls back to authoritative business discovery.
-        for (const target of targets) ids.add(target.recordId);
-      }
-      after = page.meta.nextCursor ?? undefined;
-    } while (after);
+    // Read principals as well as the delegate so dependency-sync timing cannot
+    // hide an assignment. Current directory and owner offers still decide access.
+    const targets = await personalTaskTargets(
+      db,
+      reader,
+      principal,
+      kind,
+      'approval.task',
+      'pending',
+    );
+    if (!targets) return undefined;
+    for (const target of targets) ids.add(target.recordId);
   }
   return [...ids];
 }

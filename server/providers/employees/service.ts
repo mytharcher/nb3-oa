@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { demoNow } from '../demo-data/context.js';
 import type { HeadcountService } from '../headcounts/contract.js';
 import { requestConnectionRead } from '../request-performance/business-reads.js';
@@ -1556,6 +1557,8 @@ export function createEmployeeService(
         ]);
       const [rows, total] = await Promise.all([
         repository.findMany({
+          select: (s) =>
+            s.fields(...readableListFields(EMPLOYEE_FIELDS, policy)),
           filter,
           sort: (s) => {
             const order = query.orderBy ?? { field: 'updatedAt', desc: true };
@@ -1878,6 +1881,19 @@ export function createEmployeeService(
 
     async listHistory(employeeId) {
       const rows = await database.repository('employeeHistory').findMany({
+        select: (s) =>
+          s.fields(
+            'id',
+            'employeeId',
+            'kind',
+            'before',
+            'after',
+            'effectiveAt',
+            'sourceApplication',
+            'note',
+            'createdById',
+            'createdAt',
+          ),
         filter: { employeeId },
         sort: (s) => [s.field('effectiveAt').desc(), s.field('id').desc()],
       });

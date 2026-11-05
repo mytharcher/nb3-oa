@@ -127,7 +127,17 @@ export const Detail = z.strictObject({
   timeline: z.json(),
 });
 export const List = z.array(
-  TravelRecord.extend({
+  TravelRecord.omit({
+    companionIds: true,
+    attachments: true,
+    bookingInformation: true,
+    exceptionReason: true,
+    standardSnapshot: true,
+    headMerged: true,
+    ruleSnapshot: true,
+    gmMerged: true,
+    reason: true,
+  }).extend({
     applicant: User.nullable(),
     createdBy: User.nullable(),
     headApprover: User.nullable(),

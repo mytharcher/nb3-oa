@@ -32,6 +32,7 @@ import {
   Params,
   Create,
   ListQuery,
+  ListRecord,
   Transition,
   Action,
   Record,
@@ -191,7 +192,7 @@ export default [
       doc(
         'listProbationRequests',
         'List authorized probation records',
-        Record,
+        ListRecord,
         true,
       ),
       apiValidator('query', ListQuery),

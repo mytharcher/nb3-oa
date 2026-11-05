@@ -112,6 +112,12 @@ export const Request = z.object({
   statusChangedAt: z.string(),
   submittedAt: z.string().nullable(),
 });
+export const ListRequest = Request.omit({
+  fileIds: true,
+  contact: true,
+  exceptionReason: true,
+  administrativeReason: true,
+});
 export const Ledger = z.object({
   id: Id,
   requestNumber: z.string().nullable().optional(),

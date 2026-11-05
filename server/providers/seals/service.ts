@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { digest as signatureDigest } from '../electronic-signatures/gateway.js';
 import type {
   SignatureSourceService,
@@ -8,11 +9,13 @@ import {
   type SignatureStoredFile,
 } from '../electronic-signatures/file.js';
 import { demoNow } from '../demo-data/context.js';
-import { runTaskViewsFor } from '../approval-runtime/task-views.js';
+import {
+  personalDetailTasksFor,
+  runTaskViewsFor,
+} from '../approval-runtime/task-views.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { hasApprovalCandidate } from '../approval-runtime/query-service.js';
 import { randomUUID } from 'node:crypto';
-import { OPEN } from '@nocobase/app-plugin-approval/server';
 import {
   defineEffect,
   type EffectDispatcher,
@@ -49,6 +52,8 @@ import { sealFingerprint, type SealTypes } from './graph.js';
 import {
   SEAL_KIND,
   SEAL_REQUEST_FIELDS,
+  SEAL_LIST_FIELDS,
+  type SealListItem,
   type SealRequest,
   type SealRequestInput,
   type SealAccess,
@@ -86,13 +91,13 @@ export function createSealApplication(d: SealDependencies) {
     id: string;
     proof: VerifiedSignature;
   }>();
-  function normalize(row: SealRequest): SealRequest {
+  function normalize<T extends object>(row: T): T {
     return Object.fromEntries(
       Object.entries(row).map(([k, v]) => [
         k,
         v instanceof Date ? v.toISOString() : v,
       ]),
-    ) as SealRequest;
+    ) as T;
   }
   async function read(
     id: string,
@@ -907,9 +912,11 @@ export function createSealApplication(d: SealDependencies) {
           engine.read(
             async () => ({
               record,
-              tasks: (await engine.approvals.tasksFor(SEAL_KIND, id)).filter(
-                (task) =>
-                  task.assigneeId === _actorId && OPEN.includes(task.status),
+              tasks: await personalDetailTasksFor(
+                engine.approvals,
+                SEAL_KIND,
+                id,
+                _actorId,
               ),
               runs: await engine.approvals.runsFor(SEAL_KIND, id),
               actions: await engine.approvals.actionsOf(SEAL_KIND, id),
@@ -987,10 +994,14 @@ export function createSealApplication(d: SealDependencies) {
       const rows = await d.db
         .repository<SealRequest>('sealRequests')
         .withPolicy(policy)
-        .findMany({ sort: (s) => s.field('createdAt').desc() });
-      if (rows.some((r) => SEAL_REQUEST_FIELDS.some((f) => !(f in r))))
+        .findMany({
+          select: (s) =>
+            s.fields(...readableListFields(SEAL_LIST_FIELDS, policy)),
+          sort: (s) => s.field('createdAt').desc(),
+        });
+      if (rows.some((r) => SEAL_LIST_FIELDS.some((f) => !(f in r))))
         fail('ACCESS_DENIED');
-      return rows.map((r) => normalize(r as SealRequest));
+      return rows.map((r) => normalize(r as SealListItem));
     },
     files: attachments.files,
     upload: attachments.upload,

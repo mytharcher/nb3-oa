@@ -63,6 +63,25 @@ export const WORK_ITEM_FIELDS = [
   'status',
   'version',
 ] as const;
+export type WorkItemListItem = Omit<
+  WorkItem,
+  'description' | 'attachments' | 'resultAttachments' | 'result' | 'reason'
+>;
+export const WORK_ITEM_LIST_FIELDS = [
+  'id',
+  'creatorUserId',
+  'confirmationOwnerUserId',
+  'targetUserId',
+  'dutyRoleCode',
+  'assigneeUserId',
+  'title',
+  'dueAt',
+  'requiresConfirmation',
+  'forced',
+  'completedAt',
+  'status',
+  'version',
+] as const;
 export interface Command {
   actorId: string;
   requestId: string;
@@ -158,8 +177,14 @@ export interface WorkItemService {
     policy?: RepositoryPolicy,
   ): Promise<WorkItem | undefined>;
   /** Business eligibility only. HTTP and center adapters must intersect each action with its current grant and record scope. */
+  list(
+    actorId: string,
+    tx: DatabaseConnection,
+    policy?: RepositoryPolicy,
+    search?: string,
+  ): Promise<WorkItemListItem[]>;
   actions(
-    item: WorkItem,
+    item: WorkItemListItem,
     actorId: string,
     tx: DatabaseConnection,
   ): Promise<WorkItemAction[]>;

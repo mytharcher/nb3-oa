@@ -137,7 +137,6 @@
     "AGENTS.md",
     "CLAUDE.md",
     "playwright.config.ts",
-    "patches",
     ".agents/rules",
     "scripts/check-packages.mjs"
   ],
@@ -200,7 +199,8 @@
     "@nocobase/app-plugin-foundation": "^0.1.0-beta.14",
     "@nocobase/app-plugin-knowledge": "^0.1.0-beta.17",
     "@nocobase/app-plugin-mail": "^1.0.0-beta.21",
-    "@nocobase/realtime": "^1.0.0-beta.0"
+    "@nocobase/realtime": "^1.0.0-beta.0",
+    "@nocobase/app-plugin-demo-mode": "0.2.0-beta.9"
   },
   "scripts": {
     "postinstall": "nocobase skills sync",

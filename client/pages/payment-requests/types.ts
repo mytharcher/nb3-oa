@@ -173,8 +173,24 @@ export const APPROVAL_ACTIONS = new Set([
   'unable',
   'forceComplete',
 ]);
-export function vendorName(record: PaymentRecord): string {
+export function vendorName(
+  record: Pick<PaymentRecord, 'vendorSnapshot'>,
+): string {
   return typeof record.vendorSnapshot?.name === 'string'
     ? record.vendorSnapshot.name
     : '';
 }
+
+export type PaymentListRecord = Pick<
+  PaymentRecord,
+  | 'id'
+  | 'applicantId'
+  | 'applicant'
+  | 'createdById'
+  | 'number'
+  | 'reason'
+  | 'vendorSnapshot'
+  | 'amountCents'
+  | 'status'
+  | 'createdAt'
+>;

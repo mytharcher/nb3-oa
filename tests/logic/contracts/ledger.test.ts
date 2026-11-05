@@ -94,6 +94,18 @@ describe('contract immutable version and payment foundation', () => {
       paidCents: 0,
       availableCents: 6000,
     });
+    const summary = await db.transaction((tx) =>
+      service.summary(active.id, tx),
+    );
+    expect(summary).toMatchObject({
+      heldCents: 4001,
+      paidCents: 0,
+      availableCents: 6000,
+    });
+    expect(summary).not.toHaveProperty('facts');
+    expect(
+      (await db.transaction((tx) => service.source(active.id, tx)))?.facts,
+    ).toEqual(facts);
     const change = {
       ...cmd(),
       contractId: active.id,

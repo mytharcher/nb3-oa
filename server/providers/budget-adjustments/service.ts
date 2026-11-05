@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import {
   approvalState,
   approve,
@@ -125,6 +126,29 @@ export interface BudgetAdjustmentDependencies {
   notifications: ApprovalNotificationService;
   dispatcher?: EffectDispatcher;
 }
+export const listFields = [
+  'id',
+  'applicantId',
+  'createdById',
+  'number',
+  'departmentId',
+  'year',
+  'subject',
+  'adjustmentType',
+  'sourceSubject',
+  'amountCents',
+  'reason',
+  'heldCents',
+  'headApproverId',
+  'status',
+  'lifecycleVersion',
+  'createdAt',
+] as const;
+export type ListRecord = Pick<
+  BudgetAdjustmentRecord,
+  (typeof listFields)[number]
+>;
+
 export function refuse(reason: string, message: string): never {
   throw new BudgetAdjustmentError(reason, message);
 }
@@ -795,29 +819,8 @@ export function createBudgetAdjustmentService(d: BudgetAdjustmentDependencies) {
       'permission',
     );
   }
-  function fullRows(
-    rows: Partial<BudgetAdjustmentRecord>[],
-  ): BudgetAdjustmentRecord[] {
-    const fields = [
-      'id',
-      'applicantId',
-      'createdById',
-      'number',
-      'departmentId',
-      'year',
-      'subject',
-      'adjustmentType',
-      'sourceSubject',
-      'amountCents',
-      'reason',
-      'heldAccount',
-      'heldCents',
-      'ruleSnapshot',
-      'headApproverId',
-      'status',
-      'lifecycleVersion',
-      'createdAt',
-    ];
+  function fullRows(rows: Partial<BudgetAdjustmentRecord>[]): ListRecord[] {
+    const fields = listFields;
     if (rows.some((row) => fields.some((field) => !(field in row))))
       throw new BudgetAdjustmentError(
         'BUDGET_ADJUSTMENT_FIELDS_RESTRICTED',
@@ -828,7 +831,7 @@ export function createBudgetAdjustmentService(d: BudgetAdjustmentDependencies) {
       normalizeBudgetRecord(row as BudgetAdjustmentRecord),
     );
   }
-  async function enrich(records: BudgetAdjustmentRecord[]) {
+  async function enrich(records: ListRecord[]) {
     const ids = [
       ...new Set(
         records
@@ -1101,6 +1104,12 @@ export function createBudgetAdjustmentService(d: BudgetAdjustmentDependencies) {
           return enrich(
             fullRows(
               await scoped.findMany({
+                select: (s) =>
+                  s.fields(
+                    ...(policy
+                      ? readableListFields(listFields, policy)
+                      : listFields),
+                  ),
                 filter: (f) =>
                   f.or([
                     f.string('applicantId').eq(actorId),
@@ -1110,14 +1119,20 @@ export function createBudgetAdjustmentService(d: BudgetAdjustmentDependencies) {
               }),
             ),
           );
-        // Query-only tasksOf does not include proxies or previously acting delegates. The host checks actual
+        // Assignment-only reads do not include proxies or previously acting delegates. The host checks actual
         // offered operations and persisted actor identities over each request before exposing it in the center.
         const records = fullRows(
           await scoped.findMany({
+            select: (s) =>
+              s.fields(
+                ...(policy
+                  ? readableListFields(listFields, policy)
+                  : listFields),
+              ),
             sort: (s) => [s.field('createdAt').desc()],
           }),
         );
-        const selected: BudgetAdjustmentRecord[] = [];
+        const selected: ListRecord[] = [];
         for (const record of records) {
           if (
             view === 'pending' &&

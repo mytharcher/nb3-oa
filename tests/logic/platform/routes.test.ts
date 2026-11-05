@@ -198,6 +198,8 @@ describe('platform routes', () => {
       action: 'rule.set',
       actorName: 'Admin of platform',
     });
+    expect(logs.data[0]).not.toHaveProperty('before');
+    expect(logs.data[0]).not.toHaveProperty('after');
     const first = logs.data[0] as unknown as { id: string };
     const one = await user.fetch(`/auditLogs/${first.id}`);
     expect(one.status).toBe(200);

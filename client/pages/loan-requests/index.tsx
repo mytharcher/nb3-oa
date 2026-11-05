@@ -44,7 +44,7 @@ import { useUrlSearch } from '#hooks/use-url-search';
 import { ErrorState } from './states.js';
 import { useLoanResource } from './resource.js';
 import { formatCents } from '#lib/money';
-import type { LoanRequestRecord } from './types.js';
+import type { LoanListRecord } from './types.js';
 const states = [
   'draft',
   'revision',
@@ -96,7 +96,7 @@ export default function LoansPage() {
     ? searchParams.get('view')!
     : 'mine';
   const r = useLoanResource<{
-    data: LoanRequestRecord[];
+    data: LoanListRecord[];
     meta: { page: number; pageSize: number; total: number };
   }>('loanRequests', {
     page: String(page),
@@ -120,7 +120,7 @@ export default function LoansPage() {
       {t('loanRequests.new')}
     </Button>
   ) : null;
-  const columns: ColumnDef<LoanRequestRecord>[] = [
+  const columns: ColumnDef<LoanListRecord>[] = [
     {
       accessorKey: 'number',
       header: ({ column }) => (

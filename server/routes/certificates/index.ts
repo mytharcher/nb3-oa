@@ -153,7 +153,31 @@ export default [
       id,
       name: (await users.get(id))?.name ?? id,
     });
-    async function dto(r: CertificateRequest & { number?: string | null }) {
+    async function dto(
+      r: Pick<
+        CertificateRequest,
+        | 'id'
+        | 'certificateType'
+        | 'purpose'
+        | 'copies'
+        | 'deliveryMethod'
+        | 'applicantId'
+        | 'createdById'
+        | 'employeeId'
+        | 'departmentId'
+        | 'preparationId'
+        | 'issueId'
+        | 'status'
+        | 'lifecycleVersion'
+        | 'submittedAt'
+        | 'createdAt'
+        | 'statusChangedAt'
+      > & {
+        exceptionReason?: string | null;
+        administrativeReason?: string | null;
+        number?: string | null;
+      },
+    ) {
       return {
         id: r.id,
         ...(r.number !== undefined ? { number: r.number } : {}),

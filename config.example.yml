@@ -1,3 +1,13 @@
+# Optional account switching for a local role-simulation instance.
+# Set NOCOBASE_DEMO_MODE=true and NOCOBASE_DEMO_WRITABLE_COLLECTIONS to all
+# logical collections in its main database to retain existing INSERT/UPDATE/DELETE.
+# Refresh that local list after adding collections. Other connections and DDL
+# remain guarded. No demo dataset or business-data reset is registered by this App.
+# demoMode:
+#   enabled: false
+#   quickSignIn: true
+#   allowCollections: []
+
 # Copy this file to config.yml before starting the application.
 
 # app:

@@ -1,3 +1,4 @@
+import { FileUploadInput } from '#components/file-upload-input';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ApiClientError,
@@ -19,7 +20,6 @@ import { DataTable, DataTableColumnHeader } from '#components/data-table';
 import { SessionExpiredAlert } from '#components/session-expired-alert';
 import { Alert, AlertDescription } from '#components/ui/alert';
 import { Button } from '#components/ui/button';
-import { Input } from '#components/ui/input';
 import { Skeleton } from '#components/ui/skeleton';
 import { Label } from '#components/ui/label';
 import { Checkbox } from '#components/ui/checkbox';
@@ -89,6 +89,7 @@ function ImportForm() {
     [localError, setLocalError] = useState<WorkbookError>(),
     [error, setError] = useState<unknown>(),
     [discard, setDiscard] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File>();
   const fileRef = useRef<HTMLInputElement>(null),
     batchErrorRef = useRef<HTMLDivElement>(null),
     aliveRef = useRef(true),
@@ -149,6 +150,7 @@ function ImportForm() {
   );
   async function select(selected: File | undefined) {
     if (busyRef.current) return;
+    setSelectedFile(selected);
     const current = ++generationRef.current;
     setRows([]);
     setReceipt(undefined);
@@ -219,6 +221,7 @@ function ImportForm() {
           setRows([]);
           setReceipt(undefined);
           setConfirmed(false);
+          setSelectedFile(undefined);
           if (fileRef.current) fileRef.current.value = '';
         }
       }
@@ -297,16 +300,16 @@ function ImportForm() {
         <Label htmlFor='attendance-import-file'>
           {t('attendanceImport.file')} <span aria-hidden='true'>*</span>
         </Label>
-        <Input
+        <FileUploadInput
+          selectedFile={selectedFile}
           ref={fileRef}
           id='attendance-import-file'
-          type='file'
           accept='.xlsx'
           required
           disabled={busy || terminal}
           aria-invalid={!!localError}
           aria-describedby={`attendance-import-help${localError ? ' attendance-import-file-error' : ''}`}
-          onChange={(e) => void select(e.target.files?.[0])}
+          onFileChange={(selectedFile) => void select(selectedFile)}
         />
         {localError && (
           <p
@@ -404,6 +407,7 @@ function ImportForm() {
                 setConfirmed(false);
                 setDiscard(false);
                 generationRef.current++;
+                setSelectedFile(undefined);
                 if (fileRef.current) fileRef.current.value = '';
               }}
             >

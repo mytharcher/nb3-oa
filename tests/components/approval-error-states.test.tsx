@@ -7,6 +7,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import enUS from '../../client/locales/en-US.js';
+import zhCN from '../../client/locales/zh-CN.js';
 import { ErrorState } from '../../client/pages/approvals/states.js';
 
 const runtime = await createTestI18nRuntime({
@@ -34,11 +35,13 @@ function show(status: number, reason?: string) {
 
 describe('approval errors', () => {
   it.each([
+    ['LEAVE_EMPLOYEE_INACTIVE', /applicant.*active employee record/i],
+    ['LEAVE_HANDOVER_INACTIVE', /selected handover person.*unavailable/i],
     ['LEAVE_BALANCE_UNAVAILABLE', /balance/i],
     ['LEAVE_BALANCE_INSUFFICIENT', /balance.*insufficient/i],
     ['LEAVE_ATTACHMENT_REQUIRED', /supporting attachments required/i],
     ['LEAVE_FILE_TYPE', /matching format/i],
-    ['LEAVE_FILE_SIZE', /nonempty file up to 5 MiB/i],
+    ['LEAVE_FILE_SIZE', /nonempty file up to 5 MB/i],
     ['LEAVE_ATTACHMENT_INVALID', /invalid or do not belong/i],
     ['LEAVE_ATTACHMENTS_UNAVAILABLE', /temporarily unavailable/i],
     ['LEAVE_OVERLAP', /overlap/i],
@@ -74,3 +77,35 @@ describe('approval errors', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+it.each([
+  ['LEAVE_EMPLOYEE_INACTIVE', '申请人未关联有效的在职员工档案'],
+  ['LEAVE_HANDOVER_INACTIVE', '所选工作交接人当前不可用'],
+])(
+  'identifies the affected person in Chinese for %s',
+  async (reason, message) => {
+    const chinese = await createTestI18nRuntime({
+      locale: 'zh-CN',
+      application: { namespace: 'nb3-oa', resources: zhCN },
+    });
+    render(
+      <TestI18nProvider runtime={chinese}>
+        <ErrorState
+          error={
+            new ApiClientError('private detail', {
+              status: 400,
+              reason,
+              method: 'POST',
+              url: '/api/leaveRequests/id/transition',
+            })
+          }
+          retry={() => {}}
+        />
+      </TestI18nProvider>,
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(message);
+    expect(screen.getByRole('alert')).not.toHaveTextContent(
+      '相关员工当前不可用',
+    );
+  },
+);

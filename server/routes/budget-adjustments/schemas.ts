@@ -97,7 +97,24 @@ export const Detail = z.strictObject({
   timeline: z.json(),
 });
 export const List = z.array(
-  BudgetAdjustmentRecord.extend({
+  BudgetAdjustmentRecord.pick({
+    id: true,
+    applicantId: true,
+    createdById: true,
+    number: true,
+    departmentId: true,
+    year: true,
+    subject: true,
+    adjustmentType: true,
+    sourceSubject: true,
+    amountCents: true,
+    reason: true,
+    heldCents: true,
+    headApproverId: true,
+    status: true,
+    lifecycleVersion: true,
+    createdAt: true,
+  }).extend({
     applicant: User.nullable(),
     createdBy: User.nullable(),
     headApprover: User.nullable(),

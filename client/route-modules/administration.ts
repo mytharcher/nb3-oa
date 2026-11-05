@@ -3,11 +3,21 @@ import {
   type AppClientRouteDefinition,
 } from '@nocobase/app-client/plugins';
 import { UsersRound, KeyRound, FileClock, CalendarClock } from 'lucide-react';
+import { foundationDefinition } from '@nocobase/app-plugin-foundation/client/routes';
 
 // The template stopped registering administration UI in plugins. These pages now belong to the OA application;
 // Legacy deep links remain authorized; daily configuration lives in the OA access module.
 // stored permission resource ids are retained, while their URLs live directly in the application route tree.
+const foundation = foundationDefinition();
 const routes: AppClientRouteDefinition[] = [
+  {
+    ...foundation,
+    parent: 'oa-system-operations',
+    navigation: {
+      ...foundation.navigation,
+      title: 'oa.navigation.foundation',
+    },
+  },
   {
     name: 'users',
     parent: 'oa-system-people',

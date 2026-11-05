@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { registerAppApproval } from '../approval-runtime/task-center.js';
 import { defineAppApproval as defineApproval } from '../approval-runtime/task-center.js';
 import { demoNow } from '../demo-data/context.js';
@@ -1040,13 +1041,65 @@ export function createVehicleRequestService(d: VehicleRequestDependencies) {
         const rows = await d.db
           .repository<VehicleRequest>('vehicleRequests')
           .withPolicy(policy)
-          .findMany({ sort: (s) => s.field('createdAt').desc() });
+          .findMany({
+            select: (s) =>
+              s.fields(
+                ...readableListFields(
+                  [
+                    'id',
+                    'applicantId',
+                    'createdById',
+                    'purpose',
+                    'destination',
+                    'startAt',
+                    'endAt',
+                    'passengers',
+                    'needsDriver',
+                    'number',
+                    'approvedFingerprint',
+                    'approvedAt',
+                    'managerApproverId',
+                    'status',
+                    'statusChangedAt',
+                    'lifecycleVersion',
+                    'createdAt',
+                  ],
+                  policy,
+                ),
+              ),
+            sort: (s) => s.field('createdAt').desc(),
+          });
         const selected = [];
         for (const row of rows) {
           if (typeof row.id !== 'string')
             fail('VEHICLE_FIELDS_RESTRICTED', 'Request identity is required.');
-          // The owner facade checks the complete current ordinary field policy before SDK reads.
-          const record = await readable(row.id!, actorId, policy);
+          // Preserve fail-closed field checks on the projected list, without loading detail payloads.
+          const record = row;
+          if (
+            [
+              'id',
+              'applicantId',
+              'createdById',
+              'purpose',
+              'destination',
+              'startAt',
+              'endAt',
+              'passengers',
+              'needsDriver',
+              'number',
+              'approvedFingerprint',
+              'approvedAt',
+              'managerApproverId',
+              'status',
+              'statusChangedAt',
+              'lifecycleVersion',
+              'createdAt',
+            ].some((field) => !(field in record))
+          )
+            fail(
+              'VEHICLE_FIELDS_RESTRICTED',
+              'Required list fields are not readable.',
+            );
           if (
             view === 'pending' &&
             rows.length > 10 &&

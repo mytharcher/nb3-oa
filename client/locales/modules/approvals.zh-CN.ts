@@ -42,6 +42,10 @@ const copy = {
   invalidFields: '请检查以下字段：{{fields}}。',
   fieldSeparator: '、',
   businessErrors: {
+    LEAVE_EMPLOYEE_INACTIVE:
+      '申请人未关联有效的在职员工档案，请联系 HR 检查员工档案及账号关联。',
+    LEAVE_HANDOVER_INACTIVE:
+      '所选工作交接人当前不可用，请更换交接人；未启用审批代理时也可以清空。',
     LEAVE_MAX_DAYS: '请假天数超过该假种上限，请缩短请假时间。',
     LEAVE_NO_WORKDAYS: '所选时间没有可请假的工作半天，请调整日期。',
     LEAVE_TYPE_UNAVAILABLE: '该假种已停用或不可用，请重新选择启用的假种。',

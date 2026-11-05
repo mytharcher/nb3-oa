@@ -186,6 +186,8 @@ const viVN: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'Chọn tệp',
+    singleFile: 'Vui lòng chọn từng tệp một.',
     images: 'Hình ảnh',
     files: 'Tệp',
     preview: 'Xem trước {name}',
@@ -216,6 +218,18 @@ const viVN: AppResource = {
   ...platformEnUS,
   ...approvalsEnUS,
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: 'Quản trị viên hệ thống',
+        noRole: 'Chưa gắn nhãn vai trò',
+        rolesLoading: 'Đang tải vai trò…',
+        rolesUnavailable: 'Không thể tải vai trò',
+      },
+      menu: {
+        description:
+          'Các thay đổi được lưu. Chuyển tài khoản để thử quyền của từng vai trò.',
+      },
+    },
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
     '@nocobase/app-plugin-authorization': admin2,
@@ -233,6 +247,7 @@ const viVN: AppResource = {
       systemAccess: 'Vai trò và quyền',
       systemConnections: 'Thông báo và tích hợp',
       systemOperations: 'Vận hành',
+      foundation: 'Nền tảng ứng dụng',
       office: 'Văn phòng hằng ngày',
       finance: 'Tài chính và chi phí',
       procurement: 'Mua sắm và hợp đồng',

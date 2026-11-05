@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react';
+import { DemoAccountMenu } from './demo-account-menu.js';
 import { Link } from 'react-router';
 import { useTranslation } from '@nocobase/i18n/client';
 import { Button } from '#components/ui/button';
@@ -14,6 +15,7 @@ export function HeaderActions(): ReactElement {
   return (
     <TooltipProvider>
       <div className='flex shrink-0 items-center gap-1 sm:gap-2'>
+        <DemoAccountMenu />
         <Button
           variant='ghost'
           size='icon'

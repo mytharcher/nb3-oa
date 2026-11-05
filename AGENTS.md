@@ -17,6 +17,7 @@ This repository owns the application business code. Build features directly in t
 | Authentication, users, and API keys      | `authentication`, `users`, `api-keys`                                                     |
 | Authorization and data scopes            | `authorization`, `authz-default-access`, `authz-sharing-rules`, `authz-restriction-rules` |
 | Internationalization and files           | `i18n`, `file`                                                                            |
+| Core capability overview                 | `foundation` (Client, Server, CLI)                                                        |
 | Notifications and inbox                  | `notification`, `notification-in-app`, `notification-providers`                           |
 | Approvals, tasks, scheduling, and agents | `approval`, `task-center` (Server), `scheduler`, `agents`                                 |
 

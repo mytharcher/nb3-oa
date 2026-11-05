@@ -186,6 +186,8 @@ const idID: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'Pilih file',
+    singleFile: 'Pilih satu file setiap kali.',
     images: 'Gambar',
     files: 'File',
     preview: 'Pratinjau {name}',
@@ -217,6 +219,18 @@ const idID: AppResource = {
   ...platformEnUS,
   ...approvalsEnUS,
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: 'Administrator sistem',
+        noRole: 'Peran belum ditandai',
+        rolesLoading: 'Memuat peran…',
+        rolesUnavailable: 'Peran tidak tersedia',
+      },
+      menu: {
+        description:
+          'Perubahan disimpan. Ganti akun untuk mencoba izin setiap peran.',
+      },
+    },
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
     '@nocobase/app-plugin-authorization': admin2,
@@ -234,6 +248,7 @@ const idID: AppResource = {
       systemAccess: 'Peran dan izin',
       systemConnections: 'Notifikasi dan integrasi',
       systemOperations: 'Operasional',
+      foundation: 'Fondasi aplikasi',
       office: 'Kantor harian',
       finance: 'Keuangan & biaya',
       procurement: 'Pengadaan & kontrak',

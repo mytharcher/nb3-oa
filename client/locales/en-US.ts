@@ -185,6 +185,8 @@ const enUS = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'Choose file',
+    singleFile: 'Choose one file at a time.',
     images: 'Images',
     files: 'Files',
     preview: 'Preview {name}',
@@ -209,6 +211,18 @@ const enUS = {
     continueEditing: 'Continue editing',
   },
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: 'System administrator',
+        noRole: 'No role label',
+        rolesLoading: 'Loading roles…',
+        rolesUnavailable: 'Roles unavailable',
+      },
+      menu: {
+        description:
+          'Changes are saved. Switch accounts to try each role’s permissions.',
+      },
+    },
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
     '@nocobase/app-plugin-authorization': admin2,
@@ -231,6 +245,7 @@ const enUS = {
       systemAccess: 'Roles and permissions',
       systemConnections: 'Notifications and integrations',
       systemOperations: 'Operations',
+      foundation: 'App Foundation',
       office: 'Daily office',
       finance: 'Finance & expenses',
       procurement: 'Procurement & contracts',

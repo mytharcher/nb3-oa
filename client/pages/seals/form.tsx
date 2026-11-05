@@ -1,3 +1,4 @@
+import { FileUploadInput } from '#components/file-upload-input';
 import { externalIntegrationsEnabled } from '../../../shared/external-integrations.js';
 import { Spinner } from '#components/ui/spinner';
 import { createRequestKey } from '#lib/request-key';
@@ -604,14 +605,10 @@ function Fields({
         <Field>
           <FieldLabel htmlFor='seal-upload'>{t('seals.files')}</FieldLabel>
           <p className='text-muted-foreground'>{t('seals.uploadNotice')}</p>
-          <Input
+          <FileUploadInput
             id='seal-upload'
-            type='file'
             disabled={busy || submission.submitUnknown}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void upload(f);
-            }}
+            onFileChange={(file) => void upload(file)}
           />
           {existingFiles.error ? (
             <SealError

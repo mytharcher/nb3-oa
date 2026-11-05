@@ -1,3 +1,4 @@
+import { readableListFields } from '../list-fields.js';
 import { demoNow } from '../demo-data/context.js';
 import { projectTimeline } from './timeline.js';
 import { RepositoryError } from '@nocobase/db';
@@ -27,6 +28,21 @@ import {
   type OnboardingService,
   type OnboardingTask,
 } from './contract.js';
+const ONBOARDING_LIST_FIELDS = [
+  'id',
+  'creatorId',
+  'employeeId',
+  'userId',
+  'requisitionId',
+  'departmentId',
+  'positionId',
+  'gradeId',
+  'hireDate',
+  'mentorEmployeeId',
+  'mentorName',
+  'status',
+  'version',
+] as const;
 export class OnboardingError extends Error {
   constructor(
     public readonly code:
@@ -97,6 +113,8 @@ export function createOnboardingService(d: {
         filtered = query.status ? { filter: { status: query.status } } : {};
       let total = await repository.count(filtered);
       let rows = await repository.findMany({
+        select: (s) =>
+          s.fields(...readableListFields(ONBOARDING_LIST_FIELDS, viewPolicy)),
         ...filtered,
         ...(!query.q
           ? { offset: (query.page - 1) * query.pageSize, limit: query.pageSize }
@@ -109,7 +127,9 @@ export function createOnboardingService(d: {
         ],
       });
       if (
-        rows.some((row) => ONBOARDING_FIELDS.some((field) => !(field in row)))
+        rows.some((row) =>
+          ONBOARDING_LIST_FIELDS.some((field) => !(field in row)),
+        )
       )
         throw new OnboardingError('ONBOARDING_FORBIDDEN');
       if (query.q) {
@@ -137,7 +157,7 @@ export function createOnboardingService(d: {
         items: rows.map(
           (row) =>
             Object.fromEntries(
-              ONBOARDING_FIELDS.map((field) => [field, row[field]]),
+              ONBOARDING_LIST_FIELDS.map((field) => [field, row[field]]),
             ) as Onboarding,
         ),
         total,
@@ -303,6 +323,7 @@ export function createOnboardingService(d: {
           {
             targetType: 'onboardings',
             targetId: id,
+            includeSnapshots: true,
             order: 'asc',
             page,
             pageSize: 100,

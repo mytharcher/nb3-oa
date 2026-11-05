@@ -186,6 +186,8 @@ const jaJP: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'ファイルを選択',
+    singleFile: '一度に1つのファイルを選択してください。',
     images: '画像',
     files: 'ファイル',
     preview: '{name} をプレビュー',
@@ -216,6 +218,18 @@ const jaJP: AppResource = {
   ...platformEnUS,
   ...approvalsEnUS,
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: 'システム管理者',
+        noRole: 'ロール未設定',
+        rolesLoading: 'ロールを読み込み中…',
+        rolesUnavailable: 'ロールを取得できません',
+      },
+      menu: {
+        description:
+          '変更は保存されます。アカウントを切り替えて各ロールの権限を確認できます。',
+      },
+    },
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
     '@nocobase/app-plugin-authorization': admin2,
@@ -233,6 +247,7 @@ const jaJP: AppResource = {
       systemAccess: 'ロールと権限',
       systemConnections: '通知と連携',
       systemOperations: '運用',
+      foundation: 'アプリ基盤',
       office: '日常業務',
       finance: '財務・経費',
       procurement: '調達・契約',

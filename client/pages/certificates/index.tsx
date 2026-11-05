@@ -30,7 +30,16 @@ import {
 import { useUrlSearch } from '#hooks/use-url-search';
 import { useCertificateResource } from './resource.js';
 import { CertificateError } from './states.js';
-import { RESOURCE, STATES, selectWidth, type Certificate } from './types.js';
+import {
+  RESOURCE,
+  STATES,
+  selectWidth,
+  type Certificate as CertificateDetail,
+} from './types.js';
+type Certificate = Omit<
+  CertificateDetail,
+  'exceptionReason' | 'administrativeReason'
+>;
 export default function Certificates() {
   const { t, i18n } = useTranslation(),
     location = useLocation(),

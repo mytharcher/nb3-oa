@@ -27,7 +27,11 @@ import {
 import { useUrlSearch } from '#hooks/use-url-search';
 import { useSealResource } from './resource.js';
 import { SealError } from './states.js';
-import { STATES, type SealRequest } from './types.js';
+import { STATES, type SealRequest as SealRequestDetail } from './types.js';
+type SealRequest = Omit<
+  SealRequestDetail,
+  'fileIds' | 'contact' | 'exceptionReason' | 'administrativeReason'
+>;
 export default function SealRequests() {
   const { t, i18n } = useTranslation(),
     location = useLocation(),

@@ -53,6 +53,10 @@ const copy = {
   invalidFields: 'Prüfen Sie diese Felder: {{fields}}.',
   fieldSeparator: ', ',
   businessErrors: {
+    LEAVE_EMPLOYEE_INACTIVE:
+      'Die antragstellende Person benötigt einen aktiven Mitarbeiterdatensatz. Bitten Sie HR, den Datensatz und das verknüpfte Konto zu prüfen.',
+    LEAVE_HANDOVER_INACTIVE:
+      'Die ausgewählte Übergabeperson ist nicht verfügbar. Wählen Sie eine andere Person oder leeren Sie das Feld, wenn die Genehmigungsvertretung deaktiviert ist.',
     LEAVE_MAX_DAYS:
       'Der beantragte Urlaub überschreitet das Maximum dieser Urlaubsart. Verkürzen Sie den Zeitraum.',
     LEAVE_NO_WORKDAYS:

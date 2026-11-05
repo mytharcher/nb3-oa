@@ -53,6 +53,10 @@ const copy = {
   invalidFields: 'Comprueba estos campos: {{fields}}.',
   fieldSeparator: ', ',
   businessErrors: {
+    LEAVE_EMPLOYEE_INACTIVE:
+      'El solicitante necesita un registro de empleado activo. Pide a RR. HH. que revise el registro y la cuenta vinculada.',
+    LEAVE_HANDOVER_INACTIVE:
+      'La persona seleccionada para el traspaso no está disponible. Elige otra persona o borra el campo si la delegación de aprobaciones está desactivada.',
     LEAVE_MAX_DAYS:
       'La ausencia solicitada supera el máximo de este tipo. Reduce el período.',
     LEAVE_NO_WORKDAYS:

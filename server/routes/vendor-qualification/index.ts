@@ -273,7 +273,7 @@ export default [
       doc(
         'listVendorQualifications',
         'Authorized qualification records with stable server pagination',
-        S.Record,
+        S.ListRecord,
         true,
       ),
       apiValidator('query', S.ListQuery),

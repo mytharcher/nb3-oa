@@ -186,6 +186,8 @@ const zhTW: AppResource = {
   navigation: { ...system.navigation, home: workbenchZhTW.workbench.title },
   ...leaveBalancesZhTW,
   attachmentList: {
+    chooseFile: '選擇檔案',
+    singleFile: '請每次選擇一個檔案。',
     images: '圖片',
     files: '檔案',
     preview: '預覽 {name}',
@@ -216,6 +218,15 @@ const zhTW: AppResource = {
   ...platformZhTW,
   ...approvalsZhTW,
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: '系統管理員',
+        noRole: '未標註角色',
+        rolesLoading: '正在載入角色…',
+        rolesUnavailable: '角色暫時無法使用',
+      },
+      menu: { description: '修改會儲存。切換帳號以體驗不同角色的權限。' },
+    },
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
     '@nocobase/app-plugin-authorization': admin2,
@@ -233,6 +244,7 @@ const zhTW: AppResource = {
       systemAccess: '角色與權限',
       systemConnections: '通知與集成',
       systemOperations: '維運',
+      foundation: '應用底座',
       office: '日常辦公',
       finance: '財務與費用',
       procurement: '採購與合約',

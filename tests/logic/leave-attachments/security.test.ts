@@ -334,4 +334,69 @@ describe('restricted leave file repository', () => {
       ).record.status,
     ).toBe('manager');
   });
+  test('uploads to an incomplete draft but refuses submission until its fields are complete', async ({
+    testApp,
+  }) => {
+    const manager = await createEmployee(
+      testApp,
+      'Incomplete Attachment Manager',
+    );
+    const owner = await createEmployee(testApp, 'Incomplete Attachment Owner', {
+      managerId: manager.employeeId,
+    });
+    const ownSession = await owner.session();
+    const draft = await record(
+      await ownSession.fetch(
+        '/leaveRequests',
+        json({
+          ...form,
+          leaveType: '',
+          startDate: null,
+          endDate: null,
+          reason: '',
+        }),
+      ),
+    );
+    expect(draft.startDate).toBeNull();
+    expect(draft.endDate).toBeNull();
+    const uploaded = await upload(ownSession, draft.id);
+    expect(uploaded.status).toBe(201);
+    const response = await ownSession.fetch(
+      `/leaveRequests/${draft.id}/transition`,
+      json({
+        transition: 'submit',
+        version: draft.lifecycleVersion,
+        requestId: randomUUID(),
+        input: {},
+      }),
+    );
+    expect(response.status).toBe(400);
+    const unchanged = await ownSession.fetch(`/leaveRequests/${draft.id}`);
+    expect((await unchanged.json()).data.record.status).toBe('draft');
+    const fileId = (await uploaded.json()).data.record.id;
+    const edited = await record(
+      await ownSession.fetch(
+        `/leaveRequests/${draft.id}/transition`,
+        json({
+          transition: 'edit',
+          version: draft.lifecycleVersion,
+          requestId: randomUUID(),
+          input: { ...form, attachments: [fileId] },
+        }),
+      ),
+    );
+    const submitted = await record(
+      await ownSession.fetch(
+        `/leaveRequests/${draft.id}/transition`,
+        json({
+          transition: 'submit',
+          version: edited.lifecycleVersion,
+          requestId: randomUUID(),
+          input: {},
+        }),
+      ),
+    );
+    expect(submitted.status).toBe('manager');
+    expect(submitted.attachments).toEqual([fileId]);
+  });
 });

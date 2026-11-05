@@ -46,6 +46,7 @@ import {
   AuditFacetsSchema,
   AuditLogParams,
   AuditLogSchema,
+  AuditLogListSchema,
   AuditLogsQuery,
   CalendarDayParams,
   CalendarDaySchema,
@@ -688,7 +689,7 @@ export const platformApiRoutes: AppApiRouteContribution<Application> =
         description:
           'Newest first. `from` and `to` bound `at`; the other filters match exactly.',
         responses: {
-          '200': listResponse(AuditLogSchema, pageMeta),
+          '200': listResponse(AuditLogListSchema, pageMeta),
           ...apiErrorResponses,
         },
       }),
@@ -706,7 +707,14 @@ export const platformApiRoutes: AppApiRouteContribution<Application> =
         });
         const names = await actorNames(items.map((item) => item.actorId));
         return context.json({
-          data: items.map((item) => auditLogView(item, names)),
+          data: items.map((item) => {
+            const {
+              before: _before,
+              after: _after,
+              ...summary
+            } = auditLogView(item, names);
+            return summary;
+          }),
           meta: { page, pageSize, total },
         });
       },

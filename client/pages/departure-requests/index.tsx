@@ -42,7 +42,7 @@ import { useDepartureResource as useResource } from './use-resource.js';
 import { ErrorState } from './states.js';
 import {
   STATUSES,
-  type DepartureRecord,
+  type DepartureRecord as DepartureRecordDetail,
   type DepartureOptions,
   calendarDateLabel,
   typeLabel,
@@ -50,6 +50,10 @@ import {
 
 /** The endpoint returns the complete authorized view. Filter/sort the full result
  * before slicing; no first-page cap is treated as the whole collection. */
+type DepartureRecord = Omit<
+  DepartureRecordDetail,
+  'settlementNote' | 'ruleSnapshot' | 'headMerged' | 'cancellationReason'
+>;
 export default function DeparturesPage() {
   const { t, i18n } = useTranslation();
   const location = useLocation();

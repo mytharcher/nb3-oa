@@ -34,6 +34,8 @@ import concurrency from './concurrency.js';
 import knowledge from './knowledge.js';
 import { defineApprovalSuggestionsConfig } from '@nocobase/app-plugin-approval/config';
 
+import demoMode from './demo-mode.js';
+
 const approvalSuggestions = defineApprovalSuggestionsConfig();
 
 const defaultConfigs: AppConfigFactory<{
@@ -63,6 +65,7 @@ const defaultConfigs: AppConfigFactory<{
   concurrency: ReturnType<typeof concurrency>;
   knowledge: ReturnType<typeof knowledge>;
   approvalSuggestions: ReturnType<typeof approvalSuggestions>;
+  demoMode: ReturnType<typeof demoMode>;
 }> = defaultAppConfigs({
   auth,
   ...(externalIntegrationsEnabled
@@ -98,6 +101,7 @@ const defaultConfigs: AppConfigFactory<{
   concurrency,
   knowledge,
   approvalSuggestions,
+  demoMode,
 });
 
 export default defaultConfigs;

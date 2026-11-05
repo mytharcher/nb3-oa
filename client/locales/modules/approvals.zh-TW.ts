@@ -42,6 +42,10 @@ const copy = {
   invalidFields: '請檢查以下欄位：{{fields}}。',
   fieldSeparator: '、',
   businessErrors: {
+    LEAVE_EMPLOYEE_INACTIVE:
+      '申請人未關聯有效的在職員工檔案，請聯絡 HR 檢查員工檔案及帳號關聯。',
+    LEAVE_HANDOVER_INACTIVE:
+      '所選工作交接人目前不可用，請更換交接人；未啟用審批代理時也可以清空。',
     LEAVE_MAX_DAYS: '請假天數超過該假種上限，請縮短請假時間。',
     LEAVE_NO_WORKDAYS: '所選時間沒有可請假的工作半天，請調整日期。',
     LEAVE_TYPE_UNAVAILABLE: '該假種已停用或不可用，請重新選擇啟用的假種。',

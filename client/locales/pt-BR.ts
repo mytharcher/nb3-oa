@@ -186,6 +186,8 @@ const ptBR: AppResource = {
   navigation: { ...system.navigation, home: workbenchEnUS.workbench.title },
   ...leaveBalancesEnUS,
   attachmentList: {
+    chooseFile: 'Selecionar arquivo',
+    singleFile: 'Selecione um arquivo por vez.',
     images: 'Imagens',
     files: 'Arquivos',
     preview: 'Visualizar {name}',
@@ -216,6 +218,18 @@ const ptBR: AppResource = {
   ...platformEnUS,
   ...approvalsEnUS,
   overrides: {
+    '@nocobase/app-plugin-demo-mode': {
+      accounts: {
+        administrator: 'Administrador do sistema',
+        noRole: 'Sem rótulo de função',
+        rolesLoading: 'Carregando funções…',
+        rolesUnavailable: 'Funções indisponíveis',
+      },
+      menu: {
+        description:
+          'As alterações são salvas. Troque de conta para testar as permissões de cada função.',
+      },
+    },
     '@nocobase/app-plugin-users': admin0,
     '@nocobase/app-plugin-api-keys': admin1,
     '@nocobase/app-plugin-authorization': admin2,
@@ -233,6 +247,7 @@ const ptBR: AppResource = {
       systemAccess: 'Papéis e permissões',
       systemConnections: 'Notificações e integrações',
       systemOperations: 'Operações',
+      foundation: 'Base do aplicativo',
       office: 'Rotina de escritório',
       finance: 'Finanças e despesas',
       procurement: 'Compras e contratos',

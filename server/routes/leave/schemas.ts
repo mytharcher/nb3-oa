@@ -24,7 +24,13 @@ export const LeaveInput = z
     (r) => `${r.startDate}:${r.startHalf}` <= `${r.endDate}:${r.endHalf}`,
     'End must follow start',
   );
-export const CreateLeave = LeaveInput.safeExtend({
+// Drafts may be incomplete; preview/edit and submission retain their own validation.
+export const CreateLeave = z.object({
+  ...LeaveInput.shape,
+  leaveType: z.string().max(64).default(''),
+  startDate: date.nullable().default(null),
+  endDate: date.nullable().default(null),
+  reason: z.string().trim().max(10000).default(''),
   applicantId: z.string().min(1).optional(),
 });
 export const LeaveParams = z.strictObject({ id: z.string().min(1).max(64) });
@@ -54,8 +60,8 @@ export const LeaveRecord = z.strictObject({
   createdById: z.string(),
   number: z.string().nullable(),
   leaveType: z.string(),
-  startDate: z.string(),
-  endDate: z.string(),
+  startDate: z.string().nullable(),
+  endDate: z.string().nullable(),
   startHalf: z.enum(['am', 'pm']),
   endHalf: z.enum(['am', 'pm']),
   days: z.union([z.number(), z.string()]),

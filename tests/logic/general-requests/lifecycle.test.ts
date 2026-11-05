@@ -93,24 +93,52 @@ describe('general requests lifecycle on the application database', () => {
       'stranger',
     ]) {
       ids[name] = (await app.createUser(`General-${name}`)).user.id;
-      await db
-        .repository('employees')
-        .createOne({
-          values: {
-            id: `general-${name}`,
-            code: `GEN-${name}`,
-            name,
-            userId: ids[name],
-            managerId: name === 'applicant' ? 'general-manager' : null,
-            status: 'regular',
-            active: true,
-            createdAt: now,
-            updatedAt: now,
-          },
-        });
+      await db.repository('employees').createOne({
+        values: {
+          id: `general-${name}`,
+          code: `GEN-${name}`,
+          name,
+          userId: ids[name],
+          managerId: name === 'applicant' ? 'general-manager' : null,
+          status: 'regular',
+          active: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
     }
   }, 120000);
   afterAll(async () => app?.close());
+  it('projects list SQL without detail payloads while detail retains the original body', async () => {
+    const body = 'Large request body '.repeat(400);
+    const draft = await service.create({ ...form(), body }, ids.applicant);
+    const id = String(draft.record.id);
+    const db = app.testApp.application.container.resolve(databaseManagerToken);
+    const client = await db.connection().client();
+    const queries: string[] = [];
+    const capture = (query: { sql: string }) => queries.push(query.sql);
+    client.on('query', capture);
+    let rows: Awaited<ReturnType<GeneralRequestService['list']>>;
+    try {
+      rows = await service.list(ids.applicant, 'mine');
+    } finally {
+      client.removeListener('query', capture);
+    }
+    const row = rows.find((item) => item.id === id);
+    expect(row).toMatchObject({ id, title: form().title });
+    for (const field of ['body', 'attachments', 'ruleSnapshot'])
+      expect(row).not.toHaveProperty(field);
+    const listQueries = queries.filter(
+      (sql) => /general_?requests/i.test(sql) && /order by/i.test(sql),
+    );
+    expect(listQueries.length).toBeGreaterThan(0);
+    for (const sql of listQueries) {
+      expect(sql).not.toContain('"body"');
+      expect(sql).not.toContain('"attachments"');
+      expect(sql).not.toContain('"rule_snapshot"');
+    }
+    expect((await service.detail(id, ids.applicant)).record.body).toBe(body);
+  });
   it('requires the manager and exactly the requested order of three extra approvers', async () => {
     const id = await submit();
     expect((await service.detail(id, ids.applicant)).record.status).toBe(

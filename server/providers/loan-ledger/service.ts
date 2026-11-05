@@ -66,7 +66,10 @@ export function createLoanLedgerService(
       .repository<{ loanId: string; heldDelta: number; repaidDelta: number }>(
         'loanLedger',
       )
-      .findMany({ filter: { loanId: row.id } });
+      .findMany({
+        filter: { loanId: row.id },
+        select: (s) => s.fields('heldDelta', 'repaidDelta'),
+      });
     let held = 0n,
       repaid = 0n;
     for (const entry of entries) {
@@ -427,6 +430,16 @@ export function createLoanLedgerService(
         (
           await tx.repository<Loan>('loans').findMany({
             filter: { applicantId },
+            select: (s) =>
+              s.fields(
+                'id',
+                'sourceId',
+                'applicantId',
+                'principalCents',
+                'dueDate',
+                'issuedAt',
+                'version',
+              ),
             sort: (s) => [s.field('issuedAt').desc()],
           })
         ).map((row) => balance(row, tx)),
