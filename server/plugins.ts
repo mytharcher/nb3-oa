@@ -18,10 +18,13 @@ import file from '@nocobase/app-plugin-file/server';
 import approval from '@nocobase/app-plugin-approval/server';
 import agents from '@nocobase/app-plugin-agents/server';
 import taskCenter from '@nocobase/app-plugin-task-center/server';
+import concurrency from '@nocobase/app-plugin-concurrency/server';
 import foundation from '@nocobase/app-plugin-foundation/server';
+import mail from '@nocobase/app-plugin-mail/server';
 import demoMode from '@nocobase/app-plugin-demo-mode/server';
 
 const serverPlugins: AppServerPlugins = defineServerPlugins([
+  concurrency,
   authentication,
   authorization,
   defaultAccess,
@@ -38,6 +41,7 @@ const serverPlugins: AppServerPlugins = defineServerPlugins([
   taskCenter,
   approval,
   agents,
+  mail,
   foundation,
   demoMode,
 ]);

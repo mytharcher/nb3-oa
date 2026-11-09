@@ -78,6 +78,12 @@ export default {
     saved: '"{{name}}" disimpan',
     submitted: '"{{name}}" diajukan',
     completed: 'Tindakan selesai untuk "{{name}}"',
+    actionCompleted: '{{action}} berhasil',
+    commentSaved: 'Komentar terkirim',
+    commentSavedDescription:
+      'Komentar Anda disimpan dalam riwayat persetujuan.',
+    actionRefreshFailed:
+      'Tindakan Anda telah disimpan. Muat ulang detail untuk melihat riwayat persetujuan terbaru.',
     draftName: 'Draf kontrak',
     confirmation: '{{action}} kontrak "{{name}}"?',
     dangerConsequence:

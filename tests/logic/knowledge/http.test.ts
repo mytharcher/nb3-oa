@@ -56,6 +56,83 @@ async function grant(
   });
   return key;
 }
+test('root without an employee reads every document and version; ordinary admin and revoked root remain scoped', async ({
+  testApp,
+}) => {
+  const c = testApp.application.container;
+  const db = c.resolve(databaseManagerToken);
+  const authz = c.resolve(authorizationToken);
+  const service = c.resolve(knowledgeServiceToken);
+  const author = await createEmployee(testApp, 'Knowledge root test author');
+  const admin = await createEmployee(testApp, 'Knowledge ordinary admin');
+  await c
+    .resolve(organizationServiceToken)
+    .addDutyRoleMember('admin', admin.userId, { actorId: admin.userId });
+  const root = await createUser(testApp, 'Knowledge unrestricted account');
+  const assignment = await authz.permissionSets.assign({
+    permissionSet: 'root',
+    subject: { type: 'user', id: root.user.id },
+  });
+  const full = {
+    read: true,
+    create: true,
+    update: true,
+    delete: false,
+  } as const;
+  const document = await db.transaction((tx) =>
+    service.save(
+      {
+        actorId: author.userId,
+        requestKey: randomUUID(),
+        title: 'Root restricted knowledge',
+        folderId: null,
+        departmentIds: [],
+        dutyRoleCodes: ['hr'],
+        kind: 'markdown',
+        markdown: 'Restricted version content',
+      },
+      tx,
+      full,
+      full,
+      full,
+    ),
+  );
+  expect((await root.fetch(`/knowledge/documents/${document.id}`)).status).toBe(
+    200,
+  );
+  const ordinary = await admin.session();
+  expect(
+    (await ordinary.fetch(`/knowledge/documents/${document.id}`)).status,
+  ).toBe(403);
+  // Even an inactive document remains inspectable by root.
+  await db
+    .repository('knowledgeDocuments')
+    .updateOne({ filter: { id: document.id }, values: { active: false } });
+  const list = await root.fetch('/knowledge/documents');
+  expect(list.status).toBe(200);
+  expect(
+    (await list.json()).data.map((row: { id: string }) => row.id),
+  ).toContain(document.id);
+  const detail = await root.fetch(`/knowledge/documents/${document.id}`);
+  expect(detail.status).toBe(200);
+  expect((await detail.json()).data.versions[0].markdown).toBe(
+    'Restricted version content',
+  );
+  expect(
+    (await ordinary.fetch(`/knowledge/documents/${document.id}`)).status,
+  ).toBe(403);
+  expect(
+    (await (await ordinary.fetch('/knowledge/documents')).json()).data,
+  ).toEqual([]);
+  await authz.permissionSets.revoke(assignment.id);
+  expect((await root.fetch(`/knowledge/documents/${document.id}`)).status).toBe(
+    403,
+  );
+  expect(
+    (await (await root.fetch('/knowledge/documents')).json()).data,
+  ).toEqual([]);
+});
+
 test('default employee/admin roles, actual admin revocation and seed preserves customization', async ({
   testApp,
 }) => {

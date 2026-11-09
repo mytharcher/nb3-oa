@@ -15,14 +15,17 @@ const tones = {
 /** Quiet semantic status labels; reserve solid primary fills for actions. */
 export function StatusBadge({
   tone = 'neutral',
+  size,
   className,
   ...props
 }: Omit<ComponentProps<typeof Badge>, 'variant'> & {
   readonly tone?: keyof typeof tones;
+  readonly size?: 'sm';
 }): ReactElement {
   return (
     <Badge
       {...props}
+      data-size={size}
       variant='outline'
       className={cn(tones[tone], className)}
     />

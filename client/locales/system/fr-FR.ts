@@ -7,6 +7,12 @@ import inboxEnUS from '#extensions/nocobase-inbox/locales/fr-FR';
  * upgrade replaces this file, so put the application's own copy in `../en-US.ts` rather than here.
  */
 const systemEnUS = {
+  'auth.preparingSession': 'Preparing your session…',
+  'auth.connectionFailed': 'Unable to connect',
+  'auth.connectionFailedDescription':
+    'The realtime connection could not be prepared. Retry to enter the application, or sign out.',
+  'auth.retry': 'Retry',
+
   // The UI Library block of the `/device` page; the keys below may reword it.
   ...deviceApprovalEnUS,
   // The UI Library block of the `/inbox` page; the keys below may reword it.
@@ -91,6 +97,8 @@ const systemEnUS = {
   'status.routeFailedDescription':
     'Impossible de charger cette page. Veuillez réessayer.',
   shell: {
+    brandPartnership: 'AI + <brand>NocoBase</brand>',
+    buildReliableSystems: 'Créer des systèmes métier fiables',
     buildFreely: 'L’IA crée librement.',
     reliability: '<brand>NocoBase</brand> garantit la fiabilité.',
   },
@@ -347,6 +355,15 @@ const systemEnUS = {
   datePicker: {
     placeholder: 'Choisir une date',
     rangePlaceholder: 'Choisir une période',
+  },
+  formFeedback: {
+    field: 'This value was rejected. Check it and try again.',
+    invalid: 'Check the highlighted fields and try again.',
+    failed: 'Unable to save. Your input has been kept. Try again.',
+    network:
+      'Unable to connect. Check your connection and try again. Your input has been kept.',
+    denied:
+      'You cannot submit this form with your current access. Your input has been kept.',
   },
 };
 

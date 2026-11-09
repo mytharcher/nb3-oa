@@ -1,5 +1,5 @@
 import { useSyncServerLocale } from '@nocobase/app-plugin-i18n/client';
-import { useEffect, useRef, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, type ReactElement } from 'react';
 import type { AppClientRegisteredRoute } from '@nocobase/app-client/plugins';
 import { Link, Outlet, useLocation } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
@@ -45,6 +45,10 @@ export function AppLayout({ routes }: AppLayoutProps): ReactElement {
   const { t } = useTranslation();
   const navigation = useRouteNavigation(routes);
   const { items: menuItems, denied } = navigation;
+  const access = useMemo(
+    () => ({ denied, loading: navigation.loading }),
+    [denied, navigation.loading],
+  );
   const { pathname } = useLocation();
   // OA switches the menu in the same shell: route declarations alone cannot express this navigation context.
   const system = isSystemLocation(routes, pathname);
@@ -66,7 +70,7 @@ export function AppLayout({ routes }: AppLayoutProps): ReactElement {
 
   return (
     // The shell owns the business route tree used by its pages and navigation.
-    <RouteTreeProvider routes={routes}>
+    <RouteTreeProvider routes={routes} access={access}>
       <SystemNavigationContext.Provider
         value={{
           items: systemItems,

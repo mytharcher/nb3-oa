@@ -4,6 +4,12 @@ import inboxZhCN from '#extensions/nocobase-inbox/locales/zh-CN';
 
 /** The Chinese copy of what the template ships; see `./en-US.ts`. */
 const systemZhCN: SystemResource = {
+  'auth.preparingSession': '正在准备登录会话…',
+  'auth.connectionFailed': '连接失败',
+  'auth.connectionFailedDescription':
+    '实时连接暂时无法准备就绪。请重试后进入应用，或退出登录。',
+  'auth.retry': '重试',
+
   // The UI Library block of the `/device` page; the keys below may reword it.
   ...deviceApprovalZhCN,
   // The UI Library block of the `/inbox` page; the keys below may reword it.
@@ -78,6 +84,8 @@ const systemZhCN: SystemResource = {
     '你没有访问此页面的权限，可返回工作台继续处理其他事项。',
   'status.routeFailedDescription': '页面暂时无法加载，请重试。',
   shell: {
+    brandPartnership: 'AI + <brand>NocoBase</brand>',
+    buildReliableSystems: '构建可靠的业务系统',
     buildFreely: 'AI 自由构建。',
     reliability: '<brand>NocoBase</brand> 保障可靠。',
   },
@@ -318,6 +326,13 @@ const systemZhCN: SystemResource = {
   datePicker: {
     placeholder: '选择日期',
     rangePlaceholder: '选择日期范围',
+  },
+  formFeedback: {
+    field: '此字段的值未通过校验，请检查并修改后重试。',
+    invalid: '请检查标记的字段后重试。',
+    failed: '保存失败，已保留您的输入，请重试。',
+    network: '无法连接，请检查网络后重试。已保留您的输入。',
+    denied: '当前权限无法提交此表单。已保留您的输入。',
   },
 };
 

@@ -3,12 +3,16 @@ import authConfig from '../../server/config/auth.js';
 // @vitest-environment node
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+// Full OA fixtures include provider drain on shutdown as well as PostgreSQL installation.
+vi.setConfig({ testTimeout: 60_000 });
 import {
   createTestAppConfig,
   type TestAppConfig,
 } from '@nocobase/app-testing/server';
 import {
   mkdirSync,
+  readFileSync,
   mkdtempSync,
   rmSync,
   symlinkSync,
@@ -348,10 +352,9 @@ describe('app server', () => {
             new Hono().get('/test-runtime', (c) => c.json({ ok: true })),
           ),
         ],
-        serviceProviders: [
-          ...appRuntime.serviceProviders,
-          TestRuntimeApplicationProvider,
-        ],
+        // This test replaces every plugin with one synthetic plugin, so its
+        // application provider must likewise be independent of OA business dependencies.
+        serviceProviders: [TestRuntimeApplicationProvider],
       },
       scope,
     );
@@ -431,12 +434,13 @@ describe('app server', () => {
     expect(missingEvents).toBeNull();
   });
 
-  it('subscribes, publishes, and unsubscribes realtime messages', () => {
+  it('subscribes, publishes, and unsubscribes realtime messages', async () => {
     const realtime = createRealtimeService();
+    realtime.registerTopic(TEST_REALTIME_TOPIC, { audience: 'public' });
     const websocket = createTestWebSocket();
     const connection = realtime.connect(websocket);
 
-    realtime.handleClientMessage(
+    await realtime.handleClientMessage(
       connection,
       JSON.stringify({
         type: 'subscribe',
@@ -453,7 +457,7 @@ describe('app server', () => {
       subscriptionId: expect.any(String),
     });
 
-    realtime.publish(TEST_REALTIME_TOPIC, 'tick');
+    await realtime.publish(TEST_REALTIME_TOPIC, 'tick');
 
     expect(websocket.messages[1]).toMatchObject({
       type: 'event',
@@ -462,7 +466,7 @@ describe('app server', () => {
       publishedAt: expect.any(String),
     });
 
-    realtime.handleClientMessage(
+    await realtime.handleClientMessage(
       connection,
       JSON.stringify({
         type: 'unsubscribe',
@@ -471,7 +475,7 @@ describe('app server', () => {
           .subscriptionId,
       }),
     );
-    realtime.publish(TEST_REALTIME_TOPIC, 'after unsubscribe');
+    await realtime.publish(TEST_REALTIME_TOPIC, 'after unsubscribe');
 
     expect(websocket.messages[2]).toMatchObject({
       type: 'unsubscribed',
@@ -481,7 +485,7 @@ describe('app server', () => {
     });
     expect(websocket.messages).toHaveLength(3);
 
-    realtime.close();
+    await realtime.close();
   });
 
   it('registers embedded app resources with the scope', async () => {
@@ -677,8 +681,24 @@ describe('app server', () => {
     } while (cursor);
     expect(tables.some((name) => name.includes('example'))).toBe(false);
     const baseUrl = `http://localhost${app.application.publicBasePath}`;
+    const signedIn = await requestApp(
+      app,
+      `${baseUrl}/api/auth/sign-in/username`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'nocobase', password: 'admin123' }),
+      },
+    );
+    expect(signedIn.status).toBe(200);
+    const cookie = signedIn.headers
+      .getSetCookie()
+      .map((header) => header.split(';')[0])
+      .join('; ');
     for (const endpoint of ['articles', 'example', 'routesExample']) {
-      const response = await requestApp(app, `${baseUrl}/api/${endpoint}`);
+      const response = await requestApp(app, `${baseUrl}/api/${endpoint}`, {
+        headers: { cookie },
+      });
       // An unregistered API path is a JSON 404, never the application page.
       expect(response.status).toBe(404);
       await expect(response.json()).resolves.toMatchObject({
@@ -794,6 +814,9 @@ describe('app server', () => {
     const app = trackCloseable(
       await createIsolatedStandaloneServer({ viteDevUrl: false }),
     );
+    app.application.container
+      .resolve(realtimeServiceToken)
+      .registerTopic(TEST_REALTIME_TOPIC, { audience: 'public' });
     const serverUrl = await startStandaloneTestServer(app);
     const websocket = new WebSocket(
       `${serverUrl}${app.application.publicBasePath}/ws`,
@@ -1338,6 +1361,24 @@ async function createEmbeddedTestScope(
   apps.push({
     close: () => lifecycle.disposeAll(),
   });
+  if (options.rootDir) {
+    // A synthetic deployment root still needs provisioned PostgreSQL, never
+    // the default host or the developer's business connection.
+    const isolatedPath = await writeRuntimeTestConfig(databaseDir, options.env);
+    const yaml = createRequire(
+      createRequire(import.meta.url).resolve('@nocobase/app-cli/package.json'),
+    )('yaml') as {
+      parse(text: string): Record<string, unknown>;
+      stringify(value: unknown): string;
+    };
+    const rootConfig = path.join(options.rootDir, 'config.yml');
+    const original = yaml.parse(readFileSync(rootConfig, 'utf8'));
+    const isolated = yaml.parse(readFileSync(isolatedPath, 'utf8'));
+    writeFileSync(
+      rootConfig,
+      yaml.stringify({ ...isolated, ...original, database: isolated.database }),
+    );
+  }
 
   return {
     ...options,
@@ -1351,7 +1392,14 @@ async function createEmbeddedTestScope(
     paths:
       options.paths ??
       (options.rootDir
-        ? undefined
+        ? {
+            rootDir: options.rootDir,
+            serverDir: path.join(sourceRoot, 'server'),
+            databaseDir: path.join(sourceRoot, 'database'),
+            clientDir:
+              options.clientDir ?? path.join(options.rootDir, 'dist/client'),
+            storageDir: path.join(databaseDir, 'storage'),
+          }
         : {
             rootDir: sourceRoot,
             serverDir: path.join(sourceRoot, 'server'),

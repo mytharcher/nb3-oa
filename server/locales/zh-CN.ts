@@ -1,4 +1,5 @@
 import reportExportsLocale from './modules/report-exports.zh-CN.js';
+import approvalAiLocale from '../../client/locales/modules/approval-ai.zh-CN.js';
 import reportsLocale from '../../client/locales/modules/reports.zh-CN.js';
 import invoiceRecognitionLocale from '../../client/locales/modules/invoice-recognition.zh-CN.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.zh-CN.js';
@@ -36,6 +37,7 @@ import annualLeave from './modules/annual-leave.zh-CN.js';
 
 const zhCN: AppServerResource = {
   ...reportExportsLocale,
+  ...approvalAiLocale,
   demoData,
   ...accessLocale,
   ...processManagementLocale,

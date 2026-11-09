@@ -1,4 +1,5 @@
 import { ServiceProvider } from '@nocobase/service-provider';
+import { userAdministrationServiceToken } from '@nocobase/app-plugin-authentication';
 import { demoLocaleFor } from '../demo-data/context.js';
 import type { Application } from '@nocobase/app-server/application';
 import { databaseManagerToken } from '@nocobase/db';
@@ -110,6 +111,22 @@ export default class KnowledgeProvider extends ServiceProvider<Application> {
         employees: c.resolve(employeeServiceToken),
         files: c.resolve(serverFileRepositoryManagerToken),
         drive: c.resolve(driveManagerToken),
+        isUnrestricted: async (actorId, tx) => {
+          const user = await c
+            .resolve(userAdministrationServiceToken)
+            .withConnection(tx)
+            .get(actorId);
+          if (!user || user.disabledAt || user.kind !== 'person') return false;
+          const sets = c
+            .resolve(authorizationToken)
+            .permissionSets.withTransaction(tx);
+          return (await sets.listAssignments()).some(
+            (assignment) =>
+              assignment.subject.type === 'user' &&
+              assignment.subject.id === actorId &&
+              sets.protection(assignment.permissionSet)?.unrestricted === true,
+          );
+        },
         notices: this.notices,
       });
     });

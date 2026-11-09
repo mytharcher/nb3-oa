@@ -1,4 +1,5 @@
 import reportExportsLocale from './modules/report-exports.en-US.js';
+import approvalAiLocale from '../../client/locales/modules/approval-ai.en-US.js';
 import reportsLocale from '../../client/locales/modules/reports.en-US.js';
 import invoiceRecognitionLocale from '../../client/locales/modules/invoice-recognition.en-US.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.en-US.js';
@@ -39,6 +40,7 @@ import annualLeave from './modules/annual-leave.en-US.js';
 // plugin's.
 const enUS = {
   ...reportExportsLocale,
+  ...approvalAiLocale,
   demoData,
   ...accessLocale,
   ...processManagementLocale,

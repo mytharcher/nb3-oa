@@ -1,3 +1,5 @@
+import { ApprovalAiReviewPanel } from '#components/approval-ai/index';
+import { ApprovalDetailSection } from '#components/approval-detail-section';
 import {
   ApprovalUiProvider,
   ApprovalProgress,
@@ -246,10 +248,12 @@ export default function RequestDetail() {
               dateText(value, i18n.language, detail.timeZone)
             }
           >
-            <section className='flex flex-col gap-4'>
-              <h3 className='text-base font-medium'>
-                {t('vehicles.progress')}
-              </h3>
+            <ApprovalAiReviewPanel
+              lifecycle='oa.vehicleRequest'
+              recordId={detail.record.id}
+              refreshKey={detail}
+            />
+            <ApprovalDetailSection title={t('vehicles.progress')}>
               <ApprovalProgress
                 steps={progressOf(
                   detail,
@@ -263,9 +267,8 @@ export default function RequestDetail() {
                 )}
                 copies={copiesOf(detail)}
               />
-            </section>
-            <section className='flex flex-col gap-4'>
-              <h3 className='text-base font-medium'>{t('vehicles.history')}</h3>
+            </ApprovalDetailSection>
+            <ApprovalDetailSection title={t('vehicles.history')}>
               <ApprovalTimeline
                 lines={timelineOf(detail, {
                   t: (key, options) => t(key, options),
@@ -274,7 +277,7 @@ export default function RequestDetail() {
                     t(`vehicles.stages.${key}`, { defaultValue: title }),
                 })}
               />
-            </section>
+            </ApprovalDetailSection>
           </ApprovalUiProvider>
         </div>
       ) : null}

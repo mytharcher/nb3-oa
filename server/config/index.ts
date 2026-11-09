@@ -28,7 +28,15 @@ import database from './database.js';
 import snowflake from './snowflake.js';
 import users from './users.js';
 import oaApprovals from './oa-approvals.js';
+import mailers from './mailers.js';
+import mail from './mail.js';
+import concurrency from './concurrency.js';
+import knowledge from './knowledge.js';
+import { defineApprovalSuggestionsConfig } from '@nocobase/app-plugin-approval/config';
+
 import demoMode from './demo-mode.js';
+
+const approvalSuggestions = defineApprovalSuggestionsConfig();
 
 const defaultConfigs: AppConfigFactory<{
   auth: ReturnType<typeof auth>;
@@ -52,6 +60,11 @@ const defaultConfigs: AppConfigFactory<{
   snowflake: ReturnType<typeof snowflake>;
   users: ReturnType<typeof users>;
   oaApprovals: ReturnType<typeof oaApprovals>;
+  mailers: ReturnType<typeof mailers>;
+  mail: ReturnType<typeof mail>;
+  concurrency: ReturnType<typeof concurrency>;
+  knowledge: ReturnType<typeof knowledge>;
+  approvalSuggestions: ReturnType<typeof approvalSuggestions>;
   demoMode: ReturnType<typeof demoMode>;
 }> = defaultAppConfigs({
   auth,
@@ -83,6 +96,11 @@ const defaultConfigs: AppConfigFactory<{
   snowflake,
   users,
   oaApprovals,
+  mailers,
+  mail,
+  concurrency,
+  knowledge,
+  approvalSuggestions,
   demoMode,
 });
 

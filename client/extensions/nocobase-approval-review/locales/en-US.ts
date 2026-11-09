@@ -1,0 +1,110 @@
+const locale = {
+  approvalAi: {
+    history: {
+      title: 'Generation history',
+      total: 'Attempts: {{count}}',
+      succeeded: 'Succeeded',
+      failed: 'Failed',
+      cancelled: 'Cancelled',
+      generating: 'Generating',
+      unavailable: 'Unavailable',
+      current: 'Viewing',
+      viewing: 'Suggestion version V{{count}}',
+      viewLatest: 'View latest report',
+      failedReport: 'The latest generation failed. Still showing V{{count}}.',
+      cancelledReport:
+        'The latest generation was cancelled. Showing V{{count}}.',
+      unknownFailure: 'Generation failed; no specific cause was recorded.',
+      invalidReport: 'The generated content did not pass validation.',
+      outputLimit: 'The output limit was reached before the report completed.',
+      interrupted: 'Generation was interrupted. Retry to start a new attempt.',
+      incomplete: 'The model did not complete the report.',
+      invalidJson: 'The model did not return a complete JSON report.',
+      unverifiedEvidence:
+        'A report citation could not be verified against the supplied materials.',
+      started: 'Started: {{time}}',
+      deadline: 'Deadline: {{time}}',
+      tokens:
+        'Tokens: input {{input}} · output {{output}} · reasoning {{reasoning}}',
+      duration: 'Model call: {{seconds}} s',
+      network: 'The model connection failed.',
+      rateLimited: 'The model service rate limit was reached.',
+      configuration:
+        'The model service configuration or credentials are invalid.',
+      quota: 'The model service quota is exhausted.',
+      contextLimit: 'The materials exceed the model context limit.',
+      providerRejected: 'The model service rejected the generation request.',
+      timeout: 'Generation timed out.',
+    },
+    retry: 'Retry generation',
+    readOnly: 'This suggestion is read-only.',
+    actionFailed: 'The action failed. Refresh the status before trying again.',
+
+    versionCount: '{{current}} / {{count}}',
+    version: 'Version {{count}}',
+    latestVersion: '(latest)',
+    latestRunActions: 'Actions apply to the current generation.',
+    cancelGeneration: 'Cancel generation',
+    cancelling: 'Cancelling…',
+    expandReport: 'Expand details',
+    collapseReport: 'Collapse details',
+    findings: 'Review findings',
+    generatedAt: 'Generated at',
+    nextStep: 'Suggested next step:',
+    noFindings: 'No findings available',
+    noMaterials:
+      'No review materials recorded. Verify against the original materials.',
+    coverageCounts:
+      'Read {{read}} · Unsupported {{unsupported}} · Missing {{missing}}',
+    reviewPrivacy:
+      'AI generated, for reference only. Review the evidence before making a decision.',
+    historyReadOnly: 'Suggestion from a completed task, for reference only.',
+    materialKinds: {
+      field: 'Application field',
+      text: 'Text',
+      attachment: 'Attachment',
+      knowledge: 'Review basis',
+      record: 'Business record',
+      aggregate: 'Aggregate data',
+    },
+    materialStatuses: {
+      partial_read: 'Partially read',
+      read: 'Read',
+      not_supported: 'Unsupported',
+      missing: 'Missing or inaccessible',
+    },
+    stateHints: {
+      cancelled: 'Generation was cancelled. You can generate again.',
+      none: 'No suggestion yet. Generate one manually; approval can continue.',
+      queued:
+        'Waiting for processing. You can handle the approval without waiting.',
+      running: 'Generating a suggestion. You can continue with approval.',
+      failed:
+        'The suggestion could not be generated. Retry when available; approval can continue.',
+    },
+    verdicts: {
+      conforms: 'Conforms',
+      nonconforming: 'Nonconforming',
+      needs_verification: 'Needs verification',
+      not_covered: 'Not covered',
+    },
+    title: 'AI approval assistance',
+    refresh: 'Refresh',
+    submittingGeneration: 'Submitting generation request…',
+    statuses: {
+      cancelled: 'Cancelled',
+      none: 'Not generated',
+      queued: 'Queued',
+      running: 'Generating',
+      succeeded: 'Ready',
+      failed: 'Generation failed',
+    },
+    generate: 'Generate suggestion',
+    regenerate: 'Generate again',
+    model: 'Model',
+    coverage: 'Material coverage',
+    evidence: 'Evidence',
+  },
+};
+export type ApprovalReviewLocale = typeof locale;
+export default locale;

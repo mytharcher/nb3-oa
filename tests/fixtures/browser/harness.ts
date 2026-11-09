@@ -6,6 +6,7 @@ import type { Server } from 'node:http';
 import type { Browser } from '@playwright/test';
 import type { ViteDevServer } from 'vite';
 import { createTestApp } from '@nocobase/app-testing/server';
+import { registerNodeWebSocketUpgradeHandler } from '@nocobase/app-server/node';
 import type { TestSession } from '@nocobase/app-plugin-authentication/testing';
 import { createServer as createViteServer, loadConfigFromFile } from 'vite';
 import { chromium, type BrowserContextOptions } from '@playwright/test';
@@ -105,6 +106,25 @@ export async function startIsolatedBrowserApp({
         outgoing.end('Isolated browser bridge failed.');
       }
     });
+    // Session preparation now waits for an authenticated socket handshake.
+    // Exercise the same adapter as the real Node host instead of an HTTP-only bridge.
+    registerNodeWebSocketUpgradeHandler(
+      {
+        fetch: app.fetch,
+        websocket: (request) => {
+          const headers = new Headers(request.headers);
+          if (headers.get('origin') === apiOrigin)
+            headers.set('origin', OA_TEST_ORIGIN);
+          const url = new URL(request.url);
+          return app.server.websocket?.(
+            new Request(`${OA_TEST_ORIGIN}${url.pathname}${url.search}`, {
+              headers,
+            }),
+          );
+        },
+      },
+      bridge,
+    );
     await new Promise<void>((resolve, reject) => {
       bridge!.once('error', reject);
       bridge!.listen(apiPort, '127.0.0.1', resolve);

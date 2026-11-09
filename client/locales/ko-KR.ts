@@ -1,3 +1,8 @@
+import fileUi from '../extensions/nocobase-file-component-ui/locales/en-US.js';
+import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/en-US.js';
+import agentChatLocale from '../extensions/nocobase-agent-chat/locales/en-US.js';
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from './modules/approval-ai.en-US.js';
 import plugins from './plugins/ko-KR.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.ko-KR.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.ko-KR.js';
@@ -82,6 +87,11 @@ import approvalsEnUS from './modules/approvals.ko-KR.js';
 import system from './system/ko-KR.js';
 
 const koKR: AppResource = {
+  ...agentChatLocale,
+  approvalAi: {
+    ...approvalAiLocale.approvalAi,
+    ...approvalReviewLocale.approvalAi,
+  },
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,
@@ -119,6 +129,7 @@ const koKR: AppResource = {
   ...vendorQualificationLocale,
   assets: assetLocale,
   ...system,
+  ...fileUi,
   'shell.buildFreely': '서로 연결되는 업무 공간.',
   'shell.reliability': '직원, 업무, 결재를 한곳에서.',
   // Application-owned OA copy overrides the template authentication branding.

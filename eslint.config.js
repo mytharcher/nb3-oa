@@ -8,6 +8,8 @@ export default [
       'client-old/**',
       'public/r/**',
       'storage/**',
+      // Internal workspace packages own their checks.
+      'packages/**',
     ],
   }),
   {

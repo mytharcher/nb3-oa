@@ -63,6 +63,8 @@ Register new modules in `server/providers/index.ts`, `server/routes/index.ts`, `
 
 ## Essential conventions
 
+- The read-only approval assistant uses [shell composition](.agents/rules/approval-assistant-shell.md).
+
 - Shell Logo customization follows [OA branding](.agents/rules/branding.md).
 
 - Every endpoint independently enforces authentication, action permissions, record scopes, and field permissions. Hiding navigation does not replace server authorization.

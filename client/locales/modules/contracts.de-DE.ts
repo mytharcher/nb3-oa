@@ -86,6 +86,12 @@ export default {
     saved: '„{{name}}“ gespeichert',
     submitted: '„{{name}}“ eingereicht',
     completed: 'Aktion für „{{name}}“ abgeschlossen',
+    actionCompleted: '{{action}} erfolgreich',
+    commentSaved: 'Kommentar gesendet',
+    commentSavedDescription:
+      'Ihr Kommentar wurde im Genehmigungsverlauf gespeichert.',
+    actionRefreshFailed:
+      'Ihre Aktion wurde gespeichert. Aktualisieren Sie die Details, um den neuesten Genehmigungsverlauf zu sehen.',
     draftName: 'Vertragsentwurf',
     confirmation: 'Vertrag „{{name}}“: {{action}}?',
     dangerConsequence:
