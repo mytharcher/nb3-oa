@@ -1,4 +1,7 @@
 import RepairProvider from './it-repairs/index.js';
+import ApprovalAiProvider from './approval-ai/index.js';
+import SubmissionProvider from './submission.js';
+import NotificationManagementProvider from './notification-management.js';
 import InvoiceRecognitionProvider from './invoice-recognition/index.js';
 import ElectronicSignaturesProvider from './electronic-signatures/index.js';
 import WecomAttendanceProvider from './wecom-attendance/index.js';
@@ -76,6 +79,8 @@ export { orgServiceToken, type OrgService } from './org/contract.js';
 // Each OA module owns `server/providers/<module>/` with an `index.ts` default-exporting its provider. Order is
 // dependency order: audit first, since every module records into it; org before employees, which reads it.
 const serviceProviders: readonly ApplicationServiceProviderConstructor[] = [
+  SubmissionProvider,
+  NotificationManagementProvider,
   AuditProvider,
   PlatformProvider,
   BudgetsProvider,
@@ -129,6 +134,7 @@ const serviceProviders: readonly ApplicationServiceProviderConstructor[] = [
   AssetRequestsProvider,
   VendorQualificationProvider,
   ContractsProvider,
+  ApprovalAiProvider,
   SealsProvider,
   TemplatePrintProvider,
   CertificatesProvider,

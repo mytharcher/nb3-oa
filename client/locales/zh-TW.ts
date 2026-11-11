@@ -1,4 +1,9 @@
 import itRepairLocale from './modules/it-repairs.en-US.js';
+import fileUi from '../extensions/nocobase-file-component-ui/locales/zh-TW.js';
+import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/zh-TW.js';
+import agentChatLocale from '../extensions/nocobase-agent-chat/locales/zh-CN.js';
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from './modules/approval-ai.en-US.js';
 import type { AppResource } from './en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.zh-TW.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.zh-TW.js';
@@ -83,6 +88,11 @@ import system from './system/zh-TW.js';
 
 const zhTW: AppResource = {
   ...itRepairLocale,
+  ...agentChatLocale,
+  approvalAi: {
+    ...approvalAiLocale.approvalAi,
+    ...approvalReviewLocale.approvalAi,
+  },
   demoData,
   ...processManagementLocale,
   ...attendanceImportZhTW,
@@ -120,6 +130,7 @@ const zhTW: AppResource = {
   ...vendorQualificationLocale,
   assets: assetLocale,
   ...system,
+  ...fileUi,
   'shell.buildFreely': '協同辦公，井然有序。',
   'shell.reliability': '連接組織、事務與簽核。',
   // Application-owned OA copy overrides the template authentication branding.

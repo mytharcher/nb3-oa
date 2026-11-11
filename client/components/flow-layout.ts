@@ -7,6 +7,9 @@ import type {
 export interface FlowDiagramNode {
   readonly id: string;
   readonly label: string;
+  readonly kind?: 'initial' | 'final' | 'state';
+  /** True only when the lifecycle definition binds configurable parameters to this state. */
+  readonly configurable?: boolean;
   /** Fixed canvas dimensions; customize these when supplying richer node content. */
   readonly width?: number;
   readonly height?: number;
@@ -15,7 +18,7 @@ export interface FlowDiagramNode {
   readonly visited?: boolean;
   readonly highlighted?: boolean;
   readonly className?: string;
-  /** OA extension: the caller's rendered content draws the whole node, without the default box or state tint. */
+  /** the caller's rendered content draws the whole node, without the default box or state tint. */
   readonly bare?: boolean;
   readonly minimapShape?: 'pill' | 'card';
   readonly minimapColor?: string;
@@ -26,14 +29,16 @@ export interface FlowDiagramEdge {
   readonly source: string;
   readonly target: string;
   readonly label?: string;
+  /** True when the transition binds editable business parameters. */
+  readonly configurable?: boolean;
   /** A visual annotation, not an inspectable business state or transition. */
   readonly decorative?: boolean;
   readonly visited?: boolean;
   readonly highlighted?: boolean;
   readonly dashed?: boolean;
-  /** OA extension: a secondary route drawn thin and light, so the main path reads first. */
+  /** a secondary route drawn thin and light, so the main path reads first. */
   readonly faint?: boolean;
-  /** OA extension: hover and accessible text for an edge that shows no label on the canvas. */
+  /** hover and accessible text for an edge that shows no label on the canvas. */
   readonly title?: string;
 }
 
@@ -60,8 +65,7 @@ export interface FlowDiagramLayout {
   })[];
 }
 
-// Application extension: registry defaults leave too much vertical space for OA
-// diagrams. Keep defaults intact and expose compact routing with bounded labels.
+/** Wrap condition labels without splitting words. */
 export function flowLabelLines(text: string): string[] {
   const lines: string[] = [];
   let line = '',
@@ -106,10 +110,10 @@ export async function layoutFlowDiagram(
     if (ids.has(node.id)) throw new Error(`Duplicate node: ${node.id}`);
     ids.add(node.id);
     if (
-      !Number.isFinite(node.width ?? 200) ||
-      (node.width ?? 200) <= 0 ||
-      !Number.isFinite(node.height ?? 64) ||
-      (node.height ?? 64) <= 0
+      !Number.isFinite(node.width ?? 232) ||
+      (node.width ?? 232) <= 0 ||
+      !Number.isFinite(node.height ?? 104) ||
+      (node.height ?? 104) <= 0
     )
       throw new Error(`Invalid dimensions: ${node.id}`);
   }
@@ -144,8 +148,8 @@ export async function layoutFlowDiagram(
     },
     children: graph.nodes.map((node) => {
       const id = nodeIds.get(node.id)!;
-      const width = node.width ?? 200;
-      const height = node.height ?? 64;
+      const width = node.width ?? 232;
+      const height = node.height ?? 104;
       const connections = graph.edges.map((edge, index) => ({ edge, index }));
       const incoming = connections.filter(
         ({ edge }) => edge.target === node.id,
@@ -214,8 +218,8 @@ export async function layoutFlowDiagram(
         ...node,
         x: placed.x ?? 0,
         y: placed.y ?? 0,
-        width: placed.width ?? node.width ?? 200,
-        height: placed.height ?? node.height ?? 64,
+        width: placed.width ?? node.width ?? 232,
+        height: placed.height ?? node.height ?? 104,
       };
     }),
     edges: graph.edges.map((edge, index) => {
@@ -278,7 +282,7 @@ export async function layoutFlowDiagram(
 
 type PlacedFlowNode = FlowDiagramLayout['nodes'][number];
 
-/** OA extension: a transient route for an edge left out of the layout. It runs in a lane
+/** a transient route for an edge left out of the layout. It runs in a lane
  * outside every node it passes, so revealing it never moves the laid-out graph.
  * Deeper lanes keep nested routes from crossing one another; a self-transition loops
  * beside its own node. The label sits outside the lane instead of over the nodes. */
@@ -331,4 +335,26 @@ export function revealRoute(
     labelPosition: point((from + to) / 2, lanePosition - (down ? 6 : 14)),
     labelAnchor: down ? 'end' : 'middle',
   };
+}
+
+/** Keep return and self-transitions out of the process layout. Declaration order
+ * describes forward progress; even adjacent returns can become long routes in ELK. */
+export function partitionFlowDiagramReturns(graph: FlowDiagramGraph): {
+  edges: FlowDiagramEdge[];
+  extraEdges: FlowDiagramEdge[];
+} {
+  const order = new Map(graph.nodes.map((node, index) => [node.id, index]));
+  const edges: FlowDiagramEdge[] = [],
+    extraEdges: FlowDiagramEdge[] = [];
+  for (const edge of graph.edges) {
+    const source = order.get(edge.source),
+      target = order.get(edge.target);
+    const returnRoute =
+      !edge.decorative &&
+      source !== undefined &&
+      target !== undefined &&
+      source >= target;
+    (returnRoute ? extraEdges : edges).push(edge);
+  }
+  return { edges, extraEdges };
 }

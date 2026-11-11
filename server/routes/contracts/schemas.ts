@@ -46,26 +46,31 @@ export const Target = z.union([
   z.strictObject({ taskId: z.string().min(1) }),
   z.strictObject({ runId: z.string().min(1) }),
 ]);
-export const Action = z.strictObject({
-  target: Target,
-  action: z.enum([
-    'approve',
-    'reject',
-    'return',
-    'claim',
-    'comment',
-    'read',
-    'transfer',
-    'addSigner',
-    'urge',
-    'appoint',
-    'reassign',
-  ]),
-  contentHash: z.string().min(1),
-  input: z.record(z.string(), z.json()).default({}),
-  comment: z.string().max(5000).optional(),
-  requestId: z.string().min(1).max(128),
-});
+export const Action = z
+  .strictObject({
+    target: Target,
+    action: z.enum([
+      'approve',
+      'reject',
+      'return',
+      'claim',
+      'comment',
+      'read',
+      'transfer',
+      'addSigner',
+      'urge',
+      'appoint',
+      'reassign',
+    ]),
+    contentHash: z.string().min(1).optional(),
+    input: z.record(z.string(), z.json()).default({}),
+    comment: z.string().max(5000).optional(),
+    requestId: z.string().min(1).max(128),
+  })
+  .refine((value) => value.action !== 'approve' || !!value.contentHash, {
+    path: ['contentHash'],
+    message: 'Approval requires the displayed content hash.',
+  });
 export const Candidates = z
   .object({
     action: z.enum(['transfer', 'addSigner', 'appoint', 'reassign']),

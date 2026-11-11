@@ -40,7 +40,7 @@ try {
           );
           const icons = [
             ...document.querySelectorAll(
-              '[data-slot=route-overlay-body] ol>li>span.relative',
+              '[data-slot=route-overlay-body] ol>li>span.relative[class~="size-5"]',
             ),
           ];
           return {
@@ -56,7 +56,22 @@ try {
         });
         console.log(theme, mode, width, metrics);
         assert.equal(metrics.iconColors.length, 7);
-        assert.equal(metrics.badgeColor, metrics.iconColors[0]);
+        assert.notEqual(metrics.badgeColor, metrics.iconColors[0]);
+        assert.equal(
+          await page
+            .locator('[data-slot=route-overlay-body] [data-slot=card]')
+            .count(),
+          2,
+        );
+        assert.equal(
+          await page
+            .getByRole('heading', {
+              name: locale === 'en' ? 'History' : '审批记录',
+              exact: true,
+            })
+            .count(),
+          1,
+        );
         assert.equal(metrics.overflow, false);
         assert.equal(metrics.headerOverflow, false);
         assert.deepEqual(errors, []);

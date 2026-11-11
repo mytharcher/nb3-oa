@@ -1,3 +1,4 @@
+import { ApprovalAiReviewPanel } from '#components/approval-ai/index';
 import { ElectronicSignatureSection } from '#components/electronic-signature-section';
 import { statusTone } from './status-tone.js';
 import { PrintEntry } from '../template-print/entry.js';
@@ -274,6 +275,11 @@ export default function SealDetail() {
               ))}
             </section>
           ) : null}
+          <ApprovalAiReviewPanel
+            lifecycle='oa.sealRequest'
+            recordId={d.record.id}
+            refreshKey={d}
+          />
           <section className='flex flex-col gap-3'>
             <h3 className='font-medium'>{t('seals.history')}</h3>
             {d.actions.map((a) => (

@@ -9,16 +9,18 @@ export function useCloseGuard(busy: boolean) {
     navigate = useNavigate(),
     location = useLocation();
   const beforeClose = useCallback(() => {
+    if (savedRef.current) return true;
     if (busy) return false;
-    if (savedRef.current || !dirty) return true;
+    if (!dirty) return true;
     setConfirm(true);
     return new Promise<boolean>((r) => {
       resolveRef.current = r;
     });
   }, [busy, dirty]);
   useNavigationGuard(() => {
+    if (savedRef.current) return true;
     if (busy) return false;
-    if (savedRef.current || !dirty) return true;
+    if (!dirty) return true;
     setConfirm(true);
     return false;
   });

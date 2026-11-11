@@ -1,15 +1,28 @@
-import { UserName } from '#components/user-name';
+import { ApprovalDetailSection } from '#components/approval-detail-section';
+import { ApprovalProgress } from '#components/approval-progress';
+import {
+  ApprovalTimeline,
+  ApprovalUiProvider,
+  type ApprovalTimelineLine,
+} from '#extensions/nocobase-approval-ui';
 import {
   renderTimelineEntry,
   approvalStepsOf,
+  approvalCopiesOf,
   approvalWord,
   type ApprovalText,
 } from '@nocobase/app-plugin-approval/client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { StatusBadge } from '#components/status-badge';
 import type { ContractDetail } from './types.js';
 import { dateLabel } from './model.js';
-export function ContractHistory({ detail }: { detail: ContractDetail }) {
+import type { Ref } from 'react';
+export function ContractHistory({
+  detail,
+  timelineRef,
+}: {
+  detail: ContractDetail;
+  timelineRef?: Ref<HTMLElement>;
+}) {
   const { t, i18n } = useTranslation();
   const text: ApprovalText = {
     t: (key, values) => t(key, values),
@@ -20,76 +33,79 @@ export function ContractHistory({ detail }: { detail: ContractDetail }) {
       t(`contracts.statuses.${key}`, { defaultValue: t('contracts.progress') }),
   };
   const steps = approvalStepsOf(detail.runs, detail.upcoming);
-  const entries = detail.timeline.runs
+  const entries: ApprovalTimelineLine[] = detail.timeline.runs
     .flatMap((run) => [
       ...run.entries,
       ...run.stages.flatMap((stage) => stage.entries),
     ])
-    .map((entry) => renderTimelineEntry(entry, text));
+    .map((entry) => {
+      const line = renderTimelineEntry(entry, text);
+      return {
+        ...line,
+        kind: line.kind === 'system' ? 'event' : 'action',
+        emphasis: line.kind === 'system' ? 'muted' : 'default',
+      };
+    });
   return (
-    <>
-      <section className='flex flex-col gap-4'>
-        <h2 className='text-base font-medium'>{t('contracts.progress')}</h2>
-        <ol className='flex flex-col gap-4'>
-          {steps.map((step) => (
-            <li key={step.key} className='flex flex-col gap-2'>
-              <p>
-                {text.stage(step.stage, step.title)} ·{' '}
-                <StatusBadge tone='neutral'>
-                  {approvalWord(
+    <ApprovalUiProvider
+      personName={text.name}
+      formatDateTime={(value) =>
+        dateLabel(value, i18n.language, detail.timeZone)
+      }
+    >
+      <ApprovalDetailSection title={t('contracts.progress')}>
+        <ApprovalProgress
+          steps={steps.map((step) => ({
+            key: step.key,
+            title: text.stage(step.stage, step.title),
+            state: step.state,
+            at: step.at,
+            policy: step.policy
+              ? approvalWord(text, `policies.${step.policy}`, step.policy)
+              : null,
+            because: step.because,
+            tasks: step.tasks.map((task) => ({
+              key: task.id,
+              personId: task.assigneeId ?? '',
+              badges: [
+                {
+                  label: approvalWord(
                     text,
-                    `stageState.${step.state}`,
-                    t('contracts.progress'),
-                  )}
-                </StatusBadge>
-              </p>
-              <ul>
-                {step.tasks.map((task) => (
-                  <li key={task.id}>
-                    <UserName name={text.name(task.assigneeId)} /> ·{' '}
-                    {approvalWord(
-                      text,
-                      `taskStatus.${task.status}`,
-                      t('contracts.progress'),
-                    )}
-                    {task.comment ? (
-                      <p className='whitespace-pre-wrap break-words'>
-                        {task.comment}
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ol>
+                    `taskStatus.${task.status}`,
+                    task.status,
+                  ),
+                },
+              ],
+              comment: task.comment,
+              due: task.dueAt
+                ? {
+                    label: dateLabel(
+                      task.dueAt,
+                      i18n.language,
+                      detail.timeZone,
+                    ),
+                    overdue: Date.parse(task.dueAt) < Date.now(),
+                  }
+                : null,
+            })),
+          }))}
+          copies={approvalCopiesOf(detail.runs).map((task) => ({
+            key: task.id,
+            personId: task.assigneeId ?? '',
+            read: task.status === 'completed',
+          }))}
+        />
+      </ApprovalDetailSection>
+      <section
+        ref={timelineRef}
+        tabIndex={-1}
+        aria-label={t('contracts.timeline')}
+        className='scroll-mt-4 outline-none'
+      >
+        <ApprovalDetailSection title={t('contracts.timeline')}>
+          <ApprovalTimeline lines={entries} />
+        </ApprovalDetailSection>
       </section>
-      <section className='flex flex-col gap-4'>
-        <h2 className='text-base font-medium'>{t('contracts.timeline')}</h2>
-        <ol className='flex flex-col gap-4'>
-          {entries.map((line) => (
-            <li key={line.key} className='flex flex-col gap-2'>
-              <p>{line.title}</p>
-              <time className='text-sm text-muted-foreground'>
-                {dateLabel(line.at, i18n.language, detail.timeZone)}
-              </time>
-              {line.comment ? (
-                <p className='whitespace-pre-wrap break-words'>
-                  {line.comment}
-                </p>
-              ) : null}
-              {line.details.map((d) => (
-                <p
-                  key={`${d.label}:${d.value}`}
-                  className='text-sm text-muted-foreground'
-                >
-                  {d.label}: {d.value}
-                </p>
-              ))}
-            </li>
-          ))}
-        </ol>
-      </section>
-    </>
+    </ApprovalUiProvider>
   );
 }

@@ -29,6 +29,8 @@ import Detail from '../../../client/pages/contracts/detail.js';
 import Rebase from '../../../client/pages/contracts/rebase-dialog.js';
 import LedgerDetail from '../../../client/pages/contracts/ledger-detail.js';
 import Action from '../../../client/pages/contracts/action-dialog.js';
+import { ContractHistory } from '../../../client/pages/contracts/approval-mapping.js';
+import { Action as actionSchema } from '../../../server/routes/contracts/schemas.js';
 import {
   FileEditor,
   SecureFiles,
@@ -38,19 +40,21 @@ import {
   proposalOf,
   type ContractDetail,
 } from '../../../client/pages/contracts/types.js';
-const { api, actor, permission, toast, reload, apply } = vi.hoisted(() => ({
-  api: { request: vi.fn() },
-  actor: { id: 'owner' },
-  permission: {
-    submit: true,
-    view: true,
-    historicalEntry: false,
-    access: true,
-  },
-  toast: vi.fn(),
-  reload: vi.fn(),
-  apply: vi.fn(),
-}));
+const { api, actor, permission, toast, reload, apply, focusHistory } =
+  vi.hoisted(() => ({
+    api: { request: vi.fn() },
+    actor: { id: 'owner' },
+    permission: {
+      submit: true,
+      view: true,
+      historicalEntry: false,
+      access: true,
+    },
+    toast: vi.fn(),
+    reload: vi.fn(),
+    apply: vi.fn(),
+    focusHistory: vi.fn(() => true),
+  }));
 vi.mock('@nocobase/app-client', async (original) => ({
   ...(await original<typeof import('@nocobase/app-client')>()),
   useApiClient: () => api,
@@ -190,7 +194,9 @@ function show(
           ? [
               {
                 path: 'contract/:requestId',
-                element: <Outlet context={{ reload, apply, detail }} />,
+                element: (
+                  <Outlet context={{ reload, apply, detail, focusHistory }} />
+                ),
                 children: [{ path: 'action/:actionName/:targetId', element }],
               },
             ]
@@ -587,6 +593,153 @@ it('requires an explicit original legal opinion and sends the displayed target/h
     }),
   );
 });
+it('submits a reviewer comment without a content hash through the contract action schema', async () => {
+  const current = approvalDetail(1);
+  current.runActions = [
+    {
+      run: current.runs[0].run,
+      onBehalfOf: null,
+      actions: [
+        {
+          ...current.actions[0].actions[0],
+          name: 'comment',
+          contentHash: false,
+        },
+      ],
+    },
+  ];
+  api.request.mockImplementation(
+    ({ method, json }: { method?: string; json?: unknown }) => {
+      if (method === 'POST')
+        actionSchema.parse(JSON.parse(JSON.stringify(json)));
+      return Promise.resolve({ data: current });
+    },
+  );
+  const router = show(
+    <Action />,
+    '/contractRequests/contract/request-1/action/comment/run-1',
+    true,
+  );
+  fireEvent.change(await screen.findByLabelText('Comment or reason'), {
+    target: { value: 'Please confirm the delivery date.' },
+  });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Comment' })).not.toBeDisabled(),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+  await waitFor(() => expect(apply).toHaveBeenCalled());
+  await waitFor(() =>
+    expect(router.state.location.pathname).toBe(
+      '/contractRequests/contract/request-1',
+    ),
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'Comment' })).toBeNull(),
+  );
+  await waitFor(() => expect(focusHistory).toHaveBeenCalled());
+  expect(toast).toHaveBeenCalledWith(
+    expect.objectContaining({
+      title: 'Comment submitted',
+      description: 'Your comment is saved in the approval history.',
+    }),
+  );
+  const command = api.request.mock.calls
+    .map(([value]) => value)
+    .find((value) => value.method === 'POST');
+  expect(JSON.parse(JSON.stringify(command.json))).toEqual({
+    target: { runId: 'run-1' },
+    action: 'comment',
+    input: {},
+    requestId: expect.any(String),
+    comment: 'Please confirm the delivery date.',
+  });
+});
+it('shows submitted comment text and reviewer in the approval history', async () => {
+  const current = {
+    ...detail,
+    timeline: {
+      runs: [
+        {
+          run: {},
+          entries: [
+            {
+              type: 'action',
+              action: {
+                id: 'comment-1',
+                name: 'comment',
+                actorId: 'owner',
+                onBehalfOf: null,
+                at: '2026-10-31T05:00:00Z',
+                comment: 'Please confirm the delivery date.',
+                summary: {},
+              },
+              events: [],
+            },
+          ],
+          stages: [],
+        },
+      ],
+    },
+  } as unknown as ContractDetail;
+  show(<ContractHistory detail={current} />);
+  const history = await screen.findByRole('region', {
+    name: 'Review history',
+  });
+  expect(history.textContent).toContain('Please confirm the delivery date.');
+  expect(history.textContent).toContain('Owner');
+});
+it('closes the saved comment drawer even when refreshing the detail fails', async () => {
+  const current = approvalDetail(1);
+  current.runActions = [
+    {
+      run: current.runs[0].run,
+      onBehalfOf: null,
+      actions: [
+        {
+          ...current.actions[0].actions[0],
+          name: 'comment',
+          contentHash: false,
+        },
+      ],
+    },
+  ];
+  let saved = false;
+  api.request.mockImplementation(({ method }: { method?: string }) => {
+    if (method === 'POST') {
+      saved = true;
+      return Promise.resolve({ data: {} });
+    }
+    return saved
+      ? Promise.reject(new Error('Read unavailable'))
+      : Promise.resolve({ data: current });
+  });
+  const router = show(
+    <Action />,
+    '/contractRequests/contract/request-1/action/comment/run-1',
+    true,
+  );
+  fireEvent.change(await screen.findByLabelText('Comment or reason'), {
+    target: { value: 'Saved comment' },
+  });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Comment' })).not.toBeDisabled(),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+  await waitFor(() =>
+    expect(router.state.location.pathname).toBe(
+      '/contractRequests/contract/request-1',
+    ),
+  );
+  expect(toast).toHaveBeenCalledWith(
+    expect.objectContaining({
+      title: 'Comment submitted',
+      description: expect.stringContaining('Your action was saved.'),
+    }),
+  );
+  expect(
+    api.request.mock.calls.filter(([value]) => value.method === 'POST'),
+  ).toHaveLength(1);
+});
 it('omits legal output controls for finance and added signers', async () => {
   api.request.mockResolvedValue({ data: approvalDetail(1) });
   show(
@@ -795,7 +948,7 @@ it('does not repeat an acknowledged action when only its subsequent detail refre
         : Promise.resolve({ data: current });
     },
   );
-  show(
+  const router = show(
     <Action />,
     '/contractRequests/contract/request-1/action/approve/task-1',
     true,
@@ -808,11 +961,17 @@ it('does not repeat an acknowledged action when only its subsequent detail refre
     ).toBe(false),
   );
   fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
-  await screen.findByText('Contract data could not be loaded. Retry.');
-  expect(
-    (screen.getByRole('button', { name: 'Approve' }) as HTMLButtonElement)
-      .disabled,
-  ).toBe(true);
+  await waitFor(() =>
+    expect(router.state.location.pathname).toBe(
+      '/contractRequests/contract/request-1',
+    ),
+  );
+  expect(toast).toHaveBeenCalledWith(
+    expect.objectContaining({
+      title: 'Approve succeeded',
+      description: expect.stringContaining('Your action was saved.'),
+    }),
+  );
   expect(
     screen.queryByRole('button', { name: 'Retry original operation' }),
   ).toBeNull();

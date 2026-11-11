@@ -1,6 +1,6 @@
 # Narrow application dependency extensions
 
-These patches retain the installed package versions. They are reviewed source
+These patches retain the upstream-selected package versions. They are reviewed source
 changes applied by pnpm, never edits to the shared dependency store.
 
 - `@nocobase/app-plugin-authentication`: `lockUserForAdministration` accepts an
@@ -22,11 +22,18 @@ Regression coverage: repair reporting T09–T12 and restricted-field probes;
 shared-qualification concurrency/revocation; the isolated 100k capacity fixture.
 No arbitrary SQL expressions are exposed to application callers.
 
-- `@nocobase/authorization`: optional `PermissionSetStore.getMany` returns ordered
-  slots (undefined for absent keys). Resolution still deduplicates assignment
-  keys, preserves first assignment order and fails on the first missing set.
-  Stores without the method retain the existing `get` path and merge semantics.
-- `@nocobase/app-plugin-authorization`: the owner database store uses the same
-  bound connection for parameterized batches of at most 200 distinct keys, then
-  restores input order and duplicates. Empty input performs no query. No cache,
-  schema, locks or permission protection rules change.
+- Permission-set batching uses the native `@nocobase/authorization` keyed
+  `getMany` contract. Resolution restores first-assignment order and raises the
+  same missing-key error; stores without the optional method use `get`.
+- `@nocobase/app-plugin-authorization`: the owner database store retains
+  parameterized batches of at most 200 distinct keys on the same bound connection.
+  The native resolver restores order; missing sets are omitted by the store.
+  Empty input performs no query. No cache, schema, locks or protection rules change.
+- `@nocobase/app-cli`: the independent deployment manifest copies the reviewed
+  patches for its exact runtime dependency versions into `dist/patches` and names
+  them in its own workspace. This prevents a build from silently installing
+  unpatched packages outside the source checkout. Approval and Agents use their
+  released APIs without patches.
+
+The active versions and hashes are defined by `pnpm-workspace.yaml` and the
+lockfile. Superseded patch files remain available in Git history.

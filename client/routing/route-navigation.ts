@@ -163,11 +163,17 @@ export function matchRouteTree(
   routes: readonly AppClientRegisteredRoute[],
   pathname: string,
 ) {
-  const toMatch = (nodes: readonly AppClientRegisteredRoute[]): RouteObject[] =>
+  const toMatch = (
+    nodes: readonly AppClientRegisteredRoute[],
+    parentPath = '',
+  ): RouteObject[] =>
     nodes.map((route) => ({
-      path: route.path,
+      path: relativeRoutePath(route, parentPath),
       handle: route,
-      children: toMatch(route.children ?? EMPTY_ARRAY),
+      children: toMatch(
+        route.children ?? EMPTY_ARRAY,
+        childRouteParentPath(route, parentPath),
+      ),
     }));
   return matchRoutes(toMatch(routes), pathname)?.map((match) => ({
     ...match,
@@ -177,4 +183,27 @@ export function matchRouteTree(
 
 export function routeKey(route: AppClientRegisteredRoute): string {
   return `${route.packageName}:${route.path}:${route.id}`;
+}
+
+/** Resolve absolute registered paths against their router parent. */
+export function relativeRoutePath(
+  route: AppClientRegisteredRoute,
+  parentPath: string,
+): string {
+  if (!parentPath) return route.path;
+  if (
+    route.path === parentPath ||
+    parentPath.startsWith(`${route.path.replace(/\/$/, '')}/`)
+  )
+    return '';
+  return route.path.slice(parentPath === '/' ? 1 : parentPath.length + 1);
+}
+
+export function childRouteParentPath(
+  route: AppClientRegisteredRoute,
+  parentPath: string,
+): string {
+  return parentPath.startsWith(`${route.path.replace(/\/$/, '')}/`)
+    ? parentPath
+    : route.path;
 }

@@ -1,4 +1,8 @@
 import itRepairLocale from './modules/it-repairs.zh-CN.js';
+import fileUi from '../extensions/nocobase-file-component-ui/locales/zh-CN.js';
+import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/zh-CN.js';
+import agentChatLocale from '../extensions/nocobase-agent-chat/locales/zh-CN.js';
+import approvalAiLocale from './modules/approval-ai.zh-CN.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.zh-CN.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.zh-CN.js';
 import wecomAttendanceLocale from './modules/wecom-attendance.zh-CN.js';
@@ -82,6 +86,11 @@ import system from './system/zh-CN.js';
 
 const zhCN = {
   ...itRepairLocale,
+  ...agentChatLocale,
+  approvalAi: {
+    ...approvalAiLocale.approvalAi,
+    ...approvalReviewLocale.approvalAi,
+  },
   demoData,
   ...processManagementLocale,
   ...attendanceImportZhCN,
@@ -119,6 +128,7 @@ const zhCN = {
   ...vendorQualificationLocale,
   assets: assetLocale,
   ...system,
+  ...fileUi,
   'shell.buildFreely': '协同办公，井然有序。',
   'shell.reliability': '连接组织、事务与审批。',
   // Application-owned OA copy overrides the template authentication branding.

@@ -1,5 +1,5 @@
 diff --git a/dist/src/repository/internal/knex-execution-adapter.js b/dist/src/repository/internal/knex-execution-adapter.js
-index 64bca1c74e57a933c37810ea8375653915e3d4d7..4987b10a685d359abc79220ce537d3ddfda9b10d 100644
+index 63db21516a55630a3f42c26c7ecef9426d0b560a..430374f8990d077fd417206b75ecaa995abd4e1a 100644
 --- a/dist/src/repository/internal/knex-execution-adapter.js
 +++ b/dist/src/repository/internal/knex-execution-adapter.js
 @@ -172,6 +172,28 @@ export class KnexRepositoryExecutionAdapter {
@@ -55,10 +55,10 @@ index 135a62e4b39c3b9d8c21edeb403a3f99c7c2dfa4..ce0ec95cc65783e4cc592a2440886589
          readonly aggregate: (aggregate: AggregateBuilder<TRecord>) => TSelection;
      }): Promise<AggregateSelectionResult<TSelection>>;
 diff --git a/dist/src/repository/repository.js b/dist/src/repository/repository.js
-index d0069270579388dde559f992cb1bc43496d357b3..67c7d2f84f3f1e3045ef4d8fc4fe88da5d215e5b 100644
+index 2607994e699d7eee8dc3dc1b42db3a1e1d6a9365..786bfd68370f0f796366563c4714c01c14cd8c08 100644
 --- a/dist/src/repository/repository.js
 +++ b/dist/src/repository/repository.js
-@@ -131,6 +131,24 @@ export class DefaultRepository {
+@@ -132,6 +132,24 @@ export class DefaultRepository {
              filter: await this.normalizeFilter(collection, options.filter, options.context, this.readContext(collection)),
          });
      }

@@ -1,4 +1,9 @@
 import itRepairLocale from './modules/it-repairs.en-US.js';
+import fileUi from '../extensions/nocobase-file-component-ui/locales/en-US.js';
+import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/en-US.js';
+import agentChatLocale from '../extensions/nocobase-agent-chat/locales/en-US.js';
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from './modules/approval-ai.en-US.js';
 import plugins from './plugins/ru-RU.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.ru-RU.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.ru-RU.js';
@@ -84,6 +89,11 @@ import system from './system/ru-RU.js';
 
 const ruRU: AppResource = {
   ...itRepairLocale,
+  ...agentChatLocale,
+  approvalAi: {
+    ...approvalAiLocale.approvalAi,
+    ...approvalReviewLocale.approvalAi,
+  },
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,
@@ -121,6 +131,7 @@ const ruRU: AppResource = {
   ...vendorQualificationLocale,
   assets: assetLocale,
   ...system,
+  ...fileUi,
   'shell.buildFreely': 'Ваше единое рабочее пространство.',
   'shell.reliability': 'Люди, работа и согласования в одном месте.',
   // Application-owned OA copy overrides the template authentication branding.

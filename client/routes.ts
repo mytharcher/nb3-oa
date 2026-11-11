@@ -1,4 +1,5 @@
 import repairRoutes from './route-modules/it-repairs.js';
+import approvalAiRoutes from './route-modules/approval-ai.js';
 import { externalIntegrationsEnabled } from '../shared/external-integrations.js';
 import wecomAttendanceRoutes from './route-modules/wecom-attendance.js';
 import hrMasterDataRoutes from './route-modules/hr-master-data.js';
@@ -488,6 +489,7 @@ const routes: readonly AppClientRouteContribution[] = [
   hrMasterDataRoutes,
   attendanceImportRoutes,
   processManagementRoutes,
+  approvalAiRoutes,
   transferRoutes,
   meetingRoomRoutes,
   vehicleRoutes,

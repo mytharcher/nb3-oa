@@ -14,6 +14,21 @@ import {
 } from '../../client/routing/route-navigation.js';
 
 describe('app client routes', () => {
+  it('registers an independently authorized AI configuration route and its drawer', () => {
+    const walk = (
+      routes: readonly AppClientRegisteredRoute[],
+    ): AppClientRegisteredRoute[] =>
+      routes.flatMap((route) => [route, ...walk(route.children ?? [])]);
+    const routes = walk(resolveRoutes().routes);
+    const entry = routes.find((route) => route.name === 'oa-approval-ai');
+    expect(entry?.path).toBe('/approvalAi');
+    expect(entry?.authz).toEqual({
+      resource: { type: 'composite', id: 'oa.approvalAi' },
+      action: 'configure',
+    });
+    expect(entry?.children?.[0].path).toBe('/approvalAi/:definitionId/edit');
+  });
+
   it('does not register prototype or sample management pages', () => {
     const paths = pagePaths(resolveRoutes().routes);
     expect(
@@ -605,12 +620,12 @@ describe('app client routes', () => {
     ).toEqual(['oa-leave-balances']);
   });
 
-  it('removes automation and agent pages and places schedules under the wrench system menu', () => {
+  it('keeps automation and runner pages absent while exposing models and schedules under system operations', () => {
     const routes = resolveRoutes().routes;
     expect(routes.some((route) => route.name === 'oa-automation')).toBe(false);
     expect(
       pagePaths(routes).some((path) =>
-        /^\/(agents|runtimes|skills|models|usage)(\/|$)/.test(path),
+        /^\/(agents|runtimes|skills|usage)(\/|$)/.test(path),
       ),
     ).toBe(false);
     const system = routes.find((route) => route.name === 'oa-system');
@@ -633,6 +648,17 @@ describe('app client routes', () => {
     ).toEqual(
       expect.arrayContaining(['users', 'oa-access', 'org-departments']),
     );
+    const modelPage = system?.children
+      ?.find((route) => route.name === 'oa-system-operations')
+      ?.children?.find((route) => route.name === 'models');
+    expect(modelPage?.path).toBe('/models');
+    expect(modelPage?.auth).toBe('required');
+    expect(modelPage?.authz).toEqual({
+      resource: { type: 'settings', id: 'agents.services' },
+      action: 'read',
+    });
+    expect(modelPage?.navigation?.title).toBe('oa.navigation.models');
+    expect(modelPage?.componentLoader).toBeTypeOf('function');
     expect(
       system?.children
         ?.find((route) => route.name === 'oa-system-operations')

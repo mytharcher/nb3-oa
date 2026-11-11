@@ -6,8 +6,12 @@ import {
 } from '@nocobase/i18n/testing';
 import { RecordDetailDrawer } from '../../../../client/components/record-detail-drawer';
 import { StatusBadge } from '../../../../client/components/status-badge';
+import { ApprovalDetailSection } from '../../../../client/components/approval-detail-section';
 import { ApprovalProgress } from '../../../../client/components/approval-progress';
-import { ApprovalUiProvider } from '../../../../client/extensions/nocobase-approval-ui';
+import {
+  ApprovalTimeline,
+  ApprovalUiProvider,
+} from '../../../../client/extensions/nocobase-approval-ui';
 import enUS from '../../../../client/locales/en-US';
 import zhCN from '../../../../client/locales/zh-CN';
 import '../../../../client/styles.css';
@@ -35,23 +39,52 @@ const router = createMemoryRouter([
           </dt>
           <dd>{en ? 'Sample user' : '示例用户'}</dd>
         </dl>
-        <h2 className='my-4 font-medium'>
-          {en ? 'Approval progress' : '审批进度'}
-        </h2>
         <ApprovalUiProvider personName={(id) => id}>
-          <ApprovalProgress
-            steps={(
-              [
-                'done',
-                'current',
-                'rejected',
-                'returned',
-                'ended',
-                'upcoming',
-                'skipped',
-              ] as const
-            ).map((state) => ({ key: state, title: state, state, tasks: [] }))}
-          />
+          <div className='flex flex-col gap-4'>
+            <ApprovalDetailSection
+              title={en ? 'Approval progress' : '审批进度'}
+            >
+              <ApprovalProgress
+                steps={(
+                  [
+                    'done',
+                    'current',
+                    'rejected',
+                    'returned',
+                    'ended',
+                    'upcoming',
+                    'skipped',
+                  ] as const
+                ).map((state) => ({
+                  key: state,
+                  title: state,
+                  state,
+                  tasks: [],
+                }))}
+              />
+            </ApprovalDetailSection>
+            <ApprovalDetailSection title={en ? 'History' : '审批记录'}>
+              <ApprovalTimeline
+                lines={[
+                  {
+                    key: 'submitted',
+                    kind: 'action',
+                    actorId: en ? 'Applicant' : '申请人',
+                    at: '2026-10-31T01:00:00Z',
+                    title: en ? 'Submitted' : '已提交',
+                  },
+                  {
+                    key: 'approved',
+                    kind: 'action',
+                    actorId: en ? 'Manager' : '主管',
+                    at: '2026-10-31T02:00:00Z',
+                    title: en ? 'Approved' : '已同意',
+                    comment: en ? 'Agreed.' : '同意。',
+                  },
+                ]}
+              />
+            </ApprovalDetailSection>
+          </div>
         </ApprovalUiProvider>
       </RecordDetailDrawer>
     ),

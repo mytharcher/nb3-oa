@@ -77,6 +77,11 @@ export default {
     saved: '"{{name}}"을 저장했습니다',
     submitted: '"{{name}}"을 제출했습니다',
     completed: '"{{name}}"의 작업을 완료했습니다',
+    actionCompleted: '{{action}} 완료',
+    commentSaved: '댓글이 제출되었습니다',
+    commentSavedDescription: '댓글이 승인 기록에 저장되었습니다.',
+    actionRefreshFailed:
+      '작업이 저장되었습니다. 상세 정보를 새로 고침하여 최신 승인 기록을 확인하세요.',
     draftName: '계약 초안',
     confirmation: '"{{name}}" 계약을 {{action}}하시겠습니까?',
     dangerConsequence: '현재 신청 검토를 종료하고 대기 업무를 닫습니다.',

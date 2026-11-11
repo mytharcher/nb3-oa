@@ -22,3 +22,5 @@
 - [最终交付准备及配置待确认](records/oa/it-repairs-delivery-readiness-2026-10-30.md)
 
 - [2026-10-30 容量补救与兼容回退](records/oa/it-repairs-remediation-2026-10-30.md)
+
+- [2026-11-11 上游冲突与依赖兼容同步](records/oa/it-repairs-upstream-sync-2026-11-11.md)

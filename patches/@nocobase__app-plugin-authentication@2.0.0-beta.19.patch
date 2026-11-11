@@ -1,7 +1,16 @@
 diff --git a/dist/server/user-administration.d.ts b/dist/server/user-administration.d.ts
-index 91916c63893bfe43da23ba09450be1676435b566..d0424643ac41741d3f4bd2ee2b672cee5c839885 100644
+index 91916c63893bfe43da23ba09450be1676435b566..b86d2b5226d9e5c56ca60c254245a639474fbfe2 100644
 --- a/dist/server/user-administration.d.ts
 +++ b/dist/server/user-administration.d.ts
+@@ -70,7 +70,7 @@ export interface UserAdministrationService {
+     disable(userId: string): Promise<AdministratedUser>;
+     enable(userId: string): Promise<AdministratedUser>;
+     resetPassword(userId: string, password: string): Promise<void>;
+-    revokeSessions(userId: string): Promise<void>;
++    revokeSessions(userId: string, mode?: 'exclusive' | 'shared'): Promise<void>;
+     remove(userId: string, actorId: string): Promise<void>;
+ }
+ export declare class UserAdministrationError extends Error {
 @@ -84,5 +84,5 @@ export interface CreateUserAdministrationServiceOptions {
  }
  export declare function createUserAdministrationService(options: CreateUserAdministrationServiceOptions): UserAdministrationService;

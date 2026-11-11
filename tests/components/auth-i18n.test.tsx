@@ -16,6 +16,13 @@ const availability = vi.hoisted(() => ({ signUp: true }));
 vi.mock('@nocobase/app-plugin-authentication/client', () => ({
   useSignUpAvailable: () => availability.signUp,
   useAuthentication: () => ({ client: {} }),
+  usePasswordResetCapability: () => ({
+    data: { passwordResetAvailable: true },
+  }),
+}));
+
+vi.mock('../../client/hooks/use-enterprise-identity.ts', () => ({
+  useEnterpriseIdentity: () => ({ enabled: false, error: false }),
 }));
 
 vi.mock('@nocobase/app-plugin-authentication/client/actions', () => ({
@@ -85,14 +92,23 @@ describe('authentication translations', () => {
   it('retranslates an existing password mismatch', async () => {
     const value = await runtime();
     const { container } = await renderPage(value, <RegisterPage />);
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'Synthetic' },
+    });
+    fireEvent.change(screen.getByLabelText('Username'), {
+      target: { value: 'synthetic' },
+    });
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'synthetic@example.test' },
+    });
     fireEvent.change(screen.getByLabelText('Password'), {
-      target: { value: 'one' },
+      target: { value: 'long-password-one' },
     });
     fireEvent.change(screen.getByLabelText('Confirm password'), {
       target: { value: 'two' },
     });
     fireEvent.submit(container.querySelector('form')!);
-    expect(screen.getByText("Passwords don't match.")).toBeVisible();
+    expect(await screen.findByText("Passwords don't match.")).toBeVisible();
     await act(() => value.changeLanguage('zh-CN'));
     expect(screen.getByText('两次输入的密码不一致。')).toBeVisible();
   });

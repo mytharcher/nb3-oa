@@ -6,12 +6,12 @@ import type {
   FilePreviewDialogProps,
   FileRecord,
   FileUiLabels,
-} from '../types';
+} from '../types.js';
 import {
   isActiveMarkupMimeType,
   resolveFilePreviewKind,
   type FilePreviewKind,
-} from '../lib/file-preview';
+} from '../lib/file-preview.js';
 import { Button } from '#components/ui/button';
 import {
   Dialog,
@@ -19,8 +19,8 @@ import {
   DialogContent,
   DialogTitle,
 } from '#components/ui/dialog';
-import { fileUrlCredentials, resolveSafeFileUrl } from '../lib/file-url';
-import { FilePreviewContent } from './previewers/file-preview-content';
+import { fileUrlCredentials, resolveSafeFileUrl } from '../lib/file-url.js';
+import { FilePreviewContent } from './previewers/file-preview-content.js';
 
 const PDF_MIME_TYPE = 'application/pdf';
 const PDF_PREVIEW_ERROR = 'Unable to load the PDF preview.';
@@ -32,6 +32,7 @@ export function FilePreviewDialog({
   initialIndex = 0,
   open,
   onOpenChange,
+  onDownload,
   download: allowDownload = true,
   labels,
   onError,
@@ -44,6 +45,7 @@ export function FilePreviewDialog({
       files={files}
       initialIndex={normalizedIndex}
       onOpenChange={onOpenChange}
+      onDownload={onDownload}
       download={allowDownload}
       labels={labels}
       onError={onError}
@@ -55,6 +57,7 @@ interface OpenFilePreviewDialogProps {
   readonly files: readonly FileRecord[];
   readonly initialIndex: number;
   readonly onOpenChange: (open: boolean) => void;
+  readonly onDownload?: FilePreviewDialogProps['onDownload'];
   readonly download: boolean;
   readonly labels?: FileUiLabels;
   readonly onError?: (error: Error) => void;
@@ -63,12 +66,13 @@ interface OpenFilePreviewDialogProps {
 function OpenFilePreviewDialog(
   inputProps: OpenFilePreviewDialogProps,
 ): ReactElement {
-  const { t } = useTranslation('@nocobase/app-plugin-file');
+  const { t } = useTranslation();
   const { t: appText } = useTranslation();
   const {
     files,
     initialIndex,
     onOpenChange,
+    onDownload,
     download: allowDownload,
     labels,
     onError,
@@ -78,7 +82,8 @@ function OpenFilePreviewDialog(
   const file = files[index];
   if (!file) throw new Error('A preview file is required.');
   const downloadLabel =
-    labels?.download ?? t('files.download', { defaultValue: 'Download' });
+    labels?.download ??
+    t('fileUi.files.download', { defaultValue: 'Download' });
   return (
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent
@@ -105,8 +110,8 @@ function OpenFilePreviewDialog(
                   aria-label={`${downloadLabel}: ${file.filename}`}
                   title={downloadLabel}
                   onClick={() =>
-                    void downloadFile(file).catch((error: unknown) =>
-                      reportDownloadError(onError, error),
+                    void downloadFile(file, onDownload).catch(
+                      (error: unknown) => reportDownloadError(onError, error),
                     )
                   }
                 >
@@ -126,7 +131,7 @@ function OpenFilePreviewDialog(
                   type='button'
                   size='icon-sm'
                   variant='ghost'
-                  aria-label={t('files.previous', {
+                  aria-label={t('fileUi.files.previous', {
                     defaultValue: 'Previous file',
                   })}
                   onClick={() =>
@@ -141,7 +146,9 @@ function OpenFilePreviewDialog(
                   type='button'
                   size='icon-sm'
                   variant='ghost'
-                  aria-label={t('files.next', { defaultValue: 'Next file' })}
+                  aria-label={t('fileUi.files.next', {
+                    defaultValue: 'Next file',
+                  })}
                   onClick={() =>
                     setIndex((value) => (value + 1) % files.length)
                   }
@@ -171,8 +178,8 @@ function OpenFilePreviewDialog(
             onDownload={
               allowDownload
                 ? () =>
-                    void downloadFile(file).catch((error: unknown) =>
-                      reportDownloadError(onError, error),
+                    void downloadFile(file, onDownload).catch(
+                      (error: unknown) => reportDownloadError(onError, error),
                     )
                 : undefined
             }
@@ -183,7 +190,14 @@ function OpenFilePreviewDialog(
   );
 }
 
-async function downloadFile(file: FileRecord): Promise<void> {
+async function downloadFile(
+  file: FileRecord,
+  onDownload?: FilePreviewDialogProps['onDownload'],
+): Promise<void> {
+  if (onDownload) {
+    await onDownload(file);
+    return;
+  }
   const raw = file.contentUrl;
   const url = raw ? resolveSafeFileUrl(raw) : undefined;
   if (!url) throw new Error('File URL is not allowed.');

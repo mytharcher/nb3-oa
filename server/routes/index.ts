@@ -1,4 +1,5 @@
 import repairRoutes from './it-repairs/index.js';
+import approvalAiRoutes from './approval-ai/index.js';
 import { externalIntegrationsEnabled } from '../../shared/external-integrations.js';
 import invoiceRecognitionRoutes from './invoice-recognition/index.js';
 import electronicSignaturesRoutes from './electronic-signatures/index.js';
@@ -74,6 +75,7 @@ import approvalEfficiencyRoutes from './reports/approval-efficiency.js';
 
 // Each OA module owns `server/routes/<module>/` and exports its contributions from its `index.ts`.
 const routes: readonly AppRouteContribution<Application>[] = [
+  ...approvalAiRoutes,
   ...workbenchRoutes,
   ...roleContextRoutes,
   ...demoAccountRolesRoutes,

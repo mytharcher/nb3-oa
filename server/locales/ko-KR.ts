@@ -1,4 +1,6 @@
 import itRepairLocale from '../../client/locales/modules/it-repairs.en-US.js';
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from '../../client/locales/modules/approval-ai.en-US.js';
 import reportExportsLocale from './modules/report-exports.ko-KR.js';
 import plugins from './plugins/ko-KR.js';
 import reportsLocale from '../../client/locales/modules/reports.ko-KR.js';
@@ -41,6 +43,7 @@ import annualLeave from './modules/annual-leave.ko-KR.js';
 // plugin's.
 const koKR: AppServerResource = {
   ...itRepairLocale,
+  ...approvalAiLocale,
   overrides: plugins,
   ...reportExportsLocale,
   demoData,

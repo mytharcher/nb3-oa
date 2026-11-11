@@ -1,6 +1,13 @@
 import type { DeviceApprovalLocale } from './en-US.js';
 
 const zhTW: DeviceApprovalLocale = {
+  formFeedback: {
+    field: '此值未獲接受，請檢查後重試。',
+    invalid: '請檢查標示的欄位後重試。',
+    failed: '無法儲存。已保留輸入內容，請重試。',
+    network: '無法連線。請檢查網路後重試，已保留輸入內容。',
+    denied: '目前權限無法提交此表單，已保留輸入內容。',
+  },
   'deviceApproval.title': '授權裝置',
   'deviceApproval.description':
     '一個命令行或其他裝置請求以你的身分登入。只有在登入是你自己發起的時候才批准。',

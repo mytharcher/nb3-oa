@@ -1,3 +1,4 @@
+import { ApprovalAiReviewPanel } from '#components/approval-ai/index';
 import { statusTone } from './status-tone.js';
 import { UserNameText } from '#components/user-name';
 import { UserName } from '#components/user-name';
@@ -239,6 +240,11 @@ function Body({ id }: { id: string }) {
             ))}
           </dl>
           {error ? <CertificateError error={error} /> : null}
+          <ApprovalAiReviewPanel
+            lifecycle='oa.certificateRequest'
+            recordId={d.record.id}
+            refreshKey={d}
+          />
           <section className='flex flex-col gap-3'>
             <h3 className='font-semibold'>{t('certificates.history')}</h3>
             {d.actions.length ? (

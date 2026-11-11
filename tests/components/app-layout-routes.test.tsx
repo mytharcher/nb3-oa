@@ -11,6 +11,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { AppLayout } from '../../client/layouts/app-layout.js';
 import enUS from '../../client/locales/en-US.js';
+import { TestSidebarPreferenceProvider } from '../fixtures/sidebar-preference-provider.js';
 
 // Breadcrumb titles are route data, not keys any namespace owns: the trail translates each through its package's
 // namespace with the title itself as `defaultValue`, so the runtime is not strict.
@@ -20,7 +21,11 @@ const runtime = await createTestI18nRuntime({
 });
 
 function I18n({ children }: { readonly children: ReactNode }) {
-  return <TestI18nProvider runtime={runtime}>{children}</TestI18nProvider>;
+  return (
+    <TestI18nProvider runtime={runtime}>
+      <TestSidebarPreferenceProvider>{children}</TestSidebarPreferenceProvider>
+    </TestI18nProvider>
+  );
 }
 
 vi.mock('@nocobase/app-plugin-i18n/client', async (importOriginal) => ({
@@ -53,6 +58,13 @@ beforeEach(() =>
   })),
 );
 afterEach(() => vi.unstubAllGlobals());
+vi.mock('../../client/components/approval-ai/assistant-provider.js', () => ({
+  ApprovalAssistantProvider: ({ children }: { children: ReactNode }) =>
+    children,
+}));
+vi.mock('../../client/components/approval-ai/assistant.js', () => ({
+  ApprovalAssistantPanel: () => null,
+}));
 vi.mock('../../client/layouts/components/header-actions.js', () => ({
   HeaderActions: () => null,
 }));

@@ -17,8 +17,9 @@ function fixture(batch: boolean) {
     ],
   }));
   const get = vi.fn(async (key: string) => sets.find((set) => set.key === key));
+  // The native owner returns found sets by key; resolution restores request order.
   const getMany = vi.fn(async (keys: readonly string[]) =>
-    Promise.all(keys.map(get)),
+    sets.filter((set) => keys.includes(set.key)).reverse(),
   );
   const findAssignments = vi.fn(async () =>
     ['b', 'a', 'b', 'root'].map((key, i) => ({

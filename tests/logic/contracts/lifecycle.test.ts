@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { randomUUID } from 'node:crypto';
 import { expect, vi } from 'vitest';
+import { Action } from '../../../server/routes/contracts/schemas.js';
 import { databaseManagerToken } from '@nocobase/db';
 import { organizationServiceToken } from '../../../server/providers/org/index.js';
 import { auditServiceToken } from '../../../server/providers/audit/index.js';
@@ -164,6 +165,39 @@ test('registered contract graph and real JobExecutor: original legal output, rea
     await waitForReuse(id);
     return result;
   }
+  const beforeComment = await service.detail(id, people.head);
+  const headTask = beforeComment.actions.find((entry) =>
+    entry.actions.some((action) => action.name === 'approve'),
+  )!.task;
+  const comment = 'Please confirm the delivery date.';
+  await service.action(
+    id,
+    people.head,
+    Action.parse({
+      target: { runId: headTask.runId },
+      action: 'comment',
+      comment,
+      requestId: randomUUID(),
+    }),
+  );
+  const afterComment = await service.detail(id, people.head);
+  expect(afterComment.record.status).toBe(beforeComment.record.status);
+  expect(afterComment.record.lifecycleVersion).toBe(
+    beforeComment.record.lifecycleVersion,
+  );
+  expect(JSON.stringify(afterComment.timeline)).toContain(comment);
+  await expect(
+    service.action(
+      id,
+      people.head,
+      Action.parse({
+        target: { taskId: headTask.id },
+        action: 'approve',
+        contentHash: 'stale-page-content',
+        requestId: randomUUID(),
+      }),
+    ),
+  ).rejects.toMatchObject({ code: 'STALE_CONTENT' });
   await act('head', 'approve');
   expect((await service.detail(id, people.applicant)).record.status).toBe(
     'legalFinance',

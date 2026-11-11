@@ -1,4 +1,6 @@
 import itRepairLocale from '../../client/locales/modules/it-repairs.en-US.js';
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from '../../client/locales/modules/approval-ai.en-US.js';
 import reportExportsLocale from './modules/report-exports.es-ES.js';
 import reportsLocale from '../../client/locales/modules/reports.es-ES.js';
 import invoiceRecognitionLocale from '../../client/locales/modules/invoice-recognition.es-ES.js';
@@ -40,6 +42,7 @@ import annualLeave from './modules/annual-leave.es-ES.js';
 // plugin's.
 const esES: AppServerResource = {
   ...itRepairLocale,
+  ...approvalAiLocale,
   ...reportExportsLocale,
   demoData,
   ...accessLocale,

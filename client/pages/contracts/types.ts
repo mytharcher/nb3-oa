@@ -111,6 +111,7 @@ export interface SourceContext {
 export interface DetailContext extends SourceContext {
   detail: ContractDetail;
   apply: (detail: ContractDetail) => void;
+  focusHistory?: () => HTMLElement | boolean;
 }
 export const STATUSES = [
   'draft',

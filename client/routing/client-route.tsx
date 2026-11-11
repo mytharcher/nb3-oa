@@ -5,7 +5,13 @@ import type {
 } from '@nocobase/app-client/plugins';
 import { useCan } from '@nocobase/app-plugin-authorization/client';
 import { NamespaceScope } from '@nocobase/i18n/client';
-import { type ReactElement, useContext, useEffect, useState } from 'react';
+import {
+  Activity,
+  type ReactElement,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 import { Link } from 'react-router';
 import { ErrorBoundary } from 'react-error-boundary';
 
@@ -75,25 +81,29 @@ export function ClientRoute({ route }: ClientRouteProps): ReactElement {
     return feedback(<ClientPageError />);
   }
 
-  if (checkAccess && accessLoading) return feedback(<ClientPageLoading />);
-  if (checkAccess && !allowed) return feedback(<ClientPageDenied />);
+  if (checkAccess && !accessLoading && !allowed)
+    return feedback(<ClientPageDenied />);
 
   if (!componentModule) {
     return feedback(<ClientPageLoading />);
   }
 
   const Component = componentModule.default;
+  const checking = checkAccess && accessLoading;
 
   return (
     // The loading drawer already entered. The business drawer replaces its
     // portal, so suppress a second panel/backdrop entrance during that handoff.
     <RouteOverlayHandoffContext.Provider value={handoff || !!requestEntry}>
-      <ErrorBoundary fallback={feedback(<ClientPageError />)}>
-        {/* The owning package is the page's namespace, so a plugin page translates with a bare useTranslation(). */}
-        <NamespaceScope ns={route.packageName}>
-          <Component />
-        </NamespaceScope>
-      </ErrorBoundary>
+      {checking ? feedback(<ClientPageLoading />) : null}
+      <Activity mode={checking ? 'hidden' : 'visible'}>
+        <ErrorBoundary fallback={feedback(<ClientPageError />)}>
+          {/* The owning package is the page's namespace, so a plugin page translates with a bare useTranslation(). */}
+          <NamespaceScope ns={route.packageName}>
+            <Component />
+          </NamespaceScope>
+        </ErrorBoundary>
+      </Activity>
     </RouteOverlayHandoffContext.Provider>
   );
 }

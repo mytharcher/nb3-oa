@@ -1,5 +1,6 @@
 import itRepairLocale from '../../client/locales/modules/it-repairs.en-US.js';
 import reportExportsLocale from './modules/report-exports.en-US.js';
+import approvalAiLocale from '../../client/locales/modules/approval-ai.en-US.js';
 import reportsLocale from '../../client/locales/modules/reports.en-US.js';
 import invoiceRecognitionLocale from '../../client/locales/modules/invoice-recognition.en-US.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.en-US.js';
@@ -41,6 +42,7 @@ import annualLeave from './modules/annual-leave.en-US.js';
 const enUS = {
   ...itRepairLocale,
   ...reportExportsLocale,
+  ...approvalAiLocale,
   demoData,
   ...accessLocale,
   ...processManagementLocale,

@@ -1,4 +1,9 @@
 import itRepairLocale from './modules/it-repairs.en-US.js';
+import fileUi from '../extensions/nocobase-file-component-ui/locales/ja-JP.js';
+import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/ja-JP.js';
+import agentChatLocale from '../extensions/nocobase-agent-chat/locales/en-US.js';
+// Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
+import approvalAiLocale from './modules/approval-ai.en-US.js';
 import invoiceRecognitionLocale from './modules/invoice-recognition.ja-JP.js';
 import electronicSignaturesLocale from './modules/electronic-signatures.ja-JP.js';
 import wecomAttendanceLocale from './modules/wecom-attendance.ja-JP.js';
@@ -83,6 +88,11 @@ import system from './system/ja-JP.js';
 
 const jaJP: AppResource = {
   ...itRepairLocale,
+  ...agentChatLocale,
+  approvalAi: {
+    ...approvalAiLocale.approvalAi,
+    ...approvalReviewLocale.approvalAi,
+  },
   demoData,
   ...processManagementLocale,
   ...attendanceImportEnUS,
@@ -120,6 +130,7 @@ const jaJP: AppResource = {
   ...vendorQualificationLocale,
   assets: assetLocale,
   ...system,
+  ...fileUi,
   'shell.buildFreely': 'つながる職場。',
   'shell.reliability': '人、仕事、承認をひとつに。',
   // Application-owned OA copy overrides the template authentication branding.

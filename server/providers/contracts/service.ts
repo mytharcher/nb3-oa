@@ -373,15 +373,16 @@ export function createContractService(d: Dependencies) {
           state,
           transitionId: key,
         }),
-      taskNotice: (task, reason) =>
-        d.directory.snapshot().then((directory) =>
+      taskNotice: async (task, reason) => {
+        return d.directory.snapshot().then((directory) =>
           d.notifications.task({
             task,
             reason,
             directory,
             kind: CONTRACT_KIND,
           }),
-        ),
+        );
+      },
     },
     d.dispatcher,
   );
@@ -809,6 +810,29 @@ export function createContractService(d: Dependencies) {
       };
     },
     /** Public search adapter reuses the detail record guard without loading approval history. */
+    /** Read-only public Agent projection. Uses the same record/field guard as HTTP detail. */
+    async aiSummary(id: string, actorId: string, policy: RepositoryPolicy) {
+      const record = await read(id, actorId, policy);
+      const fields = [
+        'id',
+        'number',
+        'status',
+        'operation',
+        'contractType',
+        'counterparty',
+        'amountCents',
+        'startsOn',
+        'endsOn',
+        'paymentTerms',
+        'standardTemplate',
+      ] as const;
+      return Object.fromEntries(
+        fields.filter((key) => key in record).map((key) => [key, record[key]]),
+      ) as Record<
+        string,
+        import('@nocobase/app-plugin-agents/server/online-agent').OnlineAgentJson
+      >;
+    },
     async searchVisible(
       id: string,
       actorId: string,

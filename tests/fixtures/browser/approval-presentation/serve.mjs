@@ -4,8 +4,14 @@ import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwind from '@tailwindcss/vite';
 import path from 'node:path';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 const root = process.cwd();
+const cacheDir = await mkdtemp(
+  path.join(tmpdir(), 'oa-approval-presentation-'),
+);
 const server = await createServer({
+  cacheDir,
   configFile: false,
   root,
   plugins: [react(), tailwind()],
@@ -40,3 +46,10 @@ const server = await createServer({
 });
 await server.listen();
 console.log('Approval presentation fixture ready on 17853');
+
+for (const signal of ['SIGINT', 'SIGTERM'])
+  process.once(signal, async () => {
+    await server.close();
+    await rm(cacheDir, { recursive: true, force: true });
+    process.exit(0);
+  });

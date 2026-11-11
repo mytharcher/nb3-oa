@@ -1,3 +1,5 @@
+import { ApprovalAiReviewPanel } from '#components/approval-ai/index';
+import { ApprovalDetailSection } from '#components/approval-detail-section';
 import { approvalStatusTone } from '../approvals/status-tone.js';
 import { ApprovalProgress } from '#components/approval-progress';
 import { TravelCancellationFacts } from './facts.js';
@@ -389,21 +391,20 @@ export default function TravelCancellationDetailPage() {
               record={record!}
               applicant={text.name(record!.applicantId)}
             />
-            <section className='flex flex-col gap-4'>
-              <h2 className='text-base font-medium'>
-                {t('approvals.progress')}
-              </h2>
+            <ApprovalAiReviewPanel
+              lifecycle='oa.travelCancellation'
+              recordId={data.record.id}
+              refreshKey={data}
+            />
+            <ApprovalDetailSection title={t('approvals.progress')}>
               <ApprovalProgress
                 steps={progressOf(data, text, i18n.language)}
                 copies={copiesOf(data)}
               />
-            </section>
-            <section className='flex flex-col gap-4'>
-              <h2 className='text-base font-medium'>
-                {t('approvals.timeline')}
-              </h2>
+            </ApprovalDetailSection>
+            <ApprovalDetailSection title={t('approvals.timeline')}>
               <ApprovalTimeline lines={timelineOf(data, text)} />
-            </section>
+            </ApprovalDetailSection>
           </ApprovalUiProvider>
         )}
         <AlertDialog

@@ -70,11 +70,6 @@ test('T09–T12 native cohorts, median/P90, zero samples, scoped CSV and indepen
       )
     ).status,
   ).toBe(200);
-  await c.resolve(ruleServiceToken).set({
-    key: 'calendar.timeZone',
-    value: 'Asia/Singapore',
-    actorId: f.admin.userId,
-  });
   const at = (time: string) =>
     vi.setSystemTime(new Date(`2026-11-${time}+08:00`));
   const create = async (session = a, title = 'Report fixture') => {
@@ -129,6 +124,14 @@ test('T09–T12 native cohorts, median/P90, zero samples, scoped CSV and indepen
   };
   vi.useFakeTimers({ toFake: ['Date'] });
   try {
+    // Install the rule before the synthetic events, independent of the real execution date.
+    at('02T08:00:00');
+    await c.resolve(ruleServiceToken).set({
+      key: 'calendar.timeZone',
+      value: 'Asia/Singapore',
+      actorId: f.admin.userId,
+    });
+
     for (let i = 0; i < 5; i++) {
       let row = await create(a, i === 0 ? '=SYNTHETIC()' : `Report ${i}`);
       at(`02T${[10, 11, 12, 15, 16][i]}:00:00`);
