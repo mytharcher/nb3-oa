@@ -136,7 +136,9 @@ try {
   await expect(
     page.getByRole('menuitemradio', { name: 'English' }),
   ).toBeVisible();
-  await page.getByRole('menuitemradio', { name: '简体中文' }).click();
+  await page
+    .getByRole('menuitemradio', { name: '中文（中国）', exact: true })
+    .click();
   await page.getByRole('button', { name: '打开账户菜单' }).focus();
   await page.keyboard.press('Enter');
   await page.getByRole('menuitem', { name: '外观', exact: true }).click();
