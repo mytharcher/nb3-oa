@@ -28,8 +28,10 @@ export function ThemeSettings(): ReactElement {
   const title = t('appearance.title', { defaultValue: 'Appearance' });
   return (
     <Popover>
+      {/* Preserve menu semantics and keep its anchor mounted while the panel is open. */}
       <PopoverTrigger
         nativeButton={false}
+        role='menuitem'
         render={<DropdownMenuItem closeOnClick={false} />}
       >
         <Palette aria-hidden='true' className='size-4' />

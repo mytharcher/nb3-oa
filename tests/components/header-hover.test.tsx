@@ -2,7 +2,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { AppThemeProvider } from '../../client/theme/theme-provider';
-import { ThemeSettings } from '../../client/theme/theme-settings';
 import { UserMenu } from '../../client/layouts/components/user-menu';
 import { MemoryRouter } from 'react-router';
 vi.mock('../../client/hooks/use-enterprise-identity.js', () => ({
@@ -38,10 +37,7 @@ afterEach(() => {
   document.documentElement.removeAttribute('data-theme');
 });
 
-const panels = [
-  ['Appearance', ThemeSettings, 'dialog'],
-  ['Open account menu', UserMenu, 'menu'],
-] as const;
+const panels = [['Open account menu', UserMenu, 'menu']] as const;
 
 it.each(panels)(
   'opens and closes %s on hover',
@@ -93,3 +89,27 @@ it.each(panels)(
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   },
 );
+
+it('opens appearance from the account menu and restores focus through both layers', async () => {
+  const user = userEvent.setup();
+  render(
+    <MemoryRouter>
+      <AppThemeProvider>
+        <UserMenu />
+      </AppThemeProvider>
+    </MemoryRouter>,
+  );
+  expect(
+    screen.queryByRole('button', { name: 'Appearance' }),
+  ).not.toBeInTheDocument();
+  const account = screen.getByRole('button', { name: 'Open account menu' });
+  await user.tab();
+  await user.keyboard('{Enter}');
+  const appearance = screen.getByRole('menuitem', { name: 'Appearance' });
+  await user.keyboard('a{Enter}');
+  expect(screen.getByRole('dialog', { name: 'Appearance' })).toBeVisible();
+  await user.keyboard('{Escape}');
+  expect(appearance).toHaveFocus();
+  await user.keyboard('{Escape}');
+  expect(account).toHaveFocus();
+});
