@@ -15,6 +15,11 @@ import {
   AppSidebarProvider,
   AppSidebarToggle,
 } from '../../client/layouts/components/app-sidebar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '../../client/components/ui/dropdown-menu';
 import { AppThemeProvider, ThemeSettings } from '../../client/theme';
 import '../../client/styles.css';
 
@@ -33,7 +38,12 @@ export default function Fixture() {
             </AppSidebar>
             <main className='min-w-0 flex-1 space-y-6 overflow-y-auto p-6'>
               <div className='flex flex-wrap gap-2'>
-                <ThemeSettings />
+                <DropdownMenu>
+                  <DropdownMenuTrigger>Account</DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <ThemeSettings />
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <AppSidebarToggle />
               </div>
               <h1 className='text-3xl'>Theme tokens · 主题样式</h1>

@@ -2,7 +2,7 @@ import { Check, Monitor, Moon, Palette, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useTranslation } from '@nocobase/i18n/client';
 import { useId, type ReactElement } from 'react';
-import { Button } from '#components/ui/button';
+import { DropdownMenuItem } from '#components/ui/dropdown-menu';
 import { RadioGroup, RadioGroupItem } from '#components/ui/radio-group';
 import {
   Popover,
@@ -28,24 +28,19 @@ export function ThemeSettings(): ReactElement {
   const title = t('appearance.title', { defaultValue: 'Appearance' });
   return (
     <Popover>
+      {/* Preserve menu semantics and keep its anchor mounted while the panel is open. */}
       <PopoverTrigger
-        openOnHover
-        delay={0}
-        render={
-          <Button
-            aria-label={title}
-            size='icon'
-            variant='outline'
-            className='size-10 rounded-xl border-border/70 bg-background/60 hover:bg-accent/50'
-          />
-        }
+        nativeButton={false}
+        role='menuitem'
+        render={<DropdownMenuItem closeOnClick={false} />}
       >
-        <Palette aria-hidden='true' className='size-5' />
+        <Palette aria-hidden='true' className='size-4' />
+        {title}
       </PopoverTrigger>
       {/* Keep the panel width independent of density; its content still uses theme tokens. */}
       <PopoverContent
         align='end'
-        className='w-xs max-w-[calc(100vw-2rem)] gap-4 p-4'
+        className='max-h-(--available-height) w-xs max-w-[calc(100vw-2rem)] gap-4 overflow-y-auto p-4'
       >
         <div className='flex items-center justify-between'>
           <PopoverTitle className='text-sm font-semibold text-foreground'>

@@ -1,3 +1,8 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '#components/ui/dropdown-menu';
 import { I18nRuntime } from '@nocobase/i18n';
 import { I18nProvider } from '@nocobase/i18n/client';
 import locales from '../../client/locales/index.js';
@@ -16,7 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AppThemeProvider,
-  ThemeSettings,
+  ThemeSettings as AppearanceSettings,
   useTheme,
 } from '../../client/theme/index.ts';
 
@@ -38,12 +43,22 @@ function renderClientConfig(
   document.head.append(element);
 }
 
-/**
- * Opens the appearance popover from the keyboard. Its trigger opens on hover, and a pointer press landing more than
- * Base UI's 500 ms patient-click threshold after that, as on a loaded runner, closes it again.
- */
+function ThemeSettings(): ReactElement {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger>Account</DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <AppearanceSettings />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 async function openAppearance(name = 'Appearance'): Promise<void> {
-  act(() => screen.getByRole('button', { name }).focus());
+  act(() => screen.getByRole('button', { name: 'Account' }).focus());
+  await userEvent.keyboard('{Enter}');
+  const item = await screen.findByRole('menuitem', { name });
+  act(() => item.focus());
   await userEvent.keyboard('{Enter}');
 }
 
@@ -89,7 +104,9 @@ describe('app client theme', () => {
     expect(screen.getByRole('radio', { name: 'Default' })).toBeChecked();
     expect(localStorage.getItem('nocobase:crm:theme:preset')).toBe('default');
     await userEvent.keyboard('{Escape}');
-    expect(screen.getByRole('button', { name: 'Appearance' })).toHaveFocus();
+    expect(screen.getByRole('menuitem', { name: 'Appearance' })).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.getByRole('button', { name: 'Account' })).toHaveFocus();
   });
 
   it('falls back from the removed Ant Design preset without changing mode', async () => {
@@ -362,7 +379,9 @@ describe('app client theme', () => {
     expect(await screen.findByRole('radio', { name: 'Default' })).toBeChecked();
     await userEvent.keyboard('{Escape}');
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Appearance' })).toHaveFocus(),
+      expect(
+        screen.getByRole('menuitem', { name: 'Appearance' }),
+      ).toHaveFocus(),
     );
   });
 
