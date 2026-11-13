@@ -78,7 +78,10 @@ export function createApprovalAiService(d: Dependencies) {
       .findOne({ filter: { id: target.recordId } });
     if (!record) throw new ApprovalAiError('NOT_FOUND');
     const sdk = await d.sdk(owner);
-    const binding = approvalTaskBindings(sdk.approvals);
+    const approvals = sdk.approvals;
+    // Lifecycle-only owners such as IT repairs have no approval tasks or suggestions.
+    if (!approvals) throw new ApprovalAiError('NOT_FOUND');
+    const binding = approvalTaskBindings(approvals);
     const approval = binding.approvals.find(
       (item) => item.name === target.lifecycle,
     );
@@ -90,8 +93,8 @@ export function createApprovalAiService(d: Dependencies) {
       throw new ApprovalAiError('NOT_FOUND');
     const [tasks, offered] = await sdk.read(() =>
       Promise.all([
-        sdk.approvals.tasksFor(target.lifecycle, target.recordId),
-        sdk.approvals.actionsFor(target.lifecycle, target.recordId, {
+        approvals.tasksFor(target.lifecycle, target.recordId),
+        approvals.actionsFor(target.lifecycle, target.recordId, {
           id: userId,
         }),
       ]),

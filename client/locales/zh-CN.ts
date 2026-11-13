@@ -1,3 +1,4 @@
+import itRepairLocale from './modules/it-repairs.zh-CN.js';
 import fileUi from '../extensions/nocobase-file-component-ui/locales/zh-CN.js';
 import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/zh-CN.js';
 import agentChatLocale from '../extensions/nocobase-agent-chat/locales/zh-CN.js';
@@ -84,6 +85,7 @@ import approvalsZhCN from './modules/approvals.zh-CN.js';
 import system from './system/zh-CN.js';
 
 const zhCN = {
+  ...itRepairLocale,
   ...agentChatLocale,
   approvalAi: {
     ...approvalAiLocale.approvalAi,

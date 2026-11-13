@@ -1,3 +1,4 @@
+import itRepairLocale from './modules/it-repairs.en-US.js';
 import fileUi from '../extensions/nocobase-file-component-ui/locales/ja-JP.js';
 import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/ja-JP.js';
 import agentChatLocale from '../extensions/nocobase-agent-chat/locales/en-US.js';
@@ -86,6 +87,7 @@ import approvalsEnUS from './modules/approvals.ja-JP.js';
 import system from './system/ja-JP.js';
 
 const jaJP: AppResource = {
+  ...itRepairLocale,
   ...agentChatLocale,
   approvalAi: {
     ...approvalAiLocale.approvalAi,

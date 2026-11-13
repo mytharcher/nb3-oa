@@ -36,6 +36,9 @@ export function isProcessOverviewEdge(edge: {
   to: string;
 }): boolean {
   const isProgress =
+    /^(triage|claim|start|wait|resume|resolve|accept)_[a-z]+_[a-z]+$/.test(
+      edge.name,
+    ) ||
     progressActions.has(edge.name) ||
     (edge.name.endsWith('Approved') &&
       !['cancelApproved', 'cancellationApproved'].includes(edge.name));

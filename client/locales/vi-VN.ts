@@ -1,3 +1,4 @@
+import itRepairLocale from './modules/it-repairs.en-US.js';
 import fileUi from '../extensions/nocobase-file-component-ui/locales/vi-VN.js';
 import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/vi-VN.js';
 import agentChatLocale from '../extensions/nocobase-agent-chat/locales/en-US.js';
@@ -86,6 +87,7 @@ import approvalsEnUS from './modules/approvals.vi-VN.js';
 import system from './system/vi-VN.js';
 
 const viVN: AppResource = {
+  ...itRepairLocale,
   ...agentChatLocale,
   approvalAi: {
     ...approvalAiLocale.approvalAi,

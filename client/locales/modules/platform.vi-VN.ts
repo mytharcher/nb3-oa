@@ -188,6 +188,7 @@ const platformEnUS = {
         extraInvalid: 'Giá trị không được chấp nhận.',
       },
       types: {
+        itRepairCategory: 'IT repair categories',
         expensePlanType: 'Công việc đề nghị chi phí',
         officeItem: 'Vật tư văn phòng',
         leaveType: 'Loại nghỉ phép',
@@ -342,6 +343,70 @@ const platformEnUS = {
         rank: 'thứ hạng',
       },
       keys: {
+        itRepair_securityTransfer: {
+          label: 'Restricted transfer (0 off, 1 on)',
+          description:
+            'Enable only after isolation verification; production configuration needs separate authorization.',
+        },
+        itRepair_acceptanceDays: {
+          label: 'Acceptance reminder (working days)',
+          description:
+            'Frozen on submission; never closes a repair automatically.',
+        },
+        itRepair_followUpDays: {
+          label: 'Follow-up interval (working days)',
+          description: 'Frozen interval after a waiting reminder.',
+        },
+        itRepair_morning: {
+          label: 'IT repair morning hours',
+          description:
+            'Applies to newly submitted repairs. Windows must be ordered and non-overlapping.',
+        },
+        itRepair_afternoon: {
+          label: 'IT repair afternoon hours',
+          description:
+            'Applies to newly submitted repairs. Windows must be ordered and non-overlapping.',
+        },
+        itRepair_P1_response: {
+          label: 'P1 IT repair response hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P1_resolution: {
+          label: 'P1 IT repair resolution hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P2_response: {
+          label: 'P2 IT repair response hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P2_resolution: {
+          label: 'P2 IT repair resolution hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P3_response: {
+          label: 'P3 IT repair response hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P3_resolution: {
+          label: 'P3 IT repair resolution hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P4_response: {
+          label: 'P4 IT repair response hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
+        itRepair_P4_resolution: {
+          label: 'P4 IT repair resolution hours',
+          description:
+            'New submissions only, measured using the frozen working calendar.',
+        },
         leave_annualAccrualEnabled: {
           label: 'Tự động tích lũy nghỉ phép năm',
           description:

@@ -1,5 +1,6 @@
 import {
   CarFront,
+  Wrench,
   UsersRound,
   Stamp,
   ArrowLeftRight,
@@ -28,6 +29,12 @@ import {
 } from 'lucide-react';
 
 export const requestActionDefinitions = [
+  {
+    key: 'itRepair',
+    to: 'newItRepair',
+    label: 'itRepairs.title',
+    icon: Wrench,
+  },
   {
     key: 'vehicle',
     to: 'newVehicleRequest',
@@ -189,6 +196,7 @@ export const requestActionGroups: Record<
   RequestActionKey,
   'office' | 'people' | 'finance' | 'procurement' | 'administration'
 > = {
+  itRepair: 'office',
   leave: 'office',
   attendance: 'office',
   outing: 'office',
@@ -241,6 +249,7 @@ export const requestCatalogGroups = [
 export const requestCatalogGroup: Partial<
   Record<RequestActionKey, (typeof requestCatalogGroups)[number]>
 > = {
+  itRepair: 'other',
   leave: 'attendance',
   overtime: 'attendance',
   outing: 'attendance',

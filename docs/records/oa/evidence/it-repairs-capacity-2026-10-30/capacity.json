@@ -1,0 +1,170 @@
+{
+  "date": "2026-10-30T01:21:04.292Z",
+  "base": "f938c3a44733",
+  "node": "v24.15.0",
+  "host": {
+    "platform": "linux",
+    "release": "6.2.16-3-pve",
+    "cpus": 16,
+    "model": "AMD Ryzen 7 5700G with Radeon Graphics",
+    "totalMemory": 34359738368,
+    "freeMemory": 19488423936,
+    "load": [1.53, 1.99, 2.39]
+  },
+  "method": {
+    "readConcurrency": 50,
+    "readRounds": 4,
+    "reportRounds": 2,
+    "reader": "native HTTP on loopback; cookie-authenticated; complete response consumed",
+    "clock": "real monotonic performance.now",
+    "warmup": "5 sequential per list workload; 2 full reports",
+    "thresholds": {
+      "readP95Ms": 2000,
+      "ordinaryWriteP95Ms": 3000
+    },
+    "background": "repair periodic scan 24h; initial empty scan complete; all other owner jobs unchanged"
+  },
+  "seed": {
+    "rows": 100000,
+    "ms": 22792.642801,
+    "groups": 10,
+    "requesters": 2,
+    "distribution": "status and group independent; five categories; two requesters balanced;10% each triage/supplement/pool/assigned/processing/waiting/acceptance/cancelled;20%closed; priority modulo4; dates90days;10%long descriptions; leader sees5groups/50000records; requester sees50000records"
+  },
+  "postgres": {
+    "version": "PostgreSQL 15.10 (Debian 15.10-0+deb12u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit",
+    "shared_buffers": "256MB",
+    "max_connections": "120"
+  },
+  "workloads": {
+    "list": {
+      "count": 200,
+      "min": 750.120809,
+      "mean": 1815.5748013099987,
+      "p50": 1779.3664879999997,
+      "p95": 2256.2913409999965,
+      "max": 2474.172397000002,
+      "concurrency": 50,
+      "errors": [],
+      "wallMs": 7775.763865000001,
+      "thresholdMs": 2000,
+      "pass": false
+    },
+    "filtered": {
+      "count": 200,
+      "min": 917.4422340000019,
+      "mean": 1111.546940389999,
+      "p50": 1087.071130000004,
+      "p95": 1262.5795549999966,
+      "max": 1302.8782100000026,
+      "concurrency": 50,
+      "errors": [],
+      "wallMs": 4573.044206999999,
+      "thresholdMs": 2000,
+      "pass": true
+    },
+    "deepPage": {
+      "count": 200,
+      "min": 1610.1824400000041,
+      "mean": 2530.520746895,
+      "p50": 2490.28755600001,
+      "p95": 3000.7897599999997,
+      "max": 3464.2910030000057,
+      "concurrency": 50,
+      "errors": [],
+      "wallMs": 11077.154599000001,
+      "thresholdMs": 2000,
+      "pass": false
+    },
+    "reports38": {
+      "count": 100,
+      "min": 1779.9406619999936,
+      "mean": 6204.319669600003,
+      "p50": 7495.5265770000115,
+      "p95": 7861.705593999999,
+      "max": 8618.193071000002,
+      "concurrency": 50,
+      "errors": [],
+      "wallMs": 15509.871344,
+      "thresholdMs": 2000,
+      "pass": false
+    },
+    "writeSerial": {
+      "count": 50,
+      "min": 115.5489060000109,
+      "mean": 153.41477233999933,
+      "p50": 152.5572159999865,
+      "p95": 164.6494899999816,
+      "max": 197.66757799999323,
+      "concurrency": 1,
+      "errors": [],
+      "wallMs": 7670.8360089999915,
+      "thresholdMs": 3000,
+      "pass": true
+    },
+    "writeSameAccount": {
+      "count": 50,
+      "min": 603.4363010000088,
+      "mean": 2813.394361300003,
+      "p50": 2750.502188000013,
+      "p95": 4873.5354410000145,
+      "max": 5112.876477999991,
+      "concurrency": 50,
+      "errors": [],
+      "wallMs": 5117.430687000015,
+      "thresholdMs": 3000,
+      "pass": false
+    }
+  },
+  "plans": {
+    "count": 12,
+    "file": "plans.json"
+  },
+  "csv": {
+    "bytes": 12029617,
+    "ms": 24888.322266000003,
+    "before": {
+      "rss": 1311961088,
+      "heapTotal": 1141534720,
+      "heapUsed": 1051043216,
+      "external": 46448574,
+      "arrayBuffers": 12781512
+    },
+    "after": {
+      "rss": 1352400896,
+      "heapTotal": 1175724032,
+      "heapUsed": 1080396632,
+      "external": 46646824,
+      "arrayBuffers": 12979722
+    },
+    "peakRss": 1352400896,
+    "reader": "streaming HTTP reader discards chunks; no server bridge buffering"
+  },
+  "clientCsv": {
+    "blob": {
+      "size": 12029617,
+      "type": "text/csv; charset=utf-8"
+    },
+    "before": [
+      {
+        "name": "JSHeapUsedSize",
+        "value": 890220
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 1572864
+      }
+    ],
+    "after": [
+      {
+        "name": "JSHeapUsedSize",
+        "value": 1061004
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 1572864
+      }
+    ],
+    "limitation": "Blob bytes retained separately from JS heap; peak browser RSS not inferred from JS heap"
+  }
+}

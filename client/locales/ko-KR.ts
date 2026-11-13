@@ -1,3 +1,4 @@
+import itRepairLocale from './modules/it-repairs.en-US.js';
 import fileUi from '../extensions/nocobase-file-component-ui/locales/en-US.js';
 import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/en-US.js';
 import agentChatLocale from '../extensions/nocobase-agent-chat/locales/en-US.js';
@@ -87,6 +88,7 @@ import approvalsEnUS from './modules/approvals.ko-KR.js';
 import system from './system/ko-KR.js';
 
 const koKR: AppResource = {
+  ...itRepairLocale,
   ...agentChatLocale,
   approvalAi: {
     ...approvalAiLocale.approvalAi,

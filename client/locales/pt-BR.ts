@@ -1,3 +1,4 @@
+import itRepairLocale from './modules/it-repairs.en-US.js';
 import fileUi from '../extensions/nocobase-file-component-ui/locales/pt-BR.js';
 import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/pt-BR.js';
 import agentChatLocale from '../extensions/nocobase-agent-chat/locales/en-US.js';
@@ -86,6 +87,7 @@ import approvalsEnUS from './modules/approvals.pt-BR.js';
 import system from './system/pt-BR.js';
 
 const ptBR: AppResource = {
+  ...itRepairLocale,
   ...agentChatLocale,
   approvalAi: {
     ...approvalAiLocale.approvalAi,

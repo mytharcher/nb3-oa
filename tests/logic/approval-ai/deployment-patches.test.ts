@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import {
+  cp,
   mkdir,
   mkdtemp,
   readFile,
@@ -13,15 +14,19 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { expect, it } from 'vitest';
 
-it('builds an independent deployment using released approval APIs without local patches', async () => {
+it('builds an independent deployment with native approval APIs and portable repair patches', async () => {
   const cliRoot = path.dirname(
     createRequire(import.meta.url).resolve('@nocobase/app-cli/package.json'),
   );
   const yaml = createRequire(path.join(cliRoot, 'package.json'))('yaml') as {
-    parse(text: string): { patchedDependencies?: unknown };
+    parse(text: string): { patchedDependencies?: Record<string, string> };
   };
   const workspace = yaml.parse(await readFile('pnpm-workspace.yaml', 'utf8'));
-  expect(workspace.patchedDependencies).toBeUndefined();
+  const patches = workspace.patchedDependencies!;
+  expect(Object.keys(patches)).not.toContain(
+    '@nocobase/app-plugin-approval@1.0.0-beta.11',
+  );
+  expect(patches).toHaveProperty('@nocobase/db@1.0.0-beta.25');
   const assistant =
     await import('@nocobase/app-plugin-approval/server/assistant');
   expect(assistant.approvalSuggestionsToken).toBeDefined();
@@ -35,7 +40,12 @@ it('builds an independent deployment using released approval APIs without local 
       path.join(root, 'node_modules'),
       'dir',
     );
-    await writeFile(path.join(root, 'pnpm-workspace.yaml'), 'packages: []\n');
+    // The fixture is an independent application, not a workspace of neighbouring patch extracts.
+    await writeFile(
+      path.join(root, 'pnpm-workspace.yaml'),
+      'packages: []\n' + (await readFile('pnpm-workspace.yaml', 'utf8')),
+    );
+    await cp('patches', path.join(root, 'patches'), { recursive: true });
     await writeFile(
       path.join(root, 'package.json'),
       JSON.stringify({
@@ -71,7 +81,12 @@ it('builds an independent deployment using released approval APIs without local 
     const deployedWorkspace = yaml.parse(
       await readFile(path.join(root, 'dist/pnpm-workspace.yaml'), 'utf8'),
     );
-    expect(deployedWorkspace.patchedDependencies).toBeUndefined();
+    expect(deployedWorkspace.patchedDependencies).toEqual(patches);
+    for (const file of Object.values(patches)) {
+      expect(await readFile(path.join(root, 'dist', file), 'utf8')).toBe(
+        await readFile(file, 'utf8'),
+      );
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -84,6 +84,7 @@ function fixture(kind = 'oa.leave', userId = 'reviewer') {
   );
   return {
     service,
+    sdk,
     suggestions,
     task,
     row,
@@ -100,8 +101,11 @@ function fixture(kind = 'oa.leave', userId = 'reviewer') {
 beforeEach(() => vi.clearAllMocks());
 describe('native suggestions across OA approval owners', () => {
   it('supports every registered business without a contract-only recipe', async () => {
-    expect(processOwners).toHaveLength(26);
-    for (const owner of processOwners) {
+    const approvalOwners = processOwners.filter(
+      (owner) => owner.kind !== 'oa.itRepair',
+    );
+    expect(approvalOwners).toHaveLength(26);
+    for (const owner of approvalOwners) {
       const f = fixture(owner.kind);
       const result = await f.service.reviews(
         owner.kind,
@@ -133,6 +137,25 @@ describe('native suggestions across OA approval owners', () => {
       );
       expect(f.suggestions.generate).not.toHaveBeenCalled();
     }
+  });
+  it('rejects lifecycle-only repair owners without reading or generating approval suggestions', async () => {
+    const f = fixture('oa.itRepair');
+    f.sdk.approvals = null as never;
+    await expect(
+      f.service.reviews('oa.itRepair', 'record', 'reviewer', String),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(
+      f.service.generate(
+        f.target,
+        'task',
+        'reviewer',
+        { requestKey: 'operation' },
+        String,
+      ),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(bindings).not.toHaveBeenCalled();
+    expect(f.suggestions.status).not.toHaveBeenCalled();
+    expect(f.suggestions.generate).not.toHaveBeenCalled();
   });
   it('denies action permission and record/field restrictions before calling the plugin', async () => {
     for (const mode of ['permission', 'record', 'field']) {

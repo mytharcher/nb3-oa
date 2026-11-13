@@ -1,0 +1,148 @@
+import path from 'node:path';
+// A second native application process; only its parent's isolated config path is accepted.
+import { createInterface } from 'node:readline';
+import { createStandaloneServer } from '../../../server/standalone.js';
+import { pathToFileURL } from 'node:url';
+import { inAppNotificationStoreToken } from '@nocobase/app-plugin-notification-in-app/server';
+import { jobExecutorServiceToken } from '@nocobase/app-server/jobs';
+import { repairServiceToken } from '../../../server/providers/it-repairs/service.js';
+const configPath = process.env.OA_OPS_CONFIG;
+if (!configPath || !configPath.startsWith(process.env.TMPDIR!))
+  throw Error('isolated config required');
+const factory = process.env.OA_OPS_SERVER
+  ? ((await import(pathToFileURL(process.env.OA_OPS_SERVER).href))
+      .createStandaloneServer as typeof createStandaloneServer)
+  : createStandaloneServer;
+const app = await factory({
+  configPath,
+  env: {
+    APP_STORAGE_DIR: process.env.OA_OPS_STORAGE,
+    ...(process.env.IT_REPAIR_MODE
+      ? { IT_REPAIR_MODE: process.env.IT_REPAIR_MODE }
+      : {}),
+  },
+  viteDevUrl: false,
+});
+// A built artifact has its own dependency graph; resolve its public tokens there.
+const built = process.env.OA_OPS_SERVER?.includes('/dist/');
+const jobToken: typeof jobExecutorServiceToken = built
+  ? (
+      await import(
+        import.meta.resolve(
+          '@nocobase/app-server/jobs',
+          pathToFileURL(process.env.OA_OPS_SERVER!).href,
+        )
+      )
+    ).jobExecutorServiceToken
+  : jobExecutorServiceToken;
+const repairToken: typeof repairServiceToken = built
+  ? (
+      await import(
+        pathToFileURL(
+          path.join(
+            path.dirname(process.env.OA_OPS_SERVER!),
+            'providers/it-repairs/service.js',
+          ),
+        ).href
+      )
+    ).repairServiceToken
+  : repairServiceToken;
+const inboxToken: typeof inAppNotificationStoreToken = built
+  ? (
+      await import(
+        import.meta.resolve(
+          '@nocobase/app-plugin-notification-in-app/server',
+          pathToFileURL(process.env.OA_OPS_SERVER!).href,
+        )
+      )
+    ).inAppNotificationStoreToken
+  : inAppNotificationStoreToken;
+const events: { name: string; jobId: string }[] = [];
+app.application.container
+  .resolve(jobToken)
+  .getScheduleExecutor('oa-it-repair-timers')
+  .subscribe(async (event) => {
+    if (event.name === 'ScheduleEnd')
+      events.push({ name: event.name, jobId: event.jobId });
+  });
+process.stdout.write('CAPACITY_WORKER_READY\n');
+const input = createInterface({ input: process.stdin });
+for await (const line of input) {
+  const { id, operation, recordId, cookie, recipientId } = JSON.parse(line) as {
+    id: string;
+    operation: string;
+    recordId?: string;
+    cookie?: string;
+    recipientId?: string;
+  };
+  if (operation === 'close') break;
+  try {
+    if (operation === 'effects') {
+      const runs = await app.application.container
+        .resolve(repairToken)
+        .runtime.listEffectRuns({ recordId: recordId! });
+      const receiptIds = (
+        await app.application.container
+          .resolve(inboxToken)
+          .list({ userId: recipientId!, limit: 100 })
+      )
+        .map((m) => m.id)
+        .sort();
+      const result = { runs, receiptIds };
+      process.stdout.write(
+        'CAPACITY_WORKER_RESULT ' + JSON.stringify({ id, result }) + '\n',
+      );
+      continue;
+    }
+    if (operation === 'events') {
+      process.stdout.write(
+        'CAPACITY_WORKER_RESULT ' +
+          JSON.stringify({ id, result: events }) +
+          '\n',
+      );
+      continue;
+    }
+    if (
+      operation === 'read' ||
+      operation === 'oldRead' ||
+      operation === 'writeProbe'
+    ) {
+      const response = await app.fetch(
+        new Request(
+          `http://127.0.0.1:13000${app.application.publicBasePath}/api/itRepairs/${recordId}${operation === 'writeProbe' ? '/actions' : ''}`,
+          {
+            method: operation === 'writeProbe' ? 'POST' : 'GET',
+            headers: {
+              cookie: cookie!,
+              origin: 'http://127.0.0.1:13000',
+              'content-type': 'application/json',
+            },
+            ...(operation === 'writeProbe' ? { body: '{}' } : {}),
+          },
+        ),
+      );
+      process.stdout.write(
+        'CAPACITY_WORKER_RESULT ' +
+          JSON.stringify({
+            id,
+            result: { status: response.status, body: await response.json() },
+          }) +
+          '\n',
+      );
+      continue;
+    }
+    const result = await app.application.container
+      .resolve(repairToken)
+      .tick(100);
+    process.stdout.write(
+      'CAPACITY_WORKER_RESULT ' + JSON.stringify({ id, result }) + '\n',
+    );
+  } catch (error) {
+    process.stdout.write(
+      'CAPACITY_WORKER_RESULT ' +
+        JSON.stringify({ id, error: String(error) }) +
+        '\n',
+    );
+  }
+}
+await app.close();

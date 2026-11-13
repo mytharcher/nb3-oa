@@ -122,7 +122,10 @@ export async function retireOwnedProcesses(
     if (!row) continue;
     const sdk = await owner.sdk(app);
     const open = (
-      await sdk.read(() => sdk.approvals.runsFor(owner.kind, record.id))
+      await sdk.read(
+        () =>
+          sdk.approvals?.runsFor(owner.kind, record.id) ?? Promise.resolve([]),
+      )
     ).some(isOpenRun);
     if (!open) continue;
     if (owner.kind === 'oa.outing') {
@@ -157,8 +160,9 @@ export async function retireOwnedProcesses(
         { cause: error },
       );
     }
-    const remaining = await sdk.read(() =>
-      sdk.approvals.runsFor(owner.kind, record.id),
+    const remaining = await sdk.read(
+      () =>
+        sdk.approvals?.runsFor(owner.kind, record.id) ?? Promise.resolve([]),
     );
     if (remaining.some(isOpenRun)) throw new Error('DEMO_PROCESS_STILL_ACTIVE');
   }

@@ -419,6 +419,7 @@ export default {
     covered: '覆蓋欄位',
     management: '管理員干預',
     kinds: {
+      itRepair: 'IT repair',
       leave: '請假',
       overtime: '加班申請',
       leaveCancellation: '銷假申請',

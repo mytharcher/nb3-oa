@@ -1,3 +1,4 @@
+import itRepairLocale from './modules/it-repairs.en-US.js';
 import fileUi from '../extensions/nocobase-file-component-ui/locales/zh-TW.js';
 import approvalReviewLocale from '../extensions/nocobase-approval-review/locales/zh-TW.js';
 import agentChatLocale from '../extensions/nocobase-agent-chat/locales/zh-CN.js';
@@ -86,6 +87,7 @@ import approvalsZhTW from './modules/approvals.zh-TW.js';
 import system from './system/zh-TW.js';
 
 const zhTW: AppResource = {
+  ...itRepairLocale,
   ...agentChatLocale,
   approvalAi: {
     ...approvalAiLocale.approvalAi,

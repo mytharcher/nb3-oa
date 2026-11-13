@@ -1,0 +1,51 @@
+diff --git a/dist/tools/scripts/utils/build-server-dist-package.mjs b/dist/tools/scripts/utils/build-server-dist-package.mjs
+index 66863286d9ab9944de3e6b675e1848bde7b167a6..0945b2355bcab0ec4bd21656b94eeebcefde8ac9 100644
+--- a/dist/tools/scripts/utils/build-server-dist-package.mjs
++++ b/dist/tools/scripts/utils/build-server-dist-package.mjs
+@@ -15,6 +15,7 @@
+ // developed in this repository deploys the same way as one installed from a registry.
+ import fs from 'node:fs';
+ import path from 'node:path';
++import { parse, stringify } from 'yaml';
+ 
+ import { listWorkspacePackages } from './workspace-packages.mjs';
+ 
+@@ -150,6 +151,30 @@ const copyWorkspacePackage = (packageName, packageDir) => {
+  * `node-gyp rebuild` would compile nothing yet fail on a server image without `make`. The entries mirror the
+  * application's own `pnpm-workspace.yaml` so both decide the same packages the same way.
+  */
++// Keep reviewed runtime extensions in the independent install, with no source-workspace dependency.
++const copyRuntimePatches = () => {
++  const file = path.join(rootDir, 'pnpm-workspace.yaml');
++  if (!fs.existsSync(file)) return {};
++  const patches = parse(fs.readFileSync(file, 'utf8'))?.patchedDependencies ?? {};
++  const retained = {};
++  for (const [key, source] of Object.entries(patches)) {
++    const separator = key.lastIndexOf('@');
++    const name = key.slice(0, separator);
++    const version = key.slice(separator + 1);
++    if (dependencies[name] !== version) continue;
++    const sourceFile = path.resolve(rootDir, source);
++    const relative = path.relative(rootDir, sourceFile);
++    if (relative.startsWith('..') || path.isAbsolute(relative)) {
++      throw new Error(`Runtime patch must be inside the application: ${key}`);
++    }
++    const target = path.join('patches', path.basename(sourceFile));
++    fs.mkdirSync(path.join(distDir, 'patches'), { recursive: true });
++    fs.copyFileSync(sourceFile, path.join(distDir, target));
++    retained[key] = toPosix(target);
++  }
++  return retained;
++};
++
+ const writeDistWorkspace = () => {
+   fs.writeFileSync(
+     distWorkspacePath,
+@@ -190,6 +215,7 @@ const writeDistWorkspace = () => {
+       'ignoredOptionalDependencies:',
+       '  - msgpackr-extract',
+       '',
++      stringify({ patchedDependencies: copyRuntimePatches() }),
+     ].join('\n'),
+   );
+ };

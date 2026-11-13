@@ -1,0 +1,9 @@
+{
+  "sourceBase": "bb11e5bf7ee47c887dcabedf3e892f35ac881fad",
+  "source": "permission batching patches and five-record recovery working tree",
+  "archive": "storage/exports/dist.tar.gz",
+  "bytes": 50456128,
+  "sha256": "255243c0f80f89bb5b295ea4104302e0ef8b502ee258be06c8a00577c4b462bd",
+  "mode": "compiled dist/server/standalone.js with IT_REPAIR_MODE=readOnly; migrations and permission guards retained",
+  "production": false
+}

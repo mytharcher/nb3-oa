@@ -28,6 +28,7 @@ import database from './database.js';
 import snowflake from './snowflake.js';
 import users from './users.js';
 import oaApprovals from './oa-approvals.js';
+import itRepairs from './it-repairs.js';
 import mailers from './mailers.js';
 import mail from './mail.js';
 import concurrency from './concurrency.js';
@@ -60,6 +61,7 @@ const defaultConfigs: AppConfigFactory<{
   snowflake: ReturnType<typeof snowflake>;
   users: ReturnType<typeof users>;
   oaApprovals: ReturnType<typeof oaApprovals>;
+  itRepairs: ReturnType<typeof itRepairs>;
   mailers: ReturnType<typeof mailers>;
   mail: ReturnType<typeof mail>;
   concurrency: ReturnType<typeof concurrency>;
@@ -96,6 +98,7 @@ const defaultConfigs: AppConfigFactory<{
   snowflake,
   users,
   oaApprovals,
+  itRepairs,
   mailers,
   mail,
   concurrency,

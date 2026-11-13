@@ -435,6 +435,7 @@ export default {
     covered: '대상 필드',
     management: '관리자 개입',
     kinds: {
+      itRepair: 'IT repair',
       leave: '휴가',
       overtime: '초과 근무',
       leaveCancellation: '휴가 취소',

@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-30",
+  "base": "f938c3a44733",
+  "capacityMeasurement": {
+    "status": "completed",
+    "vitestFiles": 1,
+    "vitestCases": 1,
+    "seconds": 152.15,
+    "gate": "failed; see capacity.json pass flags"
+  },
+  "configuration100": {
+    "status": "passed",
+    "refreshed": 100,
+    "differentActorBlockedWrite": "200 after real PG Lock wait"
+  },
+  "nativeNotificationRetry": {
+    "status": "passed",
+    "cases": 1,
+    "name": "R4 accepted-send interruption, retry and old-assignee403"
+  },
+  "additionalPolicyProbes": {
+    "status": "passed",
+    "cases": 2,
+    "fieldDenialCode": "FIELD_READ_FORBIDDEN",
+    "historicalStartupTimeout": "retained; no timeout extension"
+  },
+  "multiInstance": {
+    "status": "checkpoint verified",
+    "osProcesses": 2,
+    "sharedScheduleFirings": 1,
+    "uniqueAlertEvents": 6,
+    "compoundVitestCase": "failed later during manifest-only old code startup"
+  },
+  "migrationRehearsal": {
+    "status": "failed",
+    "reason": "residual submittedAt/id index after down",
+    "subsequentUp": "not executed"
+  },
+  "codeRollback": {
+    "raw": "failed at migration history validation",
+    "manifestOnly": "failed at stored action validation"
+  },
+  "static": {
+    "fixtureTypeScript": "passed",
+    "sixChangedTsFilesESLint": "passed; zero warnings",
+    "formatAndDocumentLinks": "checked before commit"
+  },
+  "production": "not merged or deployed; safety transfer defaults off",
+  "additionalPlans": {
+    "status": "passed",
+    "rows": 100000,
+    "plans": 15,
+    "seconds": 43.43,
+    "replacesCapacitySamples": false
+  }
+}

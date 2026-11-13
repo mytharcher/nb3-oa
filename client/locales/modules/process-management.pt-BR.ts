@@ -475,6 +475,7 @@ export default {
     covered: 'Campos abrangidos',
     management: 'Intervenção administrativa',
     kinds: {
+      itRepair: 'IT repair',
       leave: 'Licença',
       overtime: 'Horas extras',
       leaveCancellation: 'Cancelamento de licença',

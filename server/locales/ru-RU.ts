@@ -1,3 +1,4 @@
+import itRepairLocale from '../../client/locales/modules/it-repairs.en-US.js';
 // Approval AI currently has English and Simplified Chinese copy; preserve existing translations below.
 import approvalAiLocale from '../../client/locales/modules/approval-ai.en-US.js';
 import reportExportsLocale from './modules/report-exports.ru-RU.js';
@@ -41,6 +42,7 @@ import annualLeave from './modules/annual-leave.ru-RU.js';
 // plugin's namespace; add keys here as the application starts producing its own, and use `overrides` to reword a
 // plugin's.
 const ruRU: AppServerResource = {
+  ...itRepairLocale,
   ...approvalAiLocale,
   overrides: plugins,
   ...reportExportsLocale,

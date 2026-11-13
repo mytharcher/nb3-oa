@@ -1,0 +1,6 @@
+{
+  "sizeMiB": 20,
+  "totalMs": 386,
+  "lockAcquisitionMs": [5.4, 76.8, 3.4],
+  "controlledStorageHoldMs": 50
+}

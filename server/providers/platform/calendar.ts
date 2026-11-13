@@ -1,3 +1,7 @@
+import {
+  captureCalendarSnapshot,
+  type CalendarSnapshot,
+} from './frozen-calendar.js';
 /**
  * The work calendar (01 §6): explicit days in `calendarDays`, the working window in rule `calendar.workHours`
  * (versioned, so a future change of hours applies to the dates it covers) and the time zone in rule
@@ -70,6 +74,12 @@ export interface CalendarImportResult {
 }
 
 export interface CalendarService {
+  /** Frozen, split windows and date exceptions from the caller's consistent transaction. */
+  captureSnapshot(
+    connection: DatabaseConnection,
+    at: Date,
+    windows: WorkHours[],
+  ): Promise<CalendarSnapshot>;
   // Synchronous, in-memory computations — safe inside any transaction.
   /** The calendar's IANA time zone. */
   timeZone(): string;
@@ -271,6 +281,13 @@ export function createCalendarService(
   }
 
   const service: CalendarService = {
+    captureSnapshot: async (connection, at, windows) =>
+      captureCalendarSnapshot(
+        connection,
+        at,
+        await rules.get<string>('calendar.timeZone', at, connection),
+        windows,
+      ),
     timeZone: () => calendar.timeZone,
     localDate: (instant) => calendar.localDate(instant),
     resolveLocalDateTime: (date, time) =>

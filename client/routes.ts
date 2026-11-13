@@ -1,3 +1,4 @@
+import repairRoutes from './route-modules/it-repairs.js';
 import approvalAiRoutes from './route-modules/approval-ai.js';
 import { externalIntegrationsEnabled } from '../shared/external-integrations.js';
 import wecomAttendanceRoutes from './route-modules/wecom-attendance.js';
@@ -135,6 +136,24 @@ const appRoutes: AppClientRouteContribution = defineAppRoutes([
     // Approval records open over the workbench; these children retain the approval center's page grant.
     children: [
       ...[
+        {
+          name: 'home-it-repair-new',
+          path: 'newItRepair',
+          authz: {
+            resource: { type: 'composite', id: 'oa.itRepairs' },
+            action: 'create',
+          },
+          componentLoader: () => import('./pages/it-repairs/detail.js'),
+        },
+        {
+          name: 'home-it-repair-detail',
+          path: 'itRepair/:repairId',
+          authz: {
+            resource: { type: 'composite', id: 'oa.itRepairs' },
+            action: 'view',
+          },
+          componentLoader: () => import('./pages/it-repairs/detail.js'),
+        },
         ...nonApprovalViewChildren('home'),
         {
           name: 'home-meeting-booking',
@@ -180,6 +199,8 @@ const appRoutes: AppClientRouteContribution = defineAppRoutes([
             'home-meeting-booking',
             'home-announcement',
             'home-work-item',
+            'home-it-repair-new',
+            'home-it-repair-detail',
           ].includes(route.name)
         )
           return route;
@@ -456,6 +477,7 @@ const routes: readonly AppClientRouteContribution[] = [
   sealsRoutes,
   announcementsRoutes,
   workItemsRoutes,
+  repairRoutes,
   taskCenterRoutes,
   personalSchedulesRoutes,
   knowledgeRoutes,

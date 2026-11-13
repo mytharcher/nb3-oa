@@ -1,3 +1,4 @@
+import repairRoutes from './it-repairs/index.js';
 import approvalAiRoutes from './approval-ai/index.js';
 import { externalIntegrationsEnabled } from '../../shared/external-integrations.js';
 import invoiceRecognitionRoutes from './invoice-recognition/index.js';
@@ -121,6 +122,7 @@ const routes: readonly AppRouteContribution<Application>[] = [
   ...leaveRoutes,
   ...cancellationRoutes,
   ...overtimeRoutes,
+  ...repairRoutes,
   ...generalRoutes,
   ...budgetAdjustmentRoutes,
   ...expensePlanRoutes,

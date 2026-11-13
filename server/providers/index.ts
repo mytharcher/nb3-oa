@@ -1,3 +1,4 @@
+import RepairProvider from './it-repairs/index.js';
 import ApprovalAiProvider from './approval-ai/index.js';
 import SubmissionProvider from './submission.js';
 import NotificationManagementProvider from './notification-management.js';
@@ -149,6 +150,7 @@ const serviceProviders: readonly ApplicationServiceProviderConstructor[] = [
   ProcessManagementProvider,
   ApprovalQueryProvider,
   TaskCenterProvider,
+  RepairProvider,
   DemoDataProvider,
 ];
 

@@ -470,6 +470,7 @@ export default {
     covered: 'Bidang dicakup',
     management: 'Intervensi administrator',
     kinds: {
+      itRepair: 'IT repair',
       leave: 'Cuti',
       overtime: 'Lembur',
       leaveCancellation: 'Pembatalan cuti',

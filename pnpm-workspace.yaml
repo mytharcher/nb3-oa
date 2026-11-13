@@ -82,3 +82,9 @@ minimumReleaseAgeExclude:
 overrides:
   '@tiptap/extension-bubble-menu': 3.30.2
   '@tiptap/extension-floating-menu': 3.30.2
+
+patchedDependencies:
+  '@nocobase/app-cli@1.0.0-beta.32': patches/@nocobase__app-cli@1.0.0-beta.32.patch
+  '@nocobase/app-plugin-authentication@2.0.0-beta.19': patches/@nocobase__app-plugin-authentication@2.0.0-beta.19.patch
+  '@nocobase/app-plugin-authorization@1.0.0-beta.36': patches/@nocobase__app-plugin-authorization@1.0.0-beta.36.patch
+  '@nocobase/db@1.0.0-beta.25': patches/@nocobase__db@1.0.0-beta.25.patch

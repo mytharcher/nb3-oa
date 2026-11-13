@@ -54,6 +54,8 @@ interface UserPickerBaseProps {
   readonly excludeIds?: readonly string[];
   /** Include disabled accounts in the results. Defaults to `false`. */
   readonly includeDisabled?: boolean;
+  /** Business-owned identity search with its own authorization; defaults to user administration. */
+  readonly searchPath?: string;
 }
 
 export interface UserPickerProps extends UserPickerBaseProps {
@@ -95,6 +97,7 @@ interface SearchResult {
 function useUserSearch(
   query: string,
   includeDisabled: boolean,
+  searchPath: string,
 ): {
   readonly users: UserOption[];
   readonly loading: boolean;
@@ -114,17 +117,23 @@ function useUserSearch(
     return () => window.clearTimeout(timer);
   }, [query]);
 
-  const key = JSON.stringify([debounced, includeDisabled, reloadCount]);
+  const key = JSON.stringify([
+    debounced,
+    includeDisabled,
+    reloadCount,
+    searchPath,
+  ]);
   useEffect(() => {
     const controller = new AbortController();
     const requestKey = JSON.stringify([
       debounced,
       includeDisabled,
       reloadCount,
+      searchPath,
     ]);
     api
       .request<ManagedUserPage>({
-        path: 'users',
+        path: searchPath,
         query: {
           q: debounced || undefined,
           pageSize: SEARCH_PAGE_SIZE,
@@ -152,7 +161,7 @@ function useUserSearch(
         },
       );
     return () => controller.abort();
-  }, [api, debounced, includeDisabled, reloadCount]);
+  }, [api, debounced, includeDisabled, reloadCount, searchPath]);
 
   const loading = result?.key !== key || query.trim() !== debounced;
   return {
@@ -288,10 +297,11 @@ export function UserPicker({
   knownUsers,
   excludeIds,
   includeDisabled = false,
+  searchPath = 'users',
 }: UserPickerProps): ReactElement {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
-  const search = useUserSearch(query, includeDisabled);
+  const search = useUserSearch(query, includeDisabled, searchPath);
   const { resolve, remember } = useUserDirectory(knownUsers, search.users);
   const selected = value ? resolve(value) : null;
   const items = useMemo(() => {
@@ -369,11 +379,12 @@ export function UserMultiPicker({
   knownUsers,
   excludeIds,
   includeDisabled = false,
+  searchPath = 'users',
 }: UserMultiPickerProps): ReactElement {
   const { t } = useTranslation();
   const anchor = useComboboxAnchor();
   const [query, setQuery] = useState('');
-  const search = useUserSearch(query, includeDisabled);
+  const search = useUserSearch(query, includeDisabled, searchPath);
   const { resolve, remember } = useUserDirectory(knownUsers, search.users);
   const selected = useMemo(() => value.map(resolve), [value, resolve]);
   const items = useMemo(() => {

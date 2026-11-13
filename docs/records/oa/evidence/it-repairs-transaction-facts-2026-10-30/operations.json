@@ -1,0 +1,156 @@
+{
+  "date": "2026-10-30T04:12:43.470Z",
+  "processes": 2,
+  "sharedScheduleFiring": [
+    {
+      "name": "ScheduleEnd",
+      "jobId": "repeat:deadlines:1793333531464"
+    }
+  ],
+  "codeRollback": {
+    "from": "f938c3a44733",
+    "to": "compiled dist/server/standalone.js in readOnly mode",
+    "status": 200,
+    "oldItRead": 403,
+    "stoppedActiveNodes": true,
+    "numberPreserved": true,
+    "structure": "retained current security contracts, immutable migrations and permission registry; writes and tick rejected in readOnly; raw old artifact rejected"
+  },
+  "pendingEffect": {
+    "before": {
+      "id": "3",
+      "transitionId": "4",
+      "lifecycle": "oa.itRepair",
+      "recordId": "2d9727be-90a5-4593-a713-2dc8891a67e4",
+      "effect": "oa.itRepair.updated",
+      "stayBound": false,
+      "status": "queued",
+      "attempts": 1,
+      "maxAttempts": 8,
+      "result": null,
+      "error": "Controlled stop before notification delivery",
+      "createdAt": "2026-10-30T04:12:23.704Z",
+      "updatedAt": "2026-10-30T04:12:23.790Z",
+      "claimedAt": null,
+      "runAfter": "2026-10-30T04:11:23.811Z",
+      "continuation": null,
+      "registered": true
+    },
+    "readOnly": {
+      "id": "3",
+      "transitionId": "4",
+      "lifecycle": "oa.itRepair",
+      "recordId": "2d9727be-90a5-4593-a713-2dc8891a67e4",
+      "effect": "oa.itRepair.updated",
+      "stayBound": false,
+      "status": "queued",
+      "attempts": 1,
+      "maxAttempts": 8,
+      "result": null,
+      "error": "Controlled stop before notification delivery",
+      "createdAt": "2026-10-30T04:12:23.704Z",
+      "updatedAt": "2026-10-30T04:12:23.790Z",
+      "claimedAt": null,
+      "runAfter": "2026-10-30T04:11:23.811Z",
+      "continuation": null,
+      "registered": true
+    },
+    "recovered": {
+      "id": "3",
+      "transitionId": "4",
+      "lifecycle": "oa.itRepair",
+      "recordId": "2d9727be-90a5-4593-a713-2dc8891a67e4",
+      "effect": "oa.itRepair.updated",
+      "stayBound": false,
+      "status": "succeeded",
+      "attempts": 2,
+      "maxAttempts": 8,
+      "result": null,
+      "error": null,
+      "createdAt": "2026-10-30T04:12:23.704Z",
+      "updatedAt": "2026-10-30T04:12:36.555Z",
+      "claimedAt": null,
+      "runAfter": "2026-10-30T04:11:23.811Z",
+      "continuation": null,
+      "registered": true
+    },
+    "replayUnchanged": true,
+    "receiptCounts": {
+      "before": 2,
+      "readOnly": 2,
+      "recovered": 3
+    }
+  },
+  "database": "shared isolated PG schema",
+  "jobs": "shared Redis7 AOF/noeviction;3attempts",
+  "runs": [
+    [
+      {
+        "status": "fulfilled",
+        "value": {
+          "scanned": 1,
+          "eligibilityScanned": 0,
+          "changed": 1,
+          "references": 0
+        }
+      },
+      {
+        "status": "fulfilled",
+        "value": {
+          "id": "f068ff96-5c32-41a2-9277-8799efd85d30",
+          "result": {
+            "scanned": 1,
+            "eligibilityScanned": 0,
+            "changed": 0,
+            "references": 0
+          }
+        }
+      }
+    ],
+    [
+      {
+        "status": "fulfilled",
+        "value": {
+          "scanned": 0,
+          "eligibilityScanned": 0,
+          "changed": 0,
+          "references": 0
+        }
+      },
+      {
+        "status": "fulfilled",
+        "value": {
+          "id": "71fba84b-5278-43f6-9742-45b3867308e5",
+          "result": {
+            "scanned": 0,
+            "eligibilityScanned": 0,
+            "changed": 0,
+            "references": 0
+          }
+        }
+      }
+    ]
+  ],
+  "alerts": [
+    "response80",
+    "responseOverdue",
+    "responseDaily:2026-10-30",
+    "resolution80",
+    "resolutionOverdue",
+    "resolutionDaily:2026-10-30"
+  ],
+  "alertEvents": 6,
+  "notifications": 2,
+  "effects": [
+    {
+      "status": "succeeded"
+    },
+    {
+      "status": "succeeded"
+    },
+    {
+      "status": "succeeded"
+    }
+  ],
+  "restart": "secondary OS application stopped and recreated; repeated sweep did not add alert events"
+}

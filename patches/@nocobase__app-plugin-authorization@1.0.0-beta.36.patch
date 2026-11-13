@@ -1,0 +1,29 @@
+diff --git a/dist/server/stores/permission-sets.js b/dist/server/stores/permission-sets.js
+index e6e1459f8d1a0a5a8fad6baee46fa8a2c367357c..c21225fcc4462f6683caa7bad99c063761374b03 100644
+--- a/dist/server/stores/permission-sets.js
++++ b/dist/server/stores/permission-sets.js
+@@ -54,12 +54,18 @@ export class DatabasePermissionSetStore {
+     async getMany(keys) {
+         if (keys.length === 0)
+             return [];
+-        const rows = await this.connection()
+-            .query.selectFrom('authorizationPermissionSets')
+-            .select(['key', 'title', 'grants', 'revision'])
+-            .where('key', 'in', [...new Set(keys)])
+-            .execute();
+-        return rows.map(permissionSetFromRow);
++        const unique = [...new Set(keys)];
++        const connection = this.connection();
++        const result = [];
++        // Bound parameters without truncation; the public resolver restores requested order.
++        for (let offset = 0; offset < unique.length; offset += 200) {
++            const rows = await connection.query.selectFrom('authorizationPermissionSets')
++                .select(['key', 'title', 'grants', 'revision'])
++                .where('key', 'in', unique.slice(offset, offset + 200))
++                .execute();
++            result.push(...rows.map(permissionSetFromRow));
++        }
++        return result;
+     }
+     async create(input) {
+         const now = new Date();
